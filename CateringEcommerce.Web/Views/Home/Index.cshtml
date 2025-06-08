@@ -1,974 +1,441 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿<body class="bg-amber-50">
+    <div id="root"></div>
 
-<body>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-    <div id="banner" class="banner full-screen-mode parallax">
-        <div class="container pr">
-            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                <div class="banner-static">
-                    <div class="banner-text">
-                        <div class="banner-cell">
-                            <h1>Dinner with us  <span class="typer" id="some-id" data-delay="200" data-delim=":" data-words="Friends:Family:Officemates" data-colors="red"></span><span class="cursor" data-cursorDisplay="_" data-owner="some-id"></span></h1>
-                            <h2>Accidental appearances </h2>
-                            <p>Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diem nonummy nibh euismod</p>
-                            <div class="book-btn">
-                                <a href="#reservation" class="table-btn hvr-underline-from-center">Book my Table</a>
+        // Mock Data (remains the same)
+        const cuisinesData = [
+            { id: 1, name: "Indian Delights", image: "https://placehold.co/300x200/FFEDD5/BE185D?text=Indian+Feast" },
+            { id: 2, name: "Italian Classics", image: "https://placehold.co/300x200/FEF3C7/BE185D?text=Italian+Pasta" },
+            { id: 3, name: "Continental Spread", image: "https://placehold.co/300x200/FFF7ED/BE185D?text=Continental+Buffet" },
+            { id: 4, name: "Party Platters", image: "https://placehold.co/300x200/FEF9C3/BE185D?text=Party+Snacks" },
+            { id: 5, name: "Asian Fusion", image: "https://placehold.co/300x200/FFF1F2/BE185D?text=Asian+Noodles" },
+            { id: 6, name: "BBQ & Grill", image: "https://placehold.co/300x200/FCE7F3/BE185D?text=Sizzling+BBQ" },
+        ];
+
+        const featuredCaterersData = [
+            { id: 1, name: "Gourmet Gatherings", image: "https://placehold.co/400x250/FEF3C7/86198F?text=Gourmet+Events", cuisines: "Italian, Continental", rating: 4.8, reviews: 120 },
+            { id: 2, name: "Spice Route Catering", image: "https://placehold.co/400x250/FFF7ED/86198F?text=Exotic+Spices", cuisines: "Indian, Asian", rating: 4.9, reviews: 250 },
+            { id: 3, name: "The Eventful Plate", image: "https://placehold.co/400x250/FFEDD5/86198F?text=Memorable+Plates", cuisines: "Party Platters, BBQ", rating: 4.7, reviews: 95 },
+        ];
+
+        const howItWorksStepsData = [
+            { id: 1, title: "Discover Caterers", description: "Find top-rated caterers near you for any occasion.", icon: "🔍" },
+            { id: 2, title: "Customize Menu", description: "Browse menus and tailor your order to perfection.", icon: "📝" },
+            { id: 3, title: "Easy Ordering", description: "Place your order online in just a few clicks.", icon: "💳" },
+            { id: 4, title: "Enjoy Your Feast", description: "Relax while delicious food is prepared and delivered.", icon: "🎉" },
+        ];
+
+        // AuthModal Component
+        function AuthModal({ isOpen, onClose, onSuccessfulAuth }) {
+            const [isLoginView, setIsLoginView] = useState(true);
+            const [phone, setPhone] = useState('');
+            const [email, setEmail] = useState('');
+            const [fullName, setFullName] = useState('');
+            const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+
+            if (!isOpen) return null;
+
+            const handleSwitchView = () => {
+                setIsLoginView(!isLoginView);
+                // Reset form fields on view switch
+                setPhone('');
+                setEmail('');
+                setFullName('');
+                setAgreedToTerms(false);
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                // Mock authentication
+                console.log(isLoginView ? "Logging in..." : "Signing up...", { phone, email, fullName });
+                onSuccessfulAuth(); // Simulate successful auth
+                onClose(); // Close modal
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <button onClick={onClose} className="absolute top-2 right-3 text-neutral-500 hover:text-neutral-800 text-2xl font-bold">&times;</button>
+
+                        <div className="text-center mb-4">
+                             <h2 className="text-2xl font-bold text-rose-600 mb-1">
+                                <span className="icon-placeholder text-3xl">🍽️</span> QuickFeast
+                            </h2>
+                            <p className="text-neutral-600 text-sm">Your next delicious meal is just a click away!</p>
+                        </div>
+
+                        {isLoginView ? (
+                            // Login View
+                            <div>
+                                <h3 className="text-xl font-semibold text-neutral-800 mb-4 text-center">Login</h3>
+                                <form onSubmit={handleSubmit}>
+                                    <div className="mb-4">
+                                        <div className="flex items-center border border-neutral-300 rounded-md overflow-hidden">
+                                            <span className="px-3 py-2 bg-neutral-100 text-neutral-600 text-sm">+91</span>
+                                            <input
+                                                type="tel"
+                                                placeholder="Phone"
+                                                value={phone}
+                                                onChange={(e) => setPhone(e.target.value)}
+                                                className="w-full px-3 py-2 focus:outline-none focus:ring-1 focus:ring-rose-500 sm:text-sm"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="w-full bg-rose-600 text-white py-2 px-4 rounded-md hover:bg-rose-700 transition-colors text-sm font-medium">
+                                        Send One Time Password
+                                    </button>
+                                    <div className="my-3 text-center text-neutral-500 text-xs">or</div>
+                                    <button type="button" onClick={() => console.log("Continue with Email")} className="w-full border border-neutral-300 text-neutral-700 py-2 px-4 rounded-md hover:bg-neutral-50 transition-colors text-sm flex items-center justify-center">
+                                        <span className="icon-placeholder mr-2">📧</span> Continue with Email
+                                    </button>
+                                     <button type="button" onClick={() => console.log("Sign in with Google")} className="w-full border border-neutral-300 text-neutral-700 py-2 px-4 rounded-md hover:bg-neutral-50 transition-colors text-sm flex items-center justify-center mt-2">
+                                        <img src="https://placehold.co/20x20/FFFFFF/000000?text=G" alt="Google" className="mr-2 h-5 w-5"/> Sign in with Google
+                                    </button>
+                                    <p className="mt-4 text-center text-xs text-neutral-600">
+                                        New to QuickFeast? <button type="button" onClick={handleSwitchView} className="text-rose-600 hover:underline font-medium">Create account</button>
+                                    </p>
+                                </form>
                             </div>
-                            <a href="#about">
-                                <div class="mouse"></div>
+                        ) : (
+                            // Sign Up View
+                            <div>
+                                <h3 className="text-xl font-semibold text-neutral-800 mb-4 text-center">Sign Up</h3>
+                                <form onSubmit={handleSubmit}>
+                                    <div className="mb-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Full Name"
+                                            value={fullName}
+                                            onChange={(e) => setFullName(e.target.value)}
+                                            className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-rose-500 sm:text-sm"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="mb-3">
+                                        <input
+                                            type="email"
+                                            placeholder="Email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-rose-500 sm:text-sm"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="mb-4 flex items-start">
+                                        <input
+                                            type="checkbox"
+                                            id="terms"
+                                            checked={agreedToTerms}
+                                            onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                            className="h-4 w-4 text-rose-600 border-neutral-300 rounded focus:ring-rose-500 mt-1"
+                                            required
+                                        />
+                                        <label htmlFor="terms" className="ml-2 block text-xs text-neutral-600">
+                                            I agree to QuickFeast's <a href="#" className="text-rose-600 hover:underline">Terms of Service</a>, <a href="#" className="text-rose-600 hover:underline">Privacy Policy</a> and Content Policies.
+                                        </label>
+                                    </div>
+                                    <button type="submit" className="w-full bg-rose-600 text-white py-2 px-4 rounded-md hover:bg-rose-700 transition-colors text-sm font-medium">
+                                        Create account
+                                    </button>
+                                    <div className="my-3 text-center text-neutral-500 text-xs">or</div>
+                                    <button type="button" onClick={() => console.log("Sign up with Google")} className="w-full border border-neutral-300 text-neutral-700 py-2 px-4 rounded-md hover:bg-neutral-50 transition-colors text-sm flex items-center justify-center">
+                                         <img src="https://placehold.co/20x20/FFFFFF/000000?text=G" alt="Google" className="mr-2 h-5 w-5"/> Sign up with Google
+                                    </button>
+                                    <p className="mt-4 text-center text-xs text-neutral-600">
+                                        Already have an account? <button type="button" onClick={handleSwitchView} className="text-rose-600 hover:underline font-medium">Log in</button>
+                                    </p>
+                                </form>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+
+        // Components (AppHeader, HeroSection, etc. - mostly unchanged, AppHeader updated)
+        function AppHeader({ isAuthenticated, onAuthToggle, onOpenAuthModal }) { // Added onOpenAuthModal
+            return (
+                <header className="bg-white shadow-md sticky top-0 z-50">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex items-center justify-between h-16">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <a href="#" className="text-3xl font-bold text-rose-600 flex items-center">
+                                        <span className="icon-placeholder text-3xl mr-1">🍽️</span> QuickFeast
+                                    </a>
+                                </div>
+                            </div>
+                            <div className="hidden md:flex items-center space-x-4 flex-grow justify-center">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Enter your location"
+                                        className="pl-10 pr-4 py-2 border border-neutral-300 rounded-md focus:ring-rose-500 focus:border-rose-500 sm:text-sm"
+                                    />
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg className="h-5 w-5 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div className="relative flex-grow max-w-xs lg:max-w-md">
+                                    <input
+                                        type="search"
+                                        placeholder="Search for caterers, cuisines..."
+                                        className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-md focus:ring-rose-500 focus:border-rose-500 sm:text-sm"
+                                    />
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg className="h-5 w-5 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <a href="#" className="text-neutral-600 hover:text-rose-600 px-3 py-2 rounded-md text-sm font-medium">Offers</a>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                                {isAuthenticated ? (
+                                    <div className="relative group">
+                                        <button className="flex items-center text-sm font-medium text-neutral-600 hover:text-rose-600">
+                                            Hi, User
+                                            <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                                        </button>
+                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 hidden group-hover:block">
+                                            <a href="#" className="block px-4 py-2 text-sm text-neutral-700 hover:bg-amber-100 hover:text-rose-600">My Profile</a>
+                                            <a href="#" className="block px-4 py-2 text-sm text-neutral-700 hover:bg-amber-100 hover:text-rose-600">My Orders</a>
+                                            <button onClick={onAuthToggle} className="block w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-amber-100 hover:text-rose-600">Logout</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button onClick={onOpenAuthModal} className="bg-rose-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-rose-700">
+                                        Login / Sign Up
+                                    </button>
+                                )}
+                                <a href="#" className="text-neutral-600 hover:text-rose-600 p-2 relative">
+                                    <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">3</span>
+                                </a>
+                                <button className="md:hidden text-neutral-600 hover:text-rose-600">
+                                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+            );
+        }
+
+        function HeroSection() {
+            return (
+                <div className="hero-bg text-white relative">
+                    <div className="absolute inset-0 bg-black opacity-40"></div>
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 lg:py-48 text-center relative z-10">
+                        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight">
+                            Order Catering for <span className="text-amber-300">Any Occasion</span>
+                        </h1>
+                        <p className="mt-6 max-w-xl mx-auto text-lg sm:text-xl text-neutral-200">
+                            Discover top local caterers, explore diverse menus, and book effortlessly for your next event.
+                        </p>
+                        <div className="mt-10 max-w-2xl mx-auto">
+                            <form className="sm:flex">
+                                <input
+                                    type="text"
+                                    placeholder="Enter delivery address or event location"
+                                    className="w-full px-5 py-3 placeholder-neutral-500 focus:ring-rose-500 focus:border-rose-500 sm:max-w-xs border-neutral-300 rounded-md text-neutral-900"
+                                />
+                                <button
+                                    type="submit"
+                                    className="mt-3 w-full sm:mt-0 sm:ml-3 sm:w-auto sm:flex-shrink-0 bg-rose-600 hover:bg-rose-700 border border-transparent rounded-md py-3 px-5 flex items-center justify-center text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500"
+                                >
+                                    Find Caterers
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function CuisineBrowseSection({ cuisines }) {
+            return (
+                <section className="py-12 md:py-16 bg-white">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <h2 className="text-3xl font-bold text-neutral-800 text-center mb-10">Browse by Cuisine</h2>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+                            {cuisines.map(cuisine => (
+                                <a key={cuisine.id} href="#" className="group block text-center p-2 rounded-lg hover:bg-amber-100 transition-colors">
+                                    <img src={cuisine.image} alt={cuisine.name} className="w-full h-32 sm:h-40 object-cover rounded-md mb-3 group-hover:opacity-90 transition-opacity" />
+                                    <h3 className="text-md font-semibold text-neutral-700 group-hover:text-rose-600">{cuisine.name}</h3>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            );
+        }
+
+        function FeaturedCaterersSection({ caterers }) {
+            return (
+                <section className="py-12 md:py-16 bg-amber-50">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <h2 className="text-3xl font-bold text-neutral-800 text-center mb-10">Featured Caterers</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {caterers.map(caterer => (
+                                <div key={caterer.id} className="bg-white rounded-lg shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300">
+                                    <img src={caterer.image} alt={caterer.name} className="w-full h-56 object-cover" />
+                                    <div className="p-6">
+                                        <h3 className="text-xl font-semibold text-neutral-800 mb-1">{caterer.name}</h3>
+                                        <p className="text-sm text-neutral-500 mb-2">{caterer.cuisines}</p>
+                                        <div className="flex items-center mb-4">
+                                            <span className="text-yellow-500">{'★'.repeat(Math.floor(caterer.rating))}{'☆'.repeat(5 - Math.floor(caterer.rating))}</span>
+                                            <span className="ml-2 text-sm text-neutral-600">{caterer.rating} ({caterer.reviews} reviews)</span>
+                                        </div>
+                                        <a href="#" className="inline-block w-full text-center bg-rose-600 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-rose-700 transition-colors">
+                                            View Menu
+                                        </a>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            );
+        }
+
+        function HowItWorksSection({ steps }) {
+            return (
+                <section className="py-12 md:py-16 bg-white">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <h2 className="text-3xl font-bold text-neutral-800 text-center mb-12">How QuickFeast Works</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+                            {steps.map(step => (
+                                <div key={step.id} className="p-6">
+                                    <div className="text-5xl mb-4 text-rose-500">{step.icon}</div>
+                                    <h3 className="text-xl font-semibold text-neutral-800 mb-2">{step.title}</h3>
+                                    <p className="text-neutral-600 text-sm">{step.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            );
+        }
+
+        function PromotionsSection() {
+            return (
+                <section className="py-12 md:py-16 bg-rose-50">
+                     <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <h2 className="text-3xl font-bold text-rose-700 text-center mb-10">Special Offers & Promotions</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <a href="#" className="block rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                                <img src="https://placehold.co/600x300/DB2777/FFFFFF?text=Weekend+Party+Special+-+20%25+OFF" alt="Promotion 1" className="w-full h-64 object-cover"/>
+                            </a>
+                            <a href="#" className="block rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                                <img src="https://placehold.co/600x300/FDF2F8/DB2777?text=Corporate+Lunch+Deals" alt="Promotion 2" className="w-full h-64 object-cover"/>
                             </a>
                         </div>
-                        <!-- end banner-cell -->
                     </div>
-                    <!-- end banner-text -->
-                </div>
-                <!-- end banner-static -->
-            </div>
-            <!-- end col -->
-        </div>
-        <!-- end container -->
-    </div>
-    <!-- end banner -->
+                </section>
+            );
+        }
 
-    <div id="about" class="about-main pad-top-100 pad-bottom-100">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                    <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                        <h2 class="block-title"> About Us </h2>
-                        <h3>IT STARTED, QUITE SIMPLY, LIKE THIS...</h3>
-                        <p> Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusm incididunt ut labore et dolore magna aliqua. Ut enim ad minim venia, nostrud exercitation ullamco. </p>
-
-                        <p> Aenean commodo ligula eget dolor aenean massa. Cum sociis nat penatibu set magnis dis parturient montes, nascetur ridiculus mus. quam felisorat, ultricies nec, Aenean commodo ligula eget dolor penatibu set magnis is parturient montes, nascetur ridiculus mus. quam felisorat, ultricies nec, pellentesque eu, pretium quis, sem. quat massa quis enim. Donec vitae sapien ut libero venenatis fauci Nullam quis ante. Etiam sit amet rci eget eros. </p>
-
-                        <p> Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusm incididunt ut labore et dolore magna aliqua. Ut enim ad minim venia, nostrud exercitation ullamco. </p>
-                    </div>
-                </div>
-                <!-- end col -->
-                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                    <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                        <div class="about-images">
-                            <img class="about-main" src="~/images/HomePage/about-main.jpg" alt="About Main Image">
-                            <img class="about-inset" src="~/images/HomePage/about-inset.jpg" alt="About Inset Image">
-                        </div>
-                    </div>
-                </div>
-                <!-- end col -->
-            </div>
-            <!-- end row -->
-        </div>
-        <!-- end container -->
-    </div>
-
-    <div class="special-menu pad-top-100 parallax">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                    <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                        <h2 class="block-title color-white text-center"> Today's Special </h2>
-                        <h5 class="title-caption text-center"> Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusm incididunt ut labore et dolore magna aliqua. Ut enim ad minim venia,nostrud exercitation ullamco. </h5>
-                    </div>
-                    <div class="special-box">
-                        <div id="owl-demo">
-                            <div class="item item-type-zoom">
-                                <a href="#" class="item-hover">
-                                    <div class="item-info">
-                                        <div class="headline">
-                                            SALMON STEAK
-                                            <div class="line"></div>
-                                            <div class="dit-line">Lorem ipsum dolor sit amet, consectetur adip aliqua. Ut enim ad minim venia.</div>
-                                        </div>
-                                    </div>
-                                </a>
-                                <div class="item-img">
-                                    <img src="~/images/HomePage/special-menu-1.jpg" alt="sp-menu">
-                                </div>
-                            </div>
-                            <div class="item item-type-zoom">
-                                <a href="#" class="item-hover">
-                                    <div class="item-info">
-                                        <div class="headline">
-                                            ITALIAN PIZZA
-                                            <div class="line"></div>
-                                            <div class="dit-line">Lorem ipsum dolor sit amet, consectetur adip aliqua. Ut enim ad minim venia.</div>
-                                        </div>
-                                    </div>
-                                </a>
-                                <div class="item-img">
-                                    <img src="~/images/HomePage/special-menu-2.jpg" alt="sp-menu">
-                                </div>
-                            </div>
-                            <div class="item item-type-zoom">
-                                <a href="#" class="item-hover">
-                                    <div class="item-info">
-                                        <div class="headline">
-                                            VEG. ROLL
-                                            <div class="line"></div>
-                                            <div class="dit-line">Lorem ipsum dolor sit amet, consectetur adip aliqua. Ut enim ad minim venia.</div>
-                                        </div>
-                                    </div>
-                                </a>
-                                <div class="item-img">
-                                    <img src="~/images/HomePage/special-menu-3.jpg" alt="sp-menu">
-                                </div>
-                            </div>
-                            <div class="item item-type-zoom">
-                                <a href="#" class="item-hover">
-                                    <div class="item-info">
-                                        <div class="headline">
-                                            SALMON STEAK
-                                            <div class="line"></div>
-                                            <div class="dit-line">Lorem ipsum dolor sit amet, consectetur adip aliqua. Ut enim ad minim venia.</div>
-                                        </div>
-                                    </div>
-                                </a>
-                                <div class="item-img">
-                                    <img src="~/images/HomePage/special-menu-1.jpg" alt="sp-menu">
-                                </div>
-                            </div>
-                            <div class="item item-type-zoom">
-                                <a href="#" class="item-hover">
-                                    <div class="item-info">
-                                        <div class="headline">
-                                            VEG. ROLL
-                                            <div class="line"></div>
-                                            <div class="dit-line">Lorem ipsum dolor sit amet, consectetur adip aliqua. Ut enim ad minim venia.</div>
-                                        </div>
-                                    </div>
-                                </a>
-                                <div class="item-img">
-                                    <img src="~/images/HomePage/special-menu-2.jpg" alt="sp-menu">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- end special-box -->
-                </div>
-                <!-- end col -->
-            </div>
-            <!-- end row -->
-        </div>
-        <!-- end container -->
-    </div>
-    <!-- end special-menu -->
-
-    <div id="menu" class="menu-main pad-top-100 pad-bottom-100">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                    <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                        <h2 class="block-title text-center">
-                            Our Menu
-                        </h2>
-                        <p class="title-caption text-center">There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. </p>
-                    </div>
-                    <div class="tab-menu">
-                        <div class="slider slider-nav">
-                            <div class="tab-title-menu">
-                                <h2>STARTERS</h2>
-                                <p> <i class="flaticon-canape"></i> </p>
-                            </div>
-                            <div class="tab-title-menu">
-                                <h2>MAIN DISHES</h2>
-                                <p> <i class="flaticon-dinner"></i> </p>
-                            </div>
-                            <div class="tab-title-menu">
-                                <h2>DESERTS</h2>
-                                <p> <i class="flaticon-desert"></i> </p>
-                            </div>
-                            <div class="tab-title-menu">
-                                <h2>DRINKS</h2>
-                                <p> <i class="flaticon-coffee"></i> </p>
-                            </div>
-                        </div>
-                        <div class="slider slider-single">
+        function AppFooter() {
+            return (
+                <footer className="bg-neutral-800 text-neutral-300 py-12">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
                             <div>
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-01.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>GARLIC BREAD</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$8.5</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-02.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>MIXED SALAD</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$25</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-03.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>BBQ CHICKEN WINGS</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$10</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
+                                <h5 className="text-lg font-semibold text-white mb-3 flex items-center"><span className="icon-placeholder text-xl mr-1">🍽️</span>QuickFeast</h5>
+                                <p className="text-sm">Your one-stop solution for event catering. Delicious food, delivered.</p>
                             </div>
                             <div>
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-04.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>MEAT FEAST PIZZA</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$5</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-05.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>CHICKEN TIKKA MASALA</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$15</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-06.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>SPICY MEATBALLS</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$6.5</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
+                                <h5 className="text-md font-semibold text-white mb-3">Company</h5>
+                                <ul className="space-y-2 text-sm">
+                                    <li><a href="#" className="hover:text-rose-400">About Us</a></li>
+                                    <li><a href="#" className="hover:text-rose-400">Careers</a></li>
+                                    <li><a href="#" className="hover:text-rose-400">Contact Us</a></li>
+                                </ul>
                             </div>
                             <div>
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-07.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>CHOCOLATE FUDGECAKE</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$4.5</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-08.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>CHICKEN TIKKA MASALA</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$9.5</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-09.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>CHICKEN TIKKA MASALA</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$10</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
+                                <h5 className="text-md font-semibold text-white mb-3">For Caterers</h5>
+                                <ul className="space-y-2 text-sm">
+                                    <li><a href="#" className="hover:text-rose-400">Partner with Us</a></li>
+                                    <li><a href="#" className="hover:text-rose-400">Caterer Login</a></li>
+                                </ul>
                             </div>
                             <div>
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-10.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>MEAT FEAST PIZZA</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$12.5</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-09.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>CHICKEN TIKKA MASALA</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$9.5</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
-                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 ">
-                                    <div class="offer-item">
-                                        <img src="~/images/HomePage/menu-item-thumbnail-08.jpg" alt="" class="img-responsive">
-                                        <div>
-                                            <h3>CHICKEN TIKKA MASALA</h3>
-                                            <p>
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc mollis eleifend dapibus.
-                                            </p>
-                                        </div>
-                                        <span class="offer-price">$5.5</span>
-                                    </div>
-                                </div>
-                                <!-- end col -->
+                                <h5 className="text-md font-semibold text-white mb-3">Legal</h5>
+                                <ul className="space-y-2 text-sm">
+                                    <li><a href="#" className="hover:text-rose-400">Terms & Conditions</a></li>
+                                    <li><a href="#" className="hover:text-rose-400">Privacy Policy</a></li>
+                                    <li><a href="#" className="hover:text-rose-400">FAQ</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div className="border-t border-neutral-700 pt-8 flex flex-col sm:flex-row justify-between items-center text-sm">
+                            <p>&copy; {new Date().getFullYear()} QuickFeast. All rights reserved.</p>
+                            <div className="flex space-x-4 mt-4 sm:mt-0">
+                                {/* Placeholder for social media icons */}
+                                <a href="#" className="hover:text-rose-400">Facebook</a>
+                                <a href="#" className="hover:text-rose-400">Instagram</a>
+                                <a href="#" className="hover:text-rose-400">Twitter</a>
                             </div>
                         </div>
                     </div>
-                    <!-- end tab-menu -->
+                </footer>
+            );
+        }
+
+
+        function HomePage() {
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+            const handleAuthToggle = () => { // This now simulates logout or successful login completion
+                setIsAuthenticated(!isAuthenticated);
+            };
+
+            const openAuthModal = () => setIsAuthModalOpen(true);
+            const closeAuthModal = () => setIsAuthModalOpen(false);
+
+            const handleSuccessfulAuth = () => {
+                setIsAuthenticated(true); // Set user as authenticated
+                // Potentially fetch user data or redirect here in a real app
+            };
+
+
+            return (
+                <div>
+                    <AppHeader
+                        isAuthenticated={isAuthenticated}
+                        onAuthToggle={handleAuthToggle}
+                        onOpenAuthModal={openAuthModal}
+                    />
+                    <main>
+                        <HeroSection />
+                        <CuisineBrowseSection cuisines={cuisinesData} />
+                        <FeaturedCaterersSection caterers={featuredCaterersData} />
+                        <HowItWorksSection steps={howItWorksStepsData} />
+                        <PromotionsSection />
+                    </main>
+                    <AppFooter />
+                    <AuthModal
+                        isOpen={isAuthModalOpen}
+                        onClose={closeAuthModal}
+                        onSuccessfulAuth={handleSuccessfulAuth}
+                    />
                 </div>
-                <!-- end col -->
-            </div>
-            <!-- end row -->
-        </div>
-        <!-- end container -->
-    </div>
-    <!-- end menu -->
+            );
+        }
 
-    <div id="our_team" class="team-main pad-top-100 pad-bottom-100 parallax">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                    <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                        <h2 class="block-title text-center">
-                            Our Team
-                        </h2>
-                        <p class="title-caption text-center">There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. </p>
-                    </div>
-                    <div class="team-box">
-
-                        <div class="row">
-                            <div class="col-md-4 col-sm-6">
-                                <div class="sf-team">
-                                    <div class="thumb">
-                                        <a href="#"><img src="~/images/HomePage/staff-01.jpg" alt=""></a>
-                                    </div>
-                                    <div class="text-col">
-                                        <h3>John Doggett</h3>
-                                        <p>Nullam quis ante. Etiam sit amet orci eget eros faucibus tincidunt. Duis leo. Sed fringilla mauris sit amet nibh. Donec sodales sagittis magna. Aenean commodo ligula.</p>
-                                        <ul class="team-social">
-                                            <li><a href="#"><i class="fa fa-facebook" aria-hidden="true"></i></a></li>
-                                            <li><a href="#"><i class="fa fa-twitter" aria-hidden="true"></i></a></li>
-                                            <li><a href="#"><i class="fa fa-linkedin" aria-hidden="true"></i></a></li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-md-4 col-sm-6">
-                                <div class="sf-team">
-                                    <div class="thumb">
-                                        <a href="#"><img src="~/images/HomePage/staff-02.jpg" alt=""></a>
-                                    </div>
-                                    <div class="text-col">
-                                        <h3>Jeffrey Spender</h3>
-                                        <p>Nullam quis ante. Etiam sit amet orci eget eros faucibus tincidunt. Duis leo. Sed fringilla mauris sit amet nibh. Donec sodales sagittis magna. Aenean commodo ligula.</p>
-                                        <ul class="team-social">
-                                            <li><a href="#"><i class="fa fa-facebook" aria-hidden="true"></i></a></li>
-                                            <li><a href="#"><i class="fa fa-twitter" aria-hidden="true"></i></a></li>
-                                            <li><a href="#"><i class="fa fa-linkedin" aria-hidden="true"></i></a></li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-md-4 col-sm-6">
-                                <div class="sf-team">
-                                    <div class="thumb">
-                                        <a href="#"><img src="~/images/HomePage/staff-03.jpg" alt=""></a>
-                                    </div>
-                                    <div class="text-col">
-                                        <h3>Monica Reyes</h3>
-                                        <p>Nullam quis ante. Etiam sit amet orci eget eros faucibus tincidunt. Duis leo. Sed fringilla mauris sit amet nibh. Donec sodales sagittis magna. Aenean commodo ligula.</p>
-                                        <ul class="team-social">
-                                            <li><a href="#"><i class="fa fa-facebook" aria-hidden="true"></i></a></li>
-                                            <li><a href="#"><i class="fa fa-twitter" aria-hidden="true"></i></a></li>
-                                            <li><a href="#"><i class="fa fa-linkedin" aria-hidden="true"></i></a></li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                        </div>
-                        <!-- end row -->
-
-                    </div>
-                    <!-- end team-box -->
-
-                </div>
-                <!-- end col -->
-            </div>
-            <!-- end row -->
-        </div>
-        <!-- end container -->
-    </div>
-    <!-- end team-main -->
-
-    <div id="gallery" class="gallery-main pad-top-100 pad-bottom-100">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                    <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                        <h2 class="block-title text-center">
-                            Our Gallery
-                        </h2>
-                        <p class="title-caption text-center">There are many variations of passages of Lorem Ipsum available </p>
-                    </div>
-                    <div class="gal-container clearfix">
-                        <div class="col-md-8 col-sm-12 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#1">
-                                    <img src="~/images/HomePage/gallery_01.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="1" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_01.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 1 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-sm-6 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#2">
-                                    <img src="~/images/HomePage/gallery_02.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="2" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_02.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 2 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-sm-6 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#3">
-                                    <img src="~/images/HomePage/gallery_03.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="3" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_03.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 3 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-sm-6 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#4">
-                                    <img src="~/images/HomePage/gallery_04.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="4" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_04.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 4 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-sm-6 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#5">
-                                    <img src="~/images/HomePage/gallery_05.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="5" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_05.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 5 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-sm-6 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#9">
-                                    <img src="~/images/HomePage/gallery_06.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="9" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_06.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 6 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-8 col-sm-12 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#10">
-                                    <img src="~/images/HomePage/gallery_07.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="10" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_07.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 7 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-sm-6 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#11">
-                                    <img src="~/images/HomePage/gallery_08.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="11" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_08.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 8 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-sm-6 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#12">
-                                    <img src="~/images/HomePage/gallery_09.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="12" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_09.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 9 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-sm-6 co-xs-12 gal-item">
-                            <div class="box">
-                                <a href="#" data-toggle="modal" data-target="#13">
-                                    <img src="~/images/HomePage/gallery_10.jpg" alt="" />
-                                </a>
-                                <div class="modal fade" id="13" tabindex="-1" role="dialog">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                                            <div class="modal-body">
-                                                <img src="~/images/HomePage/gallery_10.jpg" alt="" />
-                                            </div>
-                                            <div class="col-md-12 description">
-                                                <h4>This is the 10 one on my Gallery</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- end gal-container -->
-                </div>
-                <!-- end col -->
-            </div>
-            <!-- end row -->
-        </div>
-        <!-- end container -->
-    </div>
-    <!-- end gallery-main -->
-
-    <div id="blog" class="blog-main pad-top-100 pad-bottom-100 parallax">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                    <h2 class="block-title text-center">
-                        Our Blog
-                    </h2>
-                    <div class="blog-box clearfix">
-                        <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                            <div class="col-md-6 col-sm-6">
-                                <div class="blog-block">
-                                    <div class="blog-img-box">
-                                        <img src="~/images/HomePage/featured-image-01.jpg" alt="" />
-                                        <div class="overlay">
-                                            <a href=""><i class="fa fa-link" aria-hidden="true"></i></a>
-                                        </div>
-                                    </div>
-                                    <div class="blog-dit">
-                                        <p><span>25 NOVEMBER, 2014</span></p>
-                                        <h2>LATEST RECIPES JUST IN!</h2>
-                                        <h5>BY John Doggett</h5>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                        </div>
-                        <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                            <div class="col-md-6 col-sm-6">
-                                <div class="blog-block">
-                                    <div class="blog-img-box">
-                                        <img src="~/images/HomePage/featured-image-02.jpg" alt="" />
-                                        <div class="overlay">
-                                            <a href=""><i class="fa fa-link" aria-hidden="true"></i></a>
-                                        </div>
-                                    </div>
-                                    <div class="blog-dit">
-                                        <p><span>2 NOVEMBER, 2014</span></p>
-                                        <h2>NEW RECRUITS HAVE ARRIVED!</h2>
-                                        <h5>BY Jeffrey Spender</h5>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                        </div>
-                        <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                            <div class="col-md-6 col-sm-6">
-                                <div class="blog-block">
-                                    <div class="blog-img-box">
-                                        <img src="~/images/HomePage/featured-image-03.jpg" alt="" />
-                                        <div class="overlay">
-                                            <a href=""><i class="fa fa-link" aria-hidden="true"></i></a>
-                                        </div>
-                                    </div>
-                                    <div class="blog-dit">
-                                        <p><span>4 NOVEMBER, 2014</span></p>
-                                        <h2>BAKING TIPS FROM THE PROS</h2>
-                                        <h5>BY Monica Reyes</h5>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                        </div>
-                        <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                            <div class="col-md-6 col-sm-6">
-                                <div class="blog-block">
-                                    <div class="blog-img-box">
-                                        <img src="~/images/HomePage/featured-image-04.jpg" alt="" />
-                                        <div class="overlay">
-                                            <a href=""><i class="fa fa-link" aria-hidden="true"></i></a>
-                                        </div>
-                                    </div>
-                                    <div class="blog-dit">
-                                        <p><span>12 NOVEMBER, 2014</span></p>
-                                        <h2>ALL YOUR EGGS BELONG TO US</h2>
-                                        <h5>BY John Doggett</h5>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                        </div>
-                    </div>
-                    <!-- end blog-box -->
-
-                    <div class="blog-btn-v">
-                        <a class="hvr-underline-from-center" href="#">View the Blog</a>
-                    </div>
-
-                </div>
-                <!-- end col -->
-            </div>
-            <!-- end row -->
-        </div>
-        <!-- end container -->
-    </div>
-    <!-- end blog-main -->
-
-    <div id="pricing" class="pricing-main pad-top-100 pad-bottom-100">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                    <h2 class="block-title text-center">
-                        Pricing
-                    </h2>
-                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ut orci varius, elementum lectus nec, aliquam lectus. Duis neque augue, maximus in sapien ut, porta pharetra odio.</p>
-                </div>
-                <div class="panel-pricing-in">
-                    <!-- item -->
-                    <div class="col-md-4 col-sm-4 text-center">
-                        <div class="panel panel-pricing">
-                            <div class="panel-heading">
-                                <div class="pric-icon">
-                                    <img src="~/images/HomePage/store.png" alt="" />
-                                </div>
-                                <h3>Basic</h3>
-                            </div>
-                            <div class="panel-body text-center">
-                                <p><strong>$30/<span>Month</span></strong></p>
-                            </div>
-                            <ul class="list-group text-center">
-                                <li class="list-group-item"><i class="fa fa-check"></i> One Website</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> One User</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> 10 GB Bandwidth</li>
-                                <li class="list-group-item"><i class="fa fa-times"></i> 2GB Storage</li>
-                                <li class="list-group-item"><i class="fa fa-times"></i> Offline work</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> 24x7 Support</li>
-                            </ul>
-                            <div class="panel-footer">
-                                <a class="btn btn-lg btn-block hvr-underline-from-center" href="#">Purchase Now!</a>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- /item -->
-                    <!-- item -->
-                    <div class="col-md-4 col-sm-4 text-center">
-                        <div class="panel panel-pricing">
-                            <div class="panel-heading">
-                                <div class="pric-icon">
-                                    <img src="~/images/HomePage/food.png" alt="" />
-                                </div>
-                                <h3>Pro</h3>
-                            </div>
-                            <div class="panel-body text-center">
-                                <p><strong>$60/<span>Month</span></strong></p>
-                            </div>
-                            <ul class="list-group text-center">
-                                <li class="list-group-item"><i class="fa fa-check"></i> One Website</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> One User</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> 50 GB Bandwidth</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> 2GB Storage</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> Offline work</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> 24x7 Support</li>
-                            </ul>
-                            <div class="panel-footer">
-                                <a class="btn btn-lg btn-block hvr-underline-from-center" href="#">Purchase Now!</a>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- /item -->
-                    <!-- item -->
-                    <div class="col-md-4 col-sm-4 text-center">
-                        <div class="panel panel-pricing">
-                            <div class="panel-heading">
-                                <div class="pric-icon">
-                                    <img src="~/images/HomePage/coffee.png" alt="" />
-                                </div>
-                                <h3>Platinum</h3>
-                            </div>
-                            <div class="panel-body text-center">
-                                <p><strong>$90/<span>Month</span></strong></p>
-                            </div>
-                            <ul class="list-group text-center">
-                                <li class="list-group-item"><i class="fa fa-check"></i> One Website</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> One User</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> 100 GB Bandwidth</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> 2GB Storage</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> Offline work</li>
-                                <li class="list-group-item"><i class="fa fa-check"></i> 24x7 Support</li>
-                            </ul>
-                            <div class="panel-footer">
-                                <a class="btn btn-lg btn-block hvr-underline-from-center" href="#">Purchase Now!</a>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- /item -->
-                </div>
-            </div>
-            <!-- end row -->
-        </div>
-        <!-- end container -->
-    </div>
-    <!-- end pricing-main -->
-
-    <div id="reservation" class="reservations-main pad-top-100 pad-bottom-100">
-        <div class="container">
-            <div class="row">
-                <div class="form-reservations-box">
-                    <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                        <div class="wow fadeIn" data-wow-duration="1s" data-wow-delay="0.1s">
-                            <h2 class="block-title text-center">
-                                Reservations
-                            </h2>
-                        </div>
-                        <h4 class="form-title">BOOKING FORM</h4>
-                        <p>PLEASE FILL OUT ALL REQUIRED* FIELDS. THANKS!</p>
-
-                        <form id="contact-form" method="post" class="reservations-box" name="contactform" action="mail.php">
-                            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">
-                                <div class="form-box">
-                                    <input type="text" name="form_name" id="form_name" placeholder="Name" required="required" data-error="Firstname is required.">
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">
-                                <div class="form-box">
-                                    <input type="email" name="email" id="email" placeholder="E-Mail ID" required="required" data-error="E-mail id is required.">
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">
-                                <div class="form-box">
-                                    <input type="text" name="phone" id="phone" placeholder="contact no.">
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">
-                                <div class="form-box">
-                                    <select name="no_of_persons" id="no_of_persons" class="selectpicker">
-                                        <option selected disabled>No. Of persons</option>
-                                        <option>1</option>
-                                        <option>2</option>
-                                        <option>3</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">
-                                <div class="form-box">
-                                    <input type="text" name="date-picker" id="date-picker" placeholder="Date" required="required" data-error="Date is required." />
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">
-                                <div class="form-box">
-                                    <input type="text" name="time-picker" id="time-picker" placeholder="Time" required="required" data-error="Time is required." />
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">
-                                <div class="form-box">
-                                    <select name="preferred_food" id="preferred_food" class="selectpicker">
-                                        <option selected disabled>preferred food</option>
-                                        <option>Indian</option>
-                                        <option>Continental</option>
-                                        <option>Mexican</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">
-                                <div class="form-box">
-                                    <select name="occasion" id="occasion" class="selectpicker">
-                                        <option selected disabled>Occasion</option>
-                                        <option>Wedding</option>
-                                        <option>Birthday</option>
-                                        <option>Anniversary</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <!-- end col -->
-
-                            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                <div class="reserve-book-btn text-center">
-                                    <button class="hvr-underline-from-center" type="submit" value="SEND" id="submit">BOOK MY TABLE </button>
-                                </div>
-                            </div>
-                            <!-- end col -->
-                        </form>
-                        <!-- end form -->
-                    </div>
-                    <!-- end col -->
-                </div>
-                <!-- end reservations-box -->
-            </div>
-            <!-- end row -->
-        </div>
-        <!-- end container -->
-    </div>
-    <!-- end reservations-main -->
-
-    <a href="#" class="scrollup" style="display: none;">Scroll</a>
-
-    <section id="color-panel" class="close-color-panel">
-        <a class="panel-button gray2"><i class="fa fa-cog fa-spin fa-2x"></i></a>
-        <!-- Colors -->
-        <div class="segment">
-            <h4 class="gray2 normal no-adding">Color Scheme</h4>
-            <a title="orange" class="switcher orange-bg"></a>
-            <a title="strong-blue" class="switcher strong-blue-bg"></a>
-            <a title="moderate-green" class="switcher moderate-green-bg"></a>
-            <a title="vivid-yellow" class="switcher vivid-yellow-bg"></a>
-        </div>
-    </section>
-
-    <!-- ALL JS FILES -->
-    <script src="~/js/all.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.min.js"></script>
-    <script src="~/js/login.js"></script>
-    <!-- ALL PLUGINS -->
-    <script src="~/js/custom.js"></script>
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<HomePage />);
+    </script>
 </body>
-
 </html>
