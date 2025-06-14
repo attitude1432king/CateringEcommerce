@@ -3,6 +3,8 @@
 
     <script type="text/babel">
         const { useState, useEffect } = React;
+        import { sendOtp } from '.wwwroot/js/auth/sendOtp';
+        import { verifyOtp } from '.wwwroot/js/auth/verifyOtp';
 
         // Mock Data (remains the same)
         const cuisinesData = [
@@ -30,7 +32,7 @@
         // AuthModal Component
         function AuthModal({ isOpen, onClose, onSuccessfulAuth }) {
             const [isLoginView, setIsLoginView] = useState(true);
-            const [phone, setPhone] = useState('');
+            const [phoneNumber, setPhone] = useState('');
             const [email, setEmail] = useState('');
             const [fullName, setFullName] = useState('');
             const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -47,12 +49,28 @@
                 setAgreedToTerms(false);
             };
 
-            const handleSubmit = (e) => {
+            const handleSubmit = async (e) => {
                 e.preventDefault();
-                // Mock authentication
-                console.log(isLoginView ? "Logging in..." : "Signing up...", { phone, email, fullName });
-                onSuccessfulAuth(); // Simulate successful auth
-                onClose(); // Close modal
+
+                if (!phoneNumber) {
+                  alert('Please enter a valid phone number.');
+                  return;
+                }
+
+                if (!otpSent) {
+                  // Step 1: Send OTP
+                  const result = await sendOtp(phoneNumber);
+                  setMessage(result.message);
+                  if (result.success) setOtpSent(true);
+                } else {
+                  // Step 2: Verify OTP
+                  const result = await verifyOtp(phoneNumber, otp);
+                  setMessage(result.message);
+                  if (result.success) {
+                    onSuccessfulAuth();
+                    onClose();
+                  }
+                }
             };
 
             return (
@@ -78,7 +96,7 @@
                                             <input
                                                 type="tel"
                                                 placeholder="Phone"
-                                                value={phone}
+                                                value={phoneNumber}
                                                 onChange={(e) => setPhone(e.target.value)}
                                                 className="w-full px-3 py-2 focus:outline-none focus:ring-1 focus:ring-rose-500 sm:text-sm"
                                                 required
@@ -88,6 +106,18 @@
                                     <button type="submit" className="w-full bg-rose-600 text-white py-2 px-4 rounded-md hover:bg-rose-700 transition-colors text-sm font-medium">
                                         Send One Time Password
                                     </button>
+                                     {otpSent && (
+                                      <div className="mb-4">
+                                        <input
+                                          type="text"
+                                          placeholder="Enter OTP"
+                                          value={otp}
+                                          onChange={(e) => setOtp(e.target.value)}
+                                          className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-rose-500 sm:text-sm"
+                                          required
+                                        />
+                                      </div>
+                                    )}
                                     <div className="my-3 text-center text-neutral-500 text-xs">or</div>
                                     <button type="button" onClick={() => console.log("Continue with Email")} className="w-full border border-neutral-300 text-neutral-700 py-2 px-4 rounded-md hover:bg-neutral-50 transition-colors text-sm flex items-center justify-center">
                                         <span className="icon-placeholder mr-2">📧</span> Continue with Email
