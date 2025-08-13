@@ -8,6 +8,9 @@
 *.user
 *.suo
 
+# Ignore all files in wwwroot (typically user uploads)
+wwwroot/**
+
 ## Ignore other build outputs and logs
 *.log
 *.cache
@@ -15,3 +18,13 @@
 
 ## Optional: ignore published output
 **/publish/
+
+# production build
+/dist
+
+# Vite cache
+/.vite
+
+# local env files
+.env
+.env.*.local

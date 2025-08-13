@@ -1,10 +1,20 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+﻿/*
+========================================
+File: src/main.jsx
+========================================
+This is the entry point of your application.
+*/
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import { AuthProvider } from './contexts/AuthContext.jsx';
+import Router from './router/Router.jsx'; // Import the new Router
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+        <AuthProvider>
+            <Router />
+        </AuthProvider>
+    </React.StrictMode>,
+);
