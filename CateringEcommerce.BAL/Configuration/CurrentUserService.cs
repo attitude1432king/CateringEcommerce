@@ -15,7 +15,7 @@ namespace CateringEcommerce.BAL.Configuration
 
             if (user?.Identity?.IsAuthenticated == true)
             {
-                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier);
+                var userIdClaim = user.Claims.Where(c => c.Type == ClaimTypes.NameIdentifier && !string.IsNullOrWhiteSpace(c.Value)).FirstOrDefault();
                 var phoneClaim = user.FindFirst(ClaimTypes.MobilePhone);
                 var roleClaim = user.FindFirst(ClaimTypes.Role);    
 
