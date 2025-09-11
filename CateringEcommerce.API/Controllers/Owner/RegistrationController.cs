@@ -1,14 +1,15 @@
 ﻿using CateringEcommerce.API.Attributes;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.BAL.Common;
-using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
-using CateringEcommerce.Domain.Models.APIModels;
+using CateringEcommerce.Domain.Models.APIModels.Owner;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
+    [Authorize]
     [ApiController]
     [Route("api/Auth/Owner")]
     public class RegistrationController : ControllerBase
@@ -28,6 +29,7 @@ namespace CateringEcommerce.API.Controllers.Owner
             _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
         }
 
+        [AllowAnonymous]
         [ValidateModel]
         [HttpPost("Register")]
         public async Task<IActionResult> Register([FromBody] OwnerRegistrationDto registrationData)
@@ -68,14 +70,14 @@ namespace CateringEcommerce.API.Controllers.Owner
                 {
                     foreach (var mediaItem in registrationData.CateringMedia)
                     {
-                        var path = await _fileStorageService.SaveFileAsync(mediaItem.Base64Data, ownerPkid, "CateringMedia", isSecure: false, mediaItem.FileName);
+                        var path = await _fileStorageService.SaveFileAsync(mediaItem.Base64Data, ownerPkid, "Kitchen", isSecure: false, mediaItem.FileName);
                         await ownerRepository.SaveFilePath(path, ownerPkid, mediaItem.FileName, DocumentType.Kitchen);
                     }
                 }
                 var logoPath = await _fileStorageService.SaveFileAsync(registrationData.CateringLogo, ownerPkid, "Logo", isSecure: false);
-                var fssaiPath = await _fileStorageService.SaveFileAsync(registrationData.FssaiCertificate.Base64, ownerPkid, "FSSAI", isSecure: true);
-                var gstPath = await _fileStorageService.SaveFileAsync(registrationData.GstCertificate.Base64, ownerPkid, "GST", isSecure: true);
-                var panPath = await _fileStorageService.SaveFileAsync(registrationData.PanCard.Base64, ownerPkid, "PAN", isSecure: true);
+                var fssaiPath = await _fileStorageService.SaveFileAsync(registrationData.FssaiCertificate.Base64, ownerPkid, "FSSAI", isSecure: true, registrationData.FssaiCertificate.Name);
+                var gstPath = await _fileStorageService.SaveFileAsync(registrationData.GstCertificate.Base64, ownerPkid, "GST", isSecure: true, registrationData.GstCertificate.Name);
+                var panPath = await _fileStorageService.SaveFileAsync(registrationData.PanCard.Base64, ownerPkid, "PAN", isSecure: true, registrationData.PanCard.Name);
                 if (!string.IsNullOrEmpty(gstPath))
                     dicData.Add("GstCertificatePath", gstPath);
                 if (!string.IsNullOrEmpty(panPath))
@@ -107,6 +109,7 @@ namespace CateringEcommerce.API.Controllers.Owner
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("Service/{TypeId}")]
         public async Task<IActionResult> GetServiceTypeDetails(int TypeId)
         {

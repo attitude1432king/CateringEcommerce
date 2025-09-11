@@ -11,18 +11,25 @@ const AuthContext = createContext(null);
 
 // 2. Create the provider component
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null); // Will hold { pkid, name, role }
+    const [user, setUser] = useState(null); // Will hold { pkid, name, role, token }
     const [isLoading, setIsLoading] = useState(true);
+    const [token, setToken] = useState(localStorage.getItem('authToken'));
 
     useEffect(() => {
         try {
             const storedUser = localStorage.getItem('feasto_user');
-            if (storedUser) {
+            const storedToken = localStorage.getItem('authToken');
+
+            if (storedUser && storedToken) {
                 setUser(JSON.parse(storedUser));
+                setToken(storedToken);
             }
         } catch (error) {
             console.error("Failed to parse user from localStorage", error);
             localStorage.removeItem('feasto_user');
+            localStorage.removeItem('authToken');
+            setUser(null);
+            setToken(null);
         } finally {
             setIsLoading(false);
         }
@@ -30,13 +37,17 @@ export const AuthProvider = ({ children }) => {
 
 
     const login = (userData) => {
-        setUser(userData);
         localStorage.setItem('feasto_user', JSON.stringify(userData));
+        localStorage.setItem('authToken', userData.token);
+        setUser(userData);
+        setToken(userData.token);
         console.log("User logged in and session saved:", userData);
     };
 
     const logout = () => {
         setUser(null);
+        setToken(null);
+        localStorage.removeItem('authToken');
         localStorage.removeItem('feasto_user');
         console.log("User logged out and session cleared.");
     };
@@ -52,7 +63,8 @@ export const AuthProvider = ({ children }) => {
 
     const value = {
         user,
-        isAuthenticated: !!user,
+        token,
+        isAuthenticated: !!user && !!token,
         isLoading,
         login,
         logout,

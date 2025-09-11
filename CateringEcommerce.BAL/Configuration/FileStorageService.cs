@@ -1,5 +1,6 @@
 ﻿using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace CateringEcommerce.BAL.Configuration
 {
@@ -32,12 +33,32 @@ namespace CateringEcommerce.BAL.Configuration
                 : Path.Combine(_env.WebRootPath, "uploads", "Media");
 
             var directoryPath = Path.Combine(basePath, $"owner{ownerPkid}", documentType);
-            Directory.CreateDirectory(directoryPath);
+            if(!Directory.Exists(directoryPath))
+                Directory.CreateDirectory(directoryPath);
 
-            // Use provided filename or generate a new one
-            var finalFileName = string.IsNullOrEmpty(fileName)
-                ? $"{Guid.NewGuid()}{extension}"
-                : $"{Path.GetFileNameWithoutExtension(fileName)}_{Guid.NewGuid()}{extension}";
+            string CleanFileName(string name)
+            {
+                var invalidChars = Path.GetInvalidFileNameChars();
+                return string.Concat(name.Where(c => !invalidChars.Contains(c))).Trim();
+            }
+
+            string finalFileName;
+
+            if (isSecure)
+            {
+                // Use original filename directly (after cleaning)
+                var cleanedName = CleanFileName(Path.GetFileNameWithoutExtension(fileName));
+                finalFileName = $"{cleanedName}{extension}";
+            }
+            else
+            {
+                // Use GUID-based unique name
+                finalFileName = string.IsNullOrEmpty(fileName)
+                    ? $"{Guid.NewGuid()}{extension}"
+                    : $"{Path.GetFileNameWithoutExtension(fileName)}_{Guid.NewGuid()}{extension}";
+                finalFileName = $"{Guid.NewGuid()}{extension}";
+            }
+
 
             var filePath = Path.Combine(directoryPath, finalFileName);
 

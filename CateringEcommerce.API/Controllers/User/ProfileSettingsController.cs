@@ -3,6 +3,7 @@ using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using static System.Net.WebRequestMethods;
@@ -15,21 +16,25 @@ namespace CateringEcommerce.API.Controllers.User
     {
         private readonly IConfiguration _configuration;
         private readonly string _connStr;
+        private readonly ICurrentUserService _currentUser;
 
         // Constructor updated to initialize all required fields
-        public ProfileSettingsController(IConfiguration configuration, IOptions<EmailSettings> emailSettings, ISmsService smsService)
+        public ProfileSettingsController(IConfiguration configuration, ICurrentUserService currentUser)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _connStr = _configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _currentUser = currentUser;
         }
 
+        [Authorize]
         [HttpGet("GetUserProfile")]
-        public IActionResult GetUserProfile([FromQuery] long userPKID)
+        public IActionResult GetUserProfile()
         {
             try
             {
+                var userIdClaim = _currentUser.UserId;
                 UserRepository userRepository = new UserRepository(_connStr);
-                UserModel userProfile = userRepository.GetUserDetails(userPKID);
+                UserModel userProfile = userRepository.GetUserDetails(userIdClaim);
                 return Ok(userProfile);
             }
             catch (Exception)
@@ -39,12 +44,13 @@ namespace CateringEcommerce.API.Controllers.User
             }
         }
 
-
-        [HttpPost("UpdateProfile/{userPKID}")]
-        public IActionResult UpdateProfileDetails(long userPKID, [FromBody] UserModel request)
+        [Authorize]
+        [HttpPost("UpdateProfile")]
+        public IActionResult UpdateProfileDetails([FromBody] UserModel request)
         {
             try
             {
+                var userPKID = _currentUser.UserId;
                 ProfileSetting profileSetting = new ProfileSetting(_connStr);
                 UserRepository userRepository = new UserRepository(_connStr);
                 Dictionary<string, string> userData = new Dictionary<string, string>();

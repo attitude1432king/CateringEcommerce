@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿
+using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Enums
 {
@@ -12,6 +13,8 @@ namespace CateringEcommerce.Domain.Enums
         EventType = 3,
         // Buffet Style, Plate Service
         [Display(Name = "Service Type")]
-        ServiceType = 4
+        ServiceType = 4,
+        [Display(Name = "Serving Slot Type")]
+        ServingSlotType = 5
     }
 }

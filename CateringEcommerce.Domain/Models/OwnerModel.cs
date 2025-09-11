@@ -1,17 +1,20 @@
-﻿namespace CateringEcommerce.Domain.Models
+﻿
+using CateringEcommerce.Domain.Enums;
+using Microsoft.AspNetCore.Mvc.Formatters;
+
+namespace CateringEcommerce.Domain.Models
 {
     public class OwnerModel
     {
-        internal OwnerBusinessModel OwnerBusiness { get; set; }
-        internal CateringAddressModel CateringAddress { get; set; }
-        internal OwnerLegalModel CateringLegal { get; set; }
-        internal OwnerServicesModel CateringServices { get; set; }
-        internal OwnerBankDetailsModel OwnerBankDetails { get; set; }
+        public OwnerBusinessModel OwnerBusiness { get; set; }
+        public CateringAddressModel CateringAddress { get; set; }
+        public OwnerLegalModel OwnerLegalDocument { get; set; }
+        public CateringServicesModel CateringServices { get; set; }
     }
 
-    internal class OwnerBusinessModel
+    public class OwnerBusinessModel
     {
-        public Int64 OwnerPkID { get; set; }
+        public Int64 PkID { get; set; }
         public string? CateringName { get; set; }
         public string? OwnerName { get; set; }
         public string? Phone { get; set; }
@@ -28,20 +31,20 @@
         public bool IsOnline { get; set; }
     }
 
-    internal class CateringAddressModel
+    public class CateringAddressModel
     {
         public string? ShopNo { get; set; }
         public string? Street { get; set; }
         public string? Area { get; set; }
         public string? Pincode { get; set; }
-        public int StateId { get; set; }
-        public int CityId { get; set; }
-        public Decimal Latitude { get; set; }
-        public Decimal Longitude { get; set; }
+        public string? State { get; set; }
+        public string? City { get; set; }
+        public string Latitude { get; set; }
+        public string Longitude { get; set; }
         public string? MapUrl { get; set; }
     }
 
-    internal class OwnerLegalModel
+    public class OwnerLegalModel : OwnerBankDetailsModel
     {
         public string? FssaiNumber { get; set; }
         public DateTime FssaiExpiryDate { get; set; }
@@ -55,18 +58,19 @@
 
     }
 
-    internal class OwnerServicesModel
+    public class CateringServicesModel
     {
-        public int[]? Cuisines { get; set; }
-        public int[]? ServiceTypes { get; set; }
+        public int[]? CuisineTypeIds { get; set; }
+        public int[]? ServiceTypeIds { get; set; }
         public int MinOrderValue { get; set; }
-        public int[]? EventTypes { get; set; }
-        public bool IsDeliveryAvailable { get; set; }
-        public string[]? ServingSlots { get; set; } // JSON string of available time slots
+        public int[]? EventTypeIds { get; set; }
+        public int[]? FoodTypeIds { get; set; }
+        public int[]? ServingSlots { get; set; } // JSON string of available time slots
         public int DeliveryRediusKm { get; set; }
+        public List<MediaFileModel>? CateringMedia { get; set; }
     }
 
-    internal class OwnerBankDetailsModel
+    public class OwnerBankDetailsModel
     {
         public string? AccountHolderName { get; set; }
         public string? BankAccountNumber { get; set; }
@@ -81,5 +85,14 @@
         public string ServiceName { get; set; }
         public string Description { get; set; }
         public bool IsActive { get; set; }
+    }
+
+    public class MediaFileModel
+    {
+        public long Id { get; set; }
+        public string? FilePath { get; set; }
+        public string? MediaType { get; set; }
+        public string? FileName { get; set; }
+        public DocumentType DocumentType { get; set; }
     }
 }

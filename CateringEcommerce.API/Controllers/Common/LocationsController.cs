@@ -1,6 +1,7 @@
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
@@ -22,6 +23,7 @@ namespace CateringEcommerce.API.Controllers.Common
             _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
         }
 
+        [Authorize]
         [HttpGet("states")]
         public IActionResult GetStates()
         {
@@ -38,6 +40,7 @@ namespace CateringEcommerce.API.Controllers.Common
             }
         }
 
+        [Authorize]
         [HttpGet("cities/{stateId}")]
         public IActionResult GetCities(int stateId)
         {

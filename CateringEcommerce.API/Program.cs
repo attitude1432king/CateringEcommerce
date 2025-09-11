@@ -16,6 +16,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddControllers(options =>
@@ -64,6 +66,7 @@ builder.Services.AddAuthentication("Bearer")
         authenticationScheme.SlidingExpiration = true;
         authenticationScheme.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         authenticationScheme.Cookie.HttpOnly = true;
+        authenticationScheme.Cookie.Name = "CateringAuthCookie";
         authenticationScheme.Cookie.SameSite = SameSiteMode.Strict;// Adjust the path as needed
 
         authenticationScheme.Events.OnRedirectToLogin = context =>

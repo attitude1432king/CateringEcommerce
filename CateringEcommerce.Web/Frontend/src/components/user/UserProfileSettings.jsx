@@ -63,7 +63,7 @@ const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, ide
 };
 
 
-export default function ProfileSettings() {
+export default function UserProfileSettings() {
     const { user, updateUserProfileInContext } = useAuth();
     const [profile, setProfile] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -86,7 +86,7 @@ export default function ProfileSettings() {
                     setIsLoading(true);
                     setFormErrors({});
                     const [profileData, statesData] = await Promise.all([
-                        apiService.getUserProfile(user.pkid),
+                        apiService.getUserProfile(),
                         apiService.getStates()
                     ]);
 
@@ -155,7 +155,11 @@ export default function ProfileSettings() {
         }
 
         try {
-            await apiService.sendVerificationOtp(type, value, 'User');
+            const { result, message } = await apiService.sendVerificationOtp(type, value, 'User');
+            if (!result) {
+                setFormErrors(prev => ({ ...prev, [type]: message || `Failed to send OTP to ${value}.` }));
+                throw new Error(message || `Failed to send OTP to ${value}.`);
+            }
             setOtpModalInfo({ isOpen: true, type: type, value: value });
         } catch (err) {
             setFormErrors(prev => ({ ...prev, [type]: err.message }));
@@ -164,8 +168,12 @@ export default function ProfileSettings() {
 
     const handleOtpVerify = async (otp) => {
         const { type, value } = otpModalInfo;
-        await apiService.verifyUpdateOtp(type, value, otp, profile.pkID);
+        const { result, message } = await apiService.verifyUpdateOtp(type, value, otp, profile.pkID);
         // On success, update profile state to reflect verification
+        if (!result) {
+            setFormErrors(prev => ({ ...prev, [type]: message || 'OTP verification failed.' }));
+            throw new Error(message || 'OTP verification failed.');
+        }
         setProfile(prev => ({ ...prev, [`is${type.charAt(0).toUpperCase() + type.slice(1)}Verified`]: true }));
     };
 
@@ -191,7 +199,7 @@ export default function ProfileSettings() {
         }
         setIsLoading(true);
         try {
-            const response = await apiService.updateUserProfile(user.pkid, profile);
+            const response = await apiService.updateUserProfile(profile);
             // Update the global context so the header photo changes immediately
             updateUserProfileInContext(response.user);
             alert("Profile updated successfully!");

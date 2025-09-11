@@ -18,14 +18,13 @@ import PartnerLoginPage from '../pages/PartnerLoginPage';
 // Wrapper for routes only accessible to logged-in clients
 const ClientProtectedRoute = () => {
     const { user } = useAuth();
-    return user && user.role === 'client' ? <Outlet /> : <Navigate to="/" replace />;
+    return user && user.role === 'User' ? <Outlet /> : <Navigate to="/" replace />;
 };
 
 // Wrapper for routes only accessible to logged-in owners
 const OwnerProtectedRoute = () => {
-    debugger; // Debugging line to check if this route is hit
     const { user } = useAuth();
-    return user && user.role === 'owner' ? <Outlet /> : <Navigate to="/partner-login" replace />;
+    return user && user.role === 'Owner' ? <Outlet /> : <Navigate to="/partner-login" replace />;
 };
 
 export default function Router() {

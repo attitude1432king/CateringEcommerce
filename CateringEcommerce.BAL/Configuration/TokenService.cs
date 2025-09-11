@@ -2,6 +2,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Twilio.Types;
 
 namespace CateringEcommerce.BAL.Configuration
 {
@@ -13,7 +14,7 @@ namespace CateringEcommerce.BAL.Configuration
             _config = config;
         }
 
-        public string GenerateToken(string username, string role)
+        public string GenerateToken(string username, string role, string PKID, string phoneNumber)
         {
             var jwtSettings = _config.GetSection("Jwt");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]));
@@ -23,6 +24,8 @@ namespace CateringEcommerce.BAL.Configuration
             {
             new Claim(JwtRegisteredClaimNames.Sub, username),
             new Claim(ClaimTypes.Role, role),
+            new Claim(ClaimTypes.NameIdentifier, PKID),
+            new Claim(ClaimTypes.MobilePhone, phoneNumber),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

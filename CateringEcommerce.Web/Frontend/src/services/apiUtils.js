@@ -17,27 +17,63 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
         url += `?${params.toString()}`;
     }
 
+    // Get the auth token from localStorage
+    const token = localStorage.getItem('authToken');
+
     const options = {
         method,
         headers: {
-            'Content-Type': 'application/json',
-            // In a real app, you'd add the Authorization header here
-            // 'Authorization': `Bearer ${your_jwt_token}`
+            'Content-Type': 'application/json'
         },
     };
+
+    // If a token exists, add it to the Authorization header
+    if (token) {
+        // In a real app, you'd add the Authorization header here
+        options.headers['Authorization'] = `Bearer ${token}`;
+    }
+
 
     if (body) {
         options.body = JSON.stringify(body);
     }
 
-    const response = await fetch(url, options);
+    try {
+        const response = await fetch(url, options);
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        // If the token is invalid or expired, the API should return a 401
+        if (response.status === 401) {
+            // Clear user data from storage
+            localStorage.removeItem('feasto_user');
+            localStorage.removeItem('authToken');
+
+            // Determine where to redirect
+            // A simple way is to check the current path
+            if (window.location.pathname.startsWith('/owner')) {
+                window.location.href = '/partner-login';
+            } else {
+                window.location.href = '/';
+            }
+
+            // Throw an error to stop further execution in the calling function
+            throw new Error('Unauthorized');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+
+        // Handle responses with no content
+        if (response.status === 204) {
+            return null;
+        }
+
+        return response.json();
+    } catch (error) {
+        console.error('API fetch error:', error);
+        throw error;
     }
-
-    return response.json();
 };
 
 /**
@@ -46,7 +82,6 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
  * @returns {Promise<any>} - The JSON response from the API.
  */
 export const fetchExternalApi = async (fullUrl) => {
-    debugger;
     const response = await fetch(fullUrl, {
         method: 'GET',
         headers: {
@@ -61,3 +96,19 @@ export const fetchExternalApi = async (fullUrl) => {
 
     return response.json();
 };
+
+
+// Helper function to convert a File object to a Base64 DTO
+export const fileToBase64Dto = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve({
+            base64: reader.result,
+            name: file.name,
+            type: file.type,
+        });
+        reader.onerror = error => reject(error);
+    });
+};
+

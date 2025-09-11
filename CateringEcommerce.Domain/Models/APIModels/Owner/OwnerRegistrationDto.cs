@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace CateringEcommerce.Domain.Models.APIModels
+namespace CateringEcommerce.Domain.Models.APIModels.Owner
 {
     public class OwnerRegistrationDto
     {
@@ -86,8 +86,8 @@ namespace CateringEcommerce.Domain.Models.APIModels
 
     public class FileUploadDto
     {
-        public string Base64 { get; set; }
-        public string Name { get; set; }
-        public string Type { get; set; }
+        public string? Base64 { get; set; }
+        public string? Name { get; set; }
+        public string? Type { get; set; }
     }
 }

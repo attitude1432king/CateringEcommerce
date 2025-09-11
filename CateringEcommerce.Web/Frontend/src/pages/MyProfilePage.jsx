@@ -5,7 +5,7 @@ File: src/components/MyProfilePage.jsx (NEW FILE)
 This is the main container for the user profile section.
 */
 import React, { useState } from 'react';
-import ProfileSettings from '../components/user/ProfileSettings';
+import UserProfileSettings from '../components/user/UserProfileSettings';
 
 // ... (Placeholder components remain the same)
 const Activity = () => <div className="p-6 bg-white rounded-lg shadow-md">Activity Content Coming Soon...</div>;
@@ -20,7 +20,7 @@ export default function MyProfilePage({ navigateTo }) {
     const [activeTab, setActiveTab] = useState('profile');
 
     const tabs = {
-        profile: { label: 'Profile', component: <ProfileSettings /> },
+        profile: { label: 'Profile', component: <UserProfileSettings /> },
         activity: { label: 'Activity', component: <Activity /> },
         reviews: { label: 'Reviews', component: <Reviews /> },
         payments: { label: 'Payment Methods', component: <PaymentMethods /> },

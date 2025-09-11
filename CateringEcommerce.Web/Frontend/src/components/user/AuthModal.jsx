@@ -1,4 +1,5 @@
-﻿import React, { useState } from 'react';
+﻿import { useNavigate, Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import { apiService } from '../../services/userApi'; // Import the API service for authentication
 import { useAuth } from '../../contexts/AuthContext'; // Import the AuthContext to access login function
 
@@ -17,7 +18,7 @@ const ErrorBanner = ({ message }) => {
 
 export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
     const [view, setView] = useState('login'); // 'login', 'signup', 'otp'
-
+    const navigate = useNavigate();
     // Data States
     const { login } = useAuth();
     const [phone, setPhone] = useState('');
@@ -53,7 +54,12 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         setError('');
         setIsLoading(true);
         try {
-            await apiService.sendOtp(currentAction, identifier);
+            const { result, message } = await apiService.sendOtp(currentAction, identifier, isPartnerLogin);
+            if (!result) {
+                setError(message);
+                setIsLoading(false);
+                return;
+            }
             setAuthAction(currentAction); // Set whether this is a 'login' or 'signup' OTP
             setIsLoading(false);
             setView('otp'); // Move to OTP view on success
@@ -70,18 +76,22 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         setSuccessMessage('');
         try {
             const nameToSend = authAction === 'signup' ? fullName : '';
-            const { token, user } = await apiService.verifyOtp(authAction, `+91${phone}`, nameToSend, otp, isPartnerLogin);
+            const { result, message, token, user, role } = await apiService.verifyOtp(authAction, `+91${phone}`, nameToSend, otp, isPartnerLogin);
 
-            if (role === 'owner') {
-                navigate('/owner/dashboard');
+            if (!result) {
+                setError(message || 'OTP verification failed');
+                throw new Error(message || 'OTP verification failed');
             }
             setIsLoading(false);
-            await apiService.finalVerify(user.pkID); // Final verification step
-            setSuccessMessage(`Welcome, ${user.fullName}!`);
+            await apiService.finalVerify(user.pkID, role, token); // Final verification step
+            setSuccessMessage(`Welcome, ${user.fullName ?? user.cateringName}!`);
 
             setTimeout(() => {
-                login({ pkid: user.pkID, name: user.fullName }); // Call login from context
+                login({ pkid: user.pkID, name: user.fullName ?? user.cateringName, role: role,token: token }); // Call login from context
                 handleClose();
+                if (role === 'Owner') {
+                    navigate('/owner/dashboard/');
+                }
             }, 1500);
 
         } catch (err) {
@@ -123,7 +133,12 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                 <img src="https://placehold.co/20x20/FFFFFF/000000?text=G" alt="Google" className="mr-2 h-5 w-5" /> Sign in with Google
             </button>
             <p className="mt-4 text-center text-xs text-neutral-600">
-                New to Feasto? <button type="button" onClick={() => { setView('signup'); resetState(); }} className="text-rose-600 hover:underline font-medium">Create account</button>
+                New to Feasto?{' '}
+                {isPartnerLogin ? (
+                    <Link to="/partner-registration" onClick={handleClose} className="text-rose-600 hover:underline font-medium">Create account</Link>
+                ) : (
+                    <button type="button" onClick={() => setView('signup')} className="text-rose-600 hover:underline font-medium">Create account</button>
+                )}
             </p>
         </div>
     );

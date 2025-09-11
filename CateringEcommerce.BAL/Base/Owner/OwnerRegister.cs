@@ -264,9 +264,9 @@ namespace CateringEcommerce.BAL.Base.Owner
                 throw new ArgumentException("Service Type ID must be greater than zero.", nameof(serviceTypeId));
             List<ServiceTypeDetails> serviceTypes = new List<ServiceTypeDetails>();
             StringBuilder query = new StringBuilder();
-            query.Append($@"SELECT c_type_id AS TypeId, c_type_name AS ServiceName, c_description AS Description 
+            query.Append($@"SELECT c_type_id AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_is_active AS IsActive
                             FROM {Table.SysCateringTypeMaster} 
-                            WHERE c_category_id = @ServiceTypeId");
+                            WHERE c_category_id = @ServiceTypeId AND c_is_active = 1");
 
             var parameters = new List<SqlParameter>
             {
@@ -288,7 +288,8 @@ namespace CateringEcommerce.BAL.Base.Owner
                     {
                         TypeId = Convert.ToInt32(row["TypeId"]),
                         ServiceName = row["ServiceName"].ToString(),
-                        Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : string.Empty
+                        Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : string.Empty,
+                        IsActive = Convert.ToBoolean(row["IsActive"])
                     };
                     serviceTypes.Add(serviceType);
                 }

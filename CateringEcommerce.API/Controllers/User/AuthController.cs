@@ -6,12 +6,14 @@ using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Extensions;
 using System.Security.Claims;
 
 namespace CateringEcommerce.API.Controllers.User
 {
+    [Authorize]
     [Route("api/User/Auth")]
     [ApiController]
     public class AuthController : ControllerBase
@@ -30,6 +32,7 @@ namespace CateringEcommerce.API.Controllers.User
             _tokenService = new TokenService(config);
         }
 
+        [AllowAnonymous]
         [HttpPost("send-otp")]
         public async Task<IActionResult> SendOtp([FromBody] ActionRequest request)
         {
@@ -38,11 +41,10 @@ namespace CateringEcommerce.API.Controllers.User
             {
                 Role role  = request.IsPartnerLogin ? Role.Owner : Role.User; // Determine role based on IsPartnerLogin
                 if (string.IsNullOrEmpty(request.PhoneNumber) && !System.Text.RegularExpressions.Regex.IsMatch(request.PhoneNumber, @"^\+91[6-9]\d{9}$"))
-                    return BadRequest(new { message = "The phone number you entered is not valid. Use + followed by the 10-digit number." });
-
+                    return BadRequest(new { result = false, message = "The phone number you entered is not valid. Use + followed by the 10-digit number." });
                 UserRepository authentication = new UserRepository(_connStr);
                 string mgs = string.Empty;
-
+                bool isResult = false;
                 if (!string.IsNullOrEmpty(request.CurrentAction) && request.CurrentAction == "login")
                 {
                     if (authentication.IsExistNumber(request.PhoneNumber, role.GetDisplayName()))
@@ -52,14 +54,14 @@ namespace CateringEcommerce.API.Controllers.User
                     else
                     {
                         string shortMsg = role == Role.User ? "sign up" : "register";
-                        return BadRequest(new { message = $"Phone number does not exist. Please {shortMsg} first." });
+                        return BadRequest(new { result = isResult, message = $"Phone number does not exist. Please {shortMsg} first." });
                     }
                 }
                 else
                 {
                     if (authentication.IsExistNumber(request.PhoneNumber, role.GetDisplayName()))
                     {
-                        return BadRequest(new { message = "Phone number already exists. Please login instead." });
+                        return BadRequest(new { result = isResult, message = "Phone number already exists. Please login instead." });
                     }
                     else
                     {
@@ -67,8 +69,7 @@ namespace CateringEcommerce.API.Controllers.User
                     }
                 }
                 _smsService.SendOtp(request.PhoneNumber);
-
-                return Ok(new { message = mgs });
+                return Ok(new { result = !isResult, message = mgs });
             }
             catch (Exception ex)
             {
@@ -76,19 +77,21 @@ namespace CateringEcommerce.API.Controllers.User
             }
         }
 
+        [AllowAnonymous]
         [HttpPost("verify-otp")]
         public IActionResult VerifyOtp([FromBody] OtpVerificationRequest request)
         {
             // Retrieve the stored OTP for the phone number
             // Validate the OTP and its expiration
             string msg = string.Empty;
-            Role roleName = request.IsPartnerLogin ? Role.Owner : Role.User; // Determine role based on IsPartnerLogin
+            string roleName = request.IsPartnerLogin ? Role.Owner.GetDisplayName() : Role.User.GetDisplayName(); // Determine role based on IsPartnerLogin
             try
             {
+                // Subscription is pending to the SMS service and verify the OTP
                 if (_smsService.VerifyOtp(request.PhoneNumber, request.Otp))
                 {
                     Authentication authenticationDB = new Authentication(_connStr);
-
+                    OwnerRepository ownerRepository = new OwnerRepository(_connStr);
                     if (!string.IsNullOrEmpty(request.PhoneNumber) && !string.IsNullOrEmpty(request.Name) && request.CurrentAction == "signup" && !request.IsPartnerLogin)
                     {
                         authenticationDB.CreateUserAccount(request.Name, request.PhoneNumber);
@@ -100,14 +103,31 @@ namespace CateringEcommerce.API.Controllers.User
                     }
                     else
                     {
-                        return BadRequest(new { message = "Phone number or name is missing." });
+                        return BadRequest(new { result = false, message = "Phone number or name is missing." });
                     }
-                    string newToken = _tokenService.GenerateToken(request.Name, roleName.GetDisplayName());
-                    return Ok(new { message = msg, token = newToken, user = authenticationDB.GetUserData(request.PhoneNumber), role = roleName });
+
+                    // With the following explicit type handling:
+                    object loginUserDetails = request.IsPartnerLogin
+                        ? (object)ownerRepository.GetOwnerDetails(request.PhoneNumber)
+                        : (object)authenticationDB.GetUserData(request.PhoneNumber);
+
+                    // Fix: Use reflection or dynamic to access PkID property
+                    string pkId = null;
+                    if (loginUserDetails != null)
+                    {
+                        var pkIdProp = loginUserDetails.GetType().GetProperty("PkID");
+                        if (pkIdProp != null)
+                        {
+                            pkId = pkIdProp.GetValue(loginUserDetails)?.ToString();
+                        }
+                    }
+
+                    string newToken = _tokenService.GenerateToken(request.Name, roleName, pkId, request.PhoneNumber);
+                    return Ok(new { result = true, message = msg, token = newToken, user = loginUserDetails, role = roleName });
                 }
                 else
                 {
-                    return Ok(new { message = "Invalid or expired OTP." });
+                    return Ok(new { result = false, message = "Invalid or expired OTP." });
                 }
 
             }
@@ -157,24 +177,26 @@ namespace CateringEcommerce.API.Controllers.User
             }
         }
 
+        [Authorize]
         [HttpPost("final-verify")]
-        public async Task<IActionResult> FinalVerification([FromQuery] long userPKID)
+        public async Task<IActionResult> FinalVerification([FromBody] FinalRequest finalRequest)
         {
             try
             {
-                if (userPKID == 0)
+                if (finalRequest.UserPkId == 0)
                     return BadRequest(new { message = "Invalid user ID." });
                 // Check OTP and email verification success here
-                UserRepository _userService = new UserRepository(_connStr);
-                UserModel user = _userService.GetUserDetails(userPKID);
-                if (user == null)
-                    return Unauthorized();
+                var claims = new List<Claim>();
 
-                var claims = new List<Claim>
+                if (!string.IsNullOrWhiteSpace(finalRequest.Role))
                 {
-                    new Claim(ClaimTypes.NameIdentifier, userPKID.ToString()), // Fix: Use userPKID.ToString() instead of user.Id.ToString()
-                    new Claim(ClaimTypes.MobilePhone, user.Phone),
-                };
+                    claims.Add(new Claim(ClaimTypes.Role, finalRequest.Role));
+                }
+                if (finalRequest.UserPkId > 0)
+                {
+                    claims.Add(new Claim(ClaimTypes.NameIdentifier, finalRequest.UserPkId.ToString()));
+                }
+
 
                 var identity = new ClaimsIdentity(claims, "CateringCookieAuth");
                 var principal = new ClaimsPrincipal(identity);
@@ -196,6 +218,8 @@ namespace CateringEcommerce.API.Controllers.User
 
     }
 
+    // Change the access modifier from 'private' to 'internal' or remove it entirely for nested classes in a namespace scope
+
     public class OtpVerificationRequest
     {
         public string? CurrentAction { get; set; }
@@ -210,6 +234,12 @@ namespace CateringEcommerce.API.Controllers.User
         public string? CurrentAction { get; set; }
         public string? PhoneNumber { get; set; }
         public bool IsPartnerLogin { get; set; }
+    }
+
+    public class FinalRequest
+    {
+        public Int64 UserPkId { get; set; }
+        public string? Role { get; set; }
     }
 
 }

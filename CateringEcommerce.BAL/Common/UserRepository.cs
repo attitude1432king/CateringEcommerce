@@ -81,7 +81,7 @@ namespace CateringEcommerce.BAL.Common
             string tableName = GetUserTableName(role);
             string query = $"SELECT Count(c_mobile) FROM {tableName} WHERE c_mobile = @phoneNumber";
             SqlParameter[] parameters = {
-                    new SqlParameter("@phoneNumber", phoneNumber)
+                    new SqlParameter("@phoneNumber", phoneNumber.Substring(3))
                     };
             return Convert.ToBoolean(_db.ExecuteScalar(query, parameters));
         }
@@ -89,10 +89,10 @@ namespace CateringEcommerce.BAL.Common
         public bool IsExistRoleBaseNumber(string phoneNumber, string type, string role)
         {
             string tableName = GetUserTableName(role);
-            string numberColumn = type == "Mobile" ? "c_mobile" : "c_catering_number";
+            string numberColumn = type == "phone" ? "c_mobile" : "c_catering_number";
             string query = $"SELECT Count({numberColumn}) FROM {tableName} WHERE {numberColumn} = @phoneNumber";
             SqlParameter[] parameters = {
-                    new SqlParameter("@phoneNumber", phoneNumber)
+                    new SqlParameter("@phoneNumber", phoneNumber.Substring(3))
                     };
             return Convert.ToBoolean(_db.ExecuteScalar(query, parameters));
         }

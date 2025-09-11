@@ -3,16 +3,17 @@ using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace CateringEcommerce.API.Controllers.Common
 {
+    [Authorize]
     [ApiController]
     [Route("api/Common/Auth")]
     public class AuthenticationController : ControllerBase
     {
-        private readonly IConfiguration _configuration;
         private readonly string _connStr;
         private readonly EmailService _emailService;
         private readonly ISmsService _smsService;
@@ -23,12 +24,12 @@ namespace CateringEcommerce.API.Controllers.Common
         // Constructor updated to initialize all required fields
         public AuthenticationController(IConfiguration configuration, IOptions<EmailSettings> emailSettings, ISmsService smsService)
         {
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connStr = _configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
             _emailService = new EmailService(emailSettings ?? throw new ArgumentNullException(nameof(emailSettings)));
             _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
         }
 
+        [Authorize]
         [HttpPost("send-otp")]
         public async Task<IActionResult> SendOtp([FromBody] VerificationRequest request)
         {
@@ -36,11 +37,11 @@ namespace CateringEcommerce.API.Controllers.Common
             {
                 if (request.Type == EmailType && string.IsNullOrEmpty(request.Value) && !System.Text.RegularExpressions.Regex.IsMatch(request.Value, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
                 {
-                    return BadRequest("Invalid email format.");
+                    return BadRequest(new { result = false, message = "Invalid email format." });
                 }
                 else if (request.Type == PhoneType && string.IsNullOrEmpty(request.Value) && !System.Text.RegularExpressions.Regex.IsMatch(request.Value, @"^\+?[1-9]\d{1,14}$"))
                 {
-                    return BadRequest("Invalid phone number format.");
+                    return BadRequest(new { result = false, message = "Invalid phone number format." });
                 }
 
                 UserRepository userRepository = new UserRepository(_connStr);
@@ -58,10 +59,10 @@ namespace CateringEcommerce.API.Controllers.Common
                 }
                 else
                 {
-                    return BadRequest(new { role = request.Role, message = $"{(request.Type == EmailType ? EmailType : PhoneType + " number")} is already exists." });
+                    return BadRequest(new { result = false, role = request.Role, message = $"{(request.Type == EmailType ? EmailType : PhoneType + " number")} is already exists." });
                 }
 
-                return Ok(new { role = request.Role, message = $"OTP sent to {(request.Type == EmailType ? EmailType : PhoneType)}." });
+                return Ok(new { result = true, role = request.Role, message = $"OTP sent to {(request.Type == EmailType ? EmailType : PhoneType)}." });
             }
             catch (Exception ex)
             {
@@ -69,6 +70,7 @@ namespace CateringEcommerce.API.Controllers.Common
             }
         }
 
+        [Authorize] 
         [HttpPost("verify-otp")]
         public IActionResult VerifyOtp([FromBody] VerificationRequest request)
         {
@@ -80,12 +82,12 @@ namespace CateringEcommerce.API.Controllers.Common
 
                 if (request.Type == EmailType && string.IsNullOrEmpty(request.Value))
                 {
-                    return BadRequest(new { message = "Email value cannot be null or empty." });
+                    return BadRequest(new { result = false, message = "Email value cannot be null or empty." });
                 }
 
                 if (string.IsNullOrEmpty(request.Otp))
                 {
-                    return BadRequest(new { message = "OTP value cannot be null or empty." });
+                    return BadRequest(new { result = false, message = "OTP value cannot be null or empty." });
                 }
 
                 if (request.Type == EmailType)
@@ -101,7 +103,7 @@ namespace CateringEcommerce.API.Controllers.Common
 
                 if (!isValid)
                 {
-                    return BadRequest(new { message = "Invalid or expired OTP." });
+                    return BadRequest(new { result = false, message = "Invalid or expired OTP." });
                 }
 
                 if (request.pkID > 0)
@@ -109,11 +111,10 @@ namespace CateringEcommerce.API.Controllers.Common
                     profileSetting.UpdateUserDetails(request.pkID, userData);
                 }
 
-                return Ok(new { otp = request.Otp, message = "OTP verified successfully." });
+                return Ok(new { result = true, otp = request.Otp, message = "OTP verified successfully." });
             }
             catch (Exception ex)
             {
-
                 throw new Exception(ex.Message);
             }
         }

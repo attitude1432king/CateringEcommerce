@@ -134,7 +134,6 @@ export default function OwnerRegistrationPage() {
 
     const handleVerifyClick = async (type, value, role) => {
         try {
-            debugger;
             const newErrors = {};
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             const phoneRegex = /^\+91\d{10}$/;
@@ -166,7 +165,11 @@ export default function OwnerRegistrationPage() {
                 return;
             }
 
-            await apiService.sendVerificationOtp(type, value, role);
+            const { result, message } = await apiService.sendVerificationOtp(type, value, role);
+            if (!result) {
+                setErrors(prev => ({ ...prev, [type]: message || `Failed to send OTP to ${value}.` }));
+                throw new Error(message || `Failed to send OTP to ${value}.`);
+            }
             setOtpModalInfo({ isOpen: true, type, value });
             setErrors({}); // Clear previous errors on success
         } catch (err) {
@@ -201,7 +204,6 @@ export default function OwnerRegistrationPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        debugger;
         if (validateStep()) {
             try {
                 // Create a submission payload by copying serializable data
