@@ -1,0 +1,122 @@
+﻿using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Models;
+using Microsoft.Data.SqlClient;
+using System.Text;
+
+namespace CateringEcommerce.BAL.Common
+{
+    public class OwnerRepository : IOwnerRepository
+    {
+        private readonly SqlDatabaseManager _db;
+        private readonly Logger<OwnerRepository> _logger;
+
+        public OwnerRepository(string connectionString)
+        {
+            _db = new SqlDatabaseManager();
+            _db.SetConnectionString(connectionString);
+        }
+
+        public bool IsOwnerPhoneExist(string mobileNumber)
+        {
+            if (string.IsNullOrEmpty(mobileNumber))
+                throw new ArgumentException("Mobile number cannot be null or empty.", nameof(mobileNumber));
+            string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_mobile = @MobileNumber";
+            SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", mobileNumber) };
+            int count = Convert.ToInt32(_db.ExecuteScalar(query, parameters));
+            return count > 0;
+        }
+
+        public bool IsEmailExist(string email)
+        {
+            if (string.IsNullOrEmpty(email))
+                throw new ArgumentException("Email cannot be null or empty.", nameof(email));
+            string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_email = @Email";
+            SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@Email", email) };
+            int count = Convert.ToInt32(_db.ExecuteScalar(query, parameters));
+            return count > 0;
+        }
+        public async Task<int> SaveFilePath(string filePath, Int64 ownerPkid, string fileName, DocumentType documentType)
+        {
+            fileName = Path.GetFileNameWithoutExtension(fileName);
+            string query = $"INSERT INTO {Table.SysCateringMediaUploads} (c_ownerid, c_file_name, c_file_path, c_document_type_id, c_uploaded_at) " +
+                           "VALUES (@OwnerPkid, @FileName, @FilePath, @DocumentTypeID, @UploadAt)";
+
+            SqlParameter[] parameters = new SqlParameter[]
+            {
+                new SqlParameter("@OwnerPkid", ownerPkid),
+                new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                new SqlParameter("@FilePath", filePath),
+                new SqlParameter("@FileName", fileName),
+                new SqlParameter("@UploadAt", DateTime.Now)
+            };
+
+            try
+            {
+                return _db.ExecuteNonQuery(query, parameters);
+            }
+            catch (SqlException ex)
+            {
+                throw new Exception("An error occurred while saving the file path.", ex);
+            }
+        }
+
+        public OwnerBusinessModel GetOwnerDetails(string number = null, long ownerPkid = 0)
+        {
+            try
+            {
+                StringBuilder query = new StringBuilder();
+                SqlParameter[] parameters;
+
+                query.Append($"SELECT * FROM {Table.SysCateringOwner} WHERE ");
+
+                if (ownerPkid > 0)
+                {
+                    query.Append("c_ownerid = @OwnerPkid");
+                    parameters = new SqlParameter[] { new SqlParameter("@OwnerPkid", ownerPkid) };
+                }
+                else
+                {
+                    query.Append("c_mobile = @MobileNumber");
+                    parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", number.Substring(3)) };
+                }
+
+                var dt = _db.Execute(query.ToString(), parameters);
+
+                if (dt.Rows.Count > 0)
+                {
+                    var row = dt.Rows[0];
+                    return new OwnerBusinessModel
+                    {
+                        PkID = row["c_ownerid"] == DBNull.Value ? 0 : Convert.ToInt64(row["c_ownerid"]),
+                        OwnerName = row["c_owner_name"] == DBNull.Value ? string.Empty : row["c_owner_name"].ToString(),
+                        CateringName = row["c_catering_name"] == DBNull.Value ? string.Empty : row["c_catering_name"].ToString(),
+                        Phone = row["c_mobile"] == DBNull.Value ? string.Empty : row["c_mobile"].ToString(),
+                        CateringNumber = row["c_catering_number"] == DBNull.Value ? string.Empty : row["c_catering_number"].ToString(),
+                        Email = row["c_email"] == DBNull.Value ? string.Empty : row["c_email"].ToString(),
+                        LogoPath = row["c_logo_path"] == DBNull.Value ? string.Empty : row["c_logo_path"].ToString(),
+                        StdNumber = row["c_std_number"] == DBNull.Value ? string.Empty : row["c_std_number"].ToString(),
+                        WhatsappNumber = row["c_whatsapp_number"] == DBNull.Value ? string.Empty : row["c_whatsapp_number"].ToString(),
+                        AlternateEmail = row["c_alternate_email"] == DBNull.Value ? string.Empty : row["c_alternate_email"].ToString(),
+                        SupportContact = row["c_support_contact_number"] == DBNull.Value ? string.Empty : row["c_support_contact_number"].ToString(),
+                        IsEmailVerified = row["c_email_verified"] == DBNull.Value ? false : row.GetBoolean("c_email_verified"),
+                        IsPhoneVerified = row["c_phone_verified"] == DBNull.Value ? false : row.GetBoolean("c_phone_verified"),
+                        IsVerifiedBy_Admin = row["c_verified_by_admin"] == DBNull.Value ? false : row.GetBoolean("c_verified_by_admin"),
+                        IsOnline = row["c_isonline"] == DBNull.Value ? false : row.GetBoolean("c_isonline"),
+                    };
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+    }
+}

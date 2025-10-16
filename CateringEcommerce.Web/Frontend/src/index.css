@@ -1,0 +1,55 @@
+/*
+========================================
+File: src/index.css
+========================================
+This file contains your global styles.
+*/
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    font-family: 'Inter', sans-serif;
+    @apply bg-amber-50;
+}
+
+.hero-bg {
+    background-image: url('https://placehold.co/1600x800/FFF7ED/DB2777?text=Delicious+Catering+Awaits!');
+    background-size: cover;
+    background-position: center;
+}
+
+.icon-placeholder {
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    text-align: center;
+    line-height: 1.2em;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+}
+
+

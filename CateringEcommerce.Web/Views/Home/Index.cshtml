@@ -1,0 +1,27 @@
+﻿<body class="bg-amber-50">
+
+    <div id="root"></div>
+
+    <!--
+      Load React Components
+      IMPORTANT: The order matters. Load components before the files that use them.
+      HomePage.jsx is last as it uses all other components.
+    -->
+    <script type="text/babel" src="~/components/Home/AuthModal.jsx"></script>
+    <script type="text/babel" src="~/components/Home/AppHeader.jsx"></script>
+    <script type="text/babel" src="~/components/Home/HeroSection.jsx"></script>
+    <script type="text/babel" src="~/components/Home/CuisineBrowseSection.jsx"></script>
+    <script type="text/babel" src="~/components/Home/FeaturedCaterersSection.jsx"></script>
+    <script type="text/babel" src="~/components/Home/HowItWorksSection.jsx"></script>
+    <script type="text/babel" src="~/components/Home/PromotionsSection.jsx"></script>
+    <script type="text/babel" src="~/components/Home/AppFooter.jsx"></script>
+    <script type="text/babel" src="~/components/Home/HomePage.jsx"></script>
+
+    <!-- Initial React Render -->
+    <script type="text/babel">
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<HomePage />);
+    </script>
+
+</body>
+</html>
