@@ -1,8 +1,8 @@
-﻿namespace CateringEcommerce.Domain.Interfaces
+﻿namespace CateringEcommerce.Domain.Interfaces.Common
 {
     public interface ICurrentUserService
     {
-        Int64 UserId { get; }
+        long UserId { get; }
         string PhoneNumber { get; }
         string UserRole { get; }
     }

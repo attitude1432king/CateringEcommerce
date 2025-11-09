@@ -1,6 +1,6 @@
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.Domain.Models;
+using CateringEcommerce.Domain.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;

@@ -1,7 +1,7 @@
 ﻿using CateringEcommerce.API.Attributes;
 using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.Domain.Interfaces;
-using CateringEcommerce.Domain.Models;
+using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Models.Common;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.FileProviders;
@@ -29,7 +29,7 @@ builder.Services.AddControllers(options =>
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
     // Set the limit to 50 MB, for example
-    options.Limits.MaxRequestBodySize = 52428800;
+    options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100 MB;
 });
 
 // 2. Configure FormOptions to increase the limit for individual values
@@ -38,7 +38,7 @@ builder.Services.Configure<FormOptions>(options =>
     // Set the value length limit to a large value
     options.ValueLengthLimit = int.MaxValue;
     // Also increase the multipart body length limit
-    options.MultipartBodyLengthLimit = int.MaxValue; // Or a specific large value
+    options.MultipartBodyLengthLimit = 100 * 1024 * 1024; // 100 MB
     options.MemoryBufferThreshold = int.MaxValue;
 });
 

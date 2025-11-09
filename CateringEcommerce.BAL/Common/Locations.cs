@@ -1,7 +1,7 @@
 ﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Interfaces;
-using CateringEcommerce.Domain.Models;
+using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Models.Common;
 using Microsoft.Data.SqlClient;
 using System.Data;
 

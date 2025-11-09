@@ -1,7 +1,7 @@
 ﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
-using CateringEcommerce.Domain.Models;
+using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
 using Org.BouncyCastle.Crypto;
 using System.Data;
@@ -20,7 +20,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             _db.SetConnectionString(connectionString);
         }
 
-        public int CreateOwnerAccount(Dictionary<string, object> dicData)
+        public Int64 CreateOwnerAccount(Dictionary<string, object> dicData)
         {
             try
             {
@@ -66,7 +66,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 };
 
                 var result = _db.ExecuteScalar(query.ToString(), parameters.ToArray());
-                return result != null ? Convert.ToInt32(result) : 0;
+                return result != null ? Convert.ToInt64(result) : 0;
             }
             catch (Exception ex)
             {

@@ -1,15 +1,14 @@
-﻿using CateringEcommerce.API.Attributes;
-using CateringEcommerce.BAL.Base.Owner;
+﻿using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.BAL.Base.Owner.Dashboard;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.Domain.Enums;
-using CateringEcommerce.Domain.Interfaces;
-using CateringEcommerce.Domain.Models;
-using CateringEcommerce.Domain.Models.APIModels.Owner;
+using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-using static CateringEcommerce.Domain.Models.APIModels.Owner.UpdateOwnerProfileDto;
+using CateringEcommerce.Domain.Models.APIModels.Owner;
+using Microsoft.OpenApi.Extensions;
+using CateringEcommerce.API.Helpers;
 
 namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 {
@@ -22,8 +21,6 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
         private readonly ILogger<RegistrationController> _logger;
         private readonly string _connStr;
         private readonly ICurrentUserService _currentUser;
-        // In a real app, you would inject your database service here
-        // private readonly IOwnerRepository _ownerRepository;
 
         public OwnerProfileController(IFileStorageService fileStorageService, ILogger<RegistrationController> logger, IConfiguration configuration, ICurrentUserService currentUser)
         {
@@ -39,14 +36,14 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
             var ownerPKID = _currentUser.UserId;
             if (ownerPKID <= 0)
             {
-                return BadRequest(new { message = "Invalid owner PKID." });
+                return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
             }
             try
             {
                 OwnerModel ownerModel = new OwnerModel();
                 OwnerProfile ownerProfile = new OwnerProfile(_connStr);
                 // Placeholder for fetching data from the database
-                ownerModel = ownerProfile.GetOwnerDetails(ownerPKID);
+                ownerModel = await ownerProfile.GetOwnerDetails(ownerPKID);
 
                 return Ok(new { message = "Dashboard data endpoint is under construction.", formData = ownerModel });
             }
@@ -62,7 +59,10 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
         public async Task<IActionResult> UpdateBusiness([FromBody] BusinessSettingsDto businessDto)
         {
             var ownerPkid = _currentUser.UserId;
-            if (ownerPkid <= 0) return Unauthorized();
+            if (ownerPkid <= 0)
+            {
+                return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
+            }
             try
             {
                 OwnerProfile ownerProfile = new OwnerProfile(_connStr);
@@ -79,14 +79,16 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                     );
                 }
 
-                // Update the logo path if a new logo was uploaded
+                //Remove old logo file and Update the logo path if a new logo was uploaded
                 if (!string.IsNullOrEmpty(newLogoPath))
                 {
+                    string oldLogoPath = ownerProfile.GetLogoPath(ownerPkid);
+                    _fileStorageService.DeleteFilePath(oldLogoPath);
                     ownerRegister.UpdateLogoPath(ownerPkid, newLogoPath);
                 }
                 // ... Database logic to update business settings and newLogoPath ...
                 if(businessDto != null)
-                    ownerProfile.UpdateOwnerBusiness(ownerPkid, businessDto);
+                    await ownerProfile.UpdateOwnerBusiness(ownerPkid, businessDto);
 
                 return Ok(new { message = "Business details updated successfully." });
             }
@@ -108,7 +110,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                 OwnerProfile ownerProfile = new OwnerProfile(_connStr);
                 // ... Database logic to update address settings ...
                 if(addressDto != null)
-                    ownerProfile.UpdateCateringAddress(ownerPkid, addressDto);
+                    await ownerProfile.UpdateCateringAddress(ownerPkid, addressDto);
                 return Ok(new { message = "Address details updated successfully." });
 
             }
@@ -128,19 +130,37 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
             try
             {
                 OwnerRepository ownerRepository = new OwnerRepository(_connStr);
+                MediaRepository mediaRepository = new MediaRepository(_connStr);
                 OwnerProfile ownerProfile = new OwnerProfile(_connStr);
+                if (servicesDto?.ExistingMediaPaths != null)
+                {
+                    List<MediaFileModel> currentMediaPathsInDb = await mediaRepository.GetMediaFiles(ownerPkid, DocumentType.Kitchen);
+                    var filesToDelete = currentMediaPathsInDb
+                        .Where(dbPath => !servicesDto.ExistingMediaPaths
+                            .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase)) // optional case-insensitive compare
+                        .ToList();
+
+                    // Delete the identified files from storage and the database.
+                    foreach (var pathToDelete in filesToDelete)
+                    {
+                        _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
+                        await ownerRepository.DeleteDocumentFile(pathToDelete.Id);
+                    }
+
+                }
+
                 if (servicesDto?.NewKitchenMediaFiles != null)
                 {
                     foreach (var file in servicesDto.NewKitchenMediaFiles)
                     {
-                        var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPkid, "Kitchen", false, file.Name);
+                        var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPkid, DocumentType.Kitchen.GetDisplayName(), false, file.Name);
                         await ownerRepository.SaveFilePath(path, ownerPkid, file.Name, DocumentType.Kitchen);
                     }
                 }
 
                 // ... Database logic to update services
-                if(servicesDto != null)
-                    ownerProfile.UpdateCateringServices(ownerPkid, servicesDto);
+                if (servicesDto != null)
+                    await ownerProfile.UpdateCateringServices(ownerPkid, servicesDto);
                 return Ok(new { message = "Service details updated successfully." });
 
             }
@@ -161,7 +181,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 // ... Database logic to update legal & payment settings ...
                 if(legalDto != null)
-                    ownerProfile.UpdateLegalAndBankDetails(ownerPkid, legalDto);
+                    await ownerProfile.UpdateLegalAndBankDetails(ownerPkid, legalDto);
                 return Ok(new { message = "Legal & Payment details updated successfully." });
             }
             catch (Exception ex)

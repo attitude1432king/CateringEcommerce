@@ -4,11 +4,19 @@ File: src/components/owner/dashboard/settings/AddressSettings.jsx (REVISED)
 ========================================
 */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useToast } from '../../../../contexts/ToastContext';
 // import { apiService } from '../../../../services/api'; // For real pincode API calls
 
-export default function AddressSettings({ initialData, onUpdate }) {
+
+// Reusing helper components
+const RequiredAsterisk = () => <span className="text-red-500">*</span>;
+const ValidationError = ({ message }) => message ? <p className="text-red-500 text-xs mt-1">{message}</p> : null;
+
+export default function AddressSettings({ initialData, onUpdate, isSaving }) {
     const [formData, setFormData] = useState(initialData);
     const [pincodeError, setPincodeError] = useState('');
+    const { showToast } = useToast();
+    const [errors, setErrors] = useState({});
 
     const handlePincodeChange = useCallback(async (pincode) => {
         if (pincode.length === 6) {
@@ -33,17 +41,37 @@ export default function AddressSettings({ initialData, onUpdate }) {
         }
     }, []);
 
+    const validate = (currentData) => {
+        const newErrors = {};
+        if (!currentData.shopNo?.trim()) newErrors.shopNo = 'Shop No. / Building is required.';
+        if (!currentData.area?.trim()) newErrors.area = 'Floor / Tower is required.';
+        if (!currentData.street?.trim()) newErrors.street = 'Area / Street is required.';
+        if (!currentData.pincode?.trim()) newErrors.pincode = 'Pincode is required.';
+        if (!currentData.city?.trim()) newErrors.city = 'City is required.';
+        if (!currentData.state?.trim()) newErrors.state = 'State is required.';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-        if (name === 'pincode') {
-            handlePincodeChange(value);
-        }
+        const updatedFormData = { ...formData, [name]: value };
+        setFormData(updatedFormData);
+        validate(updatedFormData);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onUpdate(formData);
+        const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialData);
+        if (!hasChanged) {
+            showToast('No changes were made.', 'warning');
+            return;
+        }
+        if (validate(formData)) {
+            onUpdate(formData);
+        } else {
+            showToast('Please fix the errors before saving.', 'error');
+        }
     };
 
     return (
@@ -52,31 +80,37 @@ export default function AddressSettings({ initialData, onUpdate }) {
             <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="shopNo" className="block text-sm font-medium text-neutral-700">Shop No. / Building*</label>
+                        <label htmlFor="shopNo" className="block text-sm font-medium text-neutral-700">Shop No. / Building <RequiredAsterisk /></label>
                         <input type="text" name="shopNo" id="shopNo" value={formData.shopNo} onChange={handleChange} className="mt-1 w-full p-2 border border-neutral-300 rounded-md" required />
+                        <ValidationError message={errors.shopNo} />
                     </div>
                     <div>
-                        <label htmlFor="floor" className="block text-sm font-medium text-neutral-700">Floor / Tower</label>
-                        <input type="text" name="floor" id="floor" value={formData.area} onChange={handleChange} className="mt-1 w-full p-2 border border-neutral-300 rounded-md" />
+                        <label htmlFor="area" className="block text-sm font-medium text-neutral-700">Floor / Tower <RequiredAsterisk /></label>
+                        <input type="text" name="area" id="area" value={formData.area} onChange={handleChange} className="mt-1 w-full p-2 border border-neutral-300 rounded-md" />
+                        <ValidationError message={errors.area} />
                     </div>
                 </div>
                 <div>
-                    <label htmlFor="street" className="block text-sm font-medium text-neutral-700">Area / Street / Landmark*</label>
+                    <label htmlFor="street" className="block text-sm font-medium text-neutral-700">Area / Street / Landmark <RequiredAsterisk /></label>
                     <input type="text" name="street" id="street" value={formData.street} onChange={handleChange} className="mt-1 w-full p-2 border border-neutral-300 rounded-md" required />
+                    <ValidationError message={errors.street} />
                 </div>
                 <div>
-                    <label htmlFor="pincode" className="block text-sm font-medium text-neutral-700">Pincode*</label>
+                    <label htmlFor="pincode" className="block text-sm font-medium text-neutral-700">Pincode <RequiredAsterisk /></label>
                     <input type="text" name="pincode" id="pincode" value={formData.pincode} onChange={handleChange} className="mt-1 w-full p-2 border border-neutral-300 rounded-md" required maxLength="6" />
                     {pincodeError && <p className="text-xs text-red-500 mt-1">{pincodeError}</p>}
+                    <ValidationError message={errors.pincode} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="city" className="block text-sm font-medium text-neutral-700">City*</label>
+                        <label htmlFor="city" className="block text-sm font-medium text-neutral-700">City <RequiredAsterisk /></label>
                         <input type="text" name="city" id="city" value={formData.city} onChange={handleChange} className="mt-1 w-full p-2 border border-neutral-300 rounded-md" required />
+                        <ValidationError message={errors.city} />
                     </div>
                     <div>
-                        <label htmlFor="state" className="block text-sm font-medium text-neutral-700">State*</label>
+                        <label htmlFor="state" className="block text-sm font-medium text-neutral-700">State <RequiredAsterisk /></label>
                         <input type="text" name="state" id="state" value={formData.state} onChange={handleChange} className="mt-1 w-full p-2 border border-neutral-300 rounded-md" required />
+                        <ValidationError message={errors.state} />
                     </div>
                 </div>
 
@@ -101,9 +135,9 @@ export default function AddressSettings({ initialData, onUpdate }) {
                     </div>
                 </div>
 
-                <div className="pt-4 text-right">
-                    <button type="submit" className="bg-rose-600 text-white px-5 py-2 rounded-md font-medium hover:bg-rose-700">
-                        Save Changes
+                <div className="mt-8 pt-5 border-t border-neutral-200 text-right">
+                    <button type="submit" /* ... */ >
+                        {isSaving ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>
             </div>

@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.Domain.Models;
+﻿using CateringEcommerce.Domain.Models.Common;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using System.Collections.Concurrent;

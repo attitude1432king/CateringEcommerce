@@ -1,4 +1,4 @@
-﻿namespace CateringEcommerce.Domain.Models
+﻿namespace CateringEcommerce.Domain.Models.Common
 {
     public class City
     {

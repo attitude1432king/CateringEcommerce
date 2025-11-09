@@ -28,7 +28,7 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
 
         // Step 2: Address
         [Required]
-        public string ShopNo { get; set; }
+        public string? ShopNo { get; set; }
         [Required]
         public string? Floor { get; set; }
         [Required]
@@ -67,11 +67,11 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         public string? PanNumber { get; set; }
         public FileUploadDto? PanCard { get; set; } // Base64 Image/PDF
         [Required]
-        public string BankAccountName { get; set; }
+        public string? BankAccountName { get; set; }
         [Required]
-        public string BankAccountNumber { get; set; }
+        public string? BankAccountNumber { get; set; }
         [Required]
-        public string IfscCode { get; set; }
+        public string? IfscCode { get; set; }
         public string? ChequePath { get; set; } // Base64 Image of Cheque
         public string? UpiId { get; set; } // Optional, for UPI payments
     }
@@ -79,9 +79,9 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
     // Changed from private to internal to fix CS1527
     public class CateringMediaDto
     {
-        public string Base64Data { get; set; }
-        public string Type { get; set; } // e.g., "image/jpeg" or "video/mp4"
-        public string FileName { get; set; }
+        public string? Base64Data { get; set; }
+        public string? Type { get; set; } // e.g., "image/jpeg" or "video/mp4"
+        public string? FileName { get; set; }
     }
 
     public class FileUploadDto

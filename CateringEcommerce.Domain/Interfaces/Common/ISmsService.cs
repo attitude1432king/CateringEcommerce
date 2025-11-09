@@ -1,4 +1,4 @@
-﻿namespace CateringEcommerce.Domain.Interfaces
+﻿namespace CateringEcommerce.Domain.Interfaces.Common
 {
     public interface ISmsService
     {

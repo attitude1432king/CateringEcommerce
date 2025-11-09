@@ -7,9 +7,16 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Loader from '../../../common/Loader';
 import { Tooltip } from '../../../common/Tooltip';
 import { ownerApiService } from '../../../../services/ownerApi';
+import { useToast } from '../../../../contexts/ToastContext';
+import MediaLightbox from '../../../common/MediaLightbox';
 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+
+// Reusing helper components
+const RequiredAsterisk = () => <span className="text-red-500">*</span>;
+const ValidationError = ({ message }) => message ? <p className="text-red-500 text-xs mt-1">{message}</p> : null;
 
 // New Reusable Multi-Select Component
 const SelectGroup = ({ title, options, selectedIds = [], onSelectionChange, error }) => {
@@ -17,7 +24,7 @@ const SelectGroup = ({ title, options, selectedIds = [], onSelectionChange, erro
 
     return (
         <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">{title} <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">{title} <RequiredAsterisk /></label>
             <div className="flex flex-wrap gap-2">
                 {options.map(option => (
                     <Tooltip key={option.typeId} text={option.description}>
@@ -31,18 +38,14 @@ const SelectGroup = ({ title, options, selectedIds = [], onSelectionChange, erro
                     </Tooltip>
                 ))}
             </div>
-            {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+            <ValidationError message={error} />
         </div>
     );
 };
 
-function isImageType(type) {
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
-    return imageExtensions.includes(type.toLowerCase());
-}
 
 // Media Uploader Component
-const MediaSettingsUploader = ({ initialMedia = [], onUpdateMedia }) => {
+const MediaSettingsUploader = ({ initialMedia = [], onUpdateMedia, error, onMediaClick }) => {
     const [mediaFiles, setMediaFiles] = useState(initialMedia);
     const fileInputRef = useRef(null);
 
@@ -89,47 +92,43 @@ const MediaSettingsUploader = ({ initialMedia = [], onUpdateMedia }) => {
 
     return (
         <div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {mediaFiles.map(media => (
-                    <div key={media.id} className="relative aspect-square group">
-                        {isImageType(media.mediaType) ? (
-                            <img src={media.url} alt="Kitchen media" className="w-full h-full object-cover rounded-lg" />
-                        ) : (
-                            <video src={media.url} className="w-full h-full object-cover rounded-lg" controls={false} />
-                        )}
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-300 rounded-lg flex items-center justify-center">
-                            <button
-                                type="button"
-                                onClick={() => handleRemoveMedia(media.id)}
-                                className="w-8 h-8 bg-white/80 rounded-full text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                            </button>
+            <h3 className="text-lg font-bold text-neutral-800 mb-3">Kitchen & Staff Media <RequiredAsterisk /></h3>
+            <p className="text-sm text-neutral-500 mb-4">Showcase your kitchen's hygiene and your team's professionalism. High-quality photos and videos build trust with customers.</p>
+            <div className="p-4 border rounded-lg bg-neutral-50">
+                {/* FIX: Replaced fixed column grid with a responsive auto-filling grid */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
+                    {mediaFiles.map(media => (
+                        <div key={media.id} className="relative aspect-square group bg-neutral-100 rounded-lg">
+                            {ownerApiService.isImageType(media.mediaType) ? (
+                                <img src={media.url} alt="Kitchen media" className="w-full h-full object-cover rounded-lg" />
+                            ) : (
+                                <video src={media.url} className="w-full h-full object-cover rounded-lg" />
+                            )}
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 rounded-lg flex items-center justify-center">
+                                {/* Fullscreen button */}
+                                <button type="button" onClick={() => onMediaClick(media)} className="text-white opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 1v4m0 0h-4m4 0l-5-5" /></svg>
+                                </button>
+                                {/* Remove button */}
+                                <button type="button" onClick={() => handleRemoveMedia(media.id)} className="absolute top-1 right-1 bg-black bg-opacity-50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                ))}
-                <button
-                    type="button"
-                    onClick={() => fileInputRef.current.click()}
-                    className="aspect-square border-2 border-dashed border-neutral-300 rounded-lg flex flex-col items-center justify-center text-neutral-500 hover:border-rose-400 hover:text-rose-600 transition-colors"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                    <span className="text-xs font-medium mt-1">Add Photos/Videos</span>
-                </button>
-                <input
-                    type="file"
-                    multiple
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="image/jpeg, image/png, video/mp4"
-                    className="hidden"
-                />
+                    ))}
+                    <button type="button" onClick={() => fileInputRef.current.click()} className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg text-neutral-400 hover:bg-neutral-100 hover:border-rose-500 hover:text-rose-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        <span className="text-xs mt-1 font-medium">Add Photos/Videos</span>
+                    </button>
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" accept="image/png, image/jpeg, video/mp4" />
             </div>
+            <ValidationError message={error} />
         </div>
     );
 };
 
-export default function ServicesSettings({ initialData, onUpdate }) {
+export default function ServicesSettings({ initialData, onUpdate, isSaving }) {
     const [formData, setFormData] = useState(initialData);
     const [options, setOptions] = useState({
         cuisineTypes: [],
@@ -139,6 +138,24 @@ export default function ServicesSettings({ initialData, onUpdate }) {
         servingSlots: []
     });
     const [isLoading, setIsLoading] = useState(true);
+    const { showToast } = useToast();
+    const [errors, setErrors] = useState({});
+    const [lightboxMedia, setLightboxMedia] = useState(null); 
+
+    const validate = (currentData) => {
+        const newErrors = {};
+        if (currentData.cuisineTypeIds?.length === 0) newErrors.cuisineTypeIds = 'Please select at least one cuisine type.';
+        if (currentData.foodTypeIds?.length === 0) newErrors.foodTypeIds = 'Please select at least one food type.';
+        if (currentData.serviceTypeIds?.length === 0) newErrors.serviceTypeIds = 'Please select at least one service type.';
+        if (currentData.eventTypeIds?.length === 0) newErrors.eventTypeIds = 'Please select at least one event type.';
+        if (currentData.servingSlots?.length === 0) newErrors.servingSlots = 'Please select at least one serving slot.';
+        if (!currentData.minOrderValue || currentData.minOrderValue <= 0) newErrors.minOrderValue = 'Minimum order value is required.';
+        if (!currentData.deliveryRediusKm || currentData.deliveryRediusKm <= 0) newErrors.deliveryRediusKm = 'Delivery radius is required.';
+        if (currentData.kitchenMedia?.length < 5) newErrors.kitchenMedia = 'Minimum 5 photos/videos are required.';
+        if (currentData.kitchenMedia?.length > 10) newErrors.kitchenMedia = 'Maximum 10 photos/videos are allowed.';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     useEffect(() => {
         const fetchOptions = async () => {
@@ -152,7 +169,7 @@ export default function ServicesSettings({ initialData, onUpdate }) {
                     foodTypes: apiOptions.foodTypeOptions,
                     serviceTypes: apiOptions.serviceTypeOptions,
                     eventTypes: apiOptions.eventTypeOptions,
-                    servingSlots: apiOptions.servingSlotTypeOptions, 
+                    servingSlots: apiOptions.servingSlotTypeOptions,
                 }));
             } catch (error) {
                 console.error("Failed to fetch service options", error);
@@ -186,8 +203,18 @@ export default function ServicesSettings({ initialData, onUpdate }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        formData.deliveryRediusKm = Number(formData.deliveryRediusKm);
-        onUpdate(formData);
+
+        const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialData);
+        if (!hasChanged) {
+            showToast('No changes were made.', 'warning');
+            return;
+        }
+
+        if (validate(formData)) {
+            onUpdate(formData);
+        } else {
+            showToast('Please fix the errors before saving.', 'error');
+        }
     };
 
     if (isLoading) {
@@ -195,72 +222,83 @@ export default function ServicesSettings({ initialData, onUpdate }) {
     }
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-xl shadow-sm">
-            <div className="space-y-10">
-                <div className="space-y-6">
-                    <h3 className="text-xl font-semibold text-neutral-800">Service Offerings</h3>
+        <>
+            <MediaLightbox mediaItem={lightboxMedia} onClose={() => setLightboxMedia(null)} />
+            <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-xl shadow-sm">
+                <div className="space-y-10">
+                    <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-neutral-800">Service Offerings</h3>
 
-                    <SelectGroup
-                        title="Cuisine Types Offered"
-                        options={options.cuisineTypes}
-                        selectedIds={formData.cuisineTypeIds || []}
-                        onSelectionChange={(ids) => handleSelectionChange('cuisineTypeIds', ids)}
-                    />
+                        <SelectGroup
+                            title="Cuisine Types Offered"
+                            options={options.cuisineTypes}
+                            selectedIds={formData.cuisineTypeIds || []}
+                            onSelectionChange={(ids) => handleSelectionChange('cuisineTypeIds', ids)}
+                            error={errors?.cuisineTypeIds}
+                        />
 
-                    <SelectGroup
-                        title="Food Types"
-                        options={options.foodTypes}
-                        selectedIds={formData.foodTypeIds || []}
-                        onSelectionChange={(ids) => handleSelectionChange('foodTypeIds', ids)}
-                    />
+                        <SelectGroup
+                            title="Food Types"
+                            options={options.foodTypes}
+                            selectedIds={formData.foodTypeIds || []}
+                            onSelectionChange={(ids) => handleSelectionChange('foodTypeIds', ids)}
+                            error={errors?.foodTypeIds}
+                        />
 
-                    <SelectGroup
-                        title="Service Types"
-                        options={options.serviceTypes}
-                        selectedIds={formData.serviceTypeIds || []}
-                        onSelectionChange={(ids) => handleSelectionChange('serviceTypeIds', ids)}
-                    />
+                        <SelectGroup
+                            title="Service Types"
+                            options={options.serviceTypes}
+                            selectedIds={formData.serviceTypeIds || []}
+                            onSelectionChange={(ids) => handleSelectionChange('serviceTypeIds', ids)}
+                            error={errors?.serviceTypeIds}
+                        />
 
-                    <SelectGroup
-                        title="Event Types"
-                        options={options.eventTypes}
-                        selectedIds={formData.eventTypeIds || []}
-                        onSelectionChange={(ids) => handleSelectionChange('eventTypeIds', ids)}
-                    />
+                        <SelectGroup
+                            title="Event Types"
+                            options={options.eventTypes}
+                            selectedIds={formData.eventTypeIds || []}
+                            onSelectionChange={(ids) => handleSelectionChange('eventTypeIds', ids)}
+                            error={errors?.eventTypeIds}
+                        />
 
-                    <SelectGroup
-                        title="Serving Slots"
-                        options={options.servingSlots}
-                        selectedIds={formData.servingSlots || []}
-                        onSelectionChange={(ids) => handleSelectionChange('servingSlots', ids)}
-                    />
+                        <SelectGroup
+                            title="Serving Slots"
+                            options={options.servingSlots}
+                            selectedIds={formData.servingSlots || []}
+                            onSelectionChange={(ids) => handleSelectionChange('servingSlots', ids)}
+                            error={errors?.servingSlots}
+                        />
 
-                    <div>
-                        <label htmlFor="minOrderValue" className="block text-sm font-medium text-neutral-700 mb-1">Minimum Order Value (?)*</label>
-                        <input type="number" name="minOrderValue" id="minOrderValue" value={formData.minOrderValue || ''} onChange={handleChange} className="w-full p-2 border border-neutral-300 rounded-md" />
+                        <div>
+                            <label htmlFor="minOrderValue" className="block text-sm font-medium text-neutral-700 mb-1">Minimum Order Value (?) <RequiredAsterisk /></label>
+                            <input type="number" name="minOrderValue" id="minOrderValue" value={formData.minOrderValue || ''} onChange={handleChange} className="w-full p-2 border border-neutral-300 rounded-md" />
+                            <ValidationError message={errors.minOrderValue} />
+                        </div>
+
+                        <div>
+                            <label htmlFor="deliveryRediusKm" className="block text-sm font-medium text-neutral-700 mb-1">Delivery Radius (in KM) <RequiredAsterisk /></label>
+                            <input type="number" name="deliveryRediusKm" id="deliveryRediusKm" value={formData.deliveryRediusKm || ''} onChange={handleChange} className="w-full p-2 border border-neutral-300 rounded-md" />
+                            <ValidationError message={errors.deliveryRediusKm} />
+                        </div>
                     </div>
 
-                    <div>
-                        <label htmlFor="deliveryRediusKm" className="block text-sm font-medium text-neutral-700 mb-1">Delivery Radius (in KM)</label>
-                        <input type="number" name="deliveryRediusKm" id="deliveryRediusKm" value={formData.deliveryRediusKm || ''} onChange={handleChange} className="w-full p-2 border border-neutral-300 rounded-md" />
+
+                    <div className="pt-4 border-t border-neutral-200">
+                        <MediaSettingsUploader
+                            initialMedia={initialData.kitchenMedia || []}
+                            onUpdateMedia={handleMediaUpdate}
+                            onMediaClick={(mediaFiles) => setLightboxMedia(mediaFiles)} // Pass handler to open lightbox
+                            error={errors.kitchenMedia}
+                        />
+                    </div>
+
+                    <div className="mt-8 pt-5 border-t border-neutral-200 text-right">
+                        <button type="submit" /* ... */ >
+                            {isSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
                     </div>
                 </div>
-
-                <div className="space-y-4">
-                    <h3 className="text-xl font-semibold text-neutral-800">Kitchen & Staff Media</h3>
-                    <p className="text-sm text-neutral-500">Showcase your kitchen's hygiene and your team's professionalism. High-quality photos and videos build trust with customers.</p>
-                    <MediaSettingsUploader
-                        initialMedia={initialData.cateringMedia || []}
-                        onUpdateMedia={handleMediaUpdate}
-                    />
-                </div>
-
-                <div className="pt-4 text-right">
-                    <button type="submit" className="bg-rose-600 text-white px-5 py-2 rounded-md font-medium hover:bg-rose-700">
-                        Save Changes
-                    </button>
-                </div>
-            </div>
-        </form>
+            </form>
+        </>
     );
 }

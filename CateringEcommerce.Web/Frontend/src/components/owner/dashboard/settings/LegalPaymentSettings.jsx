@@ -70,7 +70,7 @@ const ViewSecureFileRow = ({ label, filePath }) => {
 };
 
 
-export default function LegalPaymentSettings({ initialData, onUpdate }) {
+export default function LegalPaymentSettings({ initialData, onUpdate, isSaving }) {
     const [formData, setFormData] = useState(initialData);
     const [isVerifying, setIsVerifying] = useState(false);
     const [isVerified, setIsVerified] = useState(true); // Assume already verified on load
@@ -206,9 +206,9 @@ export default function LegalPaymentSettings({ initialData, onUpdate }) {
                     </div>
                 </div>
 
-                <div className="pt-6 text-right">
-                    <button type="submit" className="bg-rose-600 text-white px-6 py-2.5 rounded-md font-medium hover:bg-rose-700 transition-colors">
-                        Save Changes
+                <div className="mt-8 pt-5 border-t border-neutral-200 text-right">
+                    <button type="submit" /* ... */ >
+                        {isSaving ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>
             </div>

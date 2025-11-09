@@ -1,12 +1,9 @@
 using CateringEcommerce.BAL.Base.User.Profile;
 using CateringEcommerce.BAL.Common;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.Domain.Interfaces;
-using CateringEcommerce.Domain.Models;
+using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Models.User;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using static System.Net.WebRequestMethods;
 
 namespace CateringEcommerce.API.Controllers.User
 {

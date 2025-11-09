@@ -3,7 +3,7 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
-using CateringEcommerce.Domain.Models;
+using CateringEcommerce.Domain.Models.User;
 using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.BAL.Base.User.AuthLogic

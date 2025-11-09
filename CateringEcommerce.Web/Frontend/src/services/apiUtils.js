@@ -61,6 +61,7 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
+            console.log(errorData.errors);
             throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
 

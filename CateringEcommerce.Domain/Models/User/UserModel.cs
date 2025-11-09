@@ -1,8 +1,8 @@
-namespace CateringEcommerce.Domain.Models;
+namespace CateringEcommerce.Domain.Models.User;
 
 public class UserModel
 {
-    public Int64 PkID { get; set; }
+    public long PkID { get; set; }
     public string FullName { get; set; }
     public required string Phone { get; set; }
     public string Email { get; set; }
