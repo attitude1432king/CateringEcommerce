@@ -1,8 +1,6 @@
-﻿
-using CateringEcommerce.Domain.Enums;
-using Microsoft.AspNetCore.Mvc.Formatters;
+﻿using CateringEcommerce.Domain.Enums;
 
-namespace CateringEcommerce.Domain.Models
+namespace CateringEcommerce.Domain.Models.Owner
 {
     public class OwnerModel
     {
@@ -14,7 +12,7 @@ namespace CateringEcommerce.Domain.Models
 
     public class OwnerBusinessModel
     {
-        public Int64 PkID { get; set; }
+        public long PkID { get; set; }
         public string? CateringName { get; set; }
         public string? OwnerName { get; set; }
         public string? Phone { get; set; }
@@ -27,7 +25,7 @@ namespace CateringEcommerce.Domain.Models
         public bool IsVerifiedBy_Admin { get; set; }
         public string? SupportContact { get; set; }
         public string? AlternateEmail { get; set; }
-        public string? WhatsappNumber { get; set; }
+        public string? WhatsAppNumber { get; set; }
         public bool IsOnline { get; set; }
     }
 
@@ -67,7 +65,7 @@ namespace CateringEcommerce.Domain.Models
         public int[]? FoodTypeIds { get; set; }
         public int[]? ServingSlots { get; set; } // JSON string of available time slots
         public int DeliveryRediusKm { get; set; }
-        public List<MediaFileModel>? CateringMedia { get; set; }
+        public List<MediaFileModel>? KitchenMedia { get; set; }
     }
 
     public class OwnerBankDetailsModel
@@ -87,12 +85,12 @@ namespace CateringEcommerce.Domain.Models
         public bool IsActive { get; set; }
     }
 
-    public class MediaFileModel
-    {
-        public long Id { get; set; }
-        public string? FilePath { get; set; }
-        public string? MediaType { get; set; }
-        public string? FileName { get; set; }
-        public DocumentType DocumentType { get; set; }
-    }
+    //public class MediaFileModel
+    //{
+    //    public long Id { get; set; }
+    //    public string? FilePath { get; set; }
+    //    public string? MediaType { get; set; }
+    //    public string? FileName { get; set; }
+    //    public DocumentType DocumentType { get; set; }
+    //}
 }

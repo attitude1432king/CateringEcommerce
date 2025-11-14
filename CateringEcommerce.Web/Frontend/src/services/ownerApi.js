@@ -8,6 +8,11 @@ export const ownerApiService = {
      * @param {Object} formData - The registration data.
      * @returns {Promise<Object>} - The response message.
     */
+    isImageType: (type) => {
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', 'image'];
+        return imageExtensions.includes(type.toLowerCase());
+    },
+
     registerOwner: async (formData) => fetchApi(`/Auth/Owner/Register`, 'POST', formData),
 
     // Get the Pincode details from the external API
@@ -51,7 +56,7 @@ export const ownerApiService = {
         if (businessData.newLogoFile) {
             payload.newLogoFile = await fileToBase64Dto(businessData.newLogoFile);
         }
-        fetchApi('/Owner/Profile/UpdateBusiness', 'POST', payload);
+       return fetchApi('/Owner/Profile/UpdateBusiness', 'POST', payload);
     },
 
     updateAddressSettings: async (addressData) => fetchApi('/Owner/Profile/UpdateAddress', 'POST', addressData),
@@ -60,27 +65,150 @@ export const ownerApiService = {
         const payload = JSON.parse(JSON.stringify(servicesData)); // Deep copy to handle complex objects
 
         if (servicesData.kitchenMedia) {
-            const existingMedia = [];
             const newMediaFiles = [];
 
             for (const media of servicesData.kitchenMedia) {
                 if (media.fileObject) {
                     newMediaFiles.push(media.fileObject);
-                } else if (media.filePath) {
-                    existingMedia.push({ id: media.id, type: media.mediaType, path: media.filePath });
                 }
             }
 
-            payload.existingKitchenMedia = existingMedia;
+            payload.existingMediaPaths = servicesData.kitchenMedia
+                .filter(item => item.filePath && !item.fileObject)
+                .map(item => item.filePath);
             payload.newKitchenMediaFiles = await Promise.all(
                 newMediaFiles.map(file => fileToBase64Dto(file))
             );
             delete payload.kitchenMedia;
         }
 
-        fetchApi('/Owner/Profile/UpdateServices', 'POST', payload);
+        return fetchApi('/Owner/Profile/UpdateServices', 'POST', payload);
     },
 
     updateLegalPaymentSettings: async (legalData) => fetchApi('/Owner/Profile/UpdateLegal', 'POST', legalData),
 
+    // Menu Management
+
+        // Food Pakages
+        getFoodCategories: async () => fetchApi('/Owner/Menu/Packages/GetFoodCategory'),
+
+        getPackages: async () => fetchApi('/Owner/Menu/Packages/GetPackages'),
+
+        createPackage: async (packageData) => fetchApi('/Owner/Menu/Packages/AddPackage', 'POST', packageData),
+
+        updatePackage: async (packageData) => fetchApi('/Owner/Menu/Packages/UpdatePackage', 'POST', packageData),
+
+        deletePackage: async (packageId) => fetchApi('/Owner/Menu/Packages/DeletePackage', 'POST', packageId),
+
+        // Food Items
+        getFoodItems: async () => fetchApi('/Owner/Menu/FoodItem/Data'), 
+
+        getCuisines: async () => fetchApi('/Owner/Menu/FoodItem/GetCuisineType'), 
+
+        addFoodItem: async (itemData) => {
+
+            const payload = JSON.parse(JSON.stringify(itemData)); // Deep copy to handle complex objects
+
+            if (itemData.media) {
+                const newMediaFiles = [];
+
+                for (const media of itemData.media) {
+                    if (media.fileObject) {
+                        newMediaFiles.push(media.fileObject);
+                    }
+                }
+
+                payload.foodItemMediaFiles = await Promise.all(
+                    newMediaFiles.map(file => fileToBase64Dto(file))
+                );
+                delete payload.media;
+            }
+
+            return fetchApi('/Owner/Menu/FoodItem/Create', 'POST', payload);
+        },
+
+        updateFoodItem: async (itemData) => {
+
+            const payload = JSON.parse(JSON.stringify(itemData)); // Deep copy to handle complex objects
+
+            if (itemData.media) {
+                const newMediaFiles = [];
+
+                for (const media of itemData.media) {
+                    if (media.fileObject) {
+                        newMediaFiles.push(media.fileObject);
+                    }
+                }
+
+                payload.existingFoodItemMediaPaths = itemData.media
+                    .filter(item => item.filePath && !item.fileObject)
+                    .map(item => item.filePath);
+                payload.foodItemMediaFiles = await Promise.all(
+                    newMediaFiles.map(file => fileToBase64Dto(file))
+                );
+                delete payload.media;
+            }
+
+            return fetchApi('/Owner/Menu/FoodItem/Udpate', 'POST', payload);
+        },
+
+        deleteFoodItem: async(itemId) => fetchApi('/Owner/Menu/FoodItem/Delete', 'POST', itemId),
+
+    // Decorations Management
+
+        getPackagesLookup: async () => fetchApi('/Owner/Menu/Packages/Lookup'),
+
+        getDecorationThemes: async () => fetchApi('/Owner/Decorations/ThemeType'),
+
+        getDecorations: async () => fetchApi('/Owner/Decorations/GetData'),
+
+        addDecorations: async (itemData) => {
+
+            const payload = JSON.parse(JSON.stringify(itemData)); // Deep copy to handle complex objects
+
+            if (itemData.media) {
+                const newMediaFiles = [];
+
+                for (const media of itemData.media) {
+                    if (media.fileObject) {
+                        newMediaFiles.push(media.fileObject);
+                    }
+                }
+
+                payload.DecorationsMediaFiles = await Promise.all(
+                    newMediaFiles.map(file => fileToBase64Dto(file))
+                );
+                delete payload.media;
+            }
+
+            return fetchApi('/Owner/Decorations/Create', 'POST', payload);
+        },
+
+        updateDecorations: async (itemData) => {
+
+            const payload = JSON.parse(JSON.stringify(itemData)); // Deep copy to handle complex objects
+
+            if (itemData.media) {
+                const newMediaFiles = [];
+
+                for (const media of itemData.media) {
+                    if (media.fileObject) {
+                        newMediaFiles.push(media.fileObject);
+                    }
+                }
+                payload.existingDecorationsMediaPaths = itemData.media
+                    .filter(item => item.filePath && !item.fileObject)
+                    .map(item => item.filePath);
+                payload.DecorationsMediaFiles = await Promise.all(
+                    newMediaFiles.map(file => fileToBase64Dto(file))
+                );
+                delete payload.media;
+            }
+
+            return fetchApi('/Owner/Decorations/Udpate', 'POST', payload);
+        },
+
+        deleteDecorations: async (itemId) => fetchApi('/Owner/Decorations/Delete', 'POST', itemId),
+
+        
 };  

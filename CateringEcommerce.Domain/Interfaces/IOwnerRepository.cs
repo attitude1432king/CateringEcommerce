@@ -8,6 +8,7 @@ namespace CateringEcommerce.Domain.Interfaces
         public bool IsEmailExist(string email);
         public bool IsOwnerPhoneExist(string phone);
 
-        Task<int> SaveFilePath(string filePath, Int64 ownerPkid, string fileName, DocumentType documentType = DocumentType.Menu);
+        Task<int> SaveFilePath(string filePath, Int64 ownerPkid, string fileName, DocumentType documentType = DocumentType.Menu, long referenceID = 0);
+        Task<int> DeleteDocumentFile(long documentPKID);
     }
 }

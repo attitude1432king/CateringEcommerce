@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.Domain.Interfaces;
+﻿using CateringEcommerce.Domain.Interfaces.Common;
 using System.Security.Claims;
 
 namespace CateringEcommerce.BAL.Configuration

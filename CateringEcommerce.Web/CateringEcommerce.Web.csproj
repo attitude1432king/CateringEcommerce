@@ -8,8 +8,9 @@
 	
   <ItemGroup>
      <Folder Include="Frontend\src\components\admin\" />
-     <Folder Include="Frontend\src\components\common\" />
+     <Folder Include="Frontend\src\components\owner\dashboard\decorations\" />
      <Folder Include="Frontend\src\components\owner\dashboard\settings\" />
+     <Folder Include="Frontend\src\components\owner\dashboard\menu\" />
      <Folder Include="Frontend\src\contexts\" />
      <Folder Include="Frontend\src\router\" />
      <Folder Include="Views\Admin\" />

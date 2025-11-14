@@ -1,24 +1,56 @@
-/*
+﻿/*
 ========================================
-File: src/components/owner/dashboard/MenuManagement.jsx (NEW FILE)
+File: src/components/owner/dashboard/MenuManagement.jsx (ENTIRELY REDESIGNED)
 ========================================
+Acts as the main container with a tabbed interface for switching between
+Package Management and Food Item Management.
 */
+import React, { useState } from 'react';
+import PackagesView from './menu/PackagesView';
+import FoodItemsView from './menu/FoodItemsView';
 
+const TABS = {
+    PACKAGES: 'Packages',
+    FOOD_ITEMS: 'Food Items',
+};
+
+const TabButton = ({ label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${isActive
+            ? 'bg-rose-600 text-white shadow-md'
+                : 'text-neutral-600 hover:bg-neutral-100'
+            }`}
+    >
+        {label}
+    </button>
+);
 export default function MenuManagement() {
+    const [activeTab, setActiveTab] = useState(TABS.PACKAGES); // Default to food items as requested
+
     return (
-        <div className="animate-fade-in space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-neutral-800">Menu & Packages</h1>
-                <div className="flex gap-2">
-                    <button className="bg-white text-rose-600 border border-rose-600 px-4 py-2 rounded-md font-medium hover:bg-rose-50">Create Package</button>
-                    <button className="bg-rose-600 text-white px-4 py-2 rounded-md font-medium hover:bg-rose-700">Add Menu Item</button>
+        <div className="p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 border-b pb-4 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-neutral-800">Menu Management</h1>
+                </div>
+                <div className="flex items-center gap-2 p-1 bg-neutral-100 rounded-lg">
+                    <TabButton
+                        label={TABS.PACKAGES}
+                        isActive={activeTab === TABS.PACKAGES}
+                        onClick={() => setActiveTab(TABS.PACKAGES)}
+                    />
+                    <TabButton
+                        label={TABS.FOOD_ITEMS}
+                        isActive={activeTab === TABS.FOOD_ITEMS}
+                        onClick={() => setActiveTab(TABS.FOOD_ITEMS)}
+                    />
                 </div>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm">
-                <h3 className="font-semibold text-neutral-800 mb-4">Your Menu Items</h3>
-                <div className="text-center py-12 text-neutral-500">
-                    <p>Your menu is empty. Click "Add Menu Item" to get started.</p>
-                </div>
+
+            <div>
+                {activeTab === TABS.PACKAGES && <PackagesView />}
+                {activeTab === TABS.FOOD_ITEMS && <FoodItemsView />}
             </div>
         </div>
     );

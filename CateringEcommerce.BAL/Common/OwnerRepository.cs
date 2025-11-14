@@ -3,16 +3,16 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
-using CateringEcommerce.Domain.Models;
+using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
 using System.Text;
+using System.Xml.Linq;
 
 namespace CateringEcommerce.BAL.Common
 {
     public class OwnerRepository : IOwnerRepository
     {
         private readonly SqlDatabaseManager _db;
-        private readonly Logger<OwnerRepository> _logger;
 
         public OwnerRepository(string connectionString)
         {
@@ -39,24 +39,26 @@ namespace CateringEcommerce.BAL.Common
             int count = Convert.ToInt32(_db.ExecuteScalar(query, parameters));
             return count > 0;
         }
-        public async Task<int> SaveFilePath(string filePath, Int64 ownerPkid, string fileName, DocumentType documentType)
+        public async Task<int> SaveFilePath(string filePath, long ownerPkid, string fileName, DocumentType documentType, long referenceID = 0)
         {
-            fileName = Path.GetFileNameWithoutExtension(fileName);
-            string query = $"INSERT INTO {Table.SysCateringMediaUploads} (c_ownerid, c_file_name, c_file_path, c_document_type_id, c_uploaded_at) " +
-                           "VALUES (@OwnerPkid, @FileName, @FilePath, @DocumentTypeID, @UploadAt)";
-
-            SqlParameter[] parameters = new SqlParameter[]
-            {
-                new SqlParameter("@OwnerPkid", ownerPkid),
-                new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
-                new SqlParameter("@FilePath", filePath),
-                new SqlParameter("@FileName", fileName),
-                new SqlParameter("@UploadAt", DateTime.Now)
-            };
-
             try
             {
-                return _db.ExecuteNonQuery(query, parameters);
+                fileName = Path.GetFileNameWithoutExtension(fileName);
+                string extension = Path.GetExtension(fileName);
+                string query = $@"INSERT INTO {Table.SysCateringMediaUploads} (c_ownerid, c_file_name, c_file_path, c_document_type_id, c_extension, c_reference_id) 
+                            VALUES (@OwnerPkid, @FileName, @FilePath, @DocumentTypeID, @Extesion, @ReferenceID)";
+
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@OwnerPkid", ownerPkid),
+                    new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                    new SqlParameter("@FilePath", filePath),
+                    new SqlParameter("@FileName", fileName),
+                    new SqlParameter("@Extesion", extension),
+                    new SqlParameter("@ReferenceID", referenceID > 0 ? referenceID : DBNull.Value)
+                };
+
+                return await _db.ExecuteNonQueryAsync(query, parameters);
             }
             catch (SqlException ex)
             {
@@ -99,7 +101,7 @@ namespace CateringEcommerce.BAL.Common
                         Email = row["c_email"] == DBNull.Value ? string.Empty : row["c_email"].ToString(),
                         LogoPath = row["c_logo_path"] == DBNull.Value ? string.Empty : row["c_logo_path"].ToString(),
                         StdNumber = row["c_std_number"] == DBNull.Value ? string.Empty : row["c_std_number"].ToString(),
-                        WhatsappNumber = row["c_whatsapp_number"] == DBNull.Value ? string.Empty : row["c_whatsapp_number"].ToString(),
+                        WhatsAppNumber = row["c_whatsapp_number"] == DBNull.Value ? string.Empty : row["c_whatsapp_number"].ToString(),
                         AlternateEmail = row["c_alternate_email"] == DBNull.Value ? string.Empty : row["c_alternate_email"].ToString(),
                         SupportContact = row["c_support_contact_number"] == DBNull.Value ? string.Empty : row["c_support_contact_number"].ToString(),
                         IsEmailVerified = row["c_email_verified"] == DBNull.Value ? false : row.GetBoolean("c_email_verified"),
@@ -112,6 +114,59 @@ namespace CateringEcommerce.BAL.Common
                 {
                     return null;
                 }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<int> DeleteDocumentFile(long documentPKID)
+        {
+            try
+            {
+                string query = $"DELETE FROM {Table.SysCateringMediaUploads} WHERE c_media_id = @documentPKID";
+                
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@documentPKID", documentPKID),
+                };
+
+                return await _db.ExecuteNonQueryAsync(query, parameters);
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<List<CateringMasterTypeModel>> GetCateringMasterType(CateringMaster cateringMasterCategory)
+        {
+            try
+            {
+                string query = $@"SELECT c_type_id AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_is_active AS IsActive
+                            FROM {Table.SysCateringTypeMaster} 
+                            WHERE c_category_id = @ServiceTypeId AND c_is_active = 1";
+
+                var parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@ServiceTypeId", cateringMasterCategory.GetHashCode())
+                };
+                var dt = await _db.ExecuteAsync(query, parameters.ToArray());
+                List<CateringMasterTypeModel> cateringMasterTypes = new List<CateringMasterTypeModel>();
+                foreach (System.Data.DataRow row in dt.Rows)
+                {
+                    cateringMasterTypes.Add(new CateringMasterTypeModel
+                    {
+                        TypeId = row["TypeId"] == DBNull.Value ? 0 : Convert.ToInt32(row["TypeId"]),
+                        TypeName = row["ServiceName"] == DBNull.Value ? string.Empty : row["ServiceName"].ToString(),
+                        Description = row["Description"] == DBNull.Value ? string.Empty : row["Description"].ToString(),
+                        IsActive = row["IsActive"] == DBNull.Value ? false : Convert.ToBoolean(row["IsActive"]),
+                        CategoryId = cateringMasterCategory.GetHashCode()
+                    });
+                }
+                return cateringMasterTypes;
             }
             catch (Exception ex)
             {

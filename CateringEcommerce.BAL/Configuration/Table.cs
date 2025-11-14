@@ -1,4 +1,5 @@
-﻿namespace CateringEcommerce.BAL.Configuration
+﻿
+namespace CateringEcommerce.BAL.Configuration
 {
     public static class Table
     {
@@ -21,6 +22,16 @@
         public const string SysCateringServiceCategory = "t_sys_catering_type_category";
         public const string SysCateringTypeMaster = "t_sys_catering_type_master";
         public const string SysCateringMediaUploads = "t_sys_catering_media_uploads";
+
+        // Menu Management
+        public const string SysFoodCategory = "t_sys_food_category";
+        public const string SysMenuPackage = "t_sys_catering_packages";
+        public const string SysMenuPackageItems = "t_sys_catering_package_items";
+        public const string SysFoodItems = "t_sys_fooditems";
+
+        // Decorations 
+        public const string SysCateringDecorations = "t_sys_catering_decorations";
+        public const string SysDecorationThemes = "t_sys_catering_theme_types";
 
         #endregion
     }

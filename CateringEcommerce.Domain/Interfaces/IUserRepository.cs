@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.Domain.Models;
+﻿using CateringEcommerce.Domain.Models.User;
 
 namespace CateringEcommerce.Domain.Interfaces
 {

@@ -2,8 +2,7 @@
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Enums;
-using CateringEcommerce.Domain.Interfaces;
-using CateringEcommerce.Domain.Models;
+using CateringEcommerce.Domain.Interfaces.Common;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -89,7 +88,7 @@ namespace CateringEcommerce.API.Controllers.User
             {
                 // Subscription is pending to the SMS service and verify the OTP
                 if (_smsService.VerifyOtp(request.PhoneNumber, request.Otp))
-                {
+                    {
                     Authentication authenticationDB = new Authentication(_connStr);
                     OwnerRepository ownerRepository = new OwnerRepository(_connStr);
                     if (!string.IsNullOrEmpty(request.PhoneNumber) && !string.IsNullOrEmpty(request.Name) && request.CurrentAction == "signup" && !request.IsPartnerLogin)

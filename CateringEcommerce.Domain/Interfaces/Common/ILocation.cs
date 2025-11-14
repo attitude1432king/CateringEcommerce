@@ -1,6 +1,6 @@
-﻿using CateringEcommerce.Domain.Models;
+﻿using CateringEcommerce.Domain.Models.Common;
 
-namespace CateringEcommerce.Domain.Interfaces
+namespace CateringEcommerce.Domain.Interfaces.Common
 {
     public interface ILocation
     {

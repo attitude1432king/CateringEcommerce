@@ -1,5 +1,5 @@
 ﻿using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Common;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace CateringEcommerce.BAL.Configuration
@@ -80,6 +80,28 @@ namespace CateringEcommerce.BAL.Configuration
                 "application/pdf" => ".pdf",
                 _ => string.Empty,
             };
+        }
+
+
+        public void DeleteFilePath(string relativePath)
+        {
+            if (string.IsNullOrEmpty(relativePath)) return;
+
+            // The path from the DB might start with a '/', remove it to correctly join with the root path.
+            var pathToDelete = Path.Combine(_env.WebRootPath, relativePath.TrimStart('/'));
+
+            if (File.Exists(pathToDelete))
+            {
+                try
+                {
+                    File.Delete(pathToDelete);
+                }
+                catch (Exception ex)
+                {
+                    // Log the exception, but don't let it crash the request.
+                    Console.WriteLine($"Error deleting file {pathToDelete}: {ex.Message}");
+                }
+            }
         }
     }
 }
