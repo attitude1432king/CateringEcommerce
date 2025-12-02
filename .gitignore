@@ -2,19 +2,20 @@
 **/bin/
 **/obj/
 
-## Ignore Rider, VSCode, and Visual Studio files
+## Ignore IDE files
 .vscode/
 .idea/
 *.user
 *.suo
 
-# Ignore all files in wwwroot (typically user uploads)
+## Ignore EVERYTHING inside wwwroot
 wwwroot/**
+!wwwroot/
 
-## Ignore other build outputs and logs
+## Ignore logs & temp
 *.log
 *.cache
-*.vs/
+.vs/
 
 ## Optional: ignore published output
 **/publish/
