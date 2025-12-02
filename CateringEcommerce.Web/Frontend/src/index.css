@@ -1,24 +1,25 @@
-/*
-========================================
-File: src/index.css
-========================================
-This file contains your global styles.
-*/
-
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    /* optional helper if you ever use vh calculations */
+    --vh: 1vh;
+}
 
 body {
     font-family: 'Inter', sans-serif;
     @apply bg-amber-50;
 }
 
+/* ensure hero scales fluidly */
 .hero-bg {
     background-image: url('https://placehold.co/1600x800/FFF7ED/DB2777?text=Delicious+Catering+Awaits!');
     background-size: cover;
     background-position: center;
+    background-repeat: no-repeat;
+    width: 100%;
+    min-height: 40vh;
 }
 
 .icon-placeholder {
@@ -51,5 +52,3 @@ body {
     max-width: 400px;
     position: relative;
 }
-
-

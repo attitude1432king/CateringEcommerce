@@ -33,6 +33,8 @@ namespace CateringEcommerce.BAL.Configuration
         public const string SysCateringDecorations = "t_sys_catering_decorations";
         public const string SysDecorationThemes = "t_sys_catering_theme_types";
 
+        // Staff Management
+        public const string SysCateringStaff = "t_sys_catering_staff";
         #endregion
     }
 }

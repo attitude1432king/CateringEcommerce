@@ -117,6 +117,16 @@ export default function OwnerRegistrationPage() {
             }
         }
         if (currentStep === 4) {
+            const fssaiRegex = /^\d{14}$/;
+            const today = new Date();
+            const expDate = new Date(formData.fssaiExpiry);
+
+            // Set time to 00:00:00 for accurate comparison
+            today.setHours(0, 0, 0, 0);
+            expDate.setHours(0, 0, 0, 0);
+            if (!fssaiRegex.test(formData.fssaiNumber)) newErrors.fssaiNumber = "Invalid FSSAI number. It must be exactly 14 digits.";
+            if (!formData.fssaiExpiry || expDate <= today) newErrors.fssaiExpiry = "FSSAI expiry date must be a future date.";
+            if (!formData.fssaiCertificate) newErrors.fssaiCertificate = "Please upload your FSSAI Certificate.";
             if (formData.isGstApplicable) {
                 if (!formData.gstNumber) newErrors.gstNumber = "GST Number is required.";
                 if (!formData.gstCertificate) newErrors.gstCertificate = "GST Certificate is required.";
@@ -186,14 +196,14 @@ export default function OwnerRegistrationPage() {
             const verificationFlag = `is${otpModalInfo.type.charAt(0).toUpperCase() + otpModalInfo.type.slice(1)}Verified`;
             setFormData(prev => ({ ...prev, [verificationFlag]: true }));
             setOtpModalInfo({ isOpen: false, type: null, value: '' });
-            otp = '';
         } else {
             alert("Invalid OTP");
         }
+        otp = '';
     };
 
     const nextStep = () => {
-        if (validateStep()) {
+        if (currentStep != 4 && validateStep()) {
             if (currentStep < totalSteps) setCurrentStep(currentStep + 1);
         }
     };
@@ -204,44 +214,49 @@ export default function OwnerRegistrationPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (validateStep()) {
-            try {
-                // Create a submission payload by copying serializable data
-                const submissionData = { ...formData };
 
-                // Process cateringMedia files into Base64 directly from the state
-                if (formData.cateringMedia && formData.cateringMedia.length > 0) {
-                    const mediaPromises = formData.cateringMedia.map(async (mediaItem) => {
-                        // Ensure mediaItem.file is a File object before converting
-                        if (mediaItem.file instanceof File) {
-                            const base64Data = await convertFileToBase64(mediaItem.file);
-                            return {
-                                Base64Data: base64Data,
-                                Type: mediaItem.type,
-                                FileName: mediaItem.file.name
-                            };
-                        }
-                        return null; // Or handle cases where file is not present
-                    });
+        if (!validateStep()) return;
 
-                    // Filter out any null results before assigning
-                    submissionData.CateringMedia = (await Promise.all(mediaPromises)).filter(Boolean);
+        try {
+            const formDataToSend = new FormData();
+
+            // Add files
+            (formData.cateringMedia ?? []).forEach((item) => {
+                if (item?.file instanceof File) {
+                    // 'CateringMedia' must match backend parameter name
+                    formDataToSend.append("CateringMedia", item.file, item.file.name);
                 }
+            });
 
-                // Remove the original array with blob URLs and file objects from the payload
-                delete submissionData.cateringMedia;
+            // Remove non-serializable items (File objects, blob URLs)
+            //delete formData.cateringMedia;
+            console.log("Preparing to submit form data:", formData);
+            // --- Step 1: Register owner ---
+            const response = await ownerApiService.registerOwner(formData);
 
-                console.log("Submitting this payload to API:", submissionData);
-                await ownerApiService.registerOwner(submissionData);
-
-                setIsSubmitted(true);
-                sessionStorage.removeItem('ownerRegForm');
-            } catch (error) {
-                console.error("Failed to process files for submission:", error);
-                setErrors({ submit: "There was an error preparing your files. Please try again." });
+            if (!response?.result || !response?.data) {
+                setErrors({ submit: response?.message || "Submission failed. Please try again." });
+                return;
             }
+
+            // --- Step 2: Upload Files (only if files exist) ---
+            const fileResponse = await ownerApiService.uploadOwnerFiles(response.data, formDataToSend);
+
+            if (!fileResponse?.result) {
+                setErrors({ submit: "File upload failed. Please try again." });
+                return;
+            }
+
+            // Success
+            setIsSubmitted(true);
+            sessionStorage.removeItem("ownerRegForm");
+
+        } catch (error) {
+            console.error("Failed to process files for submission:", error);
+            setErrors({ submit: "There was an error preparing your files. Please try again." });
         }
     };
+
 
     if (isSubmitted) {
         return <RegistrationSuccess />;

@@ -3,14 +3,43 @@
 <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Use explicit viewport and safe-area support -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>Feasto - Catering for Every Occasion</title>
 
+    <!-- Optional: preload font (improves CLS/perf) -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
     <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
 </head>
 <body>
     <div id="root"></div>
     <div id="portal-root"></div>
+
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Reflow helper: dispatch a resize when DPR, focus, visibility or pageshow changes -->
+    <script>
+        (function () {
+            const dispatchResize = () => window.dispatchEvent(new Event('resize'));
+
+            // Watch for DPR changes. Polling interval is small and safe.
+            let lastDPR = window.devicePixelRatio;
+            setInterval(() => {
+                if (window.devicePixelRatio !== lastDPR) {
+                    lastDPR = window.devicePixelRatio;
+                    dispatchResize();
+                }
+            }, 350);
+
+            // Useful triggers
+            window.addEventListener('focus', dispatchResize);
+            window.addEventListener('pageshow', dispatchResize);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') dispatchResize();
+            });
+        })();
+    </script>
 </body>
 </html>

@@ -55,7 +55,6 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         [Required]
         public decimal? MinOrderValue { get; set; }
 
-        public List<CateringMediaDto> CateringMedia { get; set; }
         // Step 4: Legal & Payment (many are optional)
         public string? FssaiNumber { get; set; }
         public string? FssaiExpiry { get; set; } // Optional, if FSSAI is applicable
@@ -74,14 +73,6 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         public string? IfscCode { get; set; }
         public string? ChequePath { get; set; } // Base64 Image of Cheque
         public string? UpiId { get; set; } // Optional, for UPI payments
-    }
-
-    // Changed from private to internal to fix CS1527
-    public class CateringMediaDto
-    {
-        public string? Base64Data { get; set; }
-        public string? Type { get; set; } // e.g., "image/jpeg" or "video/mp4"
-        public string? FileName { get; set; }
     }
 
     public class FileUploadDto

@@ -15,6 +15,8 @@ export const ownerApiService = {
 
     registerOwner: async (formData) => fetchApi(`/Auth/Owner/Register`, 'POST', formData),
 
+    uploadOwnerFiles: async (ownerId, uploadedFiles) => fetchApi(`/Auth/Owner/UploadMedia?ownerId=${ownerId}`, 'POST', uploadedFiles),
+
     // Get the Pincode details from the external API
     getPincodeDetails: async (pincodeUrl) => fetchExternalApi(pincodeUrl),
 
@@ -92,7 +94,9 @@ export const ownerApiService = {
         // Food Pakages
         getFoodCategories: async () => fetchApi('/Owner/Menu/Packages/GetFoodCategory'),
 
-        getPackages: async () => fetchApi('/Owner/Menu/Packages/GetPackages'),
+        getPackageCount: async (searchQuery) => fetchApi(`/Owner/Menu/Packages/Count?searchPackage=${searchQuery}`),
+
+        getPackagesData: async (currentPage, itemsPerPage, searchQuery) => fetchApi(`/Owner/Menu/Packages/Data?page=${currentPage}&pageSize=${itemsPerPage}&searchPackage=${searchQuery}`),
 
         createPackage: async (packageData) => fetchApi('/Owner/Menu/Packages/AddPackage', 'POST', packageData),
 
@@ -101,7 +105,10 @@ export const ownerApiService = {
         deletePackage: async (packageId) => fetchApi('/Owner/Menu/Packages/DeletePackage', 'POST', packageId),
 
         // Food Items
-        getFoodItems: async () => fetchApi('/Owner/Menu/FoodItem/Data'), 
+
+        getFoodItemsCount: async (filterJson) => fetchApi(`/Owner/Menu/FoodItem/Count?filterJson=${filterJson}`), 
+
+        getFoodItems: async(currentPage, itemsPerPage, filterJson) => fetchApi(`/Owner/Menu/FoodItem/Data?page=${currentPage}&pageSize=${itemsPerPage}&filterJson=${filterJson}`), 
 
         getCuisines: async () => fetchApi('/Owner/Menu/FoodItem/GetCuisineType'), 
 
@@ -160,7 +167,9 @@ export const ownerApiService = {
 
         getDecorationThemes: async () => fetchApi('/Owner/Decorations/ThemeType'),
 
-        getDecorations: async () => fetchApi('/Owner/Decorations/GetData'),
+        getDecorationsCount: async (filterJson) => fetchApi(`/Owner/Decorations/Count?filterJson=${filterJson}`),
+
+        getDecorations: async (currentPage, itemsPerPage, filterJson) => fetchApi(`/Owner/Decorations/Data?page=${currentPage}&pageSize=${itemsPerPage}&filterJson=${filterJson}`),
 
         addDecorations: async (itemData) => {
 
@@ -210,5 +219,105 @@ export const ownerApiService = {
 
         deleteDecorations: async (itemId) => fetchApi('/Owner/Decorations/Delete', 'POST', itemId),
 
-        
+        updateDecorationStatus: async (itemId, value) => fetchApi(`/Owner/Decorations/UpdateStatus?decorationId=${itemId}&status=${value}`, 'POST'),
+
+    // Staff Management
+
+        getStaffCount: async (filterJson) => fetchApi(`/Owner/Staff/Count?filterJson=${filterJson}`),
+
+        getStaffList: async (currentPage, itemsPerPage, filterJson) => fetchApi(`/Owner/Staff/Data?page=${currentPage}&pageSize=${itemsPerPage}&filterJson=${filterJson}`),
+
+        createStaffMember: async (staffData) => {
+            // Deep copy input data (avoid mutation)
+            const payload = JSON.parse(JSON.stringify(staffData));
+
+            // Handle file uploads
+            const fileConversions = [];
+
+            // Photo upload
+            if (staffData.photo.length > 0 && staffData.photo[0].fileObject) {
+                fileConversions.push(
+                    fileToBase64Dto(staffData.photo[0].fileObject).then(base64 => {
+                        payload.profile = base64;
+                    })
+                );
+                delete payload.photo;
+            }
+
+            // ID Proof upload
+            if (staffData.idProof.length > 0 && staffData.idProof[0].fileObject) {
+                fileConversions.push(
+                    fileToBase64Dto(staffData.idProof[0].fileObject).then(base64 => {
+                        payload.identityDocument = base64;
+                    })
+                );
+                delete payload.idProof;
+            }
+
+            // Resume upload
+            if (staffData.resume.length > 0 && staffData.resume[0].fileObject) {
+                fileConversions.push(
+                    fileToBase64Dto(staffData.resume[0].fileObject).then(base64 => {
+                        payload.resumeDocument = base64;
+                    })
+                );
+                delete payload.resume;
+            }
+
+            // Wait for all file conversions to complete
+            await Promise.all(fileConversions);
+
+            // Make API call
+            return fetchApi('/Owner/Staff/Create', 'POST', payload);
+        },
+
+        updateStaffMember: async (staffData, filesToDelete = []) => {
+            const payload = JSON.parse(JSON.stringify(staffData));
+
+            // Handle file uploads
+            const fileConversions = [];
+
+            // Photo upload
+            if (staffData.photo.length > 0 && staffData.photo[0].fileObject) {
+                fileConversions.push(
+                    fileToBase64Dto(staffData.photo[0].fileObject).then(base64 => {
+                        payload.profile = base64;
+                    })
+                );
+                delete payload.photo;
+            }
+
+            // ID Proof upload
+            if (staffData.idProof.length > 0 && staffData.idProof[0].fileObject) {
+                fileConversions.push(
+                    fileToBase64Dto(staffData.idProof[0].fileObject).then(base64 => {
+                        payload.identityDocument = base64;
+                    })
+                );
+                delete payload.idProof;
+            }
+
+            // Resume upload
+            if (staffData.resume.length > 0 && staffData.resume[0].fileObject) {
+                fileConversions.push(
+                    fileToBase64Dto(staffData.resume[0].fileObject).then(base64 => {
+                        payload.resumeDocument = base64;
+                    })
+                );
+                delete payload.resume;
+            }
+
+            payload.filesToDelete = filesToDelete;
+
+            // Wait for all file conversions to complete
+            await Promise.all(fileConversions);
+
+            // Make API call
+            return fetchApi('/Owner/Staff/Update', 'POST', payload);
+        },
+
+        deleteStaffMember: async (itemId) => fetchApi('/Owner/Staff/Delete', 'POST', itemId),
+
+        updateStaffStatus: async (itemId, value) => fetchApi(`/Owner/Staff/UpdateStatus?staffId=${itemId}&status=${value}`, 'POST'),
+
 };  

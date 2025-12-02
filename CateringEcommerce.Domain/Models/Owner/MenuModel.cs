@@ -46,6 +46,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public decimal Price { get; set; }
 
         public bool IsPackageItem { get; set; }
+        public bool IsSampleTaste { get; set; }
 
         public bool Status { get; set; }
         public List<FileUploadDto>? FoodItemMediaFiles { get; set; }
@@ -71,10 +72,21 @@ namespace CateringEcommerce.Domain.Models.Owner
         public decimal Price { get; set; }
 
         public bool IsPackageItem { get; set; }
+        public bool IsSampleTaste { get; set; }
 
         public bool Status { get; set; }
         public string? CategoryName { get; set; }
         public string? TypeName { get; set; }
         public List<MediaFileModel>? Media { get; set; }
+    }
+
+    public class FoodItemFilter
+    {
+        public string Name { get; set; }
+        public List<int> CategoryIds { get; set; }
+        public List<int> CuisineIds { get; set; }
+        public string Status { get; set; }
+        public bool? IsPackageItem { get; set; }
+        public bool? IsSampleTaste { get; set; }
     }
 }

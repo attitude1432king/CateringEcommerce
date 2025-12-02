@@ -29,7 +29,7 @@ namespace CateringEcommerce.API.Controllers.Common
             _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpPost("send-otp")]
         public async Task<IActionResult> SendOtp([FromBody] VerificationRequest request)
         {
@@ -70,7 +70,7 @@ namespace CateringEcommerce.API.Controllers.Common
             }
         }
 
-        [Authorize] 
+        [AllowAnonymous]
         [HttpPost("verify-otp")]
         public IActionResult VerifyOtp([FromBody] VerificationRequest request)
         {

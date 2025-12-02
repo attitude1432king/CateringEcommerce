@@ -1,12 +1,18 @@
 ﻿using CateringEcommerce.API.Attributes;
+using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.APIModels.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Extensions;
+using System.IO;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
@@ -19,18 +25,22 @@ namespace CateringEcommerce.API.Controllers.Owner
         private readonly ILogger<RegistrationController> _logger;
         private readonly IConfiguration _configuration;
         private readonly string _connStr;
+        private readonly string _customKey;
         // In a real app, you would inject your database service here
         // private readonly IOwnerRepository _ownerRepository;
 
-        public RegistrationController(IFileStorageService fileStorageService, ILogger<RegistrationController> logger, IConfiguration configuration)
+        public RegistrationController(IFileStorageService fileStorageService, ILogger<RegistrationController> logger, IConfiguration configuration, IOptions<EncryptionSettings> setting)
         {
             _fileStorageService = fileStorageService;
             _logger = logger;
             _configuration = configuration;
             _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _customKey = setting.Value.CustomKey;
         }
 
         [AllowAnonymous]
+        [RequestSizeLimit(long.MaxValue)]
+        [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue)]
         [ValidateModel]
         [HttpPost("Register")]
         public async Task<IActionResult> Register([FromBody] OwnerRegistrationDto registrationData)
@@ -59,27 +69,36 @@ namespace CateringEcommerce.API.Controllers.Owner
                 }
                 _logger.LogInformation("Email and phone number are valid and not already registered."); 
 
-                dicData = AddedRegistionDataToDictionary(registrationData);
 
                 _logger.LogInformation("Registration data converted to dictionary for database insertion.");
+                dicData = AddedRegistionDataToDictionary(registrationData);
 
                 // 1. Create a new owner in the database and get the PKID
                 ownerPkid = ownerRegister.CreateOwnerAccount(dicData);
+                if(ownerPkid <= 0)
+                {
+                    _logger.LogError("Failed to create owner account in the database.");
+                    return ApiResponseHelper.Failure("An error occurred while creating the parnter account. Please try again.");
+                }
+                _logger.LogInformation("Owner account created successfully with PKID: {OwnerPkid}", ownerPkid);
 
                 // 2. Save uploaded files and get their paths
-                if (registrationData.CateringMedia != null)
-                {
-                    foreach (var mediaItem in registrationData.CateringMedia)
-                    {
-                        var path = await _fileStorageService.SaveFileAsync(mediaItem.Base64Data, ownerPkid, DocumentType.Kitchen.GetDisplayName(), isSecure: false, mediaItem.FileName);
-                        await ownerRepository.SaveFilePath(path, ownerPkid, mediaItem.FileName, DocumentType.Kitchen);
-                    }
-                }
+                var logoPath = await _fileStorageService.SaveFileAsync(registrationData.CateringLogo ?? string.Empty, ownerPkid, DocumentType.Logo.GetDisplayName(), isSecure: false);
 
-                var logoPath = await _fileStorageService.SaveFileAsync(registrationData.CateringLogo, ownerPkid, DocumentType.Logo.GetDisplayName(), isSecure: false);
-                var fssaiPath = await _fileStorageService.SaveFileAsync(registrationData.FssaiCertificate.Base64, ownerPkid, CertificateType.FSSAI.GetDisplayName(), isSecure: true, registrationData.FssaiCertificate.Name);
-                var gstPath = await _fileStorageService.SaveFileAsync(registrationData.GstCertificate.Base64, ownerPkid, CertificateType.GST.GetDisplayName(), isSecure: true, registrationData.GstCertificate.Name);
-                var panPath = await _fileStorageService.SaveFileAsync(registrationData.PanCard.Base64, ownerPkid, CertificateType.PAN.GetDisplayName(), isSecure: true, registrationData.PanCard.Name);
+                // FSSAI Certificate
+                var fssaiBase64 = registrationData.FssaiCertificate?.Base64 ?? string.Empty;
+                var fssaiName = registrationData.FssaiCertificate?.Name ?? string.Empty;
+                var fssaiPath = await _fileStorageService.SaveFileAsync(fssaiBase64, ownerPkid, CertificateType.FSSAI.GetDisplayName(), isSecure: true, fssaiName);
+
+                // GST Certificate
+                var gstBase64 = registrationData.GstCertificate?.Base64 ?? string.Empty;
+                var gstName = registrationData.GstCertificate?.Name ?? string.Empty;
+                var gstPath = await _fileStorageService.SaveFileAsync(gstBase64, ownerPkid, CertificateType.GST.GetDisplayName(), isSecure: true, gstName);
+
+                // PAN Card
+                var panBase64 = registrationData.PanCard?.Base64 ?? string.Empty;
+                var panName = registrationData.PanCard?.Name ?? string.Empty;
+                var panPath = await _fileStorageService.SaveFileAsync(panBase64, ownerPkid, CertificateType.PAN.GetDisplayName(), isSecure: true, panName);
                 if (!string.IsNullOrEmpty(gstPath))
                     dicData.Add("GstCertificatePath", gstPath);
                 if (!string.IsNullOrEmpty(panPath))
@@ -99,10 +118,12 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 _logger.LogInformation("Logo saved at: {LogoPath}", logoPath);
                 _logger.LogInformation("FSSAI saved at: {FssaiPath}", fssaiPath);
+                    
+                string encOwnerId = CryptoHelper.Encrypt(ownerPkid.ToString(), _customKey);
 
                 #endregion
                 // 6. Return a success response
-                return Ok(new { message = "Catering partner registered successfully. Your application is under review." });
+                return ApiResponseHelper.Success(encOwnerId, "Catering partner registered successfully. Your application is under review.");
             }
             catch (Exception ex)
             {
@@ -125,6 +146,43 @@ namespace CateringEcommerce.API.Controllers.Owner
             var details = await ownerRegister.GetServiceDetailsByTypeId(TypeId);
                 
             return Ok(details);
+        }
+
+        [AllowAnonymous]
+        [RequestSizeLimit(long.MaxValue)]
+        [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue)]
+        [HttpPost("UploadMedia")]
+        public async Task<IActionResult> UploadKitchenMediaFile (string ownerId, [FromForm] List<IFormFile> CateringMedia)
+        {
+            if (CateringMedia == null || CateringMedia.Count == 0)
+            {
+                return BadRequest(new { message = "Invalid file data." });
+            }
+            try
+            {
+                OwnerRepository ownerRepository = new OwnerRepository(_connStr);
+                long ownerPkid = CryptoHelper.DecryptAndConvert<long>(ownerId, _customKey);
+                bool isOwnerExist = await ownerRepository.IsOwnerExistAsync(ownerPkid);
+                if (!isOwnerExist)
+                {
+                    return ApiResponseHelper.Failure("Partner does not exist.");
+                }
+                var filePaths = new List<string>();
+                if (CateringMedia != null && CateringMedia.Any())
+                {
+                    foreach (var file in CateringMedia)
+                    {
+                        var filePath = await _fileStorageService.SaveFormFileAsync(file, ownerPkid, DocumentType.Kitchen.GetDisplayName(), isSecure: false, file.FileName);
+                        await ownerRepository.SaveFilePath(filePath, ownerPkid, file.FileName, DocumentType.Kitchen);
+                    }
+                }
+                return ApiResponseHelper.Success(null, "Partner medias uploads successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading kitchen media file.");
+                return StatusCode(500, "An error occurred while uploading the file.");
+            }
         }
 
         /// <summary>

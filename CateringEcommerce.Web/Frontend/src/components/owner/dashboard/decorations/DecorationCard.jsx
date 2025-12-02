@@ -11,16 +11,13 @@ import { ownerApiService } from '../../../../services/ownerApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export default function DecorationCard({ item, onEdit, onDelete }) {
+export default function DecorationCard({ item, onEdit, onDelete, onStatusChange }) {
     const { showToast } = useToast();
     const mainMedia = item.media[0];
     const mediaUrl = (media) => media.filePath ? `${API_BASE_URL}${media.filePath}` : media.preview;
 
     const handleToggle = (value) => {
-        // Here you would call an API to update the status
-        // apiService.updateDecorationStatus(item.id, value);
-        showToast(`${item.name} status updated to ${value ? 'Active' : 'Inactive'}`, 'success');
-        // You would then refetch the data from the parent
+        onStatusChange(item, value);
     };
 
     return (

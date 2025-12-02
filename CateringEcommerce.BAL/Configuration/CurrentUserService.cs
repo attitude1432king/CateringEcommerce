@@ -27,4 +27,10 @@ namespace CateringEcommerce.BAL.Configuration
             }
         }
     }
+
+    public class EncryptionSettings
+    {
+        public string CustomKey { get; set; }
+    }
+
 }

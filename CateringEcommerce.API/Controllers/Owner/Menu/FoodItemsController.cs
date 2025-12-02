@@ -2,12 +2,12 @@
 using CateringEcommerce.BAL.Base.Owner.Menu;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.Domain.Enums;
-using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Extensions;
+using Newtonsoft.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner.Menu
 {
@@ -29,8 +29,8 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
             _currentUser = currentUser;
         }
 
-        [HttpGet("Data")]
-        public async Task<IActionResult> GetFoodItemList()
+        [HttpGet("Count")]
+        public async Task<IActionResult> GetFoodItemCount(string filterJson)
         {
             try
             {
@@ -39,9 +39,34 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 {
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
+                var filter = JsonConvert.DeserializeObject<FoodItemFilter>(filterJson ?? "{}");
+                _logger.LogInformation("Fetching food items count.");
+                FoodItems foodItems = new FoodItems(_connStr);
+                var foodItemsCount = await foodItems.GetFoodItemsCount(ownerPKID, filter);
+                _logger.LogInformation("Fetched {Count} food items.", foodItemsCount);
+                return Ok(foodItemsCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred while fetching food category.");
+                return StatusCode(500, "An error occurred while fetching food category.");
+            }
+        }
+
+        [HttpGet("Data")]
+        public async Task<IActionResult> GetFoodItemList(int page, int pageSize, string filterJson)
+        {
+            try
+            {
+                var ownerPKID = _currentUser.UserId;
+                if (ownerPKID <= 0)
+                {
+                    return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
+                }
+                var filter = JsonConvert.DeserializeObject<FoodItemFilter>(filterJson ?? "{}");
                 _logger.LogInformation("Fetching food items.");
                 FoodItems foodItems = new FoodItems(_connStr);
-                var listFoodItems = await foodItems.GetFoodItems(ownerPKID);
+                var listFoodItems = await foodItems.GetFoodItems(ownerPKID, page, pageSize, filter);
                 _logger.LogInformation("Fetched {Count} food categories.", listFoodItems?.Count ?? 0);
                 return Ok(listFoodItems);
             }

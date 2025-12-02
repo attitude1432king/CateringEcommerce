@@ -14,6 +14,7 @@ import MenuManagement from '../components/owner/dashboard/MenuManagement';
 import Decorations from '../components/owner/dashboard/Decorations';
 import BookingRequests from '../components/owner/dashboard/BookingRequests';
 import EventOrders from '../components/owner/dashboard/EventOrders';
+import StaffManagement from '../components/owner/dashboard/StaffManagement';
 import Earnings from '../components/owner/dashboard/Earnings';
 import Reviews from '../components/owner/dashboard/Reviews';
 import Support from '../components/owner/dashboard/Support';
@@ -33,6 +34,7 @@ const SupportIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 const LogoutIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>;
 const DecorationIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l1.76 3.56L18 7.24l-2.64 2.57.62 3.62L12 11.77l-3.98 2.09.62-3.62L6 7.24l4.24-.68L12 3z" /> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 21h16M8 17h8" /></svg>;
+const StaffIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" /></svg>;
 
 const SidebarLink = ({ to, icon, children }) => {
     return (
@@ -69,6 +71,7 @@ export default function OwnerDashboardPage() {
                     <SidebarLink to="/owner/dashboard/events" icon={<EventsIcon />}>Event Orders</SidebarLink>
                     <SidebarLink to="/owner/dashboard/menu" icon={<MenuIcon />}>Menu & Packages</SidebarLink>
                     <SidebarLink to="/owner/dashboard/decorations" icon={<DecorationIcon />}>Decorations</SidebarLink>
+                    <SidebarLink to="/owner/dashboard/staff" icon={<StaffIcon />}>Staff Management</SidebarLink>
                     <SidebarLink to="/owner/dashboard/payments" icon={<EarningsIcon />}>Earnings</SidebarLink>
                     <SidebarLink to="/owner/dashboard/reviews" icon={<ReviewsIcon />}>Reviews</SidebarLink>
                     <SidebarLink to="/owner/dashboard/support" icon={<SupportIcon />}>Support</SidebarLink>
@@ -88,6 +91,7 @@ export default function OwnerDashboardPage() {
                     <Route path="events" element={<EventOrders />} />
                     <Route path="menu" element={<MenuManagement />} />
                     <Route path="decorations" element={<Decorations />} />
+                    <Route path="staff" element={<StaffManagement />} />
                     <Route path="payments" element={<Earnings />} />
                     <Route path="reviews" element={<Reviews />} />
                     <Route path="support" element={<Support />} />

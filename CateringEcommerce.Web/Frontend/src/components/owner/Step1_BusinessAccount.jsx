@@ -12,7 +12,7 @@ const FormInput = ({ label, name, type, value, onChange, error, disabled, childr
             {label} {required && <span className="text-red-500">*</span>}
         </label>
         <div className="flex gap-2">
-            <input type={type} name={name} value={value || ''} onChange={onChange} disabled={disabled} className={`w-full p-2 border rounded-md ${error ? 'border-red-500' : 'border-neutral-300'}`} />
+            <input type={type} name={name} value={value || ''} onChange={onChange} disabled={disabled} autoComplete="off" className={`w-full p-2 border rounded-md ${error ? 'border-red-500' : 'border-neutral-300'}`} />
             {children}
         </div>
         {error && <p className="text-xs text-red-600 mt-1">{error}</p>}

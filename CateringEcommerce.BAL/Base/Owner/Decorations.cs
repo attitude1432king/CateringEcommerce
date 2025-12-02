@@ -5,6 +5,9 @@ using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
+using Newtonsoft.Json;
+using System.Data;
+using System.Text;
 
 namespace CateringEcommerce.BAL.Base.Owner
 {
@@ -18,58 +21,104 @@ namespace CateringEcommerce.BAL.Base.Owner
             _db.SetConnectionString(connectionString);
         }
 
+        public async Task<int> GetDecorationsCount(long ownerPKID, string filterJson)
+        {
+            var filter = string.IsNullOrWhiteSpace(filterJson)
+                ? new DecorationFilter()
+                : JsonConvert.DeserializeObject<DecorationFilter>(filterJson) ?? new DecorationFilter();
 
-        public async Task<List<DecorationsModel>> GetDecorations(long ownerPKID)
+            List<SqlParameter> parameters = new()
+            {
+                new SqlParameter("@OwnerPKID", ownerPKID)
+            };
+
+            StringBuilder sql = new();
+                 sql.Append($@"
+                    SELECT COUNT(*) 
+                    FROM {Table.SysCateringDecorations} cd
+                ");
+
+            sql.Append(BuildDecorationFilterQuery(filter, parameters));
+
+            var result = await _db.ExecuteScalarAsync(sql.ToString(), parameters.ToArray());
+            return result != null ? Convert.ToInt32(result) : 0;
+        }
+
+
+        public async Task<List<DecorationsModel>> GetDecorations(long ownerPKID, int page, int pageSize, string filterJson)
         {
             try
             {
-                string selectQuery = $@"
-                                    SELECT 
-                                        cd.c_decoration_id AS DecorationId,
-                                        cd.c_decoration_name AS DecorationName,
-                                        cd.c_description AS Description,
-                                        cd.c_theme_id AS ThemeId,
-                                        tt.c_theme_name AS ThemeName,
-                                        cd.c_price AS Price,
-                                        cd.c_status AS Status,
-                                        cd.c_packageids AS PackageIds,
-                                        STRING_AGG(CONCAT(p.c_packageid, ':', p.c_packagename), ',') AS PackageData
-                                    FROM {Table.SysCateringDecorations} cd
-                                    LEFT JOIN {Table.SysDecorationThemes} tt ON tt.c_theme_id = cd.c_theme_id
-                                    CROSS APPLY STRING_SPLIT(cd.c_packageids, ',') AS split_ids
-                                    LEFT JOIN {Table.SysMenuPackage} p ON p.c_packageid = TRY_CAST(split_ids.value AS INT)
-                                    WHERE cd.c_ownerid = @OwnerPKID
-                                    GROUP BY 
-                                        cd.c_decoration_id, cd.c_decoration_name, cd.c_description, cd.c_theme_id, 
-                                        tt.c_theme_name, cd.c_price, cd.c_status, cd.c_packageids
-                                    ORDER BY cd.c_decoration_id DESC;";
+                var filter = string.IsNullOrWhiteSpace(filterJson)
+                    ? new DecorationFilter()
+                    : JsonConvert.DeserializeObject<DecorationFilter>(filterJson) ?? new DecorationFilter();
 
+                int offset = (page - 1) * pageSize;
 
                 List<SqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new SqlParameter("@OwnerPKID", ownerPKID),
+                    new SqlParameter("@Offset", offset),
+                    new SqlParameter("@PageSize", pageSize)
                 };
 
-                var decorationsData = await _db.ExecuteAsync(selectQuery, parameters.ToArray());
-                if (decorationsData.Rows.Count == 0)
+                StringBuilder sql = new();
+
+                sql.Append($@"
+                    SELECT 
+                        cd.c_decoration_id AS DecorationId,
+                        cd.c_decoration_name AS DecorationName,
+                        cd.c_description AS Description,
+                        cd.c_theme_id AS ThemeId,
+                        tt.c_theme_name AS ThemeName,
+                        cd.c_price AS Price,
+                        cd.c_status AS Status,
+                        cd.c_packageids AS PackageIds,
+                        STRING_AGG(CONCAT(p.c_packageid, ':', p.c_packagename), ',') AS PackageData
+                    FROM {Table.SysCateringDecorations} cd
+                    LEFT JOIN {Table.SysDecorationThemes} tt 
+                        ON tt.c_theme_id = cd.c_theme_id
+                    OUTER APPLY (
+                        SELECT value 
+                        FROM STRING_SPLIT(cd.c_packageids, ',')
+                    ) AS split_ids
+                    LEFT JOIN {Table.SysMenuPackage} p 
+                        ON p.c_packageid = TRY_CAST(split_ids.value AS INT)
+                ");
+
+                // Attach dynamic filters
+                sql.Append(BuildDecorationFilterQuery(filter, parameters));
+
+                sql.Append(@"
+                    GROUP BY 
+                        cd.c_decoration_id, cd.c_decoration_name, cd.c_description, cd.c_theme_id, 
+                        tt.c_theme_name, cd.c_price, cd.c_status, cd.c_packageids
+
+                    ORDER BY cd.c_decoration_id DESC
+                    OFFSET @Offset ROWS
+                    FETCH NEXT @PageSize ROWS ONLY;
+                ");
+
+                var raw = await _db.ExecuteAsync(sql.ToString(), parameters.ToArray());
+                if (raw.Rows.Count == 0)
                     return new List<DecorationsModel>();
 
                 var decorations = new List<DecorationsModel>();
-                var mediaRepository = new MediaRepository(_db.GetConnectionString());
+                var mediaRepo = new MediaRepository(_db.GetConnectionString());
 
-                foreach (System.Data.DataRow row in decorationsData.Rows)
+                foreach (DataRow row in raw.Rows)
                 {
-                    var decorationId = row["DecorationId"] != DBNull.Value ? Convert.ToInt64(row["DecorationId"]) : 0;
+                    long decorationId = Convert.ToInt64(row["DecorationId"]);
 
-                    // Build Linked Packages (id + name)
-                    var packageList = new List<LinkedPackageDto>();
-                    if (row["PackageData"] != DBNull.Value && !string.IsNullOrWhiteSpace(row["PackageData"].ToString()))
+                    // 🔗 Parse linked packages
+                    List<LinkedPackageDto> packageList = new();
+                    if (row["PackageData"] != DBNull.Value)
                     {
-                        var packagePairs = row["PackageData"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries);
-                        foreach (var pair in packagePairs)
+                        var pairs = row["PackageData"].ToString().Split(',');
+                        foreach (var pair in pairs)
                         {
                             var parts = pair.Split(':');
-                            if (parts.Length == 2 && long.TryParse(parts[0], out var pkgId))
+                            if (parts.Length == 2 && long.TryParse(parts[0], out long pkgId))
                             {
                                 packageList.Add(new LinkedPackageDto
                                 {
@@ -80,37 +129,39 @@ namespace CateringEcommerce.BAL.Base.Owner
                         }
                     }
 
-                    // Fetch media files for this decoration
-                    var decorationMediaFiles = await mediaRepository.GetMediaFiles(ownerPKID, Domain.Enums.DocumentType.EventSetup, decorationId);
+                    // 📁 Load media files
+                    var mediaFiles = await mediaRepo.GetMediaFiles(ownerPKID, Domain.Enums.DocumentType.EventSetup, decorationId);
 
                     decorations.Add(new DecorationsModel
                     {
                         Id = decorationId,
                         Name = row["DecorationName"]?.ToString(),
                         Description = row["Description"]?.ToString(),
-                        ThemeName = row["ThemeName"]?.ToString(), // new property
-                        Price = row["Price"] != DBNull.Value ? Convert.ToDecimal(row["Price"]) : 0,
-                        ThemeId = row["ThemeId"] != DBNull.Value ? Convert.ToInt16(row["ThemeId"]) : 0,
-                        Status = row["Status"] != DBNull.Value && Convert.ToBoolean(row["Status"]),
-                        LinkedPackages = packageList,  // updated property
-                        Media = decorationMediaFiles?.Select(m => new MediaFileModel
+                        ThemeId = Convert.ToInt32(row["ThemeId"]),
+                        ThemeName = row["ThemeName"]?.ToString(),
+                        Price = Convert.ToDecimal(row["Price"]),
+                        Status = Convert.ToBoolean(row["Status"]),
+                        LinkedPackages = packageList,
+                        Media = mediaFiles?.Select(m => new MediaFileModel
                         {
                             Id = m.Id,
                             FileName = m.FileName,
                             FilePath = m.FilePath,
-                            MediaType = m.MediaType,
-                            DocumentType = m.DocumentType
+                            DocumentType = m.DocumentType,
+                            MediaType = m.MediaType
                         }).ToList()
                     });
                 }
 
                 return decorations;
             }
-            catch (Exception)
+            catch
             {
                 throw;
             }
         }
+
+
 
         public async Task<long> AddDecoration(long ownerPKID, DecorationsDto decoration)
         {
@@ -168,7 +219,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             {
                 string updateQuery = $@"UPDATE {Table.SysCateringDecorations}
                                     SET c_decoration_name = @DecorationName, c_description = @Description, c_packageids = @PackageIDs,
-                                    c_theme_id = @ThemeID, c_price = @Price, c_status = @Status 
+                                    c_theme_id = @ThemeID, c_price = @Price, c_status = @Status, c_updateddate = @Updateddate
                                     WHERE c_decoration_id = @DecorationID AND c_ownerid = @OwnerPKID";
 
                 List<SqlParameter> parameters = new()
@@ -181,7 +232,9 @@ namespace CateringEcommerce.BAL.Base.Owner
                     ? string.Join(",", decoration.LinkedPackageIds) : (object)DBNull.Value),
                     new SqlParameter("@ThemeID", decoration.ThemeId),
                     new SqlParameter("@Price", decoration.Price),
-                    new SqlParameter("@Status", decoration.Status.ToBinary()) // Assuming 1 for active, 0 for inactive
+                    new SqlParameter("@Status", decoration.Status.ToBinary()), // Assuming 1 for active, 0 for inactive
+                    new SqlParameter("@Updateddate", DateTime.Now),
+
                 };
 
                 return await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
@@ -198,7 +251,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             {
                 string query = $@"SELECT c_theme_id AS ThemeId, c_theme_name AS ThemeName
                                  FROM {Table.SysDecorationThemes}
-                                 WHERE c_isactive = 1";
+                                 WHERE c_isactive = 1 ORDER BY c_theme_name";
                 var dt = await _db.ExecuteAsync(query);
                 List<DecorationThemeModel> themes = new List<DecorationThemeModel>();
                 foreach (System.Data.DataRow row in dt.Rows)
@@ -281,6 +334,68 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        public async Task UpdateDecorationStatus(long ownerPKID, long decorationId, bool status)
+        {
+            try
+            {
+                string updateQuery = $@"UPDATE {Table.SysCateringDecorations} SET c_status = @Status 
+                                   WHERE c_ownerid = @OwnerPKID
+                                    AND c_decoration_id = @DecorationId";
+
+                List<SqlParameter> parameters = new()
+                {
+                    new SqlParameter("@OwnerPKID", ownerPKID),
+                    new SqlParameter("@DecorationId", decorationId),
+                    new SqlParameter("@Status", status.ToBinary())
+                };
+
+                var result = await _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        private string BuildDecorationFilterQuery(DecorationFilter filter, List<SqlParameter> parameters)
+        {
+            StringBuilder where = new();
+            where.Append(" WHERE cd.c_ownerid = @OwnerPKID ");
+
+            // Name search
+            if (!string.IsNullOrWhiteSpace(filter.Name))
+            {
+                where.Append(" AND LOWER(cd.c_decoration_name) LIKE LOWER('%' + @Name + '%') ");
+                parameters.Add(new SqlParameter("@Name", filter.Name));
+            }
+
+            // Theme filter
+            if (filter.ThemeIds?.Count > 0)
+            {
+                where.Append($" AND cd.c_theme_id IN ({string.Join(",", filter.ThemeIds)}) ");
+            }
+
+            // Status filter
+            if (!string.IsNullOrWhiteSpace(filter.Status))
+            {
+                where.Append(" AND cd.c_status = @Status ");
+                parameters.Add(new SqlParameter("@Status", filter.Status));
+            }
+
+            // Linked Package filter
+            if (filter.PackageIds?.Count > 0)
+            {
+                where.Append(@"
+                    AND EXISTS (
+                        SELECT 1 
+                        FROM STRING_SPLIT(cd.c_packageids, ',') AS sp
+                        WHERE TRY_CAST(sp.value AS INT) IN (" + string.Join(",", filter.PackageIds) + @")
+                    )
+                ");
+            }
+
+            return where.ToString();
+        }
 
     }
 }

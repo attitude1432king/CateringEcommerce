@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.Domain.Interfaces;
+﻿using CateringEcommerce.Domain.Interfaces.Common;
 using Twilio;
 using Twilio.Rest.Verify.V2.Service;
 
@@ -14,9 +14,9 @@ namespace CateringEcommerce.BAL.Configuration
 
         public SmsService(IConfiguration config)
         {
-            AccountSid = ""; // "ACa0e64157a3eeacc75d11d3ca0a45dc58";
-            AuthToken = ""; //"8a6511feae7fab86efcd8d70c10a96f3";
-            VerifyServiceSID = ""; // "VA36c73036f1c116da2e88220cdcf48834";
+            AccountSid = "ACa0e64157a3eeacc75d11d3ca0a45dc58";
+            AuthToken = "8a6511feae7fab86efcd8d70c10a96f3";
+            VerifyServiceSID = "VA36c73036f1c116da2e88220cdcf48834";
 
             TwilioClient.Init(AccountSid, AuthToken);
         }

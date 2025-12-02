@@ -10,6 +10,21 @@ import { ownerApiService } from '../../../../services/ownerApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// YELLOW BOX: New SVG Icons
+const PackageIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 2a2 2 0 00-2 2v1H6a2 2 0 00-2 2v1H2a1 1 0 00-1 1v6a1 1 0 001 1h16a1 1 0 001-1V9a1 1 0 00-1-1h-2V7a2 2 0 00-2-2h-2V4a2 2 0 00-2-2h-2zm-1 4v1h2V6H9zm2 3h2v1H9V9h2z" clipRule="evenodd" />
+    </svg>
+);
+
+const SampleTasteIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7z" />
+        <path fillRule="evenodd" d="M2 8a3 3 0 013-3h10a3 3 0 013 3v8a3 3 0 01-3 3H5a3 3 0 01-3-3V8zm3 1a1 1 0 011-1h.01a1 1 0 110 2H6a1 1 0 01-1-1zm3 0a1 1 0 011-1h.01a1 1 0 110 2H9a1 1 0 01-1-1zm3 0a1 1 0 011-1h.01a1 1 0 110 2h-.01a1 1 0 01-1-1z" clipRule="evenodd" />
+    </svg>
+);
+
+
 export default function FoodItemCard({ item, onEdit, onDelete }) {
     const mainMedia = item.media[0];
     const mediaUrl = (media) => media.filePath ? `${API_BASE_URL}${media.filePath}` : media.preview;
@@ -56,16 +71,25 @@ export default function FoodItemCard({ item, onEdit, onDelete }) {
 
             <div className="p-4 flex flex-col flex-grow">
                 <div className="flex-grow">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-center">
                         <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">{item.categoryName}</span>
-                        {item.isPackageItem && (
-                            <span title="This item can be included in packages" className="flex items-center gap-1 text-xs font-bold text-blue-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v1H5V4zM5 7h10v9a2 2 0 01-2 2H7a2 2 0 01-2-2V7z" /></svg>
-                                Package Item
-                            </span>
-                        )}
+                        {/* YELLOW BOX: Replaced text with icons and adjusted spacing */}
+                        <div className="flex items-center gap-3">
+                            {item.isSampleTaste && (
+                                <span title="Sample taste available" className="flex items-center gap-1 text-xs font-bold text-teal-600">
+                                    <SampleTasteIcon />
+                                    Sample
+                                </span>
+                            )}
+                            {item.isPackageItem && (
+                                <span title="Included in packages" className="flex items-center gap-1 text-xs font-bold text-blue-600">
+                                    <PackageIcon />
+                                    Package
+                                </span>
+                            )}
+                        </div>
                     </div>
-                    <h3 className="text-lg font-bold text-neutral-800 truncate mt-1">{item.name}</h3>
+                    <h3 className="text-lg font-bold text-neutral-800 truncate mt-1" title={item.name}>{item.name}</h3>
                     <p className="text-sm text-neutral-600 mt-1 h-10">{item.description}</p>
                 </div>
                 <div className="mt-4">

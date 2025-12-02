@@ -10,6 +10,7 @@ using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Extensions;
+using Newtonsoft.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
@@ -31,8 +32,31 @@ namespace CateringEcommerce.API.Controllers.Owner
             _currentUser = currentUser;
         }
 
-        [HttpGet("GetData")]
-        public async Task<IActionResult> GetDecorationsList()
+        [HttpGet("Count")]
+        public async Task<IActionResult> GetDecorationsCount(string filterJson)
+        {
+            try
+            {
+                var ownerPKID = _currentUser.UserId;
+                if (ownerPKID <= 0)
+                {
+                    return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
+                }
+                _logger.LogInformation("Fetching decorations setup count.");
+                Decorations decorations = new Decorations(_connStr);
+                var decorationsCount = await decorations.GetDecorationsCount(ownerPKID, filterJson);
+                _logger.LogInformation("Fetched {Count} decorations setup.", decorationsCount);
+                return Ok(decorationsCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred while fetching decorations setup count.");
+                return StatusCode(500, "An error occurred while fetching decorations setup count error: " + ex.Message);
+            }
+        }
+
+        [HttpGet("Data")]
+        public async Task<IActionResult> GetDecorationsList(int page, int pageSize, string filterJson)
         {
             try
             {
@@ -43,14 +67,14 @@ namespace CateringEcommerce.API.Controllers.Owner
                 }
                 _logger.LogInformation("Fetching decorations setup.");
                 Decorations decorations = new Decorations(_connStr);
-                var listDecorations = await decorations.GetDecorations(ownerPKID);
+                var listDecorations = await decorations.GetDecorations(ownerPKID, page, pageSize, filterJson);
                 _logger.LogInformation("Fetched {Count} decorations setup.", listDecorations?.Count ?? 0);
                 return Ok(listDecorations);
             }
             catch (Exception ex)
             {
                 _logger.LogError("Error occurred while fetching decorations setup.");
-                return StatusCode(500, "An error occurred while fetching decorations setup.");
+                return StatusCode(500, "An error occurred while fetching decorations setup error: " + ex.Message);
             }
         }
 
@@ -228,12 +252,43 @@ namespace CateringEcommerce.API.Controllers.Owner
                 _logger.LogInformation("Deleting Decoration setup.");
                 await decorations.DeleteDecoration(ownerPKID, decorationId);
 
-                _logger.LogInformation("Deleted decoration setup by ID; {0}", decorationId);
+                _logger.LogInformation("Deleted decoration setup by ID: {0}", decorationId);
                 return ApiResponseHelper.Success(null, "Deleted successfully.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while deleting decoration setup.");
+                throw new Exception(ex.Message);
+            }
+        }
+
+        [HttpPost("UpdateStatus")]
+        public async Task<IActionResult> UpdateDecorationStatus([FromQuery] long decorationId, bool status)
+        {
+            try
+            {
+                var ownerPKID = _currentUser.UserId;
+                if (ownerPKID <= 0)
+                {
+                    return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
+                }
+
+                Decorations decorations = new Decorations(_connStr);
+
+                if (decorationId <= 0 || !decorations.IsValidDecorationID(ownerPKID, decorationId))
+                {
+                    return ApiResponseHelper.Failure("Invalid Decoration ID or access denied.");
+                }
+
+                await decorations.UpdateDecorationStatus(ownerPKID, decorationId, status);
+
+                _logger.LogInformation("Update decoration setup status by ID: {0}", decorationId);
+
+                 return ApiResponseHelper.Success(null,"Decoration status updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while update decoration setup status.");
                 throw new Exception(ex.Message);
             }
         }

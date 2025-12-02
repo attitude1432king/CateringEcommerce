@@ -5,6 +5,8 @@ namespace CateringEcommerce.Domain.Interfaces
     public interface IOwnerRepository
     {
        // public Task<Models.OwnerModel> GetOwnerDetailsAsync(Int64 ownerPkID);
+
+        Task<bool> IsOwnerExistAsync(Int64 ownerPkID);
         public bool IsEmailExist(string email);
         public bool IsOwnerPhoneExist(string phone);
 

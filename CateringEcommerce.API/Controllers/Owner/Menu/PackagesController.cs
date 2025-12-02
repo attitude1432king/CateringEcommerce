@@ -24,7 +24,6 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
             _currentUser = currentUser;
         }
 
-
         [HttpGet("GetFoodCategory")]
         public async Task<IActionResult> GetFoodCategory()
         {
@@ -43,8 +42,8 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
             }
         }
 
-        [HttpGet("GetPackages")]
-        public async Task<IActionResult> GetPackages()
+        [HttpGet("Count")]
+        public async Task<IActionResult> GetCount(string searchPackage = "")
         {
             try
             {
@@ -53,9 +52,36 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 {
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
+                _logger.LogInformation("Get packages counts");
+                Packages packages = new Packages(_connStr);
+                Int32 packageCount = await packages.GetPackageCount(ownerPKID, searchPackage);
+                _logger.LogInformation("Fetched {Count} packages.", packageCount);
+                return Ok(packageCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred while fatching packages counts");
+                throw new Exception(ex.Message);
+            }
+        }
+
+        [HttpGet("Data")]
+        public async Task<IActionResult> GetPackages(int page = 1, int pageSize = 10, string searchPackage = "")
+        {
+            try
+            {
+                var ownerPKID = _currentUser.UserId;
+                if (ownerPKID <= 0)
+                {
+                    return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
+                }
+                if (page < 1) page = 1;
+                if (pageSize < 1) pageSize = 10;
+
+
                 _logger.LogInformation("Fetching packages.");
                 Packages packages = new Packages(_connStr);
-                var listPackages = await packages.GetPackages(ownerPKID);
+                var listPackages = await packages.GetPackages(ownerPKID, page, pageSize, searchPackage);
                 _logger.LogInformation("Fetched {Count} packages.", listPackages?.Count ?? 0);
                 return Ok(listPackages ?? new List<PackageDto>());
             }
@@ -82,7 +108,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 // Check the Package Name same exists or not
                 if (packages.PackageExistOrNot(ownerPKID, packageDto.Name))
                 {
-                    return BadRequest(new { result = false, message = "Package name is already exists." });
+                    return ApiResponseHelper.Failure("Package name is already exists.", "warning");
                 }
 
                 Int64 packageId = await packages.AddPackage(ownerPKID, packageDto);
@@ -92,7 +118,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     await packages.AddPackageItems(packageId, item);
                     _logger.LogInformation("Added item to package ID {PackageID}: CategoryID {CategoryID}, Quantity {Quantity}", packageId, item.CategoryId, item.Quantity);
                 }
-                return Ok(new { result = true, message = $"{packageDto.Name} created successfully!" });
+                return ApiResponseHelper.Success(null,$"{packageDto.Name} created successfully!");
             }
             catch (Exception ex)
             {
@@ -191,7 +217,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 _logger.LogInformation("Fetching package lookup.");
 
                 Packages packages = new Packages(_connStr);
-                var listPackages = await packages.GetPackages(ownerPKID);
+                var listPackages = await packages.GetPackagesLookup(ownerPKID);
 
                 // Safely handle null or empty list
                 var lookup = (listPackages ?? new List<PackageDto>())

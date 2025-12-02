@@ -20,6 +20,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailSettings"));
+builder.Services.Configure<EncryptionSettings>(
+    builder.Configuration.GetSection("EncryptionSettings"));
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ValidateModelAttribute>();
@@ -29,7 +31,7 @@ builder.Services.AddControllers(options =>
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
     // Set the limit to 50 MB, for example
-    options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100 MB;
+    options.Limits.MaxRequestBodySize = long.MaxValue; // 100 MB;
 });
 
 // 2. Configure FormOptions to increase the limit for individual values
@@ -38,7 +40,7 @@ builder.Services.Configure<FormOptions>(options =>
     // Set the value length limit to a large value
     options.ValueLengthLimit = int.MaxValue;
     // Also increase the multipart body length limit
-    options.MultipartBodyLengthLimit = 100 * 1024 * 1024; // 100 MB
+    options.MultipartBodyLengthLimit = long.MaxValue; ; // 100 MB
     options.MemoryBufferThreshold = int.MaxValue;
 });
 

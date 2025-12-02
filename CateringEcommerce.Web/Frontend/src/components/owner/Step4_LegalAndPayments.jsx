@@ -55,10 +55,12 @@ export default function Step4_LegalAndPayments({ formData, setFormData, errors }
                         <div>
                             <label className="block text-sm font-medium text-neutral-700 mb-1">FSSAI Number</label>
                             <input type="text" name="fssaiNumber" value={formData.fssaiNumber || ''} onChange={handleChange} className="w-full p-2 border border-neutral-300 rounded-md" />
+                            {errors.fssaiNumber && <p className="text-xs text-red-600 mt-1">{errors.fssaiNumber}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-neutral-700 mb-1">FSSAI Expiry Date</label>
                             <input type="date" name="fssaiExpiry" value={formData.fssaiExpiry || ''} onChange={handleChange} className="w-full p-2 border border-neutral-300 rounded-md" />
+                            {errors.fssaiExpiry && <p className="text-xs text-red-600 mt-1">{errors.fssaiExpiry}</p>}
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-neutral-700 mb-1">Upload FSSAI Certificate (PDF)</label>
@@ -66,6 +68,8 @@ export default function Step4_LegalAndPayments({ formData, setFormData, errors }
                                 <FileUploader onFileCropped={(file) => handleFileChange('fssaiCertificate', file)} acceptedTypes="application/pdf" />
                             </div>
                             <FilePreview file={formData.fssaiCertificate} onRemove={() => handleFileChange('fssaiCertificate', null)} />
+                            {errors.fssaiCertificate && <p className="text-xs text-red-600 mt-1">{errors.fssaiCertificate}</p>}
+
                         </div>
                     </div>
                 </section>

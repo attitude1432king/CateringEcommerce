@@ -133,15 +133,15 @@ export default function PackageFormModal({ isOpen, onClose, onSave, editingPacka
                     <div className="p-6 space-y-4">
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium text-neutral-700">Package Name</label>
-                            <input type="text" name="name" id="name" value={packageData.name} onChange={handlePackageChange} className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-rose-500 focus:border-rose-500" />
+                            <input type="text" name="name" id="name" value={packageData.name} onChange={handlePackageChange} autoComplete="off" className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-rose-500 focus:border-rose-500" />
                         </div>
                         <div>
                             <label htmlFor="description" className="block text-sm font-medium text-neutral-700">Description</label>
-                            <textarea name="description" id="description" value={packageData.description} onChange={handlePackageChange} rows="3" className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-rose-500 focus:border-rose-500"></textarea>
+                            <textarea name="description" id="description" value={packageData.description} onChange={handlePackageChange} autoComplete="off" rows="3" className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-rose-500 focus:border-rose-500"></textarea>
                         </div>
                         <div>
                             <label htmlFor="price" className="block text-sm font-medium text-neutral-700">Price (₹)</label>
-                            <input type="number" name="price" id="price" value={packageData.price} onChange={handlePackageChange} className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-rose-500 focus:border-rose-500" />
+                            <input type="number" name="price" id="price" value={packageData.price} onChange={handlePackageChange} autoComplete="off" className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-rose-500 focus:border-rose-500" />
                         </div>
                     </div>
 

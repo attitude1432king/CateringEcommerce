@@ -17,58 +17,55 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
         url += `?${params.toString()}`;
     }
 
-    // Get the auth token from localStorage
     const token = localStorage.getItem('authToken');
 
     const options = {
         method,
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: {}
     };
 
-    // If a token exists, add it to the Authorization header
+    // Add Authorization header if token exists
     if (token) {
-        // In a real app, you'd add the Authorization header here
         options.headers['Authorization'] = `Bearer ${token}`;
     }
 
-
+    // Handle body
     if (body) {
-        options.body = JSON.stringify(body);
+        if (body instanceof FormData) {
+            // For file uploads / multipart forms, do NOT set Content-Type
+            // The browser sets the correct multipart boundary automatically
+            options.body = body;
+        } else {
+            // JSON payload
+            options.headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify(body);
+        }
     }
 
     try {
         const response = await fetch(url, options);
 
-        // If the token is invalid or expired, the API should return a 401
+        // Unauthorized handling
         if (response.status === 401) {
-            // Clear user data from storage
             localStorage.removeItem('feasto_user');
             localStorage.removeItem('authToken');
 
-            // Determine where to redirect
-            // A simple way is to check the current path
-            if (window.location.pathname.startsWith('/owner')) {
-                window.location.href = '/partner-login';
-            } else {
-                window.location.href = '/';
-            }
+            window.location.href = window.location.pathname.startsWith('/owner')
+                ? '/partner-login'
+                : '/';
 
-            // Throw an error to stop further execution in the calling function
             throw new Error('Unauthorized');
         }
 
+        // Handle errors
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
-            console.log(errorData.errors);
+            console.error(errorData.errors);
             throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
 
-        // Handle responses with no content
-        if (response.status === 204) {
-            return null;
-        }
+        // No content
+        if (response.status === 204) return null;
 
         return response.json();
     } catch (error) {
@@ -76,6 +73,7 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
         throw error;
     }
 };
+
 
 /**
  * NEW - A common utility for fetching data from any external API.

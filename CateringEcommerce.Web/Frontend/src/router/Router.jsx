@@ -14,6 +14,8 @@ import MyProfilePage from '../pages/MyProfilePage';
 import OwnerRegistrationPage from '../pages/OwnerRegistrationPage';
 import OwnerDashboardPage from '../pages/OwnerDashboardPage';
 import PartnerLoginPage from '../pages/PartnerLoginPage';
+import CateringListPage from '../pages/CateringListPage';
+import CateringDetailPage from '../pages/CateringDetailPage';
 
 // Wrapper for routes only accessible to logged-in clients
 const ClientProtectedRoute = () => {
@@ -34,6 +36,8 @@ export default function Router() {
                 {/* Routes with Header/Footer */}
                 <Route path="/" element={<App />}>
                     <Route index element={<HomePage />} />
+                    <Route path="caterings" element={<CateringListPage />} />
+                    <Route path="caterings/:id" element={<CateringDetailPage />} />
                     <Route path="partner-registration" element={<OwnerRegistrationPage />} />
 
                     <Route element={<ClientProtectedRoute />}>

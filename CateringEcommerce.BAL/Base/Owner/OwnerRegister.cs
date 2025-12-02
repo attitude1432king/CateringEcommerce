@@ -3,10 +3,8 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
-using Org.BouncyCastle.Crypto;
 using System.Data;
 using System.Text;
-using Twilio.Types;
 
 namespace CateringEcommerce.BAL.Base.Owner
 {
@@ -189,14 +187,14 @@ namespace CateringEcommerce.BAL.Base.Owner
                 {
                     new SqlParameter("@OwnerId", ownerId),
                     new SqlParameter("@FssaiNumber", fssaiNumber),
-                    new SqlParameter("@FssaiExpDate", fssaiExpiryDate),
-                    new SqlParameter("@FssaiCertificate", fssaiCertificate),
+                    new SqlParameter("@FssaiExpDate", fssaiExpiryDate.Date.ToString()),
+                    new SqlParameter("@FssaiCertificate", string.IsNullOrEmpty(fssaiCertificate) ? DBNull.Value : fssaiCertificate),
                     new SqlParameter("@GstApplicable", isGstApplicable.ToBinary()),
                     new SqlParameter("@GstNumber", gstNumber),
-                    new SqlParameter("@GstCertificate", gstCertificate),
+                    new SqlParameter("@GstCertificate", string.IsNullOrEmpty(gstCertificate) ? DBNull.Value : gstCertificate),
                     new SqlParameter("@PanName", panName),
                     new SqlParameter("@PanNumber", panNumber),
-                    new SqlParameter("@PanCertificate", panCertificate),
+                    new SqlParameter("@PanCertificate", string.IsNullOrEmpty(panCertificate) ? DBNull.Value : panCertificate),
                     new SqlParameter("@Createddate", DateTime.Now)
                 };
                 _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
@@ -245,7 +243,7 @@ namespace CateringEcommerce.BAL.Base.Owner
         public void UpdateLogoPath(Int64 ownerPkid, string logoPath)
         {
             if (ownerPkid <= 0)
-                throw new ArgumentException("Owner PKID must be greater than zero.", nameof(ownerPkid));
+                throw new ArgumentException("Partner PKID must be greater than zero.", nameof(ownerPkid));
             if (string.IsNullOrEmpty(logoPath))
                 throw new ArgumentException("Logo path cannot be null or empty.", nameof(logoPath));
             StringBuilder query = new StringBuilder();
