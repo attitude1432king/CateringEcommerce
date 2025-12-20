@@ -67,7 +67,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 // ✅ Security check: make sure the record belongs to this owner
-                string validationQuery = $@"SELECT COUNT(1) FROM t_sys_catering_staff 
+                string validationQuery = $@"SELECT COUNT(1) FROM {Table.SysCateringStaff} 
                                     WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffID";
 
                 List<SqlParameter> validateParams = new()
@@ -399,7 +399,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     if (columnToUpdate != null)
                     {
                         string updateQuery = $@"
-                            UPDATE t_sys_catering_staff
+                            UPDATE {Table.SysCateringStaff}
                             SET {columnToUpdate} = NULL
                             WHERE c_staffid = @StaffID AND c_ownerid = @OwnerPKID";
 
@@ -427,9 +427,9 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                string selectQuery = @"
+                string selectQuery = $@"
                     SELECT c_profile_path, c_identity_doc_path, c_resume_doc_path
-                    FROM t_sys_catering_staff
+                    FROM {Table.SysCateringStaff}
                     WHERE c_staffid = @StaffID AND c_ownerid = @OwnerPKID";
 
                 List<SqlParameter> parameters = new()
