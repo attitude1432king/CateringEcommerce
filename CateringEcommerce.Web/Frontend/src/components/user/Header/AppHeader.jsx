@@ -52,7 +52,7 @@ export default function AppHeader({ onOpenAuthModal }) {
                             Events
                         </Link>
                         <Link to="/corporate" className="px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors">
-                            Corporate Catering
+                            Services
                         </Link>
                         <a href="#how-it-works" className="px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors">
                             How it Works
@@ -67,7 +67,7 @@ export default function AppHeader({ onOpenAuthModal }) {
                                 to="/partner-login"
                                 className="hidden lg:inline-flex px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors"
                             >
-                                Become a Partner
+                                Partner With Us
                             </Link>
                         )}
 

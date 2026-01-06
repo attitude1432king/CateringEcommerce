@@ -2,6 +2,8 @@
 {
     public interface IProfileSetting
     {
-        void UpdateUserDetails(long? userPKID, Dictionary<string, string> dicData = null);
+        Task UpdateUserDetails(long? userPKID, Dictionary<string, string> dicData = null);
+        
+        string GetUserProfilePicture(long userPkid);
     }
 }

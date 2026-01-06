@@ -11,14 +11,6 @@ import StaffGrid from './StaffGrid';
 import StaffFormModal from './StaffFormModal';
 import { ownerApiService } from '../../../../services/ownerApi';
 
-// Mock Data
-const mockStaff = [
-    { id: 1, profilePath: 'https://placehold.co/100x100/f8b4b4/7f1d1d?text=Chef', name: "Ramesh Kumar", role: "Head Chef", expertise: "North Indian", salaryType: "Monthly", salaryAmount: 35000, availability: true },
-    { id: 2, photo: [{ id: 'm2', type: 'image', path: 'https://placehold.co/100x100/bbf7d0/166534?text=Server' }], name: "Suresh Singh", role: "Server", expertise: null, salaryType: "Per Day", salaryAmount: 1500, availability: false },
-    { id: 3, photo: [{ id: 'm3', type: 'image', path: 'https://placehold.co/100x100/bfdbfe/1e3a8a?text=Helper' }], name: "Mina Devi", role: "Helper", expertise: null, salaryType: "Monthly", salaryAmount: 15000, availability: true },
-    { id: 4, photo: [], name: "Vikram Bhat", role: "Pastry Chef", expertise: "Dessert", salaryType: "Monthly", salaryAmount: 28000, availability: true },
-];
-
 export default function StaffView() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -62,6 +54,7 @@ export default function StaffView() {
             setStaff(totalRecords > 0 ? items : []);
             
         } catch (error) {
+            console.error('Error fetching staff data:', error);
             showToast('Failed to load staff data.', 'error');
         } finally {
             setIsLoading(false);
@@ -74,6 +67,7 @@ export default function StaffView() {
             const categoriesData = await ownerApiService.getFoodCategories(); // Re-using food categories for expertise
             setCategories(categoriesData);
         } catch (error) {
+            console.error('Error fetching food categories:', error);
             showToast('Failed to load food categories data.', 'error');
         }
     };
@@ -135,6 +129,7 @@ export default function StaffView() {
                 showToast('Failed to delete staff member.', 'error');
             fetchData(); // Refresh the grid
         } catch (error) {
+            console.error('Error deleting staff member:', error);
             showToast('Failed to delete staff member.', 'error');
         }
         finally {
@@ -154,6 +149,7 @@ export default function StaffView() {
                 showToast(response.message, response.type);
             }
         } catch (error) {
+            console.error('Error updating status:', error);
             showToast('Failed to update status', 'error');
             // Revert
             fetchData(); // Re-fetch to be safe

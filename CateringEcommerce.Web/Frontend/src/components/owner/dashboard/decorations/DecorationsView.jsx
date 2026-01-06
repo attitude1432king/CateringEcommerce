@@ -48,6 +48,7 @@ export default function DecorationsView() {
         return () => clearTimeout(timer);
     }, [filters]);
 
+
     // ---------------- FETCH DECORATION LIST ----------------
     const fetchData = async () => {
         setIsLoading(true);
@@ -55,17 +56,32 @@ export default function DecorationsView() {
         const filterJson = JSON.stringify(debouncedFilters);
 
         try {
-            // Count + Data combined
-            const [totalRecords, items] = await Promise.all([
-                ownerApiService.getDecorationsCount(filterJson),
-                ownerApiService.getDecorations(currentPage, itemsPerPage, filterJson)
-            ]);
 
+            // STEP 1: Get total count first
+            const totalRecords = await ownerApiService.getDecorationsCount(filterJson);
+
+            // STEP 2: Update count
             setTotalCount(totalRecords);
-            setDecorations(totalRecords > 0 ? items : []);
+
+            // STEP 3: If no records, skip list API
+            if (totalRecords === 0) {
+                setDecorations([]);
+                return;
+            }
+
+
+            // STEP 4: Fetch data only if count > 0
+            const items = await ownerApiService.getDecorations(
+                currentPage,
+                itemsPerPage,
+                filterJson
+            );
+
+            setDecorations(items);
 
         } catch (error) {
-            showToast('Failed to load decoration data.', 'error');
+            console.error('Error fetching discount data:', error);
+            showToast('Failed to load discount data.', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -82,7 +98,7 @@ export default function DecorationsView() {
             setPackages(packageData);
 
         } catch (error) {
-            showToast('Failed to load lookup data.', 'error');
+            showToast('Failed to load lookup data.' + error, 'error');
         }
     };
 
@@ -134,7 +150,7 @@ export default function DecorationsView() {
             handleCloseModal();
 
         } catch (error) {
-            showToast('Failed to save decoration setup.', 'error');
+            showToast('Failed to save decoration setup.' + error, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -156,7 +172,7 @@ export default function DecorationsView() {
                 showToast(`${item.name} deleted successfully.`, "success");
                 fetchData();
             } catch (error) {
-                showToast("Failed to delete decoration setup.", "error");
+                showToast("Failed to delete decoration setup." + error, "error");
             }
         });
     };
@@ -173,7 +189,7 @@ export default function DecorationsView() {
                 showToast(response.message, response.type);
             }
         } catch (error) {
-            showToast('Failed to update status', 'error');
+            showToast('Failed to update status' + error, 'error');
             // Revert
             fetchData(); // Re-fetch to be safe
         }

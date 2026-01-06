@@ -20,12 +20,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             _db.SetConnectionString(connectionString);
         }
 
+        /// <summary>
+        /// Get total count of food items based on filter
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="filter"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<Int32> GetFoodItemsCount(long ownerPKID, FoodItemFilter filter)
         {
             try
             {
                 StringBuilder countQuery = new StringBuilder();
-                countQuery.Append($@"SELECT COUNT(*) FROM {Table.SysFoodItems} ft WHERE c_ownerid = @OwnerPKID");
+                countQuery.Append($@"SELECT COUNT(*) FROM {Table.SysFoodItems} ft");
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerPKID", ownerPKID)
@@ -40,6 +47,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Add new food item
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="foodItem"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<long> AddFoodItem(long ownerPKID, FoodItemDto foodItem)
         {
             try
@@ -70,8 +84,16 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 throw new Exception(ex.Message);
             }
         }
-        
 
+        /// <summary>
+        /// Get list of food items based on filter with pagination
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="page"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="filter"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<List<FoodItemModel>> GetFoodItems(long ownerPKID, int page, int pageSize, FoodItemFilter filter)
         {
             try
@@ -82,8 +104,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                                     ft.c_ispackage_item AS IsPackageItem, ft.c_issample_tasted AS IsSampleTasted, ft.c_status AS Status, fc.c_categoryname AS CategoryName, tm.c_type_name AS CuisineTypeName
                                 FROM {Table.SysFoodItems} ft 
                                 LEFT JOIN {Table.SysFoodCategory} fc ON ft.c_categoryid = fc.c_categoryid 
-                                LEFT JOIN {Table.SysCateringTypeMaster} tm ON ft.c_cuisinetypeid = tm.c_type_id
-                                WHERE ft.c_ownerid = @OwnerPKID");
+                                LEFT JOIN {Table.SysCateringTypeMaster} tm ON ft.c_cuisinetypeid = tm.c_type_id");
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerPKID", ownerPKID),
@@ -139,15 +160,22 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 throw new Exception(ex.Message);
             }
         }
+
+        /// <summary>
+        /// Update existing food item
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="foodItem"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<int> UpdateFoodItem(long ownerPKID, FoodItemDto foodItem)
         {
             try
             {
-
                 string updateQuery = $@"UPDATE {Table.SysFoodItems}
                        SET c_foodname = @FoodName, c_description = @Description, c_categoryid = @CategoryID, 
                         c_cuisinetypeid = @CuisineID, c_price = @Price, c_ispackage_item = @IsPackageItem, 
-                        c_issample_tasted = @IsSampleTaste, c_status = @Status, c_updateddate = @Updateddate
+                        c_issample_tasted = @IsSampleTaste, c_status = @Status, c_modifieddate = GETDATE()
                         WHERE c_foodid = @FoodID AND c_ownerid = @OwnerPKID";
 
                 List<SqlParameter> parameters = new()
@@ -162,7 +190,6 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@FoodID", foodItem.Id),
                     new SqlParameter("@Status", foodItem.Status.ToBinary()), // Assuming 1 for active, 0 for inactive
                     new SqlParameter("@IsSampleTaste", foodItem.IsSampleTaste.ToBinary()),
-                    new SqlParameter("@Updateddate", DateTime.Now),
                 };
 
                 return await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
@@ -173,11 +200,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
-        public async Task<int> DeleteFoodItem(long ownerPKID, long foodItemPKID)
+        /// <summary>
+        /// Soft delete food item
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="foodItemPKID"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public async Task<int> SoftDeleteFoodItem(long ownerPKID, long foodItemPKID)
         {
             try
             {
-                string deleteQuery = $@"DELETE FROM {Table.SysFoodItems} WHERE c_ownerid = @OwnerPKID AND c_foodid = @FoodID";
+                string deleteQuery = $@"UPDATE {Table.SysFoodItems} SET c_is_deleted = 1, c_status = 0, c_modifieddate = GETDATE()
+                                     WHERE c_ownerid = @OwnerPKID AND c_foodid = @FoodID";
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerPKID", ownerPKID),
@@ -192,6 +227,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Check if food item name already exists for the owner
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="foodItemName"></param>
+        /// <param name="foodItemPKID"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<bool> IsFoodItemNameExists(long ownerPKID, string foodItemName, long? foodItemPKID = null)
         {
             try
@@ -200,7 +243,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 string query = $@"
                             SELECT COUNT(1)
                             FROM {Table.SysFoodItems}
-                            WHERE c_ownerid = @OwnerPKID
+                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0
                               AND LOWER(LTRIM(RTRIM(c_foodname))) = LOWER(LTRIM(RTRIM(@FoodItemName)))";
 
                 // Exclude the current record in case of update
@@ -228,10 +271,16 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Build filter query for food items
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <param name="parameters"></param>
+        /// <returns></returns>
         private string BuildFilterQuery(FoodItemFilter filter, List<SqlParameter> parameters)
         {
             StringBuilder where = new();
-
+            where.Append("  WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0");
             // Search by name
             if (!string.IsNullOrWhiteSpace(filter.Name))
             {
@@ -273,5 +322,69 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             return where.ToString();
         }
 
+        /// <summary>
+        /// Get food items lookup for dropdowns
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public async Task<List<FoodItemDto>> GetFoodItemsLookup(long ownerPKID)
+        {
+            try
+            {
+                string selectQuery = $@"SELECT c_foodid AS ID, c_foodname AS Name FROM {Table.SysFoodItems} 
+                                    WHERE c_ownerid = @OwnerPKID AND c_status = 1 and c_ispackage_item = 0";
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@OwnerPKID", ownerPKID),
+                };
+                var packageData = await _db.ExecuteAsync(selectQuery, parameters);
+                if (packageData.Rows.Count > 0)
+                {
+                    List<FoodItemDto> foodItemList = new List<FoodItemDto>();
+                    foreach (System.Data.DataRow row in packageData.Rows)
+                    {
+                        var package = new FoodItemDto
+                        {
+                            Id = Convert.ToInt64(row["ID"]),
+                            Name = row["Name"]?.ToString(),
+                        };
+                        foodItemList.Add(package);
+                    }
+                    return foodItemList;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<bool> IsValidFoodItemID(long ownerPKID, long foodItemPKID)
+        {
+            try
+            {
+                string query = $@"
+                            SELECT COUNT(1)
+                            FROM {Table.SysFoodItems}
+                            WHERE c_ownerid = @OwnerPKID AND c_foodid = @FoodItemID AND c_is_deleted = 0";
+                var parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@OwnerPKID", ownerPKID),
+                    new SqlParameter("@FoodItemID", foodItemPKID)
+                };
+                var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                int count = result != null ? Convert.ToInt32(result) : 0;
+                return count > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
     }
 }

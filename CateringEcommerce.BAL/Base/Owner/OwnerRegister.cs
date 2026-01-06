@@ -81,8 +81,8 @@ namespace CateringEcommerce.BAL.Base.Owner
             string addressBuilding = dicData.ContainsKey("ShopNo") ? dicData["ShopNo"].ToString() : null;
             string addressStreet = dicData.ContainsKey("Street") ? dicData["Street"].ToString() : null; //  Tower or Street data
             string addressArea = dicData.ContainsKey("Area") ? dicData["Area"].ToString() : null;
-            string city = dicData.ContainsKey("City") ? dicData["City"].ToString() : null;
-            string state = dicData.ContainsKey("State") ? dicData["State"].ToString() : null;
+            int stateID = dicData != null && dicData.ContainsKey("StateID") ? Convert.ToInt16(dicData["StateID"]) : 0;
+            int cityID = dicData != null && dicData.ContainsKey("CityID") ? Convert.ToInt16(dicData["CityID"]) : 0;
             string pincode = dicData.ContainsKey("Pincode") ? dicData["Pincode"].ToString() : null;
             string latitude = dicData.ContainsKey("Latitude") ? dicData["Latitude"].ToString() : null;
             string longitude = dicData.ContainsKey("Longitude") ? dicData["Longitude"].ToString() : null;
@@ -93,15 +93,15 @@ namespace CateringEcommerce.BAL.Base.Owner
             {
                 query.Append($@"INSERT INTO {Table.SysCateringOwnerAddress} 
                     (c_ownerid, c_building, c_street, c_area, c_city, c_state, c_pincode, c_latitude, c_longitude, c_mapurl,c_createddate) 
-                    VALUES (@OwnerId, @Building, @Street, @Area, @City, @State, @Pincode, @Latitude, @Longitude, @MapUrl, @Createddate)");
+                    VALUES (@OwnerId, @Building, @Street, @Area, @CityId, @StateId, @Pincode, @Latitude, @Longitude, @MapUrl, @Createddate)");
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerId", onwerId),
                     new SqlParameter("@Building", addressBuilding),
                     new SqlParameter("@Street", addressStreet),
                     new SqlParameter("@Area", addressArea),
-                    new SqlParameter("@City", city),
-                    new SqlParameter("@State", state),
+                    new SqlParameter("@City", cityID),
+                    new SqlParameter("@State", stateID),
                     new SqlParameter("@Pincode", pincode),
                     new SqlParameter("@Latitude", latitude),
                     new SqlParameter("@Longitude", longitude),

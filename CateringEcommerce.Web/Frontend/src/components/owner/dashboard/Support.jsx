@@ -7,7 +7,7 @@ import React from 'react';
 
 export default function Support() {
     return (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in p-4 sm:p-6 lg:p-8">
             <h1 className="text-3xl font-bold text-neutral-800">Support</h1>
             <div className="bg-white p-6 rounded-xl shadow-sm">
                 <h3 className="font-semibold text-neutral-800 mb-4">Frequently Asked Questions</h3>

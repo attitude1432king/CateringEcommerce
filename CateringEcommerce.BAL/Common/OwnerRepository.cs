@@ -91,7 +91,7 @@ namespace CateringEcommerce.BAL.Common
                 else
                 {
                     query.Append("c_mobile = @MobileNumber");
-                    parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", number.Substring(3)) };
+                    parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", number) };
                 }
 
                 var dt = _db.Execute(query.ToString(), parameters);
@@ -142,6 +142,23 @@ namespace CateringEcommerce.BAL.Common
 
                 return await _db.ExecuteNonQueryAsync(query, parameters);
 
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<int> SoftDeleteDocumentFile(long documentPKID)
+        {
+            try
+            {
+                string query = $"UPDATE {Table.SysCateringMediaUploads} SET c_is_deleted = 1, c_updated_at = GETDATE()  WHERE c_media_id = @documentPKID";
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@documentPKID", documentPKID),
+                };
+                return await _db.ExecuteNonQueryAsync(query, parameters);
             }
             catch (Exception ex)
             {

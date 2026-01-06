@@ -26,7 +26,7 @@ const VerifiedBadge = () => (
     </span>
 );
 
-export default function Step1_BusinessAccount({ formData, setFormData, errors, onVerifyClick, verificationStatus }) {
+export default function Step1_BusinessAccount({ formData, setFormData, errors, onVerifyClick }) {
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -70,6 +70,7 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
                                     </div>
                                 )}
                             </label>
+                            {errors.cateringLogo && <p className="text-xs text-red-600 mt-1">{errors.cateringLogo}</p>}
                         </div>
                     </div>
                 </section>
@@ -79,7 +80,7 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                         <FormInput label="Mobile Number" name="mobile" type="tel" value={formData.mobile} onChange={handleChange} disabled={formData.isPhoneVerified} error={errors.mobile} required>
                             {formData.isPhoneVerified ? <VerifiedBadge /> : (
-                                <button type="button" onClick={() => onVerifyClick('phone', `+91${formData.mobile}`, 'Owner')} className="flex-shrink-0 bg-amber-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-600">Verify</button>
+                                <button type="button" onClick={() => onVerifyClick('phone', formData.mobile, 'Owner')} className="flex-shrink-0 bg-amber-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-600">Verify</button>
                             )}
                         </FormInput>
 
@@ -95,7 +96,7 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
                                 <input type="tel" name="cateringNumber" value={formData.cateringNumber} onChange={handleChange} disabled={formData.cateringNumberSameAsMobile} className={`w-full p-2 border rounded-md ${errors.cateringNumber ? 'border-red-500' : 'border-neutral-300'} disabled:bg-neutral-100`} />
                                 {!formData.cateringNumberSameAsMobile && (
                                     formData.isCateringNumberVerified ? <VerifiedBadge /> : (
-                                        <button type="button" onClick={() => onVerifyClick('cateringNumber', `+91${formData.cateringNumber}`, 'Owner')} className="flex-shrink-0 bg-amber-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-600">Verify</button>
+                                        <button type="button" onClick={() => onVerifyClick('cateringNumber', formData.cateringNumber, 'Owner')} className="flex-shrink-0 bg-amber-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-600">Verify</button>
                                     )
                                 )}
                             </div>

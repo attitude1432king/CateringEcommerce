@@ -9,6 +9,7 @@
   <ItemGroup>
      <Folder Include="Frontend\src\components\admin\" />
      <Folder Include="Frontend\src\components\owner\dashboard\decorations\" />
+     <Folder Include="Frontend\src\components\owner\dashboard\availability\" />
      <Folder Include="Frontend\src\components\owner\dashboard\staff\" />
      <Folder Include="Frontend\src\components\owner\dashboard\settings\" />
      <Folder Include="Frontend\src\components\owner\dashboard\menu\" />

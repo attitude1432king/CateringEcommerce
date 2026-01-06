@@ -16,6 +16,9 @@ const ErrorBanner = ({ message }) => {
     );
 };
 
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
     const [view, setView] = useState('login'); // 'login', 'signup', 'otp'
     const navigate = useNavigate();
@@ -50,11 +53,10 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
     };
 
     const handleSendOtp = async (currentAction) => {
-        const identifier = `+91${phone}`;
         setError('');
         setIsLoading(true);
         try {
-            const { result, message } = await apiService.sendOtp(currentAction, identifier, isPartnerLogin);
+            const { result, message } = await apiService.sendOtp(currentAction, phone, isPartnerLogin);
             if (!result) {
                 setError(message);
                 setIsLoading(false);
@@ -76,7 +78,7 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         setSuccessMessage('');
         try {
             const nameToSend = authAction === 'signup' ? fullName : '';
-            const { result, message, token, user, role } = await apiService.verifyOtp(authAction, `+91${phone}`, nameToSend, otp, isPartnerLogin);
+            const { result, message, token, user, role } = await apiService.verifyOtp(authAction, phone, nameToSend, otp, isPartnerLogin);
 
             if (!result) {
                 setError(message || 'OTP verification failed');
@@ -87,8 +89,8 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
             setSuccessMessage(`Welcome, ${user.fullName ?? user.cateringName}!`);
 
             setTimeout(() => {
-                login({ pkid: user.pkID, name: user.fullName ?? user.cateringName, role: role,token: token }); // Call login from context
-                handleClose();
+                login({ pkid: user.pkID, name: user.fullName ?? user.cateringName, role: role, token: token, profilePhoto: (user.profilePhoto ? `${API_BASE_URL}${user.profilePhoto}` : undefined)  }); // Call login from context
+                handleClose()
                 if (role === 'Owner') {
                     navigate('/owner/dashboard/');
                 }
@@ -107,8 +109,9 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         try {
             const { googleAuthUrl } = await apiService.getGoogleAuthUrl();
             window.location.href = googleAuthUrl;
-        } catch (err) {
+        } catch (e) {
             setError('Could not connect to Google. Please try again.');
+            console.error('Google Login Error:', e);
             setIsLoading(false);
         }
     };

@@ -4,6 +4,7 @@ using MimeKit;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Mail;
+using Twilio.Rest.Iam.V1;
 
 namespace CateringEcommerce.BAL.Configuration
 {
@@ -28,7 +29,7 @@ namespace CateringEcommerce.BAL.Configuration
             email.IsBodyHtml = false;
 
             using var smtp = new SmtpClient("smtp.gmail.com", 587);
-            smtp.EnableSsl = true;
+            smtp.EnableSsl = true; 
             smtp.Credentials = new NetworkCredential(_emailSettings.FromEmail, _emailSettings.AppPassword);
 
             await Task.Run(() => smtp.Send(email)); // Use Task.Run to simulate async behavior

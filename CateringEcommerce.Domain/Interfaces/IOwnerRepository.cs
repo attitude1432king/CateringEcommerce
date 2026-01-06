@@ -12,5 +12,6 @@ namespace CateringEcommerce.Domain.Interfaces
 
         Task<int> SaveFilePath(string filePath, Int64 ownerPkid, string fileName, DocumentType documentType = DocumentType.Menu, long referenceID = 0);
         Task<int> DeleteDocumentFile(long documentPKID);
+        Task<int> SoftDeleteDocumentFile(long documentPKID);
     }
 }

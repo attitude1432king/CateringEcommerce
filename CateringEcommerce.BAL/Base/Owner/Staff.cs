@@ -20,6 +20,13 @@ namespace CateringEcommerce.BAL.Base.Owner
             _db.SetConnectionString(connectionString);
         }
 
+        /// <summary>
+        /// Add new staff member to the database
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="staff"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<int> AddStaffAsync(long ownerPKID, StaffDto staff)
         {
             try
@@ -61,7 +68,13 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-
+        /// <summary>
+        /// Update the staff member details
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="staff"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<int> UpdateStaffAsync(long ownerPKID, StaffDto staff)
         {
             try
@@ -96,7 +109,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     c_salary_type = @SalaryType,
                     c_salary_amount = @SalaryAmount,
                     c_availability = @Availability,
-                    c_updateddate = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffID";
 
                 // ✅ Prepare parameters
@@ -113,7 +126,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Experience", staff.Experience),
                     new SqlParameter("@SalaryType", (object?)staff.salaryType ?? DBNull.Value),
                     new SqlParameter("@SalaryAmount", staff.SalaryAmount),
-                    new SqlParameter("@Availability", staff.Availability)
+                    new SqlParameter("@Availability", staff.Availability),
                 };
 
                 // ✅ Execute update
@@ -126,15 +139,19 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-        public async Task<int> DeleteStaffAsync(long ownerPKID, long staffPKID)
+        /// <summary>
+        /// Soft delete staff member from the database
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="staffPKID"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public async Task<int> SoftDeleteStaffAsync(long ownerPKID, long staffPKID)
         {
             try
             {
-                
-
-                // ✅ Step 2: Delete record
-                string deleteQuery = $@"
-                    DELETE FROM {Table.SysCateringStaff}
+                string query = $@"
+                    UPDATE {Table.SysCateringStaff} SET c_is_deleted = 1, c_availability = 0, c_modifieddate = GETDATE()
                     WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffPKID";
 
                 List<SqlParameter> deleteParams = new()
@@ -143,7 +160,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@StaffPKID", staffPKID)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(deleteQuery, deleteParams.ToArray());
+                int rowsAffected = await _db.ExecuteNonQueryAsync(query, deleteParams.ToArray());
 
                 return rowsAffected; // 1 = deleted successfully, 0 = not deleted
             }
@@ -153,6 +170,15 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Get the list of staff members with pagination and filtering
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="page"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="filterJson"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<List<StaffModel>> GetStaffListAsync(long ownerPKID, int page, int pageSize, string filterJson)
         {
             try
@@ -244,6 +270,13 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Get staff count based on filters
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="filterJson"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<int> GetStaffCountAsync(long ownerPKID, string filterJson)
         {
             try
@@ -277,7 +310,14 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-
+        /// <summary>
+        /// Staff contact number existence check
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="number"></param>
+        /// <param name="excludeStaffPKID"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<bool> IsStaffNumberExistsAsync(long ownerPKID, string number, long? excludeStaffPKID = null)
         {
             try
@@ -286,7 +326,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string selectQuery = $@"
                     SELECT COUNT(1)
                     FROM {Table.SysCateringStaff}
-                    WHERE c_ownerid = @OwnerPKID
+                    WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0
                       AND LTRIM(RTRIM(c_contact_number)) = LTRIM(RTRIM(@ContactNumber))";
 
                 // ✅ Exclude current record if updating
@@ -317,6 +357,14 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Update staff document paths
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="staffPKID"></param>
+        /// <param name="dicPath"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public Task<int> UpdateStaffDocumentPath(long ownerPKID, long? staffPKID, Dictionary<string, string> dicPath)
         {
             try
@@ -347,7 +395,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string updateQuery = $@"
                     UPDATE {Table.SysCateringStaff}
                     SET {setClause},
-                        c_updateddate = GETDATE()
+                        c_modifieddate = GETDATE()
                     WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffPKID";
                 // ✅ Execute update
                 return _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
@@ -359,6 +407,14 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Clear staff file path if it matches the provided file path
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="staffId"></param>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<bool> TryClearStaffFilePathAsync(long ownerPKID, long? staffId, string filePath)
         {
             try
@@ -423,6 +479,13 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Get All staff uploaded file paths
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="staffId"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<List<string>> GetAllStaffFilePathsAsync(long ownerPKID, long? staffId)
         {
             try
@@ -470,6 +533,13 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="staffPKID"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<bool> IsValidStaffId(long ownerPKID, long staffPKID)
         {
             try
@@ -478,7 +548,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string validationQuery = $@"
                 SELECT COUNT(1)
                 FROM {Table.SysCateringStaff}
-                WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffPKID";
+                WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0 AND c_staffid = @StaffPKID";
 
                 List<SqlParameter> validationParams = new()
                 {
@@ -503,11 +573,19 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Update the availability status of a staff member
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="staffPKID"></param>
+        /// <param name="status"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task UpdateStaffStatus(long ownerPKID, long staffPKID, bool status)
         {
             try
             {
-                string updateQuery = $@"UPDATE {Table.SysCateringStaff} SET c_availability = @Status 
+                string updateQuery = $@"UPDATE {Table.SysCateringStaff} SET c_availability = @Status, c_modifieddate = GETDATE()
                                    WHERE c_ownerid = @OwnerPKID
                                     AND c_staffid = @StaffId";
 
@@ -526,10 +604,16 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Build dynamic WHERE clause based on provided filters
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <param name="parameters"></param>
+        /// <returns></returns>
         private string BuildStaffFilterQuery(StaffFilter filter, List<SqlParameter> parameters)
         {
             StringBuilder where = new();
-            where.Append(" WHERE s.c_ownerid = @OwnerPKID ");
+            where.Append(" WHERE s.c_ownerid = @OwnerPKID AND c_is_deleted = 0");
 
             // Name search
             if (!string.IsNullOrWhiteSpace(filter.Name))

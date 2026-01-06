@@ -12,10 +12,14 @@ import CategoryTiles from '../components/user/CategoryTiles';
 import CatererGrid from '../components/user/common/CateringGrid';
 import PromotionsSection from '../components/user/PromotionsSection';
 import Testimonials from '../components/user/Testimonials';
+import { useDefaultCity } from '../hooks/useDefaultCity';
 
 export default function HomePage() {
+    const cityData = useDefaultCity();
+    console.log(cityData);
     return (
         <main className="min-h-screen bg-white">
+    
             {/* Hero Section - Full width premium experience */}
             <HeroBanner onSearch={(v) => console.log('search', v)} />
 
@@ -38,7 +42,7 @@ export default function HomePage() {
                             View All
                         </a>
                     </div>
-                    <CatererGrid />
+                    <CatererGrid/>
                 </div>
             </section>
 
@@ -67,27 +71,6 @@ export default function HomePage() {
                         </p>
                     </div>
                     <Testimonials />
-                </div>
-            </section>
-
-            {/* Bottom CTA Section */}
-            <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-catering text-white">
-                <div className="max-w-4xl mx-auto text-center">
-                    <h2 className="text-4xl md:text-5xl font-extrabold mb-6">
-                        Ready to Plan Your Perfect Event?
-                    </h2>
-                    <p className="text-xl text-white/90 mb-10">
-                        Get connected with the best caterers in your area. Start your search today.
-                    </p>
-                    <button
-                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                        className="inline-flex items-center bg-white text-catering-primary px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-card-hover transform hover:scale-105 transition-all duration-200"
-                    >
-                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Find Caterers Now
-                    </button>
                 </div>
             </section>
         </main>

@@ -34,15 +34,6 @@ const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, ide
     );
 };
 
-const convertFileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
-    });
-};
-
 const stepNames = ["Business & Account", "Address", "Services", "Legal & Payment"];
 const totalSteps = stepNames.length;
 
@@ -97,12 +88,15 @@ export default function OwnerRegistrationPage() {
             if (!formData.ownerName?.trim()) newErrors.ownerName = "Owner name is required.";
             if (!formData.mobile) newErrors.mobile = "Mobile number is required.";
             if (!formData.email) newErrors.email = "Email is required.";
+            if (!formData.cateringLogo) newErrors.cateringLogo = "Catering logo is required.";
         }
         if (currentStep === 2) {
             if (!formData.shopNo) newErrors.shopNo = "Shop No. / Building is required.";
             if (!formData.floor) newErrors.floor = "Floor / Tower is required.";
             if (!formData.landmark) newErrors.landmark = "Landmark is required.";
             if (!formData.pincode) newErrors.pincode = "Pincode is required.";
+            if (!formData.stateID) newErrors.stateID = "Please select a state."; 
+            if (!formData.cityID) newErrors.cityID = "Please select a city.";
         }
         if (currentStep === 3) {
             if (!formData.cuisineIds) newErrors.cuisineIds = "Please select at least one cuisine type.";
@@ -146,7 +140,7 @@ export default function OwnerRegistrationPage() {
         try {
             const newErrors = {};
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const phoneRegex = /^\+91\d{10}$/;
+            const phoneRegex = /^\d{10}$/;
 
             let isValid = true;
 

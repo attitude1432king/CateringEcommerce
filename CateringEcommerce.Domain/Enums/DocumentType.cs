@@ -1,5 +1,4 @@
-﻿
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Enums
 {
@@ -40,7 +39,13 @@ namespace CateringEcommerce.Domain.Enums
         [Display(Name = "Brand")]
         Brand = 16,
         [Display(Name = "Portfolio")]
-        Portfolio = 17
+        Portfolio = 17,
+        [Display(Name = "UserProfilePhoto")]
+        UserProfilePhoto = 18,
+        [Display(Name = "UserDocument")]
+        UserDocument = 19,
+        [Display(Name = "UserIdentification")]
+        UserIdentification = 20
     }
 
     public enum CertificateType

@@ -18,6 +18,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             _db.SetConnectionString(connectionString);
         }
 
+        /// <summary>
+        /// Get Food Categories
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<List<FoodCategoryDto>> GetCategories()
         {
             try
@@ -48,6 +53,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Add new package
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="packageDto"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<long> AddPackage(long ownerPKID, PackageDto packageDto)
         {
             try
@@ -70,13 +82,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Get count for packages with search filter
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="searchPackageName"></param>
+        /// <returns></returns>
         public async Task<Int32> GetPackageCount(long ownerPKID, string searchPackageName = "")
         {
             try
             {
                 StringBuilder selectQuery = new StringBuilder();
                 selectQuery.Append($@"SELECT COUNT(*) FROM {Table.SysMenuPackage}
-                            WHERE c_ownerid = @OwnerPKID");
+                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0");
 
                 List<SqlParameter> parameters = new()
                 {
@@ -99,6 +117,16 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 throw;
             }
         }
+
+        /// <summary>
+        /// Get Packages with pagination and search
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="page"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="searchPackageName"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<List<PackageDto>> GetPackages(long ownerPKID, int page, int pageSize, string searchPackageName = "")
         {
             try
@@ -112,7 +140,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 sql1.Append($@"
                     SELECT DISTINCT p.c_packageid
                     FROM {Table.SysMenuPackage} p
-                    WHERE p.c_is_active = 1 AND p.c_ownerid = @OwnerPKID
+                    WHERE p.c_ownerid = @OwnerPKID AND c_is_deleted = 0
                 ");
 
                 if (!string.IsNullOrWhiteSpace(searchPackageName))
@@ -208,7 +236,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
-
+        /// <summary>
+        /// Update the package details
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="packageDto"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task UpdatePackage(long? ownerPKID, PackageDto packageDto)
         {
             try
@@ -235,6 +269,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Add Package Items 
+        /// </summary>
+        /// <param name="packagePKID"></param>
+        /// <param name="packageItem"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task AddPackageItems(long? packagePKID, PackageItemDto packageItem)
         {
             try
@@ -255,6 +296,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Update Package Items
+        /// </summary>
+        /// <param name="packagePKID"></param>
+        /// <param name="packageItem"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task UpdatePackageItems(long? packagePKID, PackageItemDto packageItem)
         {
             try
@@ -281,6 +329,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Delete the Package items
+        /// </summary>
+        /// <param name="packagePKID"></param>
+        /// <param name="packageItemId"></param>
+        /// <returns></returns>
         public async Task DeletePackageItems(long? packagePKID, long packageItemId = 0)
         {
             try
@@ -305,16 +359,21 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
-        public async Task DeletePackage(long? packagePKID)
+        /// <summary>
+        /// Soft delete package items
+        /// </summary>
+        /// <param name="packagePKID"></param>
+        /// <returns></returns>
+        public async Task SoftDeletePackage(long? packagePKID)
         {
             try
             {
-                string deleteQuery = $@"DELETE FROM {Table.SysMenuPackage} WHERE c_packageid = @packagePKID";
+                string query = $@"UPDATE {Table.SysMenuPackage} SET c_is_deleted = 1, c_is_active = 0, c_modified_date = GETDATE() WHERE c_packageid = @packagePKID"; 
                 SqlParameter[] parameters = new SqlParameter[]
                 {
                     new SqlParameter("@PackagePKID", packagePKID),
                 };
-                var result = await _db.ExecuteNonQueryAsync(deleteQuery.ToString(), parameters);
+                var result = await _db.ExecuteNonQueryAsync(query.ToString(), parameters);
             }
             catch (Exception ex)
             {
@@ -322,13 +381,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
-        
+        /// <summary>
+        /// Package exist or not
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="packageName"></param>
+        /// <returns></returns>
         public bool PackageExistOrNot(Int64 ownerPKID, string packageName)
         {
             try
             {
                 string selectQuery = $@"SELECT COUNT(c_packagename) FROM {Table.SysMenuPackage} WHERE c_packagename = @PackageName
-                                    AND c_ownerid = @OwnerPKID";
+                                    AND c_ownerid = @OwnerPKID AND c_is_deleted = 0";
                 SqlParameter[] parameters = new SqlParameter[]
                 {
                     new SqlParameter("@PackageName", packageName),
@@ -343,6 +407,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Get Package Items by Package PKID
+        /// </summary>
+        /// <param name="packagePKID"></param>
+        /// <returns></returns>
         public async Task<List<PackageItemDto>> GetPackageItems(long packagePKID)
         {
             try
@@ -381,6 +450,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             }
         }
 
+        /// <summary>
+        /// Get Packages Lookup for dropdown
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<List<PackageDto>> GetPackagesLookup(long ownerPKID)
         {
             try
@@ -414,6 +489,25 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             catch (Exception ex)
             {
                 throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<bool> IsValidPackageID(long ownerPKID, long packagePKID)
+        {
+            try
+            {
+                string selectQuery = $@"SELECT COUNT(c_packageid) FROM {Table.SysMenuPackage} 
+                                    WHERE c_ownerid = @OwnerPKID AND c_packageid = @PackagePKID AND c_is_deleted = 0";
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@OwnerPKID", ownerPKID),
+                    new SqlParameter("@PackagePKID", packagePKID),
+                };
+                return Convert.ToInt16(await _db.ExecuteScalarAsync(selectQuery, parameters)) > 0;
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
 

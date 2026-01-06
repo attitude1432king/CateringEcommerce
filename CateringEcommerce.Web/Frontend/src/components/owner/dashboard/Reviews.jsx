@@ -7,7 +7,7 @@ import React from 'react';
 
 export default function Reviews() {
     return (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in p-4 sm:p-6 lg:p-8">
             <h1 className="text-3xl font-bold text-neutral-800">Reviews & Feedback</h1>
             <div className="text-center py-20 bg-white rounded-xl shadow-sm text-neutral-500">
                 <p>You haven't received any reviews yet.</p>

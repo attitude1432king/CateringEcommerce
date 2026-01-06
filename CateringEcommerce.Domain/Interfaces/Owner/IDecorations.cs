@@ -7,7 +7,7 @@ namespace CateringEcommerce.Domain.Interfaces.Owner
         Task<int> GetDecorationsCount(long ownerPKID, string filterJson);
         Task<List<DecorationsModel>> GetDecorations(long ownerPKID, int page, int pageSize, string filterJson);
         Task<long> AddDecoration(long ownerPKID, DecorationsDto decoration);
-        Task<int> DeleteDecoration(long ownerPKID, long decorationId);
+        Task<int> SoftDeleteDecoration(long ownerPKID, long decorationId);
         Task<int> UpdateDecoration(long ownerPKID, DecorationsDto decoration);
 
         Task<List<DecorationThemeModel>> GetDecorationThemes();

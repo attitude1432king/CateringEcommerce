@@ -9,8 +9,11 @@ export default function CategoryTiles({ categories = [] }) {
             description: 'Elegant multi-course menus for your special day',
             icon: '💍',
             offer: 'UP TO 20% OFF',
-            image: 'https://images.unsplash.com/photo-1555939594-58d7cb561a1b?w=400&h=300&fit=crop',
-            link: '/services/wedding'
+            image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=600&auto=format&fit=crop', // Placeholder image
+            link: '/services/wedding',
+            color: 'from-pink-50 to-rose-100', // Custom gradient for each card
+            textColor: 'text-rose-700',
+            offerColor: 'bg-rose-600'
         },
         {
             id: 2,
@@ -18,8 +21,11 @@ export default function CategoryTiles({ categories = [] }) {
             description: 'Professional catering for business functions',
             icon: '🏢',
             offer: 'FREE CONSULTATION',
-            image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
-            link: '/services/corporate'
+            image: 'Corporate.jpg',
+            link: '/services/corporate',
+            color: 'from-blue-50 to-indigo-100',
+            textColor: 'text-indigo-700',
+            offerColor: 'bg-indigo-600'
         },
         {
             id: 3,
@@ -27,88 +33,88 @@ export default function CategoryTiles({ categories = [] }) {
             description: 'Bulk orders for birthdays, anniversaries & gatherings',
             icon: '🎉',
             offer: 'BULK DISCOUNTS',
-            image: 'https://images.unsplash.com/photo-1504674900152-b8b6fb4c4973?w=400&h=300&fit=crop',
-            link: '/services/parties'
+            image: 'Party.png', // Placeholder image
+            link: '/services/parties',
+            color: 'from-amber-50 to-orange-100',
+            textColor: 'text-orange-700',
+            offerColor: 'bg-orange-600'
+        },
+        {
+            id: 4,
+            title: 'Decorations',
+            description: 'Themed decorations to light up your events',
+            icon: '🎈',
+            offer: 'NEW ARRIVAL',
+            image: 'Decorations.png', // Placeholder image
+            link: '/services/decorations',
+            color: 'from-purple-50 to-fuchsia-100',
+            textColor: 'text-fuchsia-700',
+            offerColor: 'bg-fuchsia-600'
         }
     ];
 
     return (
-        <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-catering-light">
+        <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white">
             <div className="max-w-7xl mx-auto">
                 {/* Section header */}
-                <div className="text-center mb-16">
-                    <h2 className="section-title text-neutral-900 mb-4">
+                <div className="text-center mb-10">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">
                         Services Tailored for Every Occasion
                     </h2>
-                    <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+                    <p className="text-lg text-gray-500 max-w-2xl mx-auto">
                         Choose from our specialized catering services designed to make your event unforgettable.
                     </p>
                 </div>
 
-                {/* Service cards grid */}
-                <div
-                    className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
-                    role="list"
-                >
+                {/* Service cards grid - 4 in a row on large screens */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {serviceCategories.map((service) => (
                         <a
                             key={service.id}
                             href={service.link}
-                            role="listitem"
-                            className="card-premium group flex flex-col overflow-hidden"
+                            className="group relative flex flex-col h-full overflow-hidden rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 bg-white transform hover:-translate-y-1"
                         >
                             {/* Image container */}
-                            <div className="relative overflow-hidden h-48 md:h-56 mb-6 rounded-xl">
+                            <div className="relative h-48 w-full overflow-hidden">
+                                <div className={`absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 transition-opacity duration-300 opacity-80 group-hover:opacity-60`} />
                                 <img
                                     src={service.image}
                                     alt={service.title}
                                     loading="lazy"
-                                    decoding="async"
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                 />
-                                
-                                {/* Overlay gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-
-                                {/* Offer badge */}
-                                <div className="absolute top-4 right-4 bg-gradient-catering text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
-                                    {service.offer}
+                                {/* Offer Badge */}
+                                {service.offer && (
+                                    <div className={`absolute top-3 right-3 z-20 ${service.offerColor} text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm uppercase tracking-wide`}>
+                                        {service.offer}
+                                    </div>
+                                )}
+                                {/* Icon Overlay */}
+                                <div className="absolute bottom-3 left-4 z-20 flex items-center gap-2">
+                                    <span className="text-3xl filter drop-shadow-md">{service.icon}</span>
                                 </div>
                             </div>
 
                             {/* Content */}
-                            <div className="flex flex-col flex-grow">
-                                <div className="flex items-start justify-between mb-3">
-                                    <h3 className="text-xl md:text-2xl font-bold text-neutral-900 group-hover:text-catering-primary transition-colors">
-                                        {service.title}
-                                    </h3>
-                                    <span className="text-3xl ml-2">{service.icon}</span>
-                                </div>
-
-                                <p className="text-neutral-600 text-sm md:text-base mb-6 flex-grow">
+                            <div className={`flex flex-col flex-grow p-5 bg-gradient-to-b ${service.color}`}>
+                                <h3 className={`text-lg font-bold mb-2 ${service.textColor} group-hover:underline decoration-2 underline-offset-2`}>
+                                    {service.title}
+                                </h3>
+                                <p className="text-sm text-gray-600 leading-relaxed">
                                     {service.description}
                                 </p>
 
-                                {/* CTA */}
-                                <div className="flex items-center gap-2 text-catering-primary font-semibold group-hover:gap-4 transition-all">
-                                    <span>Browse Options</span>
-                                    <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                    </svg>
+                                {/* Arrow indicator */}
+                                <div className="mt-auto pt-4 flex justify-end">
+                                    <div className={`p-2 rounded-full bg-white/50 group-hover:bg-white text-gray-400 group-hover:${service.textColor} transition-colors shadow-sm`}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
                                 </div>
                             </div>
                         </a>
                     ))}
-                </div>
-
-                {/* Bottom CTA */}
-                <div className="mt-16 text-center">
-                    <p className="text-neutral-600 mb-6">
-                        Can't find what you're looking for? We offer customized catering solutions for any type of event.
-                    </p>
-                    <button className="btn-secondary px-8 py-3 md:py-4">
-                        Explore All Services
-                    </button>
                 </div>
             </div>
         </section>

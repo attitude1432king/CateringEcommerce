@@ -6,7 +6,7 @@ namespace CateringEcommerce.Domain.Interfaces.Owner
     {
         Task<int> AddStaffAsync(long ownerPKID, StaffDto staff);
         Task<int> UpdateStaffAsync(long ownerPKID, StaffDto staff);
-        Task<int> DeleteStaffAsync(long ownerPKID, long staffPKID);
+        Task<int> SoftDeleteStaffAsync(long ownerPKID, long staffPKID);
         Task<List<StaffModel>> GetStaffListAsync(long ownerPKID, int page, int pageSize, string filterJson);
         Task<int> GetStaffCountAsync(long ownerPKID, string filterJson);
         Task<bool> IsStaffNumberExistsAsync(long ownerPKID, string number, long? excludeStaffPKID = null);

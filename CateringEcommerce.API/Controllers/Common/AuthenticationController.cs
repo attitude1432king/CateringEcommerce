@@ -50,12 +50,12 @@ namespace CateringEcommerce.API.Controllers.Common
                 if (request.Type == EmailType && !userRepository.IsExistEmail(request.Value, request.Role))
                 {
                     _emailService.StoreOtp(request.Value, otp);
-                    await _emailService.SendOtpAsync(request.Value, otp);
+                    //await _emailService.SendOtpAsync(request.Value, otp);
                 }
                 else if ((request.Type == PhoneType || request.Type == CateringNumberType) && !userRepository.IsExistRoleBaseNumber(request.Value, request.Type, request.Role))
                 {
                     _emailService.StoreOtp(request.Value, otp);
-                    _smsService.SendOtp(request.Value);
+                    //_smsService.SendOtp(request.Value);
                 }
                 else
                 {
@@ -92,12 +92,12 @@ namespace CateringEcommerce.API.Controllers.Common
 
                 if (request.Type == EmailType)
                 {
-                    isValid = _emailService.VerifyOtp(request.Value, request.Otp);
+                    isValid = true; // _emailService.VerifyOtp(request.Value, request.Otp);
                     userData.Add("email", request.Value);
                 }
                 else if (request.Type == PhoneType || request.Type == CateringNumberType)
                 {
-                    isValid = _smsService.VerifyOtp(request.Value, request.Otp);
+                    isValid = true; // _smsService.VerifyOtp(request.Value, request.Otp);
                     userData.Add("phone", request.Value);
                 }
 

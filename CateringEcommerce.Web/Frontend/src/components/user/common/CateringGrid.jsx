@@ -1,6 +1,8 @@
 ﻿// File: src/components/user/CatererGrid.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import CatererCard from './CateringCard';
+import { locationApiService } from '../../../services/locationApi';
+import { CITY_KEY } from '../../../utils/cityStorage';
 
 
 const defaultData = [
@@ -12,7 +14,29 @@ const defaultData = [
 ];
 
 
-export default function CatererGrid({ data = defaultData }) {
+//export default function CatererGrid({ city = defaultData }) {
+export default function CatererGrid() {
+    const [data, setData] = useState([]);
+
+    const fetchCateringList = async (cityName) => {
+        try {
+            const response = await locationApiService.getVerifiedCateringListAsync(cityName);
+            if (response.result) {
+                setData(response.data);
+            }
+        } catch (error) {
+            console.error("Failed to load Catering List: " + error);
+        }
+    }
+
+    useEffect(() => {
+        var cityName = localStorage[CITY_KEY] ?? ''
+        if (localStorage[CITY_KEY]) {
+            fetchCateringList(cityName);
+        }
+    }, []);
+
+
     return (
         <section
             id="caterers"

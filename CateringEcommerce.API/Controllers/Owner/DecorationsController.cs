@@ -246,11 +246,10 @@ namespace CateringEcommerce.API.Controllers.Owner
                 // Delete the identified files from storage and the database.
                 foreach (var pathToDelete in currentMediaPathsInDb)
                 {
-                    _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
-                    await ownerRepository.DeleteDocumentFile(pathToDelete.Id);
+                    await ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);
                 }
                 _logger.LogInformation("Deleting Decoration setup.");
-                await decorations.DeleteDecoration(ownerPKID, decorationId);
+                await decorations.SoftDeleteDecoration(ownerPKID, decorationId);
 
                 _logger.LogInformation("Deleted decoration setup by ID: {0}", decorationId);
                 return ApiResponseHelper.Success(null, "Deleted successfully.");

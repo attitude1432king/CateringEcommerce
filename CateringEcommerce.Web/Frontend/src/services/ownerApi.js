@@ -159,11 +159,16 @@ export const ownerApiService = {
             return fetchApi('/Owner/Menu/FoodItem/Udpate', 'POST', payload);
         },
 
-        deleteFoodItem: async(itemId) => fetchApi('/Owner/Menu/FoodItem/Delete', 'POST', itemId),
+        deleteFoodItem: async (itemId) => fetchApi('/Owner/Menu/FoodItem/Delete', 'POST', itemId),
+
+    // Lookup Data
+
+        getPackagesLookup: async () => fetchApi('/Owner/Menu/Packages/Lookup'),
+
+        getFoodItemsLookup: async () => fetchApi('/Owner/Menu/FoodItem/Lookup'),
 
     // Decorations Management
 
-        getPackagesLookup: async () => fetchApi('/Owner/Menu/Packages/Lookup'),
 
         getDecorationThemes: async () => fetchApi('/Owner/Decorations/ThemeType'),
 
@@ -319,5 +324,26 @@ export const ownerApiService = {
         deleteStaffMember: async (itemId) => fetchApi('/Owner/Staff/Delete', 'POST', itemId),
 
         updateStaffStatus: async (itemId, value) => fetchApi(`/Owner/Staff/UpdateStatus?staffId=${itemId}&status=${value}`, 'POST'),
+
+
+    // Discounts Management
+
+        getDiscountCount: async (filterJson) => fetchApi(`/Owner/Discounts/Count?filterJson=${filterJson}`),
+
+        getDiscountList: async (currentPage, itemsPerPage, filterJson) => fetchApi(`/Owner/Discounts/Data?page=${currentPage}&pageSize=${itemsPerPage}&filterJson=${filterJson}`),
+
+        createDiscount: async (discountData) => fetchApi('/Owner/Discounts/Create', 'POST', discountData),
+
+        updateDiscount: async (discountData) => fetchApi('/Owner/Discounts/Update', 'POST', discountData),
+
+        deleteDiscount: async (discountId) => fetchApi(`/Owner/Discounts/${discountId}`, 'DELETE'),
+
+    // Availability Management
+
+        getAvailability: async () => fetchApi('/Owner/Availability/GetAvailability'),
+
+        updateGlobalAvailability: async (status) => fetchApi(`/Owner/Availability/UpdateStatus`, 'POST', status), 
+
+        updateDateAvailability: async (dateData) => fetchApi('/Owner/Availability/UpdateDateStatus', 'POST', dateData), 
 
 };  

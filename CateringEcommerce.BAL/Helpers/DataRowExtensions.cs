@@ -32,5 +32,51 @@ namespace CateringEcommerce.BAL.Helpers
                 _ => false  // You can throw here instead if unknown value
             };
         }
+
+        /// <summary>
+        /// Safely gets a column value from DataRow.
+        /// Returns default(T) if value is DBNull, null, or empty.
+        /// </summary>
+        public static T GetValue<T>(this DataRow row, string columnName, T defaultValue = default!)
+        {
+            if (row == null || !row.Table.Columns.Contains(columnName))
+                return defaultValue;
+
+            object value = row[columnName];
+
+            if (value == DBNull.Value || value == null)
+                return defaultValue;
+
+            // Handle string
+            if (typeof(T) == typeof(string))
+            {
+                var str = value.ToString();
+                return string.IsNullOrWhiteSpace(str)
+                    ? defaultValue
+                    : (T)(object)str;
+            }
+
+            // Handle enum
+            if (typeof(T).IsEnum)
+            {
+                try
+                {
+                    return (T)Enum.ToObject(typeof(T), value);
+                }
+                catch
+                {
+                    return defaultValue;
+                }
+            }
+
+            try
+            {
+                return (T)Convert.ChangeType(value, Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T));
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
     }
 }

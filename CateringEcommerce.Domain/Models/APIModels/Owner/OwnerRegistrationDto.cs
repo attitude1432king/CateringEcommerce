@@ -36,9 +36,9 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         [Required]
         public string? Pincode { get; set; }
         [Required]
-        public string? State { get; set; }
+        public int? StateID { get; set; }
         [Required]
-        public string? City { get; set; }
+        public int? CityID { get; set; }
         public string? MapUrl { get; set; }
         public string? Latitude { get; set; }
         public string? Longitude { get; set; }
@@ -79,6 +79,6 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
     {
         public string? Base64 { get; set; }
         public string? Name { get; set; }
-        public string? Type { get; set; }
+        //public string? Type { get; set; }
     }
 }

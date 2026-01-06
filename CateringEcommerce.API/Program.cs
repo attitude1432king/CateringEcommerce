@@ -1,6 +1,9 @@
 ﻿using CateringEcommerce.API.Attributes;
+using CateringEcommerce.BAL.Base.User;
+using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.Common;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -14,6 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddHttpContextAccessor();
@@ -26,6 +30,12 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ValidateModelAttribute>();
 });
+// Register the IpApiGeoLocationService with a named HttpClient
+builder.Services.AddHttpClient<IGeoLocationService, IpApiGeoLocationService>(
+    client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(2);
+    });
 
 // 1. Configure Kestrel for the overall request body size
 builder.Services.Configure<KestrelServerOptions>(options =>

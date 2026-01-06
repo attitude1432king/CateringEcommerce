@@ -139,6 +139,13 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 }
                 _logger.LogInformation("Updating existing package for owner PKID: {OwnerPKID}", ownerPKID);
                 Packages packages = new Packages(_connStr);
+
+                bool isValidPackageID = await packages.IsValidPackageID(ownerPKID, packageDto.PackageId);
+                if(!isValidPackageID)
+                {
+                    return ApiResponseHelper.Failure("Invalid Package ID or access denied.");
+                }
+
                 await packages.UpdatePackage(ownerPKID, packageDto);
                 _logger.LogInformation("Package updated with ID: {PackageID}", packageDto.PackageId);
 
@@ -188,10 +195,15 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
                 Packages packages = new Packages(_connStr);
-                _logger.LogInformation("Deleting PackageItems.");
-                await packages.DeletePackageItems(packageId);
+
+                bool isValidPackageID = await packages.IsValidPackageID(ownerPKID, packageId);
+                if (!isValidPackageID)
+                {
+                    return ApiResponseHelper.Failure("Invalid Package ID or access denied.");
+                }
+
                 _logger.LogInformation("Delteing Package");
-                await packages.DeletePackage(packageId);
+                await packages.SoftDeletePackage(packageId);
 
                 _logger.LogInformation("Deleted package by ID; {0}", packageId);
                 return Ok(new { message = "Package deleted successfully." });

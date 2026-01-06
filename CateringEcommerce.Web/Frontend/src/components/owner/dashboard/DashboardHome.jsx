@@ -13,7 +13,7 @@ const QuickActionButton = ({ children }) => (
 
 export default function DashboardHome() {
     return (
-        <div className="animate-fade-in space-y-8">
+        <div className="animate-fade-in p-4 sm:p-6 lg:p-8">
             <div>
                 <h1 className="text-3xl font-bold text-neutral-800">Dashboard</h1>
                 <p className="text-neutral-500 mt-1">Today's overview of your catering business.</p>

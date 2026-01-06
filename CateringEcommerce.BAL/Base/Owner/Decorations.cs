@@ -21,6 +21,12 @@ namespace CateringEcommerce.BAL.Base.Owner
             _db.SetConnectionString(connectionString);
         }
 
+        /// <summary>
+        /// Get the count of decorations based on filters
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="filterJson"></param>
+        /// <returns></returns>
         public async Task<int> GetDecorationsCount(long ownerPKID, string filterJson)
         {
             var filter = string.IsNullOrWhiteSpace(filterJson)
@@ -44,7 +50,14 @@ namespace CateringEcommerce.BAL.Base.Owner
             return result != null ? Convert.ToInt32(result) : 0;
         }
 
-
+        /// <summary>
+        /// Get the decorations list with filters and pagination
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="page"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="filterJson"></param>
+        /// <returns></returns>
         public async Task<List<DecorationsModel>> GetDecorations(long ownerPKID, int page, int pageSize, string filterJson)
         {
             try
@@ -162,7 +175,13 @@ namespace CateringEcommerce.BAL.Base.Owner
         }
 
 
-
+        /// <summary>
+        /// Add new decoration record
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="decoration"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<long> AddDecoration(long ownerPKID, DecorationsDto decoration)
         {
             try
@@ -193,11 +212,19 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-        public async Task<int> DeleteDecoration(long ownerPKID, long decorationID)
+        /// <summary>
+        /// Soft delete decoration record for the owner
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="decorationID"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public async Task<int> SoftDeleteDecoration(long ownerPKID, long decorationID)
         {
             try
             {
-                string deleteQuery = $@"DELETE FROM {Table.SysCateringDecorations} WHERE c_ownerid = @OwnerPKID AND c_decoration_id = @DecorationID";
+                string deleteQuery = $@"UPDATE {Table.SysCateringDecorations} SET c_is_deleted = 1, c_status = 0, c_modifieddate = GETDATE()
+                                    WHERE c_ownerid = @OwnerPKID AND c_decoration_id = @DecorationID";
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerPKID", ownerPKID),
@@ -212,14 +239,20 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-
+        /// <summary>
+        /// Update decoration record based on owner
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="decoration"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<int> UpdateDecoration(long ownerPKID, DecorationsDto decoration)
         {
             try
             {
                 string updateQuery = $@"UPDATE {Table.SysCateringDecorations}
                                     SET c_decoration_name = @DecorationName, c_description = @Description, c_packageids = @PackageIDs,
-                                    c_theme_id = @ThemeID, c_price = @Price, c_status = @Status, c_updateddate = @Updateddate
+                                    c_theme_id = @ThemeID, c_price = @Price, c_status = @Status, c_modifieddate = GETDATE() 
                                     WHERE c_decoration_id = @DecorationID AND c_ownerid = @OwnerPKID";
 
                 List<SqlParameter> parameters = new()
@@ -233,8 +266,6 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@ThemeID", decoration.ThemeId),
                     new SqlParameter("@Price", decoration.Price),
                     new SqlParameter("@Status", decoration.Status.ToBinary()), // Assuming 1 for active, 0 for inactive
-                    new SqlParameter("@Updateddate", DateTime.Now),
-
                 };
 
                 return await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
@@ -245,6 +276,11 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Get the list of decoration themes
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<List<DecorationThemeModel>> GetDecorationThemes()
         {
             try
@@ -270,6 +306,14 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Is decoration name already exists for the owner
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="decorationName"></param>
+        /// <param name="decorationId"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<bool> IsDecorationNameExistsAsync(long ownerPKID, string decorationName, long? decorationId = null)
         {
             try
@@ -278,7 +322,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string query = $@"
                             SELECT COUNT(1)
                             FROM {Table.SysCateringDecorations}
-                            WHERE c_ownerid = @OwnerPKID
+                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0
                               AND LOWER(LTRIM(RTRIM(c_decoration_name))) = LOWER(LTRIM(RTRIM(@DecorationName)))";
 
                 // Exclude the current record in case of update
@@ -306,6 +350,13 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Is valid decoration ID for the owner
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="decorationId"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public bool IsValidDecorationID(long ownerPKID, long decorationId)
         {
             try
@@ -314,7 +365,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                         SELECT COUNT(1)
                         FROM {Table.SysCateringDecorations}
                         WHERE c_ownerid = @OwnerPKID
-                            AND c_decoration_id = @DecorationId";
+                            AND c_decoration_id = @DecorationId AND c_is_deleted = 0";
 
                 List<SqlParameter> parameters = new()
                 {
@@ -334,6 +385,14 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Update the decoration status (active/inactive)
+        /// </summary>
+        /// <param name="ownerPKID"></param>
+        /// <param name="decorationId"></param>
+        /// <param name="status"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task UpdateDecorationStatus(long ownerPKID, long decorationId, bool status)
         {
             try
@@ -357,10 +416,16 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
+        /// <summary>
+        /// Build Decoration filter query
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <param name="parameters"></param>
+        /// <returns></returns>
         private string BuildDecorationFilterQuery(DecorationFilter filter, List<SqlParameter> parameters)
         {
             StringBuilder where = new();
-            where.Append(" WHERE cd.c_ownerid = @OwnerPKID ");
+            where.Append(" WHERE cd.c_ownerid = @OwnerPKID AND cd.c_is_deleted = 0 ");
 
             // Name search
             if (!string.IsNullOrWhiteSpace(filter.Name))

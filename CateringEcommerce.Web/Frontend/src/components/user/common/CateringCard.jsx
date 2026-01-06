@@ -19,19 +19,19 @@ export default function CatererCard({ catering }) {
             {/* IMAGE */}
             <div className="relative aspect-[3/2] bg-gray-100">
                 <img
-                    src={catering.coverImage}
-                    alt={catering.name}
+                    src={catering.logoUrl}
+                    alt={catering.cateringName}
                     className="w-full h-full object-cover"
                     loading="lazy"
                 />
 
                 <span
-                    className={`absolute top-3 left-3 text-xs font-bold px-2 py-1 rounded-full ${catering.isOpen
+                    className={`absolute top-3 left-3 text-xs font-bold px-2 py-1 rounded-full ${catering.status == 'OPEN'
                             ? 'bg-green-600 text-white'
                             : 'bg-neutral-500 text-white'
                         }`}
                 >
-                    {catering.isOpen ? 'OPEN' : 'CLOSED'}
+                    {catering.status}
                 </span>
 
                 {catering.offer && (
@@ -45,23 +45,20 @@ export default function CatererCard({ catering }) {
             <div className="p-4">
                 <div className="flex justify-between items-start mb-1 gap-2">
                     <h3 className="text-lg font-semibold text-neutral-900 truncate">
-                        {catering.name}
+                        {catering.cateringName}
                     </h3>
                     <div className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-xs font-semibold">
-                        {catering.rating} ★
+                        {catering.averageRating} ★
                     </div>
                 </div>
 
                 <p className="text-sm text-neutral-500 truncate mb-3">
-                    {(catering.cuisines || []).join(', ')}
+                    {(catering.cuisineTypes || []).join(', ')}
                 </p>
 
                 <div className="flex items-center justify-between text-xs text-neutral-500 border-t pt-3">
                     <span className="truncate">
                         {catering.location} • {catering.distance} km
-                    </span>
-                    <span className="font-medium text-neutral-700">
-                        {catering.priceRange}
                     </span>
                 </div>
             </div>

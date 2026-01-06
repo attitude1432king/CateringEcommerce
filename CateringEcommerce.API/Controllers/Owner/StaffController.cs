@@ -211,7 +211,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     _fileStorageService.DeleteFilePath(path);
                 }
 
-                int result = await staffService.DeleteStaffAsync(ownerPKID, staffId);
+                int result = await staffService.SoftDeleteStaffAsync(ownerPKID, staffId);
                 if (result <= 0)
                 {
                     return ApiResponseHelper.Failure("Failed to delete staff.");

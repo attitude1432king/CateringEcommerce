@@ -50,7 +50,7 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
             localStorage.removeItem('feasto_user');
             localStorage.removeItem('authToken');
 
-            window.location.href = window.location.pathname.startsWith('/owner')
+            window.location.href = window.location.pathname.startsWith('/partner')
                 ? '/partner-login'
                 : '/';
 

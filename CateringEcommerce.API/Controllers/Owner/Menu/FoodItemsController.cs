@@ -185,6 +185,12 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return ApiResponseHelper.Failure("Food Item is already exists. Please use a different name.", "warning");
                 }
 
+                bool isNotValidId = await objFoodItem.IsValidFoodItemID(ownerPKID, foodItems.Id.Value);
+                if (isNotValidId)
+                {
+                    return ApiResponseHelper.Failure("Invalid Food Item ID.", "warning");
+                }
+
                 await objFoodItem.UpdateFoodItem(ownerPKID, foodItems);
 
                 if (foodItems?.ExistingFoodItemMediaPaths != null)
@@ -243,17 +249,21 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 MediaRepository mediaRepository = new MediaRepository(_connStr);
                 OwnerRepository ownerRepository = new OwnerRepository(_connStr);
 
+                bool isNotValidId = await foodItems.IsValidFoodItemID(ownerPKID, foodItemId);
+                if (isNotValidId)
+                {
+                    return ApiResponseHelper.Failure("Invalid Food Item ID.", "warning");
+                }
                 _logger.LogInformation("Delteing Food Item MediaFiles");
                 List<MediaFileModel> currentMediaPathsInDb = await mediaRepository.GetMediaFiles(ownerPKID, DocumentType.Food, foodItemId);
 
                 // Delete the identified files from storage and the database.
                 foreach (var pathToDelete in currentMediaPathsInDb)
                 {
-                    _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
-                    await ownerRepository.DeleteDocumentFile(pathToDelete.Id);
+                    await ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);
                 }
                 _logger.LogInformation("Deleting FoodItems.");
-                await foodItems.DeleteFoodItem(ownerPKID, foodItemId);
+                await foodItems.SoftDeleteFoodItem(ownerPKID, foodItemId);
 
                 _logger.LogInformation("Deleted food item by ID; {0}", foodItemId);
                 return Ok(new { message = "Deleted successfully." });
@@ -261,6 +271,43 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while deleting food item.");
+                throw new Exception(ex.Message);
+            }
+        }
+
+        [HttpGet("Lookup")]
+        public async Task<IActionResult> GetFoodItemLookup()
+        {
+            try
+            {
+                var ownerPKID = _currentUser.UserId;
+                if (ownerPKID <= 0)
+                {
+                    return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
+                }
+
+                _logger.LogInformation("Fetching food item lookup.");
+
+                FoodItems foodItems = new FoodItems(_connStr);
+                var listFoodItem = await foodItems.GetFoodItemsLookup(ownerPKID);
+
+                // Safely handle null or empty list
+                var lookup = (listFoodItem ?? new List<FoodItemDto>())
+                    .Select(p => new
+                    {
+                        Id = p.Id,   // Rename for frontend
+                        Name = p.Name
+                    })
+                    .ToList();
+
+                _logger.LogInformation("Fetched {Count} package lookups.", lookup.Count);
+
+                // Always return an array (even if empty)
+                return Ok(lookup);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while fetching food item lookup.");
                 throw new Exception(ex.Message);
             }
         }

@@ -72,6 +72,7 @@ export const apiService = {
     // Profile endpoints
     getUserProfile: () => fetchApi(`/User/ProfileSettings/GetUserProfile`),
     updateUserProfile: (profileData) => fetchApi(`/User/ProfileSettings/UpdateProfile`, 'POST', profileData),
+    uploadProfilePhoto: (profilePhoto) => fetchApi(`/User/ProfileSettings/UploadProfilePhoto`, 'POST', profilePhoto),
 
     // Verification endpoints
     sendVerificationOtp: async (type, value, role) => {
@@ -107,13 +108,13 @@ export const apiService = {
     },
     
     // Location endpoints
-    getStates: () => fetchApi('/Common/Locations'),
+    getStates: () => fetchApi('/Common/Locations/states'),
     getCities: (stateID) => fetchApi(`/Common/Locations/cities/${stateID}`),
 
     // Google Auth endpoint
     getGoogleAuthUrl: async () => {
         const response = await fetch(`${API_BASE_URL}/api/auth/google/login`);
-        return handleResponse(response);
+        return response;
     },
 
 };

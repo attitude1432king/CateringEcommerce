@@ -116,7 +116,7 @@ export default function ProfileSettings() {
     };
 
     return (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in p-4 sm:p-6 lg:p-8">
             <h1 className="text-3xl font-bold text-neutral-800">Profile & Settings</h1>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <aside className="lg:col-span-1">
