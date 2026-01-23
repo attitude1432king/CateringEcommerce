@@ -17,7 +17,7 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
         url += `?${params.toString()}`;
     }
 
-    const token = localStorage.getItem('authToken');
+    const token = (localStorage.getItem('authToken') == null || localStorage.getItem('authToken') == undefined) ? localStorage.getItem('adminToken') : localStorage.getItem('authToken');
 
     const options = {
         method,
@@ -47,7 +47,7 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
 
         // Unauthorized handling
         if (response.status === 401) {
-            localStorage.removeItem('feasto_user');
+            localStorage.removeItem('enyvora_user');
             localStorage.removeItem('authToken');
 
             window.location.href = window.location.pathname.startsWith('/partner')

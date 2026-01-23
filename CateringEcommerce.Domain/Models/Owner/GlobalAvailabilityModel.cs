@@ -4,7 +4,7 @@ namespace CateringEcommerce.Domain.Models.Owner
 {
     public class GlobalAvailabilityModel
     {
-        public string GlobalStatus { get; set; } = "OPEN"; // OPEN | CLOSED
+        public int GlobalStatus { get; set; } // OPEN | CLOSED
 
         // Key = yyyy-MM-dd
         public Dictionary<string, DateAvailabilityPayload> SpecialDates { get; set; }
@@ -13,14 +13,14 @@ namespace CateringEcommerce.Domain.Models.Owner
 
     public class DateAvailabilityPayload
     {
-        public string Status { get; set; } = ""; // OPEN | CLOSED | FULLY_BOOKED
+        public AvailabilityStatus Status { get; set; } // OPEN | CLOSED | FULLY_BOOKED
         public string? Note { get; set; }
     }
 
     public class DateAvailabilityDTO
     {
         public DateTime Date { get; set; }
-        public string? Status { get; set; } = "OPEN"; // OPEN | CLOSED | FULLY_BOOKED
+        public int Status { get; set; } // OPEN | CLOSED | FULLY_BOOKED
         public string? Note { get; set; }
     }
 

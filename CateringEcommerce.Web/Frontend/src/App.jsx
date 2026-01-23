@@ -9,6 +9,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import AppHeader from './components/user/Header/AppHeader';
 import AppFooter from './components/user/Footer/AppFooter';
 import AuthModal from './components/user/AuthModal';
+import CartDrawer from './components/user/CartDrawer';
 
 
 
@@ -97,6 +98,8 @@ export default function App() {
                 isOpen={isAuthModalOpen}
                 onClose={() => setIsAuthModalOpen(false)}
             />
+
+            <CartDrawer />
         </div>
     );
 }

@@ -27,7 +27,7 @@ namespace CateringEcommerce.API.Controllers.Owner
         }
 
         [HttpGet("GetAvailability")]
-        public async Task<IActionResult> GetAvailabilityPageData() 
+        public async Task<IActionResult> GetAvailabilityPageData([FromQuery] int year, [FromQuery] int month) 
         {
             var ownerId = _currentUser.UserId;
             if (ownerId <= 0)
@@ -40,7 +40,7 @@ namespace CateringEcommerce.API.Controllers.Owner
             try
             {
                 AvailabilityRepository _services = new AvailabilityRepository(_connStr);
-                var data = await _services.GetAvailabilityForPageAsync(ownerId);
+                var data = await _services.GetAvailabilityForPageAsync(ownerId, year, month);
                 return ApiResponseHelper.Success(data, "Availability data loaded");
             }
             catch (Exception ex)
@@ -57,7 +57,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
 
         [HttpPost("UpdateStatus")]
-        public async Task<IActionResult> UpdateGlobalAvailability([FromBody] string status)
+        public async Task<IActionResult> UpdateGlobalAvailability([FromBody] int status)
         {
             var ownerId = _currentUser.UserId;
             if (ownerId <= 0)
@@ -106,35 +106,6 @@ namespace CateringEcommerce.API.Controllers.Owner
                     ex,
                     "UpdateDateAvailability failed | OwnerId={OwnerId}",
                     ownerId);
-
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An unexpected error occurred.");
-            }
-        }
-
-
-        [HttpDelete("DeleteDate")]
-        public async Task<IActionResult> DeleteDate(DateTime date)
-        {
-            var ownerId = _currentUser.UserId;
-            if (ownerId <= 0)
-                return ApiResponseHelper.Failure("Access denied.");
-
-            _logger.LogInformation(
-                "DeleteDate started | OwnerId={OwnerId}",
-                ownerId);
-            try
-            {
-                AvailabilityRepository availability = new AvailabilityRepository(_connStr);
-                await availability.DeleteDateAsync(ownerId, date);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                     ex,
-                     "DeleteDate failed | OwnerId={OwnerId}",
-                     ownerId);
 
                 return StatusCode(StatusCodes.Status500InternalServerError,
                     "An unexpected error occurred.");

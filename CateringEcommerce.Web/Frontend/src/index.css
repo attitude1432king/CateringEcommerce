@@ -7,11 +7,11 @@
   .shadow-input {
     @apply shadow-[0_2px_8px_rgba(0,0,0,0.06)];
   }
-  
+
   .shadow-card {
     @apply shadow-[0_4px_20px_rgba(0,0,0,0.08)];
   }
-  
+
   .shadow-card-hover {
     @apply shadow-[0_12px_28px_rgba(0,0,0,0.12)];
   }
@@ -26,6 +26,20 @@
 
   .bg-catering-light {
     @apply bg-[#FFF8F3];
+  }
+
+  .bg-catering-primary {
+    @apply bg-[#FF6B35];
+  }
+
+  /* Scrollbar hide utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -96,6 +110,20 @@ body {
 .card-premium {
     @apply bg-white rounded-2xl p-6 md:p-8 transition-all duration-300 transform hover:-translate-y-1;
     @apply shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_28px_rgba(0,0,0,0.12)];
+}
+
+/* Cart drawer animation */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+.animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
 }
 
 .card-image {
@@ -187,4 +215,240 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #E55A24;
+}
+
+/* ========================================
+   PREMIUM LUXURY ENHANCEMENTS
+   ======================================== */
+
+/* Premium Typography Scale */
+.luxury-heading {
+    @apply font-bold tracking-tight;
+    background: linear-gradient(135deg, #FF6B35 0%, #FFB627 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.elegant-text {
+    @apply font-light tracking-wide leading-relaxed;
+    letter-spacing: 0.02em;
+}
+
+/* Gold Accent Elements */
+.gold-accent {
+    @apply text-[#FFB627];
+}
+
+.gold-gradient {
+    background: linear-gradient(135deg, #FFB627 0%, #FFD700 50%, #FFB627 100%);
+}
+
+.gold-border {
+    border-color: #FFB627;
+}
+
+/* Premium Glass Effects */
+.glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Luxury Card Styles */
+.luxury-card {
+    @apply bg-white rounded-3xl shadow-lg border border-gray-100 transition-all duration-500;
+    @apply hover:shadow-2xl hover:border-catering-accent/30 hover:-translate-y-2;
+}
+
+.luxury-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #FFB627, transparent);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.luxury-card:hover::after {
+    opacity: 1;
+}
+
+/* Premium Gradient Backgrounds */
+.gradient-luxury {
+    background: linear-gradient(135deg, #FFF8F3 0%, #FFFFFF 50%, #FFF8F3 100%);
+}
+
+.gradient-gold-shimmer {
+    background: linear-gradient(135deg, #FFB627 0%, #FFD700 25%, #FFB627 50%, #FFD700 75%, #FFB627 100%);
+    background-size: 200% 200%;
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+/* Elegant Hover Effects */
+.hover-lift {
+    @apply transition-all duration-300;
+}
+
+.hover-lift:hover {
+    @apply -translate-y-2 shadow-2xl;
+}
+
+.hover-glow {
+    @apply transition-all duration-300;
+}
+
+.hover-glow:hover {
+    box-shadow: 0 0 30px rgba(255, 182, 39, 0.4);
+}
+
+/* Premium Badge Styles */
+.badge-premium {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold;
+    background: linear-gradient(135deg, #FF6B35 0%, #FFB627 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.badge-luxury {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold;
+    background: linear-gradient(135deg, rgba(255, 182, 39, 0.1) 0%, rgba(255, 107, 53, 0.1) 100%);
+    border: 1px solid rgba(255, 182, 39, 0.3);
+    color: #FF6B35;
+}
+
+/* Elegant Dividers */
+.divider-gold {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #FFB627, transparent);
+    margin: 2rem 0;
+}
+
+.divider-elegant {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 2rem 0;
+}
+
+.divider-elegant::before,
+.divider-elegant::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #FFB627, transparent);
+}
+
+/* Premium Button Enhancements */
+.btn-luxury {
+    @apply px-8 py-4 font-bold rounded-xl shadow-xl transition-all duration-300;
+    background: linear-gradient(135deg, #FF6B35 0%, #FFB627 100%);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-luxury::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.7s ease;
+}
+
+.btn-luxury:hover::before {
+    left: 100%;
+}
+
+.btn-luxury:hover {
+    @apply shadow-2xl scale-105;
+    box-shadow: 0 12px 28px rgba(255, 182, 39, 0.4);
+}
+
+/* Text Gradients for Premium Feel */
+.text-gradient-primary {
+    background: linear-gradient(135deg, #FF6B35 0%, #FFB627 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.text-gradient-gold {
+    background: linear-gradient(135deg, #FFB627 0%, #FFD700 50%, #FFB627 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Luxury Shadows */
+.shadow-luxury {
+    box-shadow: 0 10px 40px rgba(255, 107, 53, 0.15);
+}
+
+.shadow-gold {
+    box-shadow: 0 10px 40px rgba(255, 182, 39, 0.2);
+}
+
+/* Premium Focus States */
+.focus-luxury:focus {
+    @apply outline-none ring-4 ring-catering-accent/30 border-catering-accent;
+}
+
+/* Elegant Animations */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.animate-float {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fadeInUp {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Responsive Premium Spacing */
+.section-padding {
+    @apply py-16 md:py-24 lg:py-32;
+}
+
+.container-premium {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }

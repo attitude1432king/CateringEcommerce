@@ -59,8 +59,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             try
             {
                 string insertQuery = $@"INSERT INTO {Table.SysFoodItems}
-                                       (c_ownerid, c_foodname, c_description, c_categoryid, c_cuisinetypeid, c_price, c_ispackage_item, c_issample_tasted, c_status)
-                                       VALUES (@OwnerPKID, @FoodName, @Description, @CategoryID, @CuisineID, @Price, @IsPackageItem, @IsSampleTaste,  @Status);
+                                       (c_ownerid, c_foodname, c_description, c_categoryid, c_cuisinetypeid, c_price, c_isveg, c_islive_counter, c_ispackage_item, c_issample_tasted, c_status)
+                                       VALUES (@OwnerPKID, @FoodName, @Description, @CategoryID, @CuisineID, @Price, @IsVeg, @IsLiveCounter, @IsPackageItem, @IsSampleTaste,  @Status);
                                        SELECT SCOPE_IDENTITY();";
 
                 List<SqlParameter> parameters = new()
@@ -71,6 +71,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@CategoryID", foodItem.CategoryId),
                     new SqlParameter("@CuisineID", foodItem.TypeId ?? (object)DBNull.Value),
                     new SqlParameter("@Price", foodItem.Price),
+                    new SqlParameter("@IsVeg", foodItem.IsVeg.ToBinary()),
+                    new SqlParameter("@IsLiveCounter", foodItem.IsLiveCounter.ToBinary()),
                     new SqlParameter("@IsPackageItem", foodItem.IsPackageItem.ToBinary()),
                     new SqlParameter("@IsSampleTaste", foodItem.IsSampleTaste.ToBinary()),
                     new SqlParameter("@Status", foodItem.Status.ToBinary()) // Assuming 1 for active, 0 for inactive
@@ -101,10 +103,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 int offset = (page - 1) * pageSize;
                 StringBuilder selectQuery = new StringBuilder();
                 selectQuery.Append($@"SELECT ft.c_foodid AS FoodId, ft.c_foodname AS FoodName, ft.c_description AS Description, ft.c_categoryid AS CategoryID, ft.c_cuisinetypeid AS CuisineTypeID, ft.c_price AS Price, 
-                                    ft.c_ispackage_item AS IsPackageItem, ft.c_issample_tasted AS IsSampleTasted, ft.c_status AS Status, fc.c_categoryname AS CategoryName, tm.c_type_name AS CuisineTypeName
-                                FROM {Table.SysFoodItems} ft 
-                                LEFT JOIN {Table.SysFoodCategory} fc ON ft.c_categoryid = fc.c_categoryid 
-                                LEFT JOIN {Table.SysCateringTypeMaster} tm ON ft.c_cuisinetypeid = tm.c_type_id");
+                                    ft.c_ispackage_item AS IsPackageItem, ft.c_isveg AS IsVeg, ft.c_islive_counter As IsLiveCounter,
+                                    ft.c_issample_tasted AS IsSampleTasted, ft.c_status AS Status, fc.c_categoryname AS CategoryName, tm.c_type_name AS CuisineTypeName
+                                    FROM {Table.SysFoodItems} ft 
+                                    LEFT JOIN {Table.SysFoodCategory} fc ON ft.c_categoryid = fc.c_categoryid 
+                                    LEFT JOIN {Table.SysCateringTypeMaster} tm ON ft.c_cuisinetypeid = tm.c_type_id");
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerPKID", ownerPKID),
@@ -137,6 +140,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                         TypeId = row["CuisineTypeID"] != DBNull.Value ? Convert.ToInt32(row["CuisineTypeID"]) : null,
                         Price = row["Price"] != DBNull.Value ? Convert.ToDecimal(row["Price"]) : 0,
                         IsPackageItem = row["IsPackageItem"] != DBNull.Value && Convert.ToBoolean(row["IsPackageItem"]),
+                        IsVeg = row["IsVeg"] != DBNull.Value && Convert.ToBoolean(row["IsVeg"]),
+                        IsLiveCounter = row["IsLiveCounter"] != DBNull.Value && Convert.ToBoolean(row["IsLiveCounter"]),
                         IsSampleTaste = row["IsSampleTasted"] != DBNull.Value && Convert.ToBoolean(row["IsSampleTasted"]),
                         Status = row["Status"] != DBNull.Value && Convert.ToBoolean(row["Status"]),
                         CategoryName = row["CategoryName"]?.ToString(),
@@ -174,8 +179,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             {
                 string updateQuery = $@"UPDATE {Table.SysFoodItems}
                        SET c_foodname = @FoodName, c_description = @Description, c_categoryid = @CategoryID, 
-                        c_cuisinetypeid = @CuisineID, c_price = @Price, c_ispackage_item = @IsPackageItem, 
-                        c_issample_tasted = @IsSampleTaste, c_status = @Status, c_modifieddate = GETDATE()
+                        c_cuisinetypeid = @CuisineID, c_price = @Price, c_ispackage_item = @IsPackageItem, c_isveg = @IsVeg,
+                        c_issample_tasted = @IsSampleTaste, c_islive_counter = @IsLiveCounter, c_status = @Status, c_modifieddate = GETDATE()
                         WHERE c_foodid = @FoodID AND c_ownerid = @OwnerPKID";
 
                 List<SqlParameter> parameters = new()
@@ -186,6 +191,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@CategoryID", foodItem.CategoryId),
                     new SqlParameter("@CuisineID", foodItem.TypeId ?? (object)DBNull.Value),
                     new SqlParameter("@Price", foodItem.Price),
+                    new SqlParameter("@IsVeg", foodItem.IsVeg.ToBinary()),
+                    new SqlParameter("@IsLiveCounter", foodItem.IsLiveCounter.ToBinary()),
                     new SqlParameter("@IsPackageItem", foodItem.IsPackageItem.ToBinary()),
                     new SqlParameter("@FoodID", foodItem.Id),
                     new SqlParameter("@Status", foodItem.Status.ToBinary()), // Assuming 1 for active, 0 for inactive

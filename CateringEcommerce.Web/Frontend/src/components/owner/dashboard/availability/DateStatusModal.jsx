@@ -1,19 +1,21 @@
-
 /*
 ========================================
 File: src/components/owner/dashboard/availability/DateStatusModal.jsx
+Modern Redesign - ENYVORA Brand
 ========================================
 Modal to set status for a specific date.
 */
 import React, { useState, useEffect } from 'react';
+import { AvailabilityStatus } from '../../../../utils/staticData';
+
 
 export default function DateStatusModal({ isOpen, onClose, dateData, onSave }) {
-    const [status, setStatus] = useState('OPEN');
+    const [status, setStatus] = useState(AvailabilityStatus.OPEN);
     const [note, setNote] = useState('');
 
     useEffect(() => {
         if (isOpen && dateData) {
-            setStatus(dateData.status || 'OPEN');
+            setStatus(dateData.status || AvailabilityStatus.OPEN);
             setNote(dateData.note || '');
         }
     }, [isOpen, dateData]);
@@ -26,60 +28,165 @@ export default function DateStatusModal({ isOpen, onClose, dateData, onSave }) {
     if (!isOpen) return null;
 
     // Helper to format date nicely
-    const formattedDate = dateData ? new Date(dateData.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    const formattedDate = dateData ? new Date(dateData.date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    }) : '';
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg w-full max-w-md animate-fade-in">
-                <div className="p-6 border-b">
-                    <h3 className="text-xl font-bold text-neutral-800">Set Availability</h3>
-                    <p className="text-sm text-neutral-500 mt-1">{formattedDate}</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4 animate-backdrop-fade">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all animate-modal-slide-up">
+                {/* Header */}
+                <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-5 rounded-t-2xl animate-gradient-shift">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white bg-opacity-20 rounded-lg animate-icon-bounce">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold">Set Date Availability</h3>
+                            <p className="text-sm text-indigo-100 mt-0.5">{formattedDate}</p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
 
+                {/* Form */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                    {/* Status Selection */}
                     <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-3">Status</label>
+                        <label className="block text-sm font-bold text-neutral-900 mb-3">
+                            Select Status
+                        </label>
                         <div className="space-y-3">
-                            <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${status === 'OPEN' ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : 'hover:bg-neutral-50'}`}>
-                                <input type="radio" name="status" value="OPEN" checked={status === 'OPEN'} onChange={(e) => setStatus(e.target.value)} className="text-green-600 focus:ring-green-500 h-4 w-4" />
-                                <div className="ml-3">
-                                    <span className="block text-sm font-medium text-neutral-900">Open</span>
-                                    <span className="block text-xs text-neutral-500">Accepting new bookings</span>
+                            {/* Open */}
+                            <label className={`flex items-start p-4 border-2 rounded-xl cursor-pointer transition-all transform hover:scale-105 hover:shadow-lg ${
+                                status === AvailabilityStatus.OPEN
+                                    ? 'bg-green-50 border-green-500 shadow-md animate-option-select'
+                                    : 'border-neutral-200 hover:border-green-300 hover:bg-green-50'
+                            }`}>
+                                <input
+                                    type="radio"
+                                    name="status"
+                                    value={AvailabilityStatus.OPEN}
+                                    checked={status === AvailabilityStatus.OPEN}
+                                    onChange={(e) => setStatus(parseInt(e.target.value))}
+                                    className="mt-1 text-green-600 focus:ring-green-500 w-4 h-4"
+                                />
+                                <div className="ml-3 flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span className="font-bold text-neutral-900">Open for Bookings</span>
+                                    </div>
+                                    <span className="block text-xs text-neutral-600">
+                                        Accepting new catering orders for this date
+                                    </span>
                                 </div>
                             </label>
 
-                            <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${status === 'FULLY_BOOKED' ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500' : 'hover:bg-neutral-50'}`}>
-                                <input type="radio" name="status" value="FULLY_BOOKED" checked={status === 'FULLY_BOOKED'} onChange={(e) => setStatus(e.target.value)} className="text-orange-600 focus:ring-orange-500 h-4 w-4" />
-                                <div className="ml-3">
-                                    <span className="block text-sm font-medium text-neutral-900">Fully Booked</span>
-                                    <span className="block text-xs text-neutral-500">No new orders, existing ones visible</span>
+                            {/* Fully Booked */}
+                            <label className={`flex items-start p-4 border-2 rounded-xl cursor-pointer transition-all transform hover:scale-105 hover:shadow-lg ${
+                                status === AvailabilityStatus.FULLY_BOOKED
+                                    ? 'bg-orange-50 border-orange-500 shadow-md animate-option-select'
+                                    : 'border-neutral-200 hover:border-orange-300 hover:bg-orange-50'
+                            }`}>
+                                <input
+                                    type="radio"
+                                    name="status"
+                                    value={AvailabilityStatus.FULLY_BOOKED}
+                                    checked={status === AvailabilityStatus.FULLY_BOOKED}
+                                    onChange={(e) => setStatus(parseInt(e.target.value))}
+                                    className="mt-1 text-orange-600 focus:ring-orange-500 w-4 h-4"
+                                />
+                                <div className="ml-3 flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span className="font-bold text-neutral-900">Fully Booked</span>
+                                    </div>
+                                    <span className="block text-xs text-neutral-600">
+                                        No new orders accepted, capacity reached
+                                    </span>
                                 </div>
                             </label>
 
-                            <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${status === 'CLOSED' ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : 'hover:bg-neutral-50'}`}>
-                                <input type="radio" name="status" value="CLOSED" checked={status === 'CLOSED'} onChange={(e) => setStatus(e.target.value)} className="text-red-600 focus:ring-red-500 h-4 w-4" />
-                                <div className="ml-3">
-                                    <span className="block text-sm font-medium text-neutral-900">Closed</span>
-                                    <span className="block text-xs text-neutral-500">Not accepting any orders</span>
+                            {/* Closed */}
+                            <label className={`flex items-start p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                                status === AvailabilityStatus.CLOSED
+                                    ? 'bg-red-50 border-red-500 shadow-md'
+                                    : 'border-neutral-200 hover:border-red-300 hover:bg-red-50'
+                            }`}>
+                                <input
+                                    type="radio"
+                                    name="status"
+                                    value={AvailabilityStatus.CLOSED}
+                                    checked={status === AvailabilityStatus.CLOSED}
+                                    onChange={(e) => setStatus(parseInt(e.target.value))}
+                                    className="mt-1 text-red-600 focus:ring-red-500 w-4 h-4"
+                                />
+                                <div className="ml-3 flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span className="font-bold text-neutral-900">Closed</span>
+                                    </div>
+                                    <span className="block text-xs text-neutral-600">
+                                        Not accepting any orders for this date
+                                    </span>
                                 </div>
                             </label>
                         </div>
                     </div>
 
+                    {/* Note Field */}
                     <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">Note (Optional)</label>
-                        <textarea
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            rows="2"
-                            placeholder="e.g., Family Function, renovation, etc."
-                            className="w-full p-2 border border-neutral-300 rounded-md text-sm focus:ring-rose-500 focus:border-rose-500"
-                        ></textarea>
+                        <label className="block text-sm font-bold text-neutral-900 mb-2">
+                            Add Note (Optional)
+                        </label>
+                        <div className="relative">
+                            <textarea
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                                rows="3"
+                                placeholder="e.g., Family Function, Maintenance, Staff Training..."
+                                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                            ></textarea>
+                            <div className="absolute bottom-2 right-2 text-xs text-neutral-400">
+                                {note.length}/100
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50">Cancel</button>
-                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-rose-600 rounded-md hover:bg-rose-700">Save Status</button>
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-6 py-3 text-sm font-semibold text-neutral-700 bg-white border-2 border-neutral-300 rounded-xl hover:bg-neutral-50 transition-all"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="flex-1 px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all"
+                        >
+                            Save Status
+                        </button>
                     </div>
                 </form>
             </div>

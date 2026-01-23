@@ -1,4 +1,4 @@
-﻿// Static dropdown data for catering e-commerce application
+﻿// Static data for catering e-commerce application
 
 // Staff Management post roles predefined options
     // --- NEW LOGIC ---
@@ -29,3 +29,16 @@
 // Days and Months for availability calendar
 export const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Enumerations for availability status
+export const AvailabilityStatus = {
+    OPEN: 1,
+    CLOSED: 2,
+    FULLY_BOOKED: 3
+};
+
+// Enumerations for global status
+export const GlobalStatus = {
+    OPEN: 1,
+    CLOSED: 0
+};

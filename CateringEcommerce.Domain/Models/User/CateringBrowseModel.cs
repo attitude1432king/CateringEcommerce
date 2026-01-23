@@ -135,6 +135,7 @@ public class CateringFoodItemDto
     public decimal Price { get; set; }
     public bool IsVegetarian { get; set; }
     public bool IsSpicy { get; set; }
+    public bool IsSampleTasted { get; set; }
     public List<string>? ImageUrls { get; set; }
     public bool IsAvailable { get; set; }
     public string? Allergens { get; set; }
@@ -177,6 +178,27 @@ public class PackageItemDetailDto
     public string? CategoryName { get; set; }
     public int Quantity { get; set; }
     public string? Description { get; set; }
+}
+
+#endregion
+
+#region Decoration Models
+
+/// <summary>
+/// Represents a decoration theme offered by a caterer
+/// </summary>
+public class DecorationDto
+{
+    public long DecorationId { get; set; }
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public int ThemeId { get; set; }
+    public string? ThemeName { get; set; }
+    public string? ThemeDescription { get; set; }
+    public decimal Price { get; set; }
+    public string? IncludedInPackageIds { get; set; } // CSV of package IDs
+    public bool IsAvailable { get; set; }
+    public string? ThumbnailUrl { get; set; }
 }
 
 #endregion
@@ -387,6 +409,69 @@ public class CateringSearchResultDto
     public int PageNumber { get; set; }
     public int PageSize { get; set; }
     public List<CateringBusinessListDto>? Results { get; set; }
+}
+
+#endregion
+
+#region Homepage Models
+
+/// <summary>
+/// Homepage statistics displayed in the stats section
+/// </summary>
+public class HomePageStatsDto
+{
+    public int TotalEventsCatered { get; set; }
+    public int TotalCateringPartners { get; set; }
+    public int TotalHappyCustomers { get; set; }
+    public decimal SatisfactionRate { get; set; }
+}
+
+/// <summary>
+/// Featured caterer for homepage display
+/// </summary>
+public class FeaturedCatererDto
+{
+    public long Id { get; set; }
+    public string? Name { get; set; }
+    public string? Cuisine { get; set; }
+    public double Rating { get; set; }
+    public int Reviews { get; set; }
+    public string? Image { get; set; }
+    public int MinOrder { get; set; }
+    public List<string>? Specialties { get; set; }
+    public bool Verified { get; set; }
+    public bool Featured { get; set; }
+}
+
+/// <summary>
+/// Testimonial for homepage display
+/// </summary>
+public class HomePageTestimonialDto
+{
+    public long Id { get; set; }
+    public string? Text { get; set; }
+    public string? Author { get; set; }
+    public string? Role { get; set; }
+    public int Rating { get; set; }
+    public string? Location { get; set; }
+    public string? Image { get; set; }
+    public string? Event { get; set; }
+}
+
+/// <summary>
+/// Service category for homepage display
+/// </summary>
+public class ServiceCategoryDto
+{
+    public int Id { get; set; }
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public string? Icon { get; set; }
+    public string? Offer { get; set; }
+    public string? Image { get; set; }
+    public string? Link { get; set; }
+    public string? Gradient { get; set; }
+    public string? BgGradient { get; set; }
 }
 
 #endregion

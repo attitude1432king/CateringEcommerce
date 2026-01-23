@@ -15,6 +15,7 @@ import DashboardHome from '../components/owner/dashboard/DashboardHome';
 import MenuManagement from '../components/owner/dashboard/MenuManagement';
 import Decorations from '../components/owner/dashboard/Decorations';
 import Discounts from '../components/owner/dashboard/Discounts';
+import Banners from '../components/owner/dashboard/Banners';
 import BookingRequests from '../components/owner/dashboard/BookingRequests';
 import EventOrders from '../components/owner/dashboard/EventOrders';
 import StaffManagement from '../components/owner/dashboard/StaffManagement';
@@ -41,6 +42,7 @@ export default function OwnerDashboardPage() {
                         <Route path="decorations" element={<Decorations />} />
                         <Route path="staff" element={<StaffManagement />} />
                         <Route path="discounts" element={<Discounts />} />
+                        <Route path="banners" element={<Banners />} />
                         {/* Removed availability route since it's now a modal */}
                         <Route path="earnings" element={<Earnings />} />
                         <Route path="reviews" element={<Reviews />} />

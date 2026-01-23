@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useCart } from '../../../contexts/CartContext';
 
 const generateInitialsAvatar = (name) => {
     if (!name) return 'https://placehold.co/64x64/FF6B35/FFFFFF?text=Q';
@@ -11,10 +12,12 @@ const generateInitialsAvatar = (name) => {
 
 export default function AppHeader({ onOpenAuthModal }) {
     const { isAuthenticated, user, logout } = useAuth();
+    const { getCartItemCount, toggleCart } = useCart();
     const dropdownRef = useRef(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const navigate = useNavigate();
+    const cartItemCount = getCartItemCount();
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -40,10 +43,7 @@ export default function AppHeader({ onOpenAuthModal }) {
                 <div className="flex items-center justify-between h-16 md:h-20">
                     {/* Left: Logo */}
                     <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-                        <div className="text-3xl">???</div>
-                        <span className="font-bold text-xl md:text-2xl bg-gradient-catering bg-clip-text text-transparent hidden sm:inline-block">
-                            Feasto
-                        </span>
+                        <img src="/logo.svg" alt="ENYVORA" className="h-10 md:h-12 w-auto" />
                     </Link>
 
                     {/* Center: Navigation - Desktop Only */}
@@ -61,6 +61,25 @@ export default function AppHeader({ onOpenAuthModal }) {
 
                     {/* Right: Actions */}
                     <div className="flex items-center space-x-3 flex-shrink-0">
+                        {/* Cart Icon - Show only when authenticated */}
+                        {isAuthenticated && (
+                            <button
+                                type="button"
+                                onClick={toggleCart}
+                                className="relative p-2 text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
+                                aria-label="Shopping cart"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                {cartItemCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-catering-primary text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                                        {cartItemCount}
+                                    </span>
+                                )}
+                            </button>
+                        )}
+
                         {/* Become a Partner - Desktop */}
                         {!isAuthenticated && (
                             <Link
@@ -108,8 +127,8 @@ export default function AppHeader({ onOpenAuthModal }) {
                                         <Link to="/profile" onClick={() => setIsDropdownOpen(false)} className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors">
                                             My Profile
                                         </Link>
-                                        <Link to="/bookings" onClick={() => setIsDropdownOpen(false)} className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors">
-                                            My Bookings
+                                        <Link to="/my-orders" onClick={() => setIsDropdownOpen(false)} className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors">
+                                            My Orders
                                         </Link>
                                         <button
                                             onClick={handleLogout}

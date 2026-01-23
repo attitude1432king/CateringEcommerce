@@ -1,18 +1,19 @@
 /*
 ========================================
 File: src/components/owner/dashboard/availability/AvailabilityCalendar.jsx
+Modern Redesign - ENYVORA Brand with Motion
 ========================================
 A custom calendar component to manage day-wise status.
 */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DateStatusModal from './DateStatusModal';
-import { DAYS, MONTHS } from '../../../../utils/staticDropDownData';
+import { DAYS, MONTHS, AvailabilityStatus } from '../../../../utils/staticData';
 
 // Helper to get days in month
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
-export default function AvailabilityCalendar({ specialDates, onDateUpdate }) {
+export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMonthChange, isLoading, isDisabled }) {
     const today = new Date();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
@@ -27,9 +28,26 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate }) {
     const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
     const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
+    // Trigger onMonthChange when month/year changes
+    useEffect(() => {
+        if (onMonthChange) {
+            onMonthChange(year, month);
+        }
+    }, [year, month, onMonthChange]);
+
     const handleDateClick = (day) => {
+        const dateObj = new Date(year, month, day);
+        dateObj.setHours(0, 0, 0, 0);
+
+        const presentDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+        const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        // Prevent clicking past dates
+        if (presentDay < todayDate) {
+            return;
+        }
+
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const currentStatus = specialDates[dateStr] || { status: 'OPEN', note: '' };
+        const currentStatus = specialDates[dateStr] || { status: AvailabilityStatus.OPEN, note: '' };
 
         setSelectedDate({ date: dateStr, ...currentStatus });
         setIsModalOpen(true);
@@ -42,9 +60,16 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate }) {
 
     const renderCalendarDays = () => {
         const days = [];
+
         // Empty slots for previous month
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="h-24 md:h-32 bg-neutral-50 border-r border-b border-neutral-100"></div>);
+            days.push(
+                <div
+                    key={`empty-${i}`}
+                    className="h-28 bg-neutral-50 border border-neutral-100 animate-fade-in"
+                    style={{ animationDelay: `${i * 20}ms` }}
+                ></div>
+            );
         }
 
         for (let day = 1; day <= daysInMonth; day++) {
@@ -52,33 +77,78 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate }) {
             const isToday = dateStr === today.toISOString().split('T')[0];
             const dateInfo = specialDates[dateStr];
 
-            let statusColor = 'bg-white hover:bg-neutral-50'; // Default Open
+            let statusColor = 'bg-white hover:bg-indigo-50'; // Default Open
             let statusBadge = null;
+            let borderColor = 'border-neutral-200';
 
             if (dateInfo) {
-                if (dateInfo.status === 'CLOSED') {
-                    statusColor = 'bg-red-50 hover:bg-red-100 border-red-200';
-                    statusBadge = <span className="text-[10px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">CLOSED</span>;
-                } else if (dateInfo.status === 'FULLY_BOOKED') {
-                    statusColor = 'bg-orange-50 hover:bg-orange-100 border-orange-200';
-                    statusBadge = <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">FULL</span>;
+                if (dateInfo.status === AvailabilityStatus.CLOSED) {
+                    statusColor = 'bg-red-50 hover:bg-red-100';
+                    borderColor = 'border-red-200';
+                    statusBadge = (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-100 px-2 py-1 rounded-full border border-red-200 animate-badge-in">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            CLOSED
+                        </span>
+                    );
+                } else if (dateInfo.status === AvailabilityStatus.FULLY_BOOKED) {
+                    statusColor = 'bg-orange-50 hover:bg-orange-100';
+                    borderColor = 'border-orange-200';
+                    statusBadge = (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-100 px-2 py-1 rounded-full border border-orange-200 animate-badge-in">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            FULL
+                        </span>
+                    );
                 }
             }
+
+            const delayIndex = firstDay + day - 1;
 
             days.push(
                 <div
                     key={day}
                     onClick={() => handleDateClick(day)}
-                    className={`h-24 md:h-32 border-r border-b border-neutral-200 p-2 cursor-pointer transition-colors relative flex flex-col justify-between ${statusColor}`}
+                    className={`h-28 border ${borderColor} p-3 ${isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} transition-all duration-300 relative flex flex-col justify-between ${statusColor} group animate-scale-in hover:scale-105 hover:-translate-y-1 hover:shadow-lg hover:z-10`}
+                    style={{ animationDelay: `${delayIndex * 20}ms` }}
                 >
+                    {/* Date Number */}
                     <div className="flex justify-between items-start">
-                        <span className={`text-sm font-medium ${isToday ? 'bg-rose-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-neutral-700'}`}>
-                            {day}
-                        </span>
+                        {isToday ? (
+                            <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-sm font-bold rounded-full shadow-lg animate-pulse-ring">
+                                {day}
+                            </div>
+                        ) : (
+                            <span className="text-sm font-semibold text-neutral-700 group-hover:scale-110 transition-transform duration-300">
+                                {day}
+                            </span>
+                        )}
                         {statusBadge}
                     </div>
+
+                    {/* Note */}
                     {dateInfo && dateInfo.note && (
-                        <p className="text-xs text-neutral-500 truncate mt-1" title={dateInfo.note}>{dateInfo.note}</p>
+                        <div className="mt-auto animate-slide-up">
+                            <p className="text-xs text-neutral-600 truncate font-medium" title={dateInfo.note}>
+                                {dateInfo.note}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Hover Effect */}
+                    {!isDisabled && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none rounded"></div>
+                    )}
+
+                    {/* Click Ripple Effect */}
+                    {!isDisabled && (
+                        <div className="absolute inset-0 overflow-hidden pointer-events-none rounded">
+                            <div className="ripple"></div>
+                        </div>
                     )}
                 </div>
             );
@@ -87,39 +157,91 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate }) {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
+
+            {isLoading && (
+                <div className="absolute inset-0 bg-white/50 z-10 flex justify-center items-center backdrop-blur-sm">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600"></div>
+                </div>
+            )}
+        
             {/* Calendar Header */}
-            <div className="p-4 border-b flex justify-between items-center bg-white">
-                <h2 className="text-lg font-bold text-neutral-800">{MONTHS[month]} {year}</h2>
-                <div className="flex gap-2">
-                    <button onClick={handlePrevMonth} className="p-2 hover:bg-neutral-100 rounded-full text-neutral-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                    </button>
-                    <button onClick={handleNextMonth} className="p-2 hover:bg-neutral-100 rounded-full text-neutral-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
-                    </button>
+            <div className="p-6 border-b border-neutral-100 bg-gradient-to-r from-indigo-50 to-purple-50 animate-gradient-slide">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="animate-slide-in-left">
+                        <h2 className="text-2xl font-bold text-neutral-900">{MONTHS[month]} {year}</h2>
+                        <p className="text-sm text-neutral-600 mt-1">Click on any date to set its availability</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 animate-slide-in-right">
+                        <button
+                            onClick={handlePrevMonth}
+                            className="p-2.5 hover:bg-white rounded-xl text-neutral-600 hover:text-indigo-600 transition-all duration-300 border border-transparent hover:border-indigo-200 transform hover:scale-110 active:scale-95"
+                            disabled={isDisabled}
+                        >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+
+                        <button
+                            onClick={() => setCurrentDate(new Date())}
+                            className="px-4 py-2.5 text-sm font-semibold text-indigo-600 bg-white hover:bg-indigo-50 rounded-xl transition-all duration-300 border border-indigo-200 transform hover:scale-105 active:scale-95 hover:shadow-md"
+                            disabled={isDisabled}
+                        >
+                            Today
+                        </button>
+
+                        <button
+                            onClick={handleNextMonth}
+                            className="p-2.5 hover:bg-white rounded-xl text-neutral-600 hover:text-indigo-600 transition-all duration-300 border border-transparent hover:border-indigo-200 transform hover:scale-110 active:scale-95"
+                            disabled={isDisabled}
+                        >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* Weekday Header */}
-            <div className="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50">
-                {DAYS.map(day => (
-                    <div key={day} className="py-2 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+            <div className="grid grid-cols-7 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-neutral-100">
+                {DAYS.map((day, index) => (
+                    <div
+                        key={day}
+                        className="py-3 text-center text-xs font-bold text-neutral-600 uppercase tracking-wider animate-fade-in"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                    >
                         {day}
                     </div>
                 ))}
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 border-l border-t border-neutral-200">
+            <div className="grid grid-cols-7">
                 {renderCalendarDays()}
             </div>
 
             {/* Legend */}
-            <div className="p-4 bg-neutral-50 flex gap-6 text-sm border-t border-neutral-200">
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-white border border-neutral-300 rounded"></div> <span className="text-neutral-600">Open</span></div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div> <span className="text-neutral-600">Closed</span></div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-orange-100 border border-orange-200 rounded"></div> <span className="text-neutral-600">Fully Booked</span></div>
+            <div className="p-6 bg-gradient-to-r from-neutral-50 to-indigo-50 border-t border-neutral-200">
+                <div className="flex flex-wrap gap-6 text-sm">
+                    {[
+                        { color: 'bg-white border-2 border-neutral-300', label: 'Open' },
+                        { color: 'bg-red-100 border-2 border-red-300', label: 'Closed' },
+                        { color: 'bg-orange-100 border-2 border-orange-300', label: 'Fully Booked' },
+                        { color: 'bg-gradient-to-br from-indigo-600 to-purple-600', label: 'Today', rounded: true }
+                    ].map((item, index) => (
+                        <div
+                            key={item.label}
+                            className="flex items-center gap-2 animate-fade-in-up group cursor-default"
+                            style={{ animationDelay: `${index * 100}ms` }}
+                        >
+                            <div className={`w-4 h-4 ${item.color} ${item.rounded ? 'rounded-full' : 'rounded'} group-hover:scale-125 transition-transform duration-300`}></div>
+                            <span className="text-neutral-700 font-medium">{item.label}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             <DateStatusModal
@@ -128,6 +250,137 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate }) {
                 dateData={selectedDate}
                 onSave={handleModalSave}
             />
+
+            <style>{`
+                @keyframes fade-in {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+
+                @keyframes scale-in {
+                    from {
+                        opacity: 0;
+                        transform: scale(0.8);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: scale(1);
+                    }
+                }
+
+                @keyframes badge-in {
+                    from {
+                        opacity: 0;
+                        transform: scale(0) rotate(-45deg);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: scale(1) rotate(0deg);
+                    }
+                }
+
+                @keyframes pulse-ring {
+                    0%, 100% {
+                        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+                    }
+                    50% {
+                        box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+                    }
+                }
+
+                @keyframes slide-up {
+                    from {
+                        opacity: 0;
+                        transform: translateY(5px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                @keyframes gradient-slide {
+                    0%, 100% {
+                        background-position: 0% 50%;
+                    }
+                    50% {
+                        background-position: 100% 50%;
+                    }
+                }
+
+                @keyframes slide-in-left {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+
+                @keyframes slide-in-right {
+                    from {
+                        opacity: 0;
+                        transform: translateX(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+
+                @keyframes fade-in-up {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                .animate-fade-in {
+                    animation: fade-in 0.4s ease-out forwards;
+                    opacity: 0;
+                }
+
+                .animate-scale-in {
+                    animation: scale-in 0.3s ease-out forwards;
+                    opacity: 0;
+                }
+
+                .animate-badge-in {
+                    animation: badge-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                }
+
+                .animate-pulse-ring {
+                    animation: pulse-ring 2s ease-in-out infinite;
+                }
+
+                .animate-slide-up {
+                    animation: slide-up 0.3s ease-out;
+                }
+
+                .animate-gradient-slide {
+                    background-size: 200% 200%;
+                    animation: gradient-slide 3s ease infinite;
+                }
+
+                .animate-slide-in-left {
+                    animation: slide-in-left 0.5s ease-out;
+                }
+
+                .animate-slide-in-right {
+                    animation: slide-in-right 0.5s ease-out;
+                }
+
+                .animate-fade-in-up {
+                    animation: fade-in-up 0.5s ease-out forwards;
+                    opacity: 0;
+                }
+            `}</style>
         </div>
     );
 }

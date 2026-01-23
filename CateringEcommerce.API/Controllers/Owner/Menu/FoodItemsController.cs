@@ -123,8 +123,8 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     }
                 }
                 _logger.LogInformation("Food Item added with ID: {0}", foodItemID);
-                
-                return Ok(new { message = $"{foodItems.Name} added successfully!" });
+
+                return ApiResponseHelper.Success(null, $"{foodItems.Name} added successfully!");
             }
             catch (Exception ex)
             {
@@ -185,8 +185,8 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return ApiResponseHelper.Failure("Food Item is already exists. Please use a different name.", "warning");
                 }
 
-                bool isNotValidId = await objFoodItem.IsValidFoodItemID(ownerPKID, foodItems.Id.Value);
-                if (isNotValidId)
+                bool isValidId = await objFoodItem.IsValidFoodItemID(ownerPKID, foodItems.Id.Value);
+                if (!isValidId)
                 {
                     return ApiResponseHelper.Failure("Invalid Food Item ID.", "warning");
                 }

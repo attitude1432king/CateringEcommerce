@@ -1,78 +1,70 @@
-﻿/*
+/*
 ========================================
-File: src/components/HomePage.jsx (NEW FILE - Extracted from App.jsx)
+File: src/pages/HomePage.jsx - Premium Luxury Redesign
 ========================================
-The original homepage content is now in its own component.
 */
-// File: src/pages/HomePage.jsx (UPDATED)
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import HeroBanner from '../components/user/HeroBanner';
-import RecommendationsStrip from '../components/user/RecommendationsStrip';
+import AnimatedStats from '../components/user/AnimatedStats';
 import CategoryTiles from '../components/user/CategoryTiles';
-import CatererGrid from '../components/user/common/CateringGrid';
-import PromotionsSection from '../components/user/PromotionsSection';
+import FeaturedCaterers from '../components/user/FeaturedCaterers';
+import HowItWorksSection from '../components/user/HowItWorksSection';
 import Testimonials from '../components/user/Testimonials';
 import { useDefaultCity } from '../hooks/useDefaultCity';
 
 export default function HomePage() {
     const cityData = useDefaultCity();
+    const navigate = useNavigate();
     console.log(cityData);
+
+    /**
+     * Handle search from HeroBanner
+     * Navigates to catering list page with search parameters
+     */
+    const handleSearch = (searchData) => {
+        console.log('Search triggered:', searchData);
+
+        // Extract city from location string (assuming format like "Mumbai, Maharashtra, India")
+        let city = searchData.location || '';
+        if (city && city.includes(',')) {
+            city = city.split(',')[0].trim();
+        }
+
+        // Build search params
+        const params = new URLSearchParams();
+
+        if (city) {
+            params.append('city', city);
+        }
+
+        if (searchData.cateringSearch) {
+            params.append('keyword', searchData.cateringSearch);
+        }
+
+        // Navigate to catering list page with search params
+        navigate(`/caterings?${params.toString()}`);
+    };
+
     return (
         <main className="min-h-screen bg-white">
-    
-            {/* Hero Section - Full width premium experience */}
-            <HeroBanner onSearch={(v) => console.log('search', v)} />
+            {/* Hero Section - Full width premium experience with video background */}
+            <HeroBanner onSearch={handleSearch} />
 
-            {/* Service Categories - Premium cards section */}
+            {/* Animated Stats Section - Trust indicators */}
+            <AnimatedStats />
+
+            {/* Service Categories - Premium luxury cards */}
             <CategoryTiles />
 
-            {/* Featured Caterers Section */}
-            <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-white">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col md:flex-row items-center justify-between mb-12">
-                        <div>
-                            <h2 className="section-title text-neutral-900 mb-4">
-                                Trending Caterers Near You
-                            </h2>
-                            <p className="text-lg text-neutral-600">
-                                Top-rated catering partners ready to bring your events to life
-                            </p>
-                        </div>
-                        <a href="/browse" className="btn-secondary mt-6 md:mt-0">
-                            View All
-                        </a>
-                    </div>
-                    <CatererGrid/>
-                </div>
-            </section>
+            {/* How It Works Section - Premium step-by-step guide */}
+            <HowItWorksSection />
 
-            {/* Recommendations/Popular filters section */}
-            <section className="py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-catering-light to-white">
-                <div className="max-w-7xl mx-auto">
-                    <h2 className="section-title text-neutral-900 mb-6 text-center">
-                        Popular Searches
-                    </h2>
-                    <RecommendationsStrip />
-                </div>
-            </section>
+            {/* Featured Caterers Section - Premium caterer showcase */}
+            <FeaturedCaterers />
 
-            {/* Promotions Section */}
-            <PromotionsSection />
-
-            {/* Testimonials Section */}
-            <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-white border-t border-neutral-100">
-                <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-12">
-                        <h2 className="section-title text-neutral-900 mb-4">
-                            What Our Customers Say
-                        </h2>
-                        <p className="text-lg text-neutral-600">
-                            Join thousands of satisfied event organizers
-                        </p>
-                    </div>
-                    <Testimonials />
-                </div>
-            </section>
+            {/* Testimonials Section - Premium customer reviews */}
+            <Testimonials />
         </main>
     );
 }

@@ -44,7 +44,8 @@ namespace CateringEcommerce.Domain.Models.Owner
 
         [Required]
         public decimal Price { get; set; }
-
+        public bool IsVeg { get; set; }
+        public bool IsLiveCounter { get; set; }
         public bool IsPackageItem { get; set; }
         public bool IsSampleTaste { get; set; }
 
@@ -70,6 +71,8 @@ namespace CateringEcommerce.Domain.Models.Owner
 
         [Required]
         public decimal Price { get; set; }
+        public bool IsVeg { get; set; }
+        public bool IsLiveCounter { get; set; }
 
         public bool IsPackageItem { get; set; }
         public bool IsSampleTaste { get; set; }

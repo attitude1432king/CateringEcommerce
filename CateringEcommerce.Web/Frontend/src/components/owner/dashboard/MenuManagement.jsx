@@ -30,14 +30,8 @@ export default function MenuManagement() {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 border-b pb-4 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-neutral-800">Menu Management</h1>
-                    {/* GREEN BOX: Added dynamic subtitle */}
-                    <h2 className="text-lg text-neutral-500 mt-1">
-                        {activeTab === TABS.PACKAGES ? "Manage Your Packages" : "Manage Your Menu Items"}
-                    </h2>
-                </div>
+            {/* Tab Navigation */}
+            <div className="flex justify-end mb-6">
                 <div className="flex items-center gap-2 p-1 bg-neutral-100 rounded-lg">
                     <TabButton
                         label={TABS.PACKAGES}

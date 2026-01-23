@@ -92,7 +92,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 query.Append($@"INSERT INTO {Table.SysCateringOwnerAddress} 
-                    (c_ownerid, c_building, c_street, c_area, c_city, c_state, c_pincode, c_latitude, c_longitude, c_mapurl,c_createddate) 
+                    (c_ownerid, c_building, c_street, c_area, c_cityid, c_stateid, c_pincode, c_latitude, c_longitude, c_mapurl,c_createddate) 
                     VALUES (@OwnerId, @Building, @Street, @Area, @CityId, @StateId, @Pincode, @Latitude, @Longitude, @MapUrl, @Createddate)");
                 List<SqlParameter> parameters = new()
                 {
@@ -100,8 +100,8 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Building", addressBuilding),
                     new SqlParameter("@Street", addressStreet),
                     new SqlParameter("@Area", addressArea),
-                    new SqlParameter("@City", cityID),
-                    new SqlParameter("@State", stateID),
+                    new SqlParameter("@CityId", cityID),
+                    new SqlParameter("@StateId", stateID),
                     new SqlParameter("@Pincode", pincode),
                     new SqlParameter("@Latitude", latitude),
                     new SqlParameter("@Longitude", longitude),
@@ -254,6 +254,85 @@ namespace CateringEcommerce.BAL.Base.Owner
                 new SqlParameter("@OwnerPkid", ownerPkid)
             };
             _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+        }
+
+        public void RegisterAgreement(Int64 ownerId, Dictionary<string, object> dicData, string baseUploadPath)
+        {
+            if (dicData == null || dicData.Count == 0)
+                throw new ArgumentException("Agreement data cannot be null or empty.", nameof(dicData));
+
+            StringBuilder query = new StringBuilder();
+
+            #region Agreement Variables
+            bool agreementAccepted = dicData.ContainsKey("AgreementAccepted") ? Convert.ToBoolean(dicData["AgreementAccepted"]) : false;
+            string signaturePath = dicData.ContainsKey("SignaturePath") ? dicData["SignaturePath"].ToString() : null;
+            string signatureBase64 = dicData.ContainsKey("SignatureBase64") ? dicData["SignatureBase64"].ToString() : null;
+            string agreementText = dicData.ContainsKey("AgreementText") ? dicData["AgreementText"].ToString() : null;
+            string businessName = dicData.ContainsKey("CateringName") ? dicData["CateringName"].ToString() : string.Empty;
+            string ownerName = dicData.ContainsKey("OwnerName") ? dicData["OwnerName"].ToString() : string.Empty;
+            string ipAddress = dicData.ContainsKey("IpAddress") ? dicData["IpAddress"].ToString() : null;
+            string userAgent = dicData.ContainsKey("UserAgent") ? dicData["UserAgent"].ToString() : null;
+            #endregion
+
+            string agreementPdfPath = null;
+
+            try
+            {
+                // Generate Agreement PDF if we have the required data
+                if (!string.IsNullOrEmpty(agreementText) && !string.IsNullOrEmpty(signatureBase64))
+                {
+                    try
+                    {
+                        // Generate PDF using the AgreementPdfGenerator
+                        byte[] pdfBytes = Services.AgreementPdfGenerator.GenerateAgreementPdf(
+                            agreementText,
+                            businessName,
+                            ownerName,
+                            signatureBase64,
+                            DateTime.Now
+                        );
+
+                        // Save PDF to secure_uploads/owner_{id}/agreements/
+                        agreementPdfPath = Services.AgreementPdfGenerator.SaveAgreementPdf(
+                            pdfBytes,
+                            ownerId,
+                            baseUploadPath
+                        );
+                    }
+                    catch (Exception pdfEx)
+                    {
+                        // Log the PDF generation error but don't fail the entire registration
+                        Console.WriteLine($"Warning: Failed to generate agreement PDF: {pdfEx.Message}");
+                    }
+                }
+
+                // Insert agreement record into database
+                query.Append($@"INSERT INTO {Table.SysCateringOwnerAgreement}
+                    (c_ownerid, c_agreement_text, c_agreement_accepted, c_signature_data, c_signature_path,
+                     c_agreement_pdf_path, c_ip_address, c_user_agent, c_accepted_date, c_createddate)
+                    VALUES (@OwnerId, @AgreementText, @AgreementAccepted, @SignatureData, @SignaturePath,
+                            @AgreementPdfPath, @IpAddress, @UserAgent, @AcceptanceDate, @Createddate)");
+
+                List<SqlParameter> parameters = new()
+                {
+                    new SqlParameter("@OwnerId", ownerId),
+                    new SqlParameter("@AgreementText", string.IsNullOrEmpty(agreementText) ? DBNull.Value : agreementText),
+                    new SqlParameter("@AgreementAccepted", agreementAccepted.ToBinary()),
+                    new SqlParameter("@SignatureData", string.IsNullOrEmpty(signatureBase64) ? DBNull.Value : signatureBase64),
+                    new SqlParameter("@SignaturePath", string.IsNullOrEmpty(signaturePath) ? DBNull.Value : signaturePath),
+                    new SqlParameter("@AgreementPdfPath", string.IsNullOrEmpty(agreementPdfPath) ? DBNull.Value : agreementPdfPath),
+                    new SqlParameter("@IpAddress", string.IsNullOrEmpty(ipAddress) ? DBNull.Value : ipAddress),
+                    new SqlParameter("@UserAgent", string.IsNullOrEmpty(userAgent) ? DBNull.Value : userAgent),
+                    new SqlParameter("@AcceptanceDate", DateTime.Now),
+                    new SqlParameter("@Createddate", DateTime.Now)
+                };
+
+                _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error while registering agreement: " + ex.Message);
+            }
         }
 
         public async Task<List<ServiceTypeDetails>> GetServiceDetailsByTypeId(int serviceTypeId)

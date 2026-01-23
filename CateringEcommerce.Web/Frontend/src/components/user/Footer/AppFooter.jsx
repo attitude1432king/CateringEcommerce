@@ -12,8 +12,7 @@ export default function AppFooter() {
                     {/* Brand section */}
                     <div className="lg:col-span-2">
                         <div className="flex items-center gap-2 mb-4">
-                            <span className="text-4xl">🍽️</span>
-                            <span className="text-2xl font-extrabold text-white">Feasto</span>
+                            <img src="/logo-white.svg" alt="ENYVORA" className="h-8 w-auto" />
                         </div>
                         <p className="text-neutral-300 text-sm leading-relaxed mb-6">
                             Your premium event catering platform connecting exceptional caterers with memorable celebrations. Book with confidence, celebrate with style.
@@ -72,7 +71,7 @@ export default function AppFooter() {
 
                 {/* Bottom bar */}
                 <div className="py-8 flex flex-col md:flex-row justify-between items-center text-sm text-neutral-400">
-                    <p>© {currentYear} Feasto by Narendra. All rights reserved. | Made with ❤️ for event organizers.</p>
+                    <p>© {currentYear} ENYVORA. All rights reserved. | Made with ❤️ for event organizers.</p>
                     <div className="mt-4 md:mt-0 flex items-center gap-6">
                         <a href="#" className="hover:text-neutral-200 transition-colors">Sitemap</a>
                         <a href="#" className="hover:text-neutral-200 transition-colors">Accessibility</a>

@@ -45,7 +45,9 @@ namespace CateringEcommerce.Domain.Enums
         [Display(Name = "UserDocument")]
         UserDocument = 19,
         [Display(Name = "UserIdentification")]
-        UserIdentification = 20
+        UserIdentification = 20,
+        [Display(Name = "PaymentProof")]
+        PaymentProof = 21
     }
 
     public enum CertificateType
@@ -56,7 +58,9 @@ namespace CateringEcommerce.Domain.Enums
         GST = 2,
         [Display(Name = "PAN")]
         PAN = 3,
+        [Display(Name = "Signature")]
+        Signature = 4,
         [Display(Name = "Other")]
-        Other = 4
+        Other = 5
     }
 }

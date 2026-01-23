@@ -8,7 +8,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '../../../../contexts/ToastContext';
 import SingleFileUploader from '../../../common/SingleFileUploader';
 import ToggleSwitch from '../../../common/ToggleSwitch';
-import { PREDEFINED_ROLES_DATA, FOOD_RELATED_ROLES_DATA } from '../../../../utils/staticDropDownData';
+import { PREDEFINED_ROLES_DATA, FOOD_RELATED_ROLES_DATA } from '../../../../utils/staticData';
 
 const RequiredAsterisk = () => <span className="text-red-500 ml-1">*</span>;
 const ValidationError = ({ message }) => message ? <p className="text-red-500 text-xs mt-1">{message}</p> : null;

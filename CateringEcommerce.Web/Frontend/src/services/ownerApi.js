@@ -340,10 +340,24 @@ export const ownerApiService = {
 
     // Availability Management
 
-        getAvailability: async () => fetchApi('/Owner/Availability/GetAvailability'),
+        getAvailability: async (year, month) => fetchApi(`/Owner/Availability/GetAvailability?Year=${year}&month=${month}`),
 
-        updateGlobalAvailability: async (status) => fetchApi(`/Owner/Availability/UpdateStatus`, 'POST', status), 
+        updateGlobalAvailability: async (status) => fetchApi(`/Owner/Availability/UpdateStatus`, 'POST', status),
 
-        updateDateAvailability: async (dateData) => fetchApi('/Owner/Availability/UpdateDateStatus', 'POST', dateData), 
+        updateDateAvailability: async (dateData) => fetchApi('/Owner/Availability/UpdateDateStatus', 'POST', dateData),
 
-};  
+    // Banner Management
+
+        getBannersCount: async (filterJson) => fetchApi(`/Owner/Banners/Count?filterJson=${filterJson}`),
+
+        getBannersList: async (currentPage, itemsPerPage, filterJson) => fetchApi(`/Owner/Banners/Data?page=${currentPage}&pageSize=${itemsPerPage}&filterJson=${filterJson}`),
+
+        createBanner: async (bannerData) => fetchApi('/Owner/Banners/Create', 'POST', bannerData),
+
+        updateBanner: async (bannerData) => fetchApi('/Owner/Banners/Update', 'POST', bannerData),
+
+        deleteBanner: async (bannerId) => fetchApi('/Owner/Banners/Delete', 'POST', bannerId),
+
+        updateBannerStatus: async (bannerId, isActive) => fetchApi(`/Owner/Banners/UpdateStatus?bannerId=${bannerId}&isActive=${isActive}`, 'POST'),
+
+};

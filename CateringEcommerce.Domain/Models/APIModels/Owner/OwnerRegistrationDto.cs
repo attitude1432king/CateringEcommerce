@@ -73,6 +73,11 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         public string? IfscCode { get; set; }
         public string? ChequePath { get; set; } // Base64 Image of Cheque
         public string? UpiId { get; set; } // Optional, for UPI payments
+
+        // Step 5: Agreement & Signature
+        [Required]
+        public bool AgreementAccepted { get; set; }
+        public string? Signature { get; set; } // Base64 PNG signature
     }
 
     public class FileUploadDto

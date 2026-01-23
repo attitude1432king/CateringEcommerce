@@ -1,8 +1,8 @@
 /*
 ========================================
-File: src/components/owner/dashboard/menu/FoodItemGrid.jsx (NEW FILE)
+File: src/components/owner/dashboard/menu/FoodItemGrid.jsx
+Modern Redesign - ENYVORA Brand
 ========================================
-Handles the filtering, searching, pagination, and display of food item cards.
 */
 import React from 'react';
 import FoodItemCard from './FoodItemCard';
@@ -35,97 +35,121 @@ export default function FoodItemGrid({
     const cuisineOptions = cuisines.map(c => ({ id: c.typeId, name: c.typeName }));
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-neutral-900">Food Items</h1>
+                </div>
 
-            {/* ----------------------------- FILTER BAR ----------------------------- */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-
-                {/* Toggles */}
-                <div className="flex items-center gap-4">
+                {/* Right Side Actions */}
+                <div className="flex flex-wrap items-center gap-4">
+                    {/* Toggles */}
                     <ToggleSwitch
-                        label="Package Item?"
+                        label="Package Items"
                         enabled={filters.isPackageItem}
                         setEnabled={(v) => handleFilterChange("isPackageItem", v)}
                     />
-
                     <ToggleSwitch
-                        label="Sample Taste?"
+                        label="Sample Taste"
                         enabled={filters.isSampleTaste}
                         setEnabled={(v) => handleFilterChange("isSampleTaste", v)}
                     />
+
+                    {/* Add Button */}
+                    <button
+                        onClick={onAddItem}
+                        className="group flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    >
+                        <svg className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Food Item
+                    </button>
                 </div>
-
-                {/* Add Button */}
-                <button
-                    onClick={onAddItem}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 flex items-center gap-2 w-full md:w-auto"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />
-                    </svg>
-                    Add Food Item
-                </button>
             </div>
 
-            {/* ----------------------------- FILTER INPUTS ----------------------------- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6 pb-6 border-b">
-
-                {/* Search */}
-                <input
-                    type="text"
-                    name="name"
-                    placeholder="Search by name..."
-                    value={filters.name}
-                    onChange={(e) => handleFilterChange("name", e.target.value)}
-                    autoComplete="off"
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md"
-                />
-
-                {/* Category Multi-select */}
-                <MultiSelectDropdown
-                    placeholder="All Categories"
-                    options={categoryOptions}
-                    selectedIds={filters.categoryIds}
-                    onChange={(ids) => handleFilterChange("categoryIds", ids)}
-                />
-
-                {/* Cuisine Multi-select */}
-                <MultiSelectDropdown
-                    placeholder="All Cuisines"
-                    options={cuisineOptions}
-                    selectedIds={filters.cuisineIds}
-                    onChange={(ids) => handleFilterChange("cuisineIds", ids)}
-                />
-
-                {/* Status */}
-                <select
-                    name="status"
-                    value={filters.status}
-                    onChange={(e) => handleFilterChange("status", e.target.value)}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md"
-                >
-                    <option value="">Any Status</option>
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
-                </select>
-            </div>
-
-            {/* ----------------------------- GRID ----------------------------- */}
-            {items.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {items.map(item => (
-                        <FoodItemCard
-                            key={item.id}
-                            item={item}
-                            onEdit={() => onEditItem(item)}
-                            onDelete={() => onDeleteItem(item)}
+            {/* Filter Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Search with Icon */}
+                    <div className="relative">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            name="name"
+                            placeholder="Search by name..."
+                            value={filters.name}
+                            onChange={(e) => handleFilterChange("name", e.target.value)}
+                            autoComplete="off"
+                            className="w-full pl-10 pr-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                         />
+                    </div>
+
+                    {/* Category Multi-select */}
+                    <MultiSelectDropdown
+                        placeholder="All Categories"
+                        options={categoryOptions}
+                        selectedIds={filters.categoryIds}
+                        onChange={(ids) => handleFilterChange("categoryIds", ids)}
+                    />
+
+                    {/* Cuisine Multi-select */}
+                    <MultiSelectDropdown
+                        placeholder="All Cuisines"
+                        options={cuisineOptions}
+                        selectedIds={filters.cuisineIds}
+                        onChange={(ids) => handleFilterChange("cuisineIds", ids)}
+                    />
+
+                    {/* Status */}
+                    <select
+                        name="status"
+                        value={filters.status}
+                        onChange={(e) => handleFilterChange("status", e.target.value)}
+                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    >
+                        <option value="">Any Status</option>
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Grid Section with Modern Cards */}
+            {items.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
+                    {items.map((item, index) => (
+                        <div
+                            key={item.id}
+                            className="transform transition-all duration-300 hover:scale-105"
+                            style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                            <FoodItemCard
+                                item={item}
+                                onEdit={() => onEditItem(item)}
+                                onDelete={() => onDeleteItem(item)}
+                            />
+                        </div>
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-16">
-                    <h3 className="text-xl font-semibold text-neutral-700">No Food Items Found</h3>
-                    <p className="text-neutral-500">Try adjusting your filters.</p>
+                <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-12">
+                    <div className="text-center">
+                        <svg className="w-20 h-20 mx-auto mb-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <h3 className="text-xl font-semibold text-neutral-900 mb-2">No Food Items Found</h3>
+                        <p className="text-neutral-600 mb-4">Try adjusting your filters or add your first item.</p>
+                        <button
+                            onClick={onAddItem}
+                            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all"
+                        >
+                            Add First Item
+                        </button>
+                    </div>
                 </div>
             )}
 

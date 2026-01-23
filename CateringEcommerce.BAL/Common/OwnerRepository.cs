@@ -166,6 +166,8 @@ namespace CateringEcommerce.BAL.Common
             }
         }
 
+
+
         public async Task<List<CateringMasterTypeModel>> GetCateringMasterType(CateringMaster cateringMasterCategory)
         {
             try
@@ -192,6 +194,49 @@ namespace CateringEcommerce.BAL.Common
                     });
                 }
                 return cateringMasterTypes;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<int> UpdateDocumentFilePath(long referenceID, DocumentType documentType, string filePath)
+        {
+            try
+            {
+                string query = @$"UPDATE {Table.SysCateringMediaUploads} SET c_file_path = @FilePath, c_updated_at = GETDATE()  WHERE c_reference_id = @ReferenceID
+                               AND c_document_type_id = @DocumentTypeID";
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@ReferenceID", referenceID),
+                    new SqlParameter("@FilePath", filePath),
+                    new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                };
+                return await _db.ExecuteNonQueryAsync(query, parameters);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<int> SoftDeleteByReferenceID(long referenceID, DocumentType documentType)
+        {
+            try
+            {
+                string query = $@"UPDATE {Table.SysCateringMediaUploads} 
+                                SET c_is_deleted = 1, c_updated_at = GETDATE()  
+                                WHERE c_reference_id = @ReferenceID 
+                                AND c_document_type_id = @DocumentTypeID";
+                
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@ReferenceID", referenceID),
+                    new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                };
+                
+                return await _db.ExecuteNonQueryAsync(query, parameters);
             }
             catch (Exception ex)
             {
