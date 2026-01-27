@@ -6,21 +6,16 @@ File: src/components/owner/dashboard/decorations/DecorationCard.jsx (REVISED)
 */
 import React from 'react';
 import ToggleSwitch from '../../../common/ToggleSwitch';
-import { useToast } from '../../../../contexts/ToastContext';
 import { ownerApiService } from '../../../../services/ownerApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export default function DecorationCard({ item, onEdit, onDelete }) {
-    const { showToast } = useToast();
+export default function DecorationCard({ item, onEdit, onDelete, onStatusChange }) {
     const mainMedia = item.media[0];
     const mediaUrl = (media) => media.filePath ? `${API_BASE_URL}${media.filePath}` : media.preview;
 
     const handleToggle = (value) => {
-        // Here you would call an API to update the status
-        // apiService.updateDecorationStatus(item.id, value);
-        showToast(`${item.name} status updated to ${value ? 'Active' : 'Inactive'}`, 'success');
-        // You would then refetch the data from the parent
+        onStatusChange(item, value);
     };
 
     return (

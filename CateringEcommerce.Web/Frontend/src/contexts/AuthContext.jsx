@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         try {
-            const storedUser = localStorage.getItem('feasto_user');
+            const storedUser = localStorage.getItem('enyvora_user');
             const storedToken = localStorage.getItem('authToken');
 
             if (storedUser && storedToken) {
@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (error) {
             console.error("Failed to parse user from localStorage", error);
-            localStorage.removeItem('feasto_user');
+            localStorage.removeItem('enyvora_user');
             localStorage.removeItem('authToken');
             setUser(null);
             setToken(null);
@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
 
 
     const login = (userData) => {
-        localStorage.setItem('feasto_user', JSON.stringify(userData));
+        localStorage.setItem('enyvora_user', JSON.stringify(userData));
         localStorage.setItem('authToken', userData.token);
         setUser(userData);
         setToken(userData.token);
@@ -48,14 +48,14 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setToken(null);
         localStorage.removeItem('authToken');
-        localStorage.removeItem('feasto_user');
+        localStorage.removeItem('enyvora_user');
         console.log("User logged out and session cleared.");
     };
 
     const updateUserProfileInContext = (updatedData) => {
         setUser(prevUser => {
             const newUser = { ...prevUser, ...updatedData };
-            localStorage.setItem('feasto_user', JSON.stringify(newUser));
+            localStorage.setItem('enyvora_user', JSON.stringify(newUser));
             console.log("User context updated:", newUser);
             return newUser;
         });

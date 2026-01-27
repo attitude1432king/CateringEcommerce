@@ -131,7 +131,9 @@ export default function DecorationFormModal({ isOpen, onClose, onSave, editingIt
                     </form>
                     <div className="p-6 bg-neutral-50 border-t flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-5 py-2 rounded-md font-semibold text-neutral-700 bg-neutral-200 hover:bg-neutral-300">Cancel</button>
-                        <button type="button" onClick={handleSubmit} className="px-5 py-2 rounded-md font-semibold text-white bg-rose-600 hover:bg-rose-700">Save Setup</button>
+                        <button type="button" onClick={handleSubmit} className="px-5 py-2 rounded-md font-semibold text-white bg-rose-600 hover:bg-rose-700">
+                            {editingItem ? 'Update Setup' : 'Save Setup'}
+                        </button>
                     </div>
                 </div>
             </div>

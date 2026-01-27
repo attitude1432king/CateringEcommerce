@@ -22,7 +22,7 @@ namespace CateringEcommerce.BAL.Common
             {
                 string query = $@"SELECT c_media_id AS ID, c_file_path AS FilePath, c_file_name AS FileName 
                         FROM {Table.SysCateringMediaUploads}
-                        WHERE c_ownerid = @OwnerId AND c_document_type_id = @DocumentTypeID";
+                        WHERE c_ownerid = @OwnerId AND c_document_type_id = @DocumentTypeID AND c_is_deleted = 0";
                 List<SqlParameter> parameters = new List<SqlParameter>
                 {
                     new SqlParameter("@OwnerId", ownerPKID),

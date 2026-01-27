@@ -2,12 +2,12 @@
 using CateringEcommerce.BAL.Base.Owner.Menu;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.Domain.Enums;
-using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Extensions;
+using Newtonsoft.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner.Menu
 {
@@ -29,8 +29,8 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
             _currentUser = currentUser;
         }
 
-        [HttpGet("Data")]
-        public async Task<IActionResult> GetFoodItemList()
+        [HttpGet("Count")]
+        public async Task<IActionResult> GetFoodItemCount(string filterJson)
         {
             try
             {
@@ -39,9 +39,34 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 {
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
+                var filter = JsonConvert.DeserializeObject<FoodItemFilter>(filterJson ?? "{}");
+                _logger.LogInformation("Fetching food items count.");
+                FoodItems foodItems = new FoodItems(_connStr);
+                var foodItemsCount = await foodItems.GetFoodItemsCount(ownerPKID, filter);
+                _logger.LogInformation("Fetched {Count} food items.", foodItemsCount);
+                return Ok(foodItemsCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred while fetching food category.");
+                return StatusCode(500, "An error occurred while fetching food category.");
+            }
+        }
+
+        [HttpGet("Data")]
+        public async Task<IActionResult> GetFoodItemList(int page, int pageSize, string filterJson)
+        {
+            try
+            {
+                var ownerPKID = _currentUser.UserId;
+                if (ownerPKID <= 0)
+                {
+                    return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
+                }
+                var filter = JsonConvert.DeserializeObject<FoodItemFilter>(filterJson ?? "{}");
                 _logger.LogInformation("Fetching food items.");
                 FoodItems foodItems = new FoodItems(_connStr);
-                var listFoodItems = await foodItems.GetFoodItems(ownerPKID);
+                var listFoodItems = await foodItems.GetFoodItems(ownerPKID, page, pageSize, filter);
                 _logger.LogInformation("Fetched {Count} food categories.", listFoodItems?.Count ?? 0);
                 return Ok(listFoodItems);
             }
@@ -98,8 +123,8 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     }
                 }
                 _logger.LogInformation("Food Item added with ID: {0}", foodItemID);
-                
-                return Ok(new { message = $"{foodItems.Name} added successfully!" });
+
+                return ApiResponseHelper.Success(null, $"{foodItems.Name} added successfully!");
             }
             catch (Exception ex)
             {
@@ -160,6 +185,12 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return ApiResponseHelper.Failure("Food Item is already exists. Please use a different name.", "warning");
                 }
 
+                bool isValidId = await objFoodItem.IsValidFoodItemID(ownerPKID, foodItems.Id.Value);
+                if (!isValidId)
+                {
+                    return ApiResponseHelper.Failure("Invalid Food Item ID.", "warning");
+                }
+
                 await objFoodItem.UpdateFoodItem(ownerPKID, foodItems);
 
                 if (foodItems?.ExistingFoodItemMediaPaths != null)
@@ -218,17 +249,21 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 MediaRepository mediaRepository = new MediaRepository(_connStr);
                 OwnerRepository ownerRepository = new OwnerRepository(_connStr);
 
+                bool isNotValidId = await foodItems.IsValidFoodItemID(ownerPKID, foodItemId);
+                if (isNotValidId)
+                {
+                    return ApiResponseHelper.Failure("Invalid Food Item ID.", "warning");
+                }
                 _logger.LogInformation("Delteing Food Item MediaFiles");
                 List<MediaFileModel> currentMediaPathsInDb = await mediaRepository.GetMediaFiles(ownerPKID, DocumentType.Food, foodItemId);
 
                 // Delete the identified files from storage and the database.
                 foreach (var pathToDelete in currentMediaPathsInDb)
                 {
-                    _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
-                    await ownerRepository.DeleteDocumentFile(pathToDelete.Id);
+                    await ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);
                 }
                 _logger.LogInformation("Deleting FoodItems.");
-                await foodItems.DeleteFoodItem(ownerPKID, foodItemId);
+                await foodItems.SoftDeleteFoodItem(ownerPKID, foodItemId);
 
                 _logger.LogInformation("Deleted food item by ID; {0}", foodItemId);
                 return Ok(new { message = "Deleted successfully." });
@@ -236,6 +271,43 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while deleting food item.");
+                throw new Exception(ex.Message);
+            }
+        }
+
+        [HttpGet("Lookup")]
+        public async Task<IActionResult> GetFoodItemLookup()
+        {
+            try
+            {
+                var ownerPKID = _currentUser.UserId;
+                if (ownerPKID <= 0)
+                {
+                    return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
+                }
+
+                _logger.LogInformation("Fetching food item lookup.");
+
+                FoodItems foodItems = new FoodItems(_connStr);
+                var listFoodItem = await foodItems.GetFoodItemsLookup(ownerPKID);
+
+                // Safely handle null or empty list
+                var lookup = (listFoodItem ?? new List<FoodItemDto>())
+                    .Select(p => new
+                    {
+                        Id = p.Id,   // Rename for frontend
+                        Name = p.Name
+                    })
+                    .ToList();
+
+                _logger.LogInformation("Fetched {Count} package lookups.", lookup.Count);
+
+                // Always return an array (even if empty)
+                return Ok(lookup);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while fetching food item lookup.");
                 throw new Exception(ex.Message);
             }
         }

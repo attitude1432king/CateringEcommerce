@@ -1,5 +1,4 @@
-﻿
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Enums
 {
@@ -13,18 +12,18 @@ namespace CateringEcommerce.Domain.Enums
         Kitchen = 2,
         [Display(Name = "EventSetup")]
         EventSetup = 3,
+        [Display(Name = "Staff")]
+        Staff = 4,
         [Display(Name = "FoodMaking")]
-        Making = 4,
+        Making = 5,
         [Display(Name = "Menu")]
-        Menu = 5,
+        Menu = 6,
         [Display(Name = "Promo")]
-        Promo = 6,
+        Promo = 7,
         [Display(Name = "Banner")]
-        Banner = 7,
+        Banner = 8,
         [Display(Name = "Packaging")]
-        Packaging = 8,
-        [Display(Name = "Certificate")]
-        Certificate = 9,
+        Packaging = 9,
         [Display(Name = "ChefProfile")]
         ChefProfile = 10,
         [Display(Name = "Recipe")]
@@ -40,7 +39,15 @@ namespace CateringEcommerce.Domain.Enums
         [Display(Name = "Brand")]
         Brand = 16,
         [Display(Name = "Portfolio")]
-        Portfolio = 17
+        Portfolio = 17,
+        [Display(Name = "UserProfilePhoto")]
+        UserProfilePhoto = 18,
+        [Display(Name = "UserDocument")]
+        UserDocument = 19,
+        [Display(Name = "UserIdentification")]
+        UserIdentification = 20,
+        [Display(Name = "PaymentProof")]
+        PaymentProof = 21
     }
 
     public enum CertificateType
@@ -51,7 +58,9 @@ namespace CateringEcommerce.Domain.Enums
         GST = 2,
         [Display(Name = "PAN")]
         PAN = 3,
+        [Display(Name = "Signature")]
+        Signature = 4,
         [Display(Name = "Other")]
-        Other = 4
+        Other = 5
     }
 }

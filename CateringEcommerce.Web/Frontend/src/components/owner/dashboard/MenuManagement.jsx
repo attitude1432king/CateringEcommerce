@@ -1,9 +1,7 @@
 ﻿/*
 ========================================
-File: src/components/owner/dashboard/MenuManagement.jsx (ENTIRELY REDESIGNED)
+File: src/components/owner/dashboard/MenuManagement.jsx (REVISED)
 ========================================
-Acts as the main container with a tabbed interface for switching between
-Package Management and Food Item Management.
 */
 import React, { useState } from 'react';
 import PackagesView from './menu/PackagesView';
@@ -14,26 +12,26 @@ const TABS = {
     FOOD_ITEMS: 'Food Items',
 };
 
+// YELLOW BOX: Updated TabButton component for a modern, pill-style design
 const TabButton = ({ label, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${isActive
-            ? 'bg-rose-600 text-white shadow-md'
+        className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${isActive
+                ? 'bg-rose-600 text-white shadow-md'
                 : 'text-neutral-600 hover:bg-neutral-100'
             }`}
     >
         {label}
     </button>
 );
+
 export default function MenuManagement() {
-    const [activeTab, setActiveTab] = useState(TABS.PACKAGES); // Default to food items as requested
+    const [activeTab, setActiveTab] = useState(TABS.FOOD_ITEMS); // Default to food items
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 border-b pb-4 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-neutral-800">Menu Management</h1>
-                </div>
+            {/* Tab Navigation */}
+            <div className="flex justify-end mb-6">
                 <div className="flex items-center gap-2 p-1 bg-neutral-100 rounded-lg">
                     <TabButton
                         label={TABS.PACKAGES}

@@ -36,9 +36,9 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         [Required]
         public string? Pincode { get; set; }
         [Required]
-        public string? State { get; set; }
+        public int? StateID { get; set; }
         [Required]
-        public string? City { get; set; }
+        public int? CityID { get; set; }
         public string? MapUrl { get; set; }
         public string? Latitude { get; set; }
         public string? Longitude { get; set; }
@@ -55,7 +55,6 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         [Required]
         public decimal? MinOrderValue { get; set; }
 
-        public List<CateringMediaDto> CateringMedia { get; set; }
         // Step 4: Legal & Payment (many are optional)
         public string? FssaiNumber { get; set; }
         public string? FssaiExpiry { get; set; } // Optional, if FSSAI is applicable
@@ -74,20 +73,17 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         public string? IfscCode { get; set; }
         public string? ChequePath { get; set; } // Base64 Image of Cheque
         public string? UpiId { get; set; } // Optional, for UPI payments
-    }
 
-    // Changed from private to internal to fix CS1527
-    public class CateringMediaDto
-    {
-        public string? Base64Data { get; set; }
-        public string? Type { get; set; } // e.g., "image/jpeg" or "video/mp4"
-        public string? FileName { get; set; }
+        // Step 5: Agreement & Signature
+        [Required]
+        public bool AgreementAccepted { get; set; }
+        public string? Signature { get; set; } // Base64 PNG signature
     }
 
     public class FileUploadDto
     {
         public string? Base64 { get; set; }
         public string? Name { get; set; }
-        public string? Type { get; set; }
+        //public string? Type { get; set; }
     }
 }

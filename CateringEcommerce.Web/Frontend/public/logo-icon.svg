@@ -1,0 +1,49 @@
+<!-- ENYVORA - Icon Only (Square Format) -->
+<!-- Modern eCommerce Catering Icon -->
+
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80" fill="none">
+
+  <defs>
+    <!-- Primary Gradient: Vibrant Orange to Red -->
+    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E63946;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Accent Gradient -->
+    <linearGradient id="iconAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8C42;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF6B35;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle for app icon -->
+  <circle cx="40" cy="40" r="36" fill="url(#iconGradient)" opacity="0.15"/>
+
+  <!-- Main icon: Stylized serving dish/plate -->
+  <g transform="translate(15, 15)">
+    <path d="M 15 20 Q 20 12, 25 14 Q 30 16, 35 20 L 33 28 Q 25 32, 17 28 Z"
+          fill="url(#iconGradient)"/>
+
+    <!-- Steam lines suggesting freshness -->
+    <path d="M 20 12 Q 21 8, 22 12 M 25 10 Q 26 6, 27 10 M 30 12 Q 31 8, 32 12"
+          stroke="url(#iconAccent)"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          fill="none"/>
+
+    <!-- Base/shadow of dish -->
+    <ellipse cx="25" cy="28" rx="8" ry="3" fill="url(#iconAccent)" opacity="0.4"/>
+  </g>
+
+  <!-- Subtle "E" monogram integrated -->
+  <text x="40" y="60"
+        font-family="'Inter', 'Segoe UI', sans-serif"
+        font-weight="700"
+        font-size="14"
+        fill="url(#iconGradient)"
+        text-anchor="middle">
+    E
+  </text>
+
+</svg>

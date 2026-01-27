@@ -1,17 +1,36 @@
-import React, { useState, useEffect } from 'react';
+/*
+========================================
+File: src/components/UserProfileSettings.jsx (REVISED)
+========================================
+Updated to include a robust profile photo upload and crop workflow using ImageUploader.
+*/
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/userApi'; // Import the API service
+import ImageCropUploader from '../owner/dashboard/settings/ImageCropUploader'; // Importing the existing crop uploader
+import { useToast } from '../../contexts/ToastContext';
 
-// Utility function to generate an avatar from initials
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// Helper to generate initials avatar if no photo exists
 const generateInitialsAvatar = (name) => {
-    if (!name) return 'https://placehold.co/64x64/E0E7FF/4338CA?text=Q';
+    if (!name) return '';
     const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-                    <circle cx="64" cy="64" r="64" fill="#e0e7ff"/>
-                    <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-family="sans-serif" font-size="56" fill="#4338ca">${initials}</text>
-                 </svg>`;
-    return `data:image/svg+xml;base64,${btoa(svg)}`;
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#fde2e2'; // Light rose
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.font = 'bold 56px Arial';
+    context.fillStyle = '#9f1239'; // Dark rose
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(initials, canvas.width / 2, canvas.height / 2);
+    return canvas.toDataURL();
 };
+
 
 // A smaller, reusable OTP modal for inline verification
 const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, identifier }) => {
@@ -68,9 +87,11 @@ export default function UserProfileSettings() {
     const [profile, setProfile] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [formErrors, setFormErrors] = useState({});
+    const { showToast } = useToast();
 
     const [states, setStates] = useState([]);
     const [cities, setCities] = useState([]);
+    const uploaderRef = useRef(null);
 
     const [otpModalInfo, setOtpModalInfo] = useState({ isOpen: false, type: null, value: '' });
 
@@ -90,9 +111,8 @@ export default function UserProfileSettings() {
                         apiService.getStates()
                     ]);
 
-                    if (!profileData.profilePhoto) {
-                        profileData.profilePhoto = generateInitialsAvatar(profileData.fullName);
-                    }
+                    profileData.profilePhoto = profileData.profilePhoto ? `${API_BASE_URL}${profileData.profilePhoto}` : generateInitialsAvatar(profileData.fullName);
+                    
                     setProfile(profileData);
                     setStates(statesData);
 
@@ -121,17 +141,6 @@ export default function UserProfileSettings() {
                 setCities(citiesData);
                 setProfile(prev => ({ ...prev, cityID: '' }));
             }
-        }
-    };
-
-    const handlePhotoUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                setProfile(prev => ({ ...prev, profilePhoto: event.target.result }));
-            };
-            reader.readAsDataURL(file);
         }
     };
 
@@ -177,6 +186,56 @@ export default function UserProfileSettings() {
         setProfile(prev => ({ ...prev, [`is${type.charAt(0).toUpperCase() + type.slice(1)}Verified`]: true }));
     };
 
+    // Handler for when the crop is finished and confirmed in the modal
+    const handlePhotoCropComplete = async (croppedBlob) => {
+        if (!croppedBlob) return;
+
+        try {
+            setIsLoading(true);
+
+            // 1. Convert blob to base64 for storage and preview
+            const base64String = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(croppedBlob);
+            });
+
+            // 2. Update local state immediately for instant preview
+            setProfile(prev => ({ ...prev, profilePhoto: base64String }));
+
+            
+            // 3. Upload to backend (API call)
+            // Assuming apiService has an uploadProfilePhoto method
+            // If not, you'll need to create one that accepts FormData with the cropped image
+            try {
+                const response = await apiService.uploadProfilePhoto(base64String);
+
+                // 4. Update global auth context with the new photo URL from backend response
+                if (response.photoUrl) {  
+                    updateUserProfileInContext({ profilePhoto: `${API_BASE_URL}${response.photoUrl}` });
+                } else {
+                    // Fallback: use the base64 if backend doesn't return the URL
+                    updateUserProfileInContext({ profilePhoto: base64String });
+                }
+
+                showToast('Profile photo updated successfully!', 'success');
+            } catch (uploadError) {
+                console.error("Photo upload to backend failed:", uploadError);
+                // Keep the preview but show error
+                showToast('Photo preview updated, but failed to save to server.', 'warning');
+            }
+
+        } catch (error) {
+            console.error("Photo processing failed:", error);
+            showToast('Failed to process profile photo.', 'error');
+            // Revert the profile state on error
+            setProfile(prev => ({ ...prev, profilePhoto: profile.profilePhoto }));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const validateForm = () => {
         const errors = {};
         if (!profile.fullName?.trim()) {
@@ -200,9 +259,8 @@ export default function UserProfileSettings() {
         setIsLoading(true);
         try {
             const response = await apiService.updateUserProfile(profile);
-            // Update the global context so the header photo changes immediately
-            updateUserProfileInContext(response.user);
-            alert("Profile updated successfully!");
+            if(response.message)
+                showToast(response.message, 'success');
         } catch (err) {
             setFormErrors({ general: err.message });
         } finally {
@@ -227,17 +285,46 @@ export default function UserProfileSettings() {
                 verificationType={otpModalInfo.type}
                 identifier={otpModalInfo.value}
             />
-            <div className="p-6 bg-white rounded-lg shadow-md">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm max-w-4xl mx-auto animate-fade-in">
                 <h3 className="text-2xl font-bold text-neutral-800 mb-6">Profile Settings</h3>
 
-                <div className="flex items-center gap-6 mb-8">
-                    <img src={profile.profilePhoto} alt="Profile" className="h-24 w-24 rounded-full object-cover bg-amber-100" />
-                    <div>
-                        <label htmlFor="photo-upload" className="cursor-pointer bg-rose-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-rose-700">
-                            Upload New Photo
-                        </label>
-                        <input type="file" id="photo-upload" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-                        <p className="text-xs text-neutral-500 mt-2">Recommended size: 200x200px</p>
+                <div className="flex flex-col sm:flex-row items-center gap-8 mb-10 border-b border-neutral-100 pb-8">
+                    <div className="relative group">
+                        <img
+                            src={profile.profilePhoto}
+                            alt="Profile"
+                            className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md bg-amber-100"
+                        />
+                        {/* Hover overlay hint - triggering the ref of the crop uploader */}
+                        <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => uploaderRef.current?.triggerFileSelect()}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div className="text-center sm:text-left">
+                        <h2 className="text-xl font-bold text-neutral-800">{profile.fullName}</h2>
+                        <p className="text-neutral-500 mb-4">{profile.email}</p>
+
+                        {/* Use the existing ImageCropUploader component. */}
+                        <ImageCropUploader
+                            ref={uploaderRef}
+                            onCropComplete={handlePhotoCropComplete}
+                            aspect={1} // Circular/Square aspect ratio
+                        />
+
+                        <button
+                            type="button"
+                            onClick={() => uploaderRef.current?.triggerFileSelect()}
+                            className="px-4 py-2 bg-white border border-neutral-300 rounded-md text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors shadow-sm"
+                        >
+                            Change Photo
+                        </button>
+                        <p className="text-xs text-neutral-400 mt-2">
+                            JPG, GIF or PNG. Max size of 800K
+                        </p>
                     </div>
                 </div>
 
@@ -281,7 +368,7 @@ export default function UserProfileSettings() {
                         {/* State Dropdown */}
                         <div>
                             <label htmlFor="stateID" className="block text-sm font-medium text-neutral-700 mb-1">State</label>
-                            <select name="stateID" value={profile.stateID} onChange={handleInputChange} className="w-full px-3 py-2 border border-neutral-300 rounded-md" required>
+                            <select name="stateID" value={profile.stateID || ''} onChange={handleInputChange} className="w-full px-3 py-2 border border-neutral-300 rounded-md" >
                                 <option value="">Select State</option>
                                 {states.map(s => <option key={s.stateID} value={s.stateID}>{s.stateName}</option>)}
                             </select>
@@ -291,7 +378,7 @@ export default function UserProfileSettings() {
                         {/* City Dropdown */}
                         <div>
                             <label htmlFor="cityID" className="block text-sm font-medium text-neutral-700 mb-1">City</label>
-                            <select name="cityID" value={profile.cityID} onChange={handleInputChange} className="w-full px-3 py-2 border border-neutral-300 rounded-md" required disabled={!profile.stateID || cities.length === 0}>
+                            <select name="cityID" value={profile.cityID || ''} onChange={handleInputChange} className="w-full px-3 py-2 border border-neutral-300 rounded-md" disabled={!profile.stateID || cities.length === 0}>
                                 <option value="">Select City</option>
                                 {cities.map(c => <option key={c.cityID} value={c.cityID}>{c.cityName}</option>)}
                             </select>
@@ -301,7 +388,7 @@ export default function UserProfileSettings() {
                         {/* About Me */}
                         <div className="md:col-span-2">
                             <label htmlFor="description" className="block text-sm font-medium text-neutral-700 mb-1">About Me</label>
-                            <textarea name="description" rows="3" value={profile.description} onChange={handleInputChange} className="w-full px-3 py-2 border border-neutral-300 rounded-md"></textarea>
+                            <textarea name="description" rows="3" value={profile.description || ''} onChange={handleInputChange} className="w-full px-3 py-2 border border-neutral-300 rounded-md"></textarea>
                         </div>
                     </div>
 

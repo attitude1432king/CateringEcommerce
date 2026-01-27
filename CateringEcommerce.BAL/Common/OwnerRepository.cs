@@ -20,6 +20,14 @@ namespace CateringEcommerce.BAL.Common
             _db.SetConnectionString(connectionString);
         }
 
+        public async Task<bool> IsOwnerExistAsync(long ownerPkID)
+        {
+            string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_ownerid = @OwnerPkID";
+            SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@OwnerPkID", ownerPkID) };
+            int count = Convert.ToInt32(await _db.ExecuteScalarAsync(query, parameters));
+            return count > 0;
+        }
+
         public bool IsOwnerPhoneExist(string mobileNumber)
         {
             if (string.IsNullOrEmpty(mobileNumber))
@@ -43,8 +51,8 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                fileName = Path.GetFileNameWithoutExtension(fileName);
                 string extension = Path.GetExtension(fileName);
+                fileName = Path.GetFileNameWithoutExtension(fileName);
                 string query = $@"INSERT INTO {Table.SysCateringMediaUploads} (c_ownerid, c_file_name, c_file_path, c_document_type_id, c_extension, c_reference_id) 
                             VALUES (@OwnerPkid, @FileName, @FilePath, @DocumentTypeID, @Extesion, @ReferenceID)";
 
@@ -83,7 +91,7 @@ namespace CateringEcommerce.BAL.Common
                 else
                 {
                     query.Append("c_mobile = @MobileNumber");
-                    parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", number.Substring(3)) };
+                    parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", number) };
                 }
 
                 var dt = _db.Execute(query.ToString(), parameters);
@@ -141,6 +149,25 @@ namespace CateringEcommerce.BAL.Common
             }
         }
 
+        public async Task<int> SoftDeleteDocumentFile(long documentPKID)
+        {
+            try
+            {
+                string query = $"UPDATE {Table.SysCateringMediaUploads} SET c_is_deleted = 1, c_updated_at = GETDATE()  WHERE c_media_id = @documentPKID";
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@documentPKID", documentPKID),
+                };
+                return await _db.ExecuteNonQueryAsync(query, parameters);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+
+
         public async Task<List<CateringMasterTypeModel>> GetCateringMasterType(CateringMaster cateringMasterCategory)
         {
             try
@@ -167,6 +194,49 @@ namespace CateringEcommerce.BAL.Common
                     });
                 }
                 return cateringMasterTypes;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<int> UpdateDocumentFilePath(long referenceID, DocumentType documentType, string filePath)
+        {
+            try
+            {
+                string query = @$"UPDATE {Table.SysCateringMediaUploads} SET c_file_path = @FilePath, c_updated_at = GETDATE()  WHERE c_reference_id = @ReferenceID
+                               AND c_document_type_id = @DocumentTypeID";
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@ReferenceID", referenceID),
+                    new SqlParameter("@FilePath", filePath),
+                    new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                };
+                return await _db.ExecuteNonQueryAsync(query, parameters);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<int> SoftDeleteByReferenceID(long referenceID, DocumentType documentType)
+        {
+            try
+            {
+                string query = $@"UPDATE {Table.SysCateringMediaUploads} 
+                                SET c_is_deleted = 1, c_updated_at = GETDATE()  
+                                WHERE c_reference_id = @ReferenceID 
+                                AND c_document_type_id = @DocumentTypeID";
+                
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@ReferenceID", referenceID),
+                    new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                };
+                
+                return await _db.ExecuteNonQueryAsync(query, parameters);
             }
             catch (Exception ex)
             {

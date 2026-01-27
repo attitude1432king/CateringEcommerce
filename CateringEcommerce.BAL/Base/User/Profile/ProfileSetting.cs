@@ -16,7 +16,7 @@ namespace CateringEcommerce.BAL.Base.User.Profile
             _db.SetConnectionString(connectionString);
         }
 
-        public void UpdateUserDetails(long? userPKID, Dictionary<string, string> dicData = null)
+        public async Task UpdateUserDetails(long? userPKID, Dictionary<string, string> dicData = null)
         {
             StringBuilder updateQuery = new StringBuilder();
             string email = dicData != null && dicData.ContainsKey("email") ? dicData["email"] : string.Empty;
@@ -78,13 +78,35 @@ namespace CateringEcommerce.BAL.Base.User.Profile
                 updateQuery.Append(" WHERE c_userid = @UserPKID");
 
 
-                _db.ExecuteNonQuery(updateQuery.ToString(), parameters.ToArray());
+                await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
                 // Log the exception or handle it appropriately
                 throw new Exception("Error updating user details: " + ex.Message);
+            }
+        }
 
+        public string GetUserProfilePicture(long userPkid)
+        {
+            try
+            {
+                const string query = "SELECT c_picture FROM " + Table.SysUser + " WHERE c_userid = @UserPKID";
+                
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@UserPKID", userPkid)
+                };
+
+                var result = _db.ExecuteScalar(query, parameters.ToArray());
+
+                // Return the picture URL if it exists and is not empty, otherwise return empty string
+                return !string.IsNullOrEmpty(result?.ToString()) ? result.ToString() : string.Empty;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it appropriately
+                throw new Exception($"Error retrieving user profile picture for UserId {userPkid}: " + ex.Message);
             }
         }
     }

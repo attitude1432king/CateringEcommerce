@@ -39,7 +39,7 @@ namespace CateringEcommerce.BAL.Common
                 {
                     PkID = row["c_userid"] == DBNull.Value ? 0 : Convert.ToInt64(row["c_userid"].ToString()),
                     FullName = row["c_name"] == DBNull.Value ? string.Empty : row["c_name"].ToString(),
-                    Phone = row["c_mobile"] == DBNull.Value ? string.Empty : row["c_mobile"].ToString().Substring(3),
+                    Phone = row["c_mobile"] == DBNull.Value ? string.Empty : row["c_mobile"].ToString(),
                     Email = row["c_email"] == DBNull.Value ? string.Empty : row["c_email"].ToString(),
                     IsEmailVerified = row["c_isemailverified"] == DBNull.Value ? false : row.GetBoolean("c_isemailverified"),
                     IsPhoneVerified = row["c_isphoneverified"] == DBNull.Value ? false : row.GetBoolean("c_isphoneverified"),
@@ -81,7 +81,7 @@ namespace CateringEcommerce.BAL.Common
             string tableName = GetUserTableName(role);
             string query = $"SELECT Count(c_mobile) FROM {tableName} WHERE c_mobile = @phoneNumber";
             SqlParameter[] parameters = {
-                    new SqlParameter("@phoneNumber", phoneNumber.Substring(3))
+                    new SqlParameter("@phoneNumber", phoneNumber)
                     };
             return Convert.ToBoolean(_db.ExecuteScalar(query, parameters));
         }

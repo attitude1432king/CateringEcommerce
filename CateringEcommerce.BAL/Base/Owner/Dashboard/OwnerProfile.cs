@@ -92,9 +92,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         {
             try
             {
-                string query = $@"SELECT c_building AS Building, c_street AS Street, c_area AS Area, c_city AS City, 
-                    c_state AS State, c_pincode AS Pincode, c_latitude AS Latitude, c_longitude AS Longitude, c_mapurl AS MapUrl 
-                    FROM {Table.SysCateringOwnerAddress} WHERE c_ownerid = @OwnerId";
+                string query = $@"SELECT c_building AS Building, c_street AS Street, c_area AS Area, ct.c_cityname AS City, 
+                    st.c_statename AS State, c_pincode AS Pincode, c_latitude AS Latitude, c_longitude AS Longitude, c_mapurl AS MapUrl 
+                    FROM {Table.SysCateringOwnerAddress} AS address
+                    LEFT JOIN {Table.City} ct ON address.c_cityid = ct.c_cityid                    
+                    LEFT JOIN {Table.State} st ON address.c_stateid = st.c_stateid                                    
+                    WHERE c_ownerid = @OwnerId";
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerId", onwerId)

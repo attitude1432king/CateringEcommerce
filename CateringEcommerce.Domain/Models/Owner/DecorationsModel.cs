@@ -48,4 +48,13 @@ namespace CateringEcommerce.Domain.Models.Owner
         public long? Id { get; set; }
         public string? Name { get; set; }
     }
+
+    public class DecorationFilter
+    {
+        public string Name { get; set; }
+        public List<int> ThemeIds { get; set; }
+        public string Status { get; set; }
+        public List<int> PackageIds { get; set; }
+    }
+
 }

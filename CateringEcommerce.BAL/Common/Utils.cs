@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Text;
 
 namespace CateringEcommerce.BAL.Common
 {
@@ -21,5 +22,15 @@ namespace CateringEcommerce.BAL.Common
 
             return otp.ToString();
         }
+
+        public static string GetEnumDisplayName(Enum value)
+        {
+            var field = value.GetType().GetField(value.ToString());
+            var attribute = field?.GetCustomAttributes(typeof(DisplayAttribute), false)
+                                  .FirstOrDefault() as DisplayAttribute;
+
+            return attribute?.Name ?? value.ToString();
+        }
+
     }
 }
