@@ -3,19 +3,18 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.BAL.Base.User.AuthLogic
 {
-    public class Authentication
+    public class Authentication : IAuthentication
     {
-        private readonly SqlDatabaseManager _db;
-
-        public Authentication(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public Authentication(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -58,27 +57,10 @@ namespace CateringEcommerce.BAL.Base.User.AuthLogic
                 parameters.Add(new SqlParameter("@Phone", phoneNumber ?? (object)DBNull.Value));
             }
 
-            return _db.ExecuteNonQuery(query, parameters.ToArray());
+            return _dbHelper.ExecuteNonQuery(query, parameters.ToArray());
         }
 
         
-
-        /// <summary>
-        /// Get the username associated with a phone number.
-        /// </summary>
-        /// <param name="phoneNumber"></param>
-        /// <returns></returns>
-        public string GetUserName(string phoneNumber)
-        {
-            string query = $"SELECT c_name FROM {Table.SysUser} WHERE c_mobile = @phoneNumber";
-            SqlParameter[] parameters = {
-                    new SqlParameter("@phoneNumber", phoneNumber)
-                };
-            return _db.ExecuteScalar(query, parameters)?.ToString();
-        }
-
-        
-
         public UserModel? GetUserData(string? phoneNumber = null)
         {
             string query = $"SELECT * FROM {Table.SysUser} WHERE c_mobile = @phoneNumber";
@@ -92,7 +74,7 @@ namespace CateringEcommerce.BAL.Base.User.AuthLogic
                 };
             }
 
-            var dt = _db.Execute(query, parameters);
+            var dt = _dbHelper.Execute(query, parameters);
 
             if (dt.Rows.Count > 0)
             {
@@ -108,7 +90,9 @@ namespace CateringEcommerce.BAL.Base.User.AuthLogic
                     CityID = row["c_cityid"] == DBNull.Value ? 0 : Convert.ToInt32(row["c_cityid"]),
                     StateID = row["c_stateid"] == DBNull.Value ? 0 : Convert.ToInt32(row["c_stateid"]),
                     Description = row.Table.Columns.Contains("c_description") && row["c_description"] != DBNull.Value ? row["c_description"].ToString() : string.Empty,
-                    ProfilePhoto = row.Table.Columns.Contains("c_picture") && row["c_picture"] != DBNull.Value ? row["c_picture"].ToString() : string.Empty
+                    ProfilePhoto = row.Table.Columns.Contains("c_picture") && row["c_picture"] != DBNull.Value ? row["c_picture"].ToString() : string.Empty,
+                    IsBlocked = row.Table.Columns.Contains("c_isblocked") && row["c_isblocked"] != DBNull.Value && Convert.ToBoolean(row["c_isblocked"]),
+                    BlockReason = row.Table.Columns.Contains("c_block_reason") && row["c_block_reason"] != DBNull.Value ? row["c_block_reason"].ToString() : string.Empty
                 };
             }
             else

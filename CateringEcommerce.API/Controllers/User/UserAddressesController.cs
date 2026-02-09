@@ -19,19 +19,16 @@ namespace CateringEcommerce.API.Controllers.User
     {
         private readonly ILogger<UserAddressesController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly IConfiguration _configuration;
-        private readonly string _connStr;
+        private readonly UserAddressService _userAddressService;
 
         public UserAddressesController(
             ILogger<UserAddressesController> logger,
             ICurrentUserService currentUser,
-            IConfiguration configuration)
+            UserAddressService userAddressService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _userAddressService = userAddressService ?? throw new ArgumentNullException(nameof(userAddressService));
         }
 
         // ===================================
@@ -53,7 +50,7 @@ namespace CateringEcommerce.API.Controllers.User
                 _logger.LogInformation($"Fetching addresses for user {userId}");
 
                 // Create service
-                UserAddressService addressService = new UserAddressService(_connStr);
+                var addressService = _userAddressService;
 
                 // Get addresses
                 List<SavedAddressDto> addresses = await addressService.GetUserAddressesAsync(userId);
@@ -88,7 +85,7 @@ namespace CateringEcommerce.API.Controllers.User
                 _logger.LogInformation($"Fetching address {id} for user {userId}");
 
                 // Create service
-                UserAddressService addressService = new UserAddressService(_connStr);
+                var addressService = _userAddressService;
 
                 // Get address
                 SavedAddressDto address = await addressService.GetAddressByIdAsync(id, userId);
@@ -138,7 +135,7 @@ namespace CateringEcommerce.API.Controllers.User
                 _logger.LogInformation($"Creating address for user {userId}");
 
                 // Create service
-                UserAddressService addressService = new UserAddressService(_connStr);
+                var addressService = _userAddressService;
 
                 // Create address
                 SavedAddressDto address = await addressService.CreateAddressAsync(userId, addressData);
@@ -201,7 +198,7 @@ namespace CateringEcommerce.API.Controllers.User
                 _logger.LogInformation($"Updating address {id} for user {userId}");
 
                 // Create service
-                UserAddressService addressService = new UserAddressService(_connStr);
+                var addressService = _userAddressService;
 
                 // Update address
                 SavedAddressDto address = await addressService.UpdateAddressAsync(userId, addressData);
@@ -246,7 +243,7 @@ namespace CateringEcommerce.API.Controllers.User
                 _logger.LogInformation($"Deleting address {id} for user {userId}");
 
                 // Create service
-                UserAddressService addressService = new UserAddressService(_connStr);
+                var addressService = _userAddressService;
 
                 // Delete address
                 bool deleted = await addressService.DeleteAddressAsync(id, userId);
@@ -291,7 +288,7 @@ namespace CateringEcommerce.API.Controllers.User
                 _logger.LogInformation($"Setting address {id} as default for user {userId}");
 
                 // Create service
-                UserAddressService addressService = new UserAddressService(_connStr);
+                var addressService = _userAddressService;
 
                 // Set default address
                 bool updated = await addressService.SetDefaultAddressAsync(id, userId);

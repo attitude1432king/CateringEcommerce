@@ -13,9 +13,10 @@ export const usePermissions = () => {
 
 export const PermissionProvider = ({ children }) => {
   const { admin, getToken } = useAdminAuth();
-  const [permissions, setPermissions] = useState([]);
+  const [permissions, setPermissions] = useState([]); // Array of { module, actions } or simple strings
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
 
   // Fetch permissions from API or decode from JWT
   useEffect(() => {
@@ -25,39 +26,55 @@ export const PermissionProvider = ({ children }) => {
       setPermissions([]);
       setRoles([]);
       setLoading(false);
+      setIsLoadingPermissions(false);
     }
   }, [admin]);
 
   const fetchPermissions = async () => {
     try {
       const token = getToken();
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
-      // TODO: Replace with actual API endpoint when backend is ready
-      // For now, mock based on admin role
-      const mockPermissions = getMockPermissions(admin.role);
-
-      setPermissions(mockPermissions.permissions);
-      setRoles(mockPermissions.roles);
-
-      /*
-      // Actual API call (uncomment when backend is ready):
-      const response = await fetch('http://localhost:5000/api/admin/auth/permissions', {
+      // Call the actual backend API
+      const response = await fetch(`${API_BASE_URL}/api/admin/auth/permissions`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const result = await response.json();
 
       if (result.result && result.data) {
         setPermissions(result.data.permissions || []);
         setRoles(result.data.roles || []);
+      } else {
+        // Fallback to mock permissions if API fails
+        console.warn('API returned unexpected format, using mock permissions');
+        const mockPermissions = getMockPermissions(admin.role);
+        setPermissions(mockPermissions.permissions);
+        setRoles(mockPermissions.roles);
       }
-      */
     } catch (error) {
       console.error('Failed to fetch permissions:', error);
+
+      // Fallback to mock permissions on error
+      try {
+        const mockPermissions = getMockPermissions(admin.role);
+        setPermissions(mockPermissions.permissions);
+        setRoles(mockPermissions.roles);
+      } catch (mockError) {
+        console.error('Mock permissions also failed:', mockError);
+        setPermissions([]);
+        setRoles([]);
+      }
     } finally {
       setLoading(false);
+      setIsLoadingPermissions(false);
     }
   };
 
@@ -112,17 +129,37 @@ export const PermissionProvider = ({ children }) => {
 
   /**
    * Check if user has a specific permission
-   * @param {string} permission - Permission code to check
+   * Supports two formats:
+   * 1. hasPermission(module, action) - e.g., hasPermission("MASTER_DATA", "VIEW")
+   * 2. hasPermission(permission) - e.g., hasPermission("USER_VIEW") (legacy)
+   * @param {string} moduleOrPermission - Module name or full permission string
+   * @param {string} [action] - Optional action (VIEW, ADD, EDIT, DELETE, etc.)
    * @returns {boolean}
    */
-  const hasPermission = (permission) => {
+  const hasPermission = (moduleOrPermission, action = null) => {
     // Super admin has all permissions
     if (roles.includes('SUPER_ADMIN') || permissions.includes('*')) {
       return true;
     }
 
-    // Check if permission exists in user's permission list
-    return permissions.includes(permission);
+    // If action is provided, check module-action format
+    if (action) {
+      // Check if permissions array contains objects with module/actions
+      const modulePermission = permissions.find(
+        p => typeof p === 'object' && p.module === moduleOrPermission
+      );
+
+      if (modulePermission && modulePermission.actions) {
+        return modulePermission.actions.includes(action);
+      }
+
+      // Fallback: check for legacy format like "MODULE_ACTION"
+      const legacyFormat = `${moduleOrPermission}_${action}`;
+      return permissions.includes(legacyFormat);
+    }
+
+    // Legacy format: simple permission string
+    return permissions.includes(moduleOrPermission);
   };
 
   /**
@@ -175,6 +212,7 @@ export const PermissionProvider = ({ children }) => {
     permissions,
     roles,
     loading,
+    isLoadingPermissions,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
@@ -183,6 +221,18 @@ export const PermissionProvider = ({ children }) => {
     refreshPermissions: fetchPermissions,
     isSuperAdmin: roles.includes('SUPER_ADMIN') || permissions.includes('*')
   };
+
+  // Show loading spinner while permissions are being fetched
+  if (loading && admin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading permissions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <PermissionContext.Provider value={value}>

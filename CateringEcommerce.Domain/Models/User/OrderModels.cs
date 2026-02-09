@@ -172,6 +172,27 @@ namespace CateringEcommerce.Domain.Models.User
         public List<OrderItemDto> OrderItems { get; set; } = new List<OrderItemDto>();
         public OrderPaymentDto? Payment { get; set; }
         public List<OrderStatusHistoryDto> StatusHistory { get; set; } = new List<OrderStatusHistoryDto>();
+
+        // Live Event Status (populated when order is InProgress or Completed with supervisor)
+        public LiveEventStatusDto? LiveEventStatus { get; set; }
+    }
+
+    // ===================================
+    // LIVE EVENT STATUS DTO
+    // ===================================
+    public class LiveEventStatusDto
+    {
+        public bool SupervisorAssigned { get; set; }
+        public string? SupervisorName { get; set; }
+        public string EventTimelineStage { get; set; } = string.Empty; // Prepared, Dispatched, Arrived, InProgress, Completed
+        public DateTime? LastUpdatedAt { get; set; }
+        public int? ActualGuestCount { get; set; }
+        public int? ServiceQualityRating { get; set; }
+        public string? SupervisorNotes { get; set; }
+        public bool SupervisorReportSubmitted { get; set; }
+        public bool PaymentRequestRaised { get; set; }
+        public decimal? ExtraChargesAmount { get; set; }
+        public decimal? FinalPayableAmount { get; set; }
     }
 
     // ===================================

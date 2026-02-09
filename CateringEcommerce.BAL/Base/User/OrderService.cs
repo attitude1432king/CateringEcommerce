@@ -1,39 +1,45 @@
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.BAL.Services;
 using CateringEcommerce.Domain.Enums;
-using CateringEcommerce.Domain.Extensions;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Notification;
+using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace CateringEcommerce.BAL.Base.User
 {
-    public class OrderService
+    public class OrderService : IOrderService
     {
-        private readonly string _connectionString;
-        private readonly OrderRepository _orderRepository;
-        private readonly PaymentStageRepository _paymentStageRepository;
+        private readonly IDatabaseHelper _dbHelper;
+        private readonly IOrderRepository _orderRepository;
+        private readonly IPaymentStageRepository _paymentStageRepository;
+        private readonly INotificationHelper _notificationHelper;
         private readonly INotificationService _notificationService;
         private readonly IFileStorageService _fileStorageService;
-        private readonly SqlDatabaseManager _db;
+        private readonly ILogger<OrderService> _logger;
 
-        public OrderService(string connectionString, INotificationService notificationService, IFileStorageService fileStorageService)
+        public OrderService(
+            IDatabaseHelper dbHelper,
+            IOrderRepository orderRepository,
+            IPaymentStageRepository paymentStageRepository,
+            INotificationHelper notificationHelper,
+            INotificationService notificationService,
+            IFileStorageService fileStorageService,
+            ILogger<OrderService> logger)
         {
-            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            _orderRepository = new OrderRepository(connectionString);
-            _paymentStageRepository = new PaymentStageRepository(connectionString);
+            _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
+            _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
+            _paymentStageRepository = paymentStageRepository ?? throw new ArgumentNullException(nameof(paymentStageRepository));
+            _notificationHelper = notificationHelper ?? throw new ArgumentNullException(nameof(notificationHelper));
             _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
             _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         // ===================================
@@ -167,15 +173,54 @@ namespace CateringEcommerce.BAL.Base.User
                 // 12. Send email and SMS notifications
                 try
                 {
-                    await _notificationService.SendOrderConfirmationAsync(
-                        order,
-                        orderData.ContactEmail,
-                        orderData.ContactPhone
-                    );
+                    if (_notificationHelper != null)
+                    {
+                        // Use new NotificationHelper
+                        await _notificationHelper.SendOrderNotificationAsync(
+                            "ORDER_CONFIRMATION",
+                            order.ContactPerson ?? "Customer",
+                            orderData.ContactEmail,
+                            orderData.ContactPhone,
+                            order.CateringName,
+                            null, // Partner email - will be fetched if needed
+                            null, // Partner phone - will be fetched if needed
+                            new Dictionary<string, object>
+                            {
+                                { "customer_name", order.ContactPerson ?? "Customer" },
+                                { "order_number", order.OrderNumber },
+                                { "order_id", order.OrderId },
+                                { "event_date", order.EventDate.ToString("dd MMM yyyy") },
+                                { "event_time", order.EventTime },
+                                { "event_location", order.EventLocation },
+                                { "event_address", order.DeliveryAddress },
+                                { "event_city", order.EventLocation }, // Using EventLocation as city
+                                { "guest_count", order.GuestCount },
+                                { "total_amount", order.TotalAmount.ToString("N2") },
+                                { "payment_status", order.PaymentStatus ?? "Pending" },
+                                { "catering_name", order.CateringName },
+                                { "order_url", $"https://enyvora.com/orders/{order.OrderId}" },
+                                { "support_email", "support@enyvora.com" },
+                                { "support_phone", "+91-1234567890" }
+                            },
+                            notifyCustomer: true,
+                            notifyPartner: false, // Partner will be notified when order is assigned
+                            notifyAdmin: true
+                        );
+                    }
+                    else
+                    {
+                        // Fallback to legacy notification service
+                        await _notificationService.SendOrderConfirmationAsync(
+                            order,
+                            orderData.ContactEmail,
+                            orderData.ContactPhone
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
                     // Log but don't fail the order creation
+                    _logger?.LogError(ex, "Failed to send order confirmation notification. OrderId: {OrderId}", order.OrderId);
                     Console.WriteLine($"Notification error: {ex.Message}");
                 }
 
@@ -237,17 +282,51 @@ namespace CateringEcommerce.BAL.Base.User
                 // Send cancellation notification
                 try
                 {
-                    await _notificationService.SendOrderCancellationAsync(
-                        orderId,
-                        order.OrderNumber,
-                        order.ContactEmail,
-                        order.ContactPhone,
-                        reason
-                    );
+                    if (_notificationHelper != null)
+                    {
+                        // Use new NotificationHelper
+                        await _notificationHelper.SendOrderNotificationAsync(
+                            "ORDER_CANCELLATION",
+                            order.ContactPerson ?? "Customer",
+                            order.ContactEmail,
+                            order.ContactPhone,
+                            order.CateringName,
+                            null, // Partner email - will be fetched if needed
+                            null, // Partner phone - will be fetched if needed
+                            new Dictionary<string, object>
+                            {
+                                { "customer_name", order.ContactPerson ?? "Customer" },
+                                { "order_number", order.OrderNumber },
+                                { "order_id", order.OrderId },
+                                { "event_date", order.EventDate.ToString("dd MMM yyyy") },
+                                { "cancellation_reason", reason },
+                                { "refund_amount", order.TotalAmount.ToString("N2") },
+                                { "refund_timeline", "5-7 business days" },
+                                { "catering_name", order.CateringName },
+                                { "support_email", "support@enyvora.com" },
+                                { "support_phone", "+91-1234567890" }
+                            },
+                            notifyCustomer: true,
+                            notifyPartner: true, // Notify partner about cancellation
+                            notifyAdmin: true
+                        );
+                    }
+                    else
+                    {
+                        // Fallback to legacy notification service
+                        await _notificationService.SendOrderCancellationAsync(
+                            orderId,
+                            order.OrderNumber,
+                            order.ContactEmail,
+                            order.ContactPhone,
+                            reason
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
                     // Log but don't fail the cancellation
+                    _logger?.LogError(ex, "Failed to send order cancellation notification. OrderId: {OrderId}", orderId);
                     Console.WriteLine($"Notification error: {ex.Message}");
                 }
 
@@ -277,7 +356,7 @@ namespace CateringEcommerce.BAL.Base.User
                     new SqlParameter("@CateringId", cateringId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 if (dt.Rows.Count == 0)
                     return false;
 
@@ -349,7 +428,7 @@ namespace CateringEcommerce.BAL.Base.User
                     new SqlParameter("@CateringId", cateringId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 int count = dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0][0]) : 0;
 
                 return count > 0;
@@ -382,7 +461,7 @@ namespace CateringEcommerce.BAL.Base.User
                     new SqlParameter("@CateringId", cateringId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 int count = dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0][0]) : 0;
 
                 return count > 0;
@@ -415,7 +494,7 @@ namespace CateringEcommerce.BAL.Base.User
                     new SqlParameter("@CateringId", cateringId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 int count = dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0][0]) : 0;
 
                 return count > 0;

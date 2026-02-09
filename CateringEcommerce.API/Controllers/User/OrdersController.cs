@@ -1,17 +1,9 @@
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Base.User;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.BAL.Services;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace CateringEcommerce.API.Controllers.User
 {
@@ -22,22 +14,16 @@ namespace CateringEcommerce.API.Controllers.User
     {
         private readonly ILogger<OrdersController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly IConfiguration _configuration;
-        private readonly IFileStorageService _fileStorageService;
-        private readonly string _connStr;
+        private readonly IOrderService _orderService;
 
         public OrdersController(
             ILogger<OrdersController> logger,
             ICurrentUserService currentUser,
-            IConfiguration configuration,
-            IFileStorageService fileStorageService)
+            IOrderService orderService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _orderService = orderService ?? throw new ArgumentNullException(nameof(orderService));
         }
 
         // ===================================
@@ -75,9 +61,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Creating order for user {userId}, catering {orderData.CateringId}");
 
-                // Create services
-                INotificationService notificationService = new NotificationService(_configuration);
-                OrderService orderService = new OrderService(_connStr, notificationService, _fileStorageService);
+                // Create service using new NotificationHelper
+                var orderService = _orderService;
 
                 // Create order
                 OrderDto order = await orderService.CreateOrderAsync(userId, orderData);
@@ -122,9 +107,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Fetching orders for user {userId}, page {pageNumber}, size {pageSize}");
 
-                // Create service
-                INotificationService notificationService = new NotificationService(_configuration);
-                OrderService orderService = new OrderService(_connStr, notificationService, _fileStorageService);
+                // Create service using new NotificationHelper
+                var orderService = _orderService;
 
                 // Get orders
                 List<OrderListItemDto> orders = await orderService.GetUserOrdersAsync(userId, pageNumber, pageSize);
@@ -167,9 +151,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Fetching order details for order {orderId}, user {userId}");
 
-                // Create service
-                INotificationService notificationService = new NotificationService(_configuration);
-                OrderService orderService = new OrderService(_connStr, notificationService, _fileStorageService);
+                // Create service using new NotificationHelper
+                var orderService = _orderService;
 
                 // Get order details
                 OrderDto? order = await orderService.GetOrderDetailsAsync(userId, orderId);
@@ -222,9 +205,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Cancelling order {orderId} for user {userId}");
 
-                // Create service
-                INotificationService notificationService = new NotificationService(_configuration);
-                OrderService orderService = new OrderService(_connStr, notificationService, _fileStorageService);
+                // Create service using new NotificationHelper
+                var orderService = _orderService;
 
                 // Cancel order
                 bool cancelled = await orderService.CancelOrderAsync(userId, orderId, cancelData.Reason);

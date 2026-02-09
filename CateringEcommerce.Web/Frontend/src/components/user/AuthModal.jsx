@@ -1,7 +1,9 @@
 ﻿import { useNavigate, Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/userApi';
+import { initiateOAuthLogin } from '../../services/oauthApi';
 import { useAuth } from '../../contexts/AuthContext';
+import { getOrGenerateFingerprint, getDeviceInfo } from '../../utils/deviceFingerprint';
 
 // Error Banner Component
 const ErrorBanner = ({ message }) => {
@@ -38,6 +40,31 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
     const [isPhoneValid, setIsPhoneValid] = useState(false);
     const [phoneError, setPhoneError] = useState('');
     const [isOtpValid, setIsOtpValid] = useState(false);
+
+    // Device Tracking & 2FA States
+    const [deviceFingerprint, setDeviceFingerprint] = useState(null);
+    const [deviceInfo, setDeviceInfo] = useState(null);
+    const [trustDevice, setTrustDevice] = useState(false);
+    const [otpPurpose, setOtpPurpose] = useState(null); // OTP purpose message from backend
+
+    // Generate device fingerprint when modal opens
+    useEffect(() => {
+        const initDeviceFingerprint = async () => {
+            try {
+                const fingerprint = await getOrGenerateFingerprint();
+                const info = getDeviceInfo();
+                setDeviceFingerprint(fingerprint);
+                setDeviceInfo(info);
+            } catch (error) {
+                console.error('Failed to generate device fingerprint:', error);
+                // Continue without fingerprint - backend will handle gracefully
+            }
+        };
+
+        if (isOpen) {
+            initDeviceFingerprint();
+        }
+    }, [isOpen]);
 
     // Validate phone number (exactly 10 digits)
     useEffect(() => {
@@ -79,6 +106,8 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         setPhoneError('');
         setIsPhoneValid(false);
         setIsOtpValid(false);
+        setTrustDevice(false);
+        setOtpPurpose(null);
     };
 
     const handleClose = () => {
@@ -107,13 +136,28 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         setError('');
         setIsLoading(true);
         try {
-            const { result, message } = await apiService.sendOtp(currentAction, phone, isPartnerLogin);
-            if (!result) {
-                setError(message);
+            const response = await apiService.sendOtp(currentAction, phone, isPartnerLogin, deviceFingerprint);
+            if (!response.result) {
+                setError(response.message);
                 setIsLoading(false);
                 return;
             }
+
             setAuthAction(currentAction);
+
+            // Capture OTP purpose from backend response
+            if (response.data && response.data.purpose) {
+                setOtpPurpose(response.data.purpose);
+            } else {
+                // Fallback purpose
+                setOtpPurpose({
+                    userMessage: currentAction === 'signup' ? 'Verify your account' : 'Verify to continue',
+                    description: currentAction === 'signup'
+                        ? "We've sent a verification code to your phone number"
+                        : "Enter the verification code sent to your phone"
+                });
+            }
+
             setIsLoading(false);
             setView('otp');
         } catch (err) {
@@ -129,15 +173,40 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         setSuccessMessage('');
         try {
             const nameToSend = authAction === 'signup' ? fullName : '';
-            const { result, message, token, user, role } = await apiService.verifyOtp(authAction, phone, nameToSend, otp, isPartnerLogin);
 
-            if (!result) {
-                setError(message || 'OTP verification failed');
-                throw new Error(message || 'OTP verification failed');
+            // Prepare device info for backend
+            const deviceInfoPayload = {
+                deviceFingerprint,
+                trustDevice: trustDevice && !isPartnerLogin, // Only allow device trust for users, not partners
+                browser: deviceInfo?.browser || null,
+                os: deviceInfo?.os || null
+            };
+
+            const response = await apiService.verifyOtp(
+                authAction,
+                phone,
+                nameToSend,
+                otp,
+                isPartnerLogin,
+                deviceInfoPayload
+            );
+
+            if (!response.result) {
+                setError(response.message || 'OTP verification failed');
+                throw new Error(response.message || 'OTP verification failed');
             }
+
+            const { token, user, role, deviceTrusted } = response;
+
             setIsLoading(false);
             await apiService.finalVerify(user.pkID, role, token);
-            setSuccessMessage(`Welcome, ${user.fullName ?? user.cateringName}!`);
+
+            // Show success message with device trust info
+            let welcomeMsg = `Welcome, ${user.fullName ?? user.cateringName}!`;
+            if (deviceTrusted && !isPartnerLogin) {
+                welcomeMsg += ' This device is now trusted for 30 days.';
+            }
+            setSuccessMessage(welcomeMsg);
 
             setTimeout(() => {
                 login({
@@ -148,7 +217,13 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                     profilePhoto: (user.profilePhoto ? `${API_BASE_URL}${user.profilePhoto}` : undefined)
                 });
                 handleClose();
-                if (role === 'Owner') {
+
+                // Check for stored redirect path from auth guard
+                const authRedirect = localStorage.getItem('auth_redirect');
+                if (authRedirect) {
+                    localStorage.removeItem('auth_redirect');
+                    navigate(authRedirect);
+                } else if (role === 'Owner') {
                     navigate('/owner/dashboard/');
                 }
             }, 1500);
@@ -163,22 +238,62 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         setError('');
         setIsLoading(true);
         try {
-            // Get Google OAuth URL from backend
-            const response = await apiService.getGoogleAuthUrl();
-            if (!response.ok) {
-                throw new Error('Failed to get Google login URL');
-            }
-            const data = await response.json();
+            // Store provider and redirect path for post-auth navigation
+            localStorage.setItem('oauth_provider', 'google');
 
-            // Redirect to Google OAuth
-            if (data.googleAuthUrl) {
-                window.location.href = data.googleAuthUrl;
+            // SECURITY FIX: Validate redirect URL to prevent open redirect attacks
+            const authRedirect = localStorage.getItem('auth_redirect');
+            const currentPath = window.location.pathname;
+            let redirectPath = authRedirect || currentPath;
+
+            // Import security utility dynamically
+            const { sanitizeRedirectUrl } = await import('../../utils/securityUtils');
+            redirectPath = sanitizeRedirectUrl(redirectPath, '/');
+
+            localStorage.setItem('oauth_redirect', redirectPath);
+
+            // Get authorization URL from backend
+            const response = await initiateOAuthLogin('google');
+
+            if (response.success && response.data && response.data.authorizationUrl) {
+                // Redirect to Google OAuth
+                window.location.href = response.data.authorizationUrl;
             } else {
-                throw new Error('Invalid response from server');
+                throw new Error(response.message || 'Failed to initiate Google login');
             }
-        } catch (e) {
-            setError('Google login is currently unavailable. Please try phone login.');
-            console.error('Google Login Error:', e);
+        } catch (error) {
+            console.error('Google login error:', error);
+            setError(error.message || 'Google login is currently unavailable. Please try phone login.');
+            setIsLoading(false);
+        }
+    };
+
+    const handleFacebookLogin = async () => {
+        setError('');
+        setIsLoading(true);
+        try {
+            // Store provider and redirect path for post-auth navigation
+            localStorage.setItem('oauth_provider', 'facebook');
+
+            // SECURITY FIX: Validate redirect URL to prevent open redirect attacks
+            const { sanitizeRedirectUrl } = await import('../../utils/securityUtils');
+            const authRedirect = localStorage.getItem('auth_redirect');
+            const currentPath = window.location.pathname;
+            const redirectPath = sanitizeRedirectUrl(authRedirect || currentPath, '/');
+            localStorage.setItem('oauth_redirect', redirectPath);
+
+            // Get authorization URL from backend
+            const response = await initiateOAuthLogin('facebook');
+
+            if (response.success && response.data && response.data.authorizationUrl) {
+                // Redirect to Facebook OAuth
+                window.location.href = response.data.authorizationUrl;
+            } else {
+                throw new Error(response.message || 'Failed to initiate Facebook login');
+            }
+        } catch (error) {
+            console.error('Facebook login error:', error);
+            setError(error.message || 'Facebook login is currently unavailable. Please try phone login.');
             setIsLoading(false);
         }
     };
@@ -265,19 +380,32 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                 </div>
             </div>
 
-            <button
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center justify-center space-x-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                <span>Sign in with Google</span>
-            </button>
+            <div className="space-y-3">
+                <button
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center justify-center space-x-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    <span>Sign in with Google</span>
+                </button>
+
+                <button
+                    onClick={handleFacebookLogin}
+                    disabled={isLoading}
+                    className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center justify-center space-x-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                    <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    <span>Sign in with Facebook</span>
+                </button>
+            </div>
 
             <p className="mt-6 text-center text-sm text-gray-600">
                 {isPartnerLogin ? (
@@ -307,11 +435,22 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">Verify Your Number</h3>
-                <p className="text-gray-600 text-sm">
-                    We've sent a 6-digit code to<br />
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    {otpPurpose?.userMessage || 'Verify Your Number'}
+                </h3>
+                <p className="text-gray-600 text-sm mb-2">
+                    {otpPurpose?.description || "We've sent a 6-digit code to"}<br />
                     <span className="font-semibold text-gray-800">+91 {phone}</span>
                 </p>
+                {/* Show security badge for 2FA */}
+                {authAction === 'login' && !isPartnerLogin && (
+                    <div className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium mt-2">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                        </svg>
+                        Two-Factor Authentication
+                    </div>
+                )}
             </div>
 
             <ErrorBanner message={error} />
@@ -338,6 +477,28 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                         </p>
                     )}
                 </div>
+
+                {/* Trust Device Checkbox - Only for Users during Login, NOT for Partners/Signup */}
+                {authAction === 'login' && !isPartnerLogin && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <label className="flex items-start gap-3 cursor-pointer group">
+                            <input
+                                type="checkbox"
+                                checked={trustDevice}
+                                onChange={(e) => setTrustDevice(e.target.checked)}
+                                className="mt-0.5 w-4 h-4 text-rose-600 border-gray-300 rounded focus:ring-rose-500 cursor-pointer"
+                            />
+                            <div className="flex-1">
+                                <span className="text-sm font-medium text-gray-800 block">
+                                    Trust this device for 30 days
+                                </span>
+                                <span className="text-xs text-gray-600 block mt-0.5">
+                                    Skip OTP verification on this device for the next 30 days
+                                </span>
+                            </div>
+                        </label>
+                    </div>
+                )}
 
                 <button
                     type="submit"
@@ -481,19 +642,32 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                 </div>
             </div>
 
-            <button
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center justify-center space-x-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                <span>Sign up with Google</span>
-            </button>
+            <div className="space-y-3">
+                <button
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center justify-center space-x-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    <span>Sign up with Google</span>
+                </button>
+
+                <button
+                    onClick={handleFacebookLogin}
+                    disabled={isLoading}
+                    className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center justify-center space-x-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                    <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    <span>Sign up with Facebook</span>
+                </button>
+            </div>
 
             <p className="mt-6 text-center text-sm text-gray-600">
                 Already have an account?{' '}

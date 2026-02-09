@@ -12,26 +12,60 @@ import {
   ChevronLeft,
   ChevronRight,
   FileCheck,
+  ShieldCheck,
+  Database,
+  BarChart3,
+  ClipboardCheck,
+  IndianRupee,
+  MessageSquare,
 } from 'lucide-react';
 import { useAdminAuth } from '../../../contexts/AdminAuthContext';
+import { usePermissions } from '../../../contexts/PermissionContext';
 
 const AdminSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { logout } = useAdminAuth();
+  const { hasPermission, isSuperAdmin } = usePermissions();
 
   const navigation = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Caterings', href: '/admin/caterings', icon: Store },
-    { name: 'Partner Requests', href: '/admin/partner-requests', icon: FileCheck },
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-    { name: 'Earnings', href: '/admin/earnings', icon: DollarSign },
-    { name: 'Reviews', href: '/admin/reviews', icon: Star },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
+    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { name: 'Caterings', href: '/admin/caterings', icon: Store, permission: 'CATERING_VIEW' },
+    { name: 'Partner Requests', href: '/admin/partner-requests', icon: FileCheck, permission: 'PARTNER_REQUEST_VIEW' },
+    { name: 'Complaints', href: '/admin/complaints', icon: MessageSquare },
+    { name: 'Users', href: '/admin/users', icon: Users, permission: 'USER_VIEW' },
+    { name: 'Admin Users', href: '/admin/users/admins', icon: ShieldCheck, requireSuperAdmin: true },
+    { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, permission: 'ORDER_VIEW' },
+    { name: 'Earnings', href: '/admin/earnings', icon: DollarSign, permission: 'EARNINGS_VIEW' },
+    { name: 'Reviews', href: '/admin/reviews', icon: Star, permission: 'REVIEW_VIEW' },
+    { name: 'Supervisor Registrations', href: '/admin/supervisor-registrations', icon: ClipboardCheck },
+    { name: 'Supervisor Payments', href: '/admin/supervisor-payments', icon: IndianRupee },
+    { name: 'Master Data', href: '/admin/master-data/cities', icon: Database, badge: 'Super Admin', requireSuperAdmin: true },
+    { name: 'Settings', href: '/admin/settings', icon: Settings, permission: 'SYSTEM_CONFIG' },
   ];
 
-  const isActive = (path) => location.pathname === path;
+  // Filter navigation items based on permissions
+  const visibleNavigation = navigation.filter(item => {
+    // Dashboard and Settings are always visible
+    if (!item.permission && !item.requireSuperAdmin) return true;
+
+    // Check if super admin is required
+    if (item.requireSuperAdmin && !isSuperAdmin) return false;
+
+    // Check if user has the required permission
+    if (item.permission && !hasPermission(item.permission)) return false;
+
+    return true;
+  });
+
+  const isActive = (path) => {
+    // For nested routes like master-data, check if current path starts with the base path
+    if (path.includes('/master-data')) {
+      return location.pathname.startsWith('/admin/master-data');
+    }
+    return location.pathname === path;
+  };
 
   return (
     <div
@@ -74,7 +108,7 @@ const AdminSidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navigation.map((item) => {
+        {visibleNavigation.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
 
@@ -96,7 +130,14 @@ const AdminSidebar = () => {
             >
               <Icon className="w-5 h-5 flex-shrink-0" />
               {!collapsed && (
-                <span className="font-medium">{item.name}</span>
+                <div className="flex items-center justify-between flex-1">
+                  <span className="font-medium">{item.name}</span>
+                  {item.badge && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-purple-600 text-white rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
               )}
             </Link>
           );

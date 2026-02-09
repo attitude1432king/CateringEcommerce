@@ -1,6 +1,6 @@
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,25 +8,22 @@ using Microsoft.AspNetCore.Mvc;
 namespace CateringEcommerce.API.Controllers.User
 {
     [Authorize]
-    [ApiController] 
+    [ApiController]
     [Route("api/User/[controller]")]
     public class OrderModificationsController : ControllerBase
     {
         private readonly ILogger<OrderModificationsController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly IConfiguration _configuration;
-        private readonly string _connStr;
+        private readonly IOrderModificationService _modificationService;
 
         public OrderModificationsController(
             ILogger<OrderModificationsController> logger,
             ICurrentUserService currentUser,
-            IConfiguration configuration)
+            IOrderModificationService modificationService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _modificationService = modificationService ?? throw new ArgumentNullException(nameof(modificationService));
         }
 
         // ===================================
@@ -52,11 +49,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"User {userId} fetching modifications for OrderId: {orderId}");
 
-                // Create service
-                OrderModificationService modificationService = new OrderModificationService(_connStr);
-
                 // Get modifications
-                OrderModificationsSummaryDto summary = await modificationService.GetOrderModificationsAsync(orderId);
+                OrderModificationsSummaryDto summary = await _modificationService.GetOrderModificationsAsync(orderId);
 
                 return ApiResponseHelper.Success(summary);
             }
@@ -103,11 +97,8 @@ namespace CateringEcommerce.API.Controllers.User
                     ApprovalNotes = approvalNotes?.Notes
                 };
 
-                // Create service
-                OrderModificationService modificationService = new OrderModificationService(_connStr);
-
                 // Approve modification
-                OrderModificationDto modification = await modificationService.ApproveModificationAsync(approvalData);
+                OrderModificationDto modification = await _modificationService.ApproveModificationAsync(approvalData);
 
                 _logger.LogInformation($"Modification {id} approved successfully");
 
@@ -173,11 +164,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"User {userId} rejecting modification {id}");
 
-                // Create service
-                OrderModificationService modificationService = new OrderModificationService(_connStr);
-
                 // Reject modification
-                OrderModificationDto modification = await modificationService.RejectModificationAsync(rejectionData);
+                OrderModificationDto modification = await _modificationService.RejectModificationAsync(rejectionData);
 
                 _logger.LogInformation($"Modification {id} rejected successfully");
 

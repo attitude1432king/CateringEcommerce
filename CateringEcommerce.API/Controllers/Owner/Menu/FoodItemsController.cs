@@ -1,12 +1,14 @@
 ﻿using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner.Menu;
 using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Extensions;
 using Newtonsoft.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner.Menu
@@ -16,17 +18,27 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
     [Authorize(Roles = "Owner")]
     public class FoodItemsController : ControllerBase
     {
-        private readonly string _connStr;
-        private readonly ILogger<PackagesController> _logger;
+        private readonly ILogger<FoodItemsController> _logger;
         private readonly ICurrentUserService _currentUser;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IFoodItems _foodItemsRepository;
+        private readonly IOwnerRepository _ownerRepository;
+        private readonly IMediaRepository _mediaRepository;
 
-        public FoodItemsController(IFileStorageService fileStorageService, ILogger<PackagesController> logger, IConfiguration configuration, ICurrentUserService currentUser)
+        public FoodItemsController(
+            IFileStorageService fileStorageService,
+            ILogger<FoodItemsController> logger,
+            ICurrentUserService currentUser,
+            IFoodItems foodItemsRepository,
+            IOwnerRepository ownerRepository,
+            IMediaRepository mediaRepository)
         {
-            _fileStorageService = fileStorageService;
-            _logger = logger;
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _currentUser = currentUser;
+            _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
+            _foodItemsRepository = foodItemsRepository ?? throw new ArgumentNullException(nameof(foodItemsRepository));
+            _ownerRepository = ownerRepository ?? throw new ArgumentNullException(nameof(ownerRepository));
+            _mediaRepository = mediaRepository ?? throw new ArgumentNullException(nameof(mediaRepository));
         }
 
         [HttpGet("Count")]
@@ -41,7 +53,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 }
                 var filter = JsonConvert.DeserializeObject<FoodItemFilter>(filterJson ?? "{}");
                 _logger.LogInformation("Fetching food items count.");
-                FoodItems foodItems = new FoodItems(_connStr);
+                var foodItems = _foodItemsRepository;
                 var foodItemsCount = await foodItems.GetFoodItemsCount(ownerPKID, filter);
                 _logger.LogInformation("Fetched {Count} food items.", foodItemsCount);
                 return Ok(foodItemsCount);
@@ -65,7 +77,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 }
                 var filter = JsonConvert.DeserializeObject<FoodItemFilter>(filterJson ?? "{}");
                 _logger.LogInformation("Fetching food items.");
-                FoodItems foodItems = new FoodItems(_connStr);
+                var foodItems = _foodItemsRepository;
                 var listFoodItems = await foodItems.GetFoodItems(ownerPKID, page, pageSize, filter);
                 _logger.LogInformation("Fetched {Count} food categories.", listFoodItems?.Count ?? 0);
                 return Ok(listFoodItems);
@@ -92,8 +104,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 {
                     return ApiResponseHelper.Failure("Invalid food item data.", "warning");
                 }
-                FoodItems objFoodItem = new FoodItems(_connStr);
-                OwnerRepository ownerRepository = new OwnerRepository(_connStr);
+                var objFoodItem = _foodItemsRepository;
 
                 bool nameExists = await objFoodItem.IsFoodItemNameExists(ownerPKID, foodItems.Name);
                 // Check the Food Item Name exists or not
@@ -119,7 +130,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                             continue;
                         }
                         var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPKID, DocumentType.Food.GetDisplayName(), false, file.Name);
-                        await ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.Food, foodItemID);
+                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.Food, foodItemID);
                     }
                 }
                 _logger.LogInformation("Food Item added with ID: {0}", foodItemID);
@@ -140,7 +151,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
             try
             {
                 _logger.LogInformation("Fetching Cuisine Type.");
-                OwnerRepository ownerRepo = new OwnerRepository(_connStr);
+                var ownerRepo = _ownerRepository;
                 var listCuisineType = await ownerRepo.GetCateringMasterType(CateringMaster.CuisineType);
                 // Filter to include only TypeId and TypeName
                 var filteredList = listCuisineType?
@@ -175,9 +186,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 {
                     return ApiResponseHelper.Failure("Invalid food item data.", "warning");
                 }
-                FoodItems objFoodItem = new FoodItems(_connStr);
-                OwnerRepository ownerRepository = new OwnerRepository(_connStr);
-                MediaRepository mediaRepository = new MediaRepository(_connStr);
+                var objFoodItem = _foodItemsRepository;
 
                 bool nameExists = await objFoodItem.IsFoodItemNameExists(ownerPKID, foodItems.Name, foodItems.Id);
                 if (nameExists)
@@ -195,7 +204,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
 
                 if (foodItems?.ExistingFoodItemMediaPaths != null)
                 {
-                    List<MediaFileModel> currentMediaPathsInDb = await mediaRepository.GetMediaFiles(ownerPKID, DocumentType.Food, foodItems.Id ?? 0);
+                    List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPKID, DocumentType.Food, foodItems.Id ?? 0);
                     var filesToDelete = currentMediaPathsInDb
                         .Where(dbPath => !foodItems.ExistingFoodItemMediaPaths
                             .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase)) // optional case-insensitive compare
@@ -205,7 +214,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     foreach (var pathToDelete in filesToDelete)
                     {
                         _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
-                        await ownerRepository.DeleteDocumentFile(pathToDelete.Id);
+                        await _ownerRepository.DeleteDocumentFile(pathToDelete.Id);
                     }
 
                 }
@@ -220,7 +229,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                             continue;
                         }
                         var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPKID, DocumentType.Food.GetDisplayName(), false, file.Name);
-                        await ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.Food, foodItems.Id ?? 0);
+                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.Food, foodItems.Id ?? 0);
                     }
                 }
 
@@ -245,9 +254,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 {
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
-                FoodItems foodItems = new FoodItems(_connStr);
-                MediaRepository mediaRepository = new MediaRepository(_connStr);
-                OwnerRepository ownerRepository = new OwnerRepository(_connStr);
+                var foodItems = _foodItemsRepository;
 
                 bool isNotValidId = await foodItems.IsValidFoodItemID(ownerPKID, foodItemId);
                 if (isNotValidId)
@@ -255,12 +262,12 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return ApiResponseHelper.Failure("Invalid Food Item ID.", "warning");
                 }
                 _logger.LogInformation("Delteing Food Item MediaFiles");
-                List<MediaFileModel> currentMediaPathsInDb = await mediaRepository.GetMediaFiles(ownerPKID, DocumentType.Food, foodItemId);
+                List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPKID, DocumentType.Food, foodItemId);
 
                 // Delete the identified files from storage and the database.
                 foreach (var pathToDelete in currentMediaPathsInDb)
                 {
-                    await ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);
+                    await _ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);
                 }
                 _logger.LogInformation("Deleting FoodItems.");
                 await foodItems.SoftDeleteFoodItem(ownerPKID, foodItemId);
@@ -288,7 +295,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
 
                 _logger.LogInformation("Fetching food item lookup.");
 
-                FoodItems foodItems = new FoodItems(_connStr);
+                var foodItems = _foodItemsRepository;
                 var listFoodItem = await foodItems.GetFoodItemsLookup(ownerPKID);
 
                 // Safely handle null or empty list

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using CateringEcommerce.Domain.Interfaces.Payment;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -10,7 +11,7 @@ using Razorpay.Api;
 
 namespace CateringEcommerce.BAL.Services
 {
-    public class RazorpayPaymentService
+    public class RazorpayPaymentService : IRazorpayPaymentService
     {
         private readonly string _keyId;
         private readonly string _keySecret;

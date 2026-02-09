@@ -1,6 +1,7 @@
 ﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
@@ -12,12 +13,10 @@ namespace CateringEcommerce.BAL.Base.Owner
 {
     public class Staff : IStaff
     {
-        private readonly SqlDatabaseManager _db;
-
-        public Staff(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public Staff(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -56,7 +55,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 };
 
                 // ✅ Execute insert query
-                var result = await _db.ExecuteScalarAsync(insertQuery, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(insertQuery, parameters.ToArray());
 
                 // ✅ Convert result to int (new record ID)
                 int newStaffId = result != null ? Convert.ToInt32(result) : 0;
@@ -89,7 +88,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@StaffID", staff.ID ?? 0)
                 };
 
-                var existsResult = await _db.ExecuteScalarAsync(validationQuery, validateParams.ToArray());
+                var existsResult = await _dbHelper.ExecuteScalarAsync(validationQuery, validateParams.ToArray());
                 int existsCount = existsResult != null ? Convert.ToInt32(existsResult) : 0;
 
                 if (existsCount == 0)
@@ -130,7 +129,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 };
 
                 // ✅ Execute update
-                var rowsAffected = await _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+                var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
                 return rowsAffected;
             }
             catch (Exception ex)
@@ -160,7 +159,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@StaffPKID", staffPKID)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, deleteParams.ToArray());
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, deleteParams.ToArray());
 
                 return rowsAffected; // 1 = deleted successfully, 0 = not deleted
             }
@@ -214,7 +213,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FETCH NEXT @PageSize ROWS ONLY;
                 ");
 
-                var staffData = await _db.ExecuteAsync(sql.ToString(), parameters.ToArray());
+                var staffData = await _dbHelper.ExecuteAsync(sql.ToString(), parameters.ToArray());
                 if (staffData.Rows.Count == 0)
                     return new List<StaffModel>();
 
@@ -299,7 +298,7 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 selectQuery.Append(BuildStaffFilterQuery(filter, parameters));
                 // ✅ Execute and read result
-                var result = await _db.ExecuteScalarAsync(selectQuery.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(selectQuery.ToString(), parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
 
                 return count; // returns 0 if no staff exist
@@ -346,7 +345,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     parameters.Add(new SqlParameter("@ExcludeStaffPKID", excludeStaffPKID.Value));
 
                 // ✅ Execute and get result
-                var result = await _db.ExecuteScalarAsync(selectQuery, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(selectQuery, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
 
                 return count > 0; // true = number already exists
@@ -398,7 +397,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                         c_modifieddate = GETDATE()
                     WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffPKID";
                 // ✅ Execute update
-                return _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+                return _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
 
             }
             catch (Exception ex)
@@ -431,7 +430,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@StaffID", staffId),
                 };
 
-                var staffData = await _db.ExecuteAsync(selectQuery, parameters.ToArray());
+                var staffData = await _dbHelper.ExecuteAsync(selectQuery, parameters.ToArray());
                 if (staffData.Rows.Count == 0)
                     return false;
 
@@ -465,7 +464,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                             new SqlParameter("@OwnerPKID", ownerPKID)
                         };
 
-                        int result = await _db.ExecuteNonQueryAsync(updateQuery, updateParams.ToArray());
+                        int result = await _dbHelper.ExecuteNonQueryAsync(updateQuery, updateParams.ToArray());
                         return result > 0; // true → can safely delete the physical file
                     }
                 }
@@ -501,7 +500,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@StaffID", staffId),
                 };
 
-                var staffData = await _db.ExecuteAsync(selectQuery, parameters.ToArray());
+                var staffData = await _dbHelper.ExecuteAsync(selectQuery, parameters.ToArray());
 
                 // List to collect all non-null paths
                 List<string> filePaths = new();
@@ -556,7 +555,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@StaffPKID", staffPKID)
                 };
 
-                var existsResult = await _db.ExecuteScalarAsync(validationQuery, validationParams.ToArray());
+                var existsResult = await _dbHelper.ExecuteScalarAsync(validationQuery, validationParams.ToArray());
                 int existsCount = existsResult != null ? Convert.ToInt32(existsResult) : 0;
 
                 if (existsCount == 0)
@@ -596,7 +595,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Status", status.ToBinary())
                 };
 
-                var result = await _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+                var result = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
             }
             catch (Exception ex)
             {

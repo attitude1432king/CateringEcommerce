@@ -3,13 +3,14 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.BAL.Base.Owner.Menu;
 using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Extensions;
 using Newtonsoft.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner
@@ -19,17 +20,27 @@ namespace CateringEcommerce.API.Controllers.Owner
     [Authorize(Roles = "Owner")]
     public class DecorationsController : ControllerBase
     {
-        private readonly string _connStr;
-        private readonly ILogger<PackagesController> _logger;
+        private readonly ILogger<DecorationsController> _logger;
         private readonly ICurrentUserService _currentUser;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IDecorations _decorationsRepository;
+        private readonly IOwnerRepository _ownerRepository;
+        private readonly IMediaRepository _mediaRepository;
 
-        public DecorationsController(IFileStorageService fileStorageService, ILogger<PackagesController> logger, IConfiguration configuration, ICurrentUserService currentUser)
+        public DecorationsController(
+            IFileStorageService fileStorageService,
+            ILogger<DecorationsController> logger,
+            ICurrentUserService currentUser,
+            IDecorations decorationsRepository,
+            IOwnerRepository ownerRepository,
+            IMediaRepository mediaRepository)
         {
-            _fileStorageService = fileStorageService;
-            _logger = logger;
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _currentUser = currentUser;
+            _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
+            _decorationsRepository = decorationsRepository ?? throw new ArgumentNullException(nameof(decorationsRepository));
+            _ownerRepository = ownerRepository ?? throw new ArgumentNullException(nameof(ownerRepository));
+            _mediaRepository = mediaRepository ?? throw new ArgumentNullException(nameof(mediaRepository));
         }
 
         [HttpGet("Count")]
@@ -43,7 +54,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
                 _logger.LogInformation("Fetching decorations setup count.");
-                Decorations decorations = new Decorations(_connStr);
+                var decorations = _decorationsRepository;
                 var decorationsCount = await decorations.GetDecorationsCount(ownerPKID, filterJson);
                 _logger.LogInformation("Fetched {Count} decorations setup.", decorationsCount);
                 return Ok(decorationsCount);
@@ -66,7 +77,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
                 _logger.LogInformation("Fetching decorations setup.");
-                Decorations decorations = new Decorations(_connStr);
+                var decorations = _decorationsRepository;
                 var listDecorations = await decorations.GetDecorations(ownerPKID, page, pageSize, filterJson);
                 _logger.LogInformation("Fetched {Count} decorations setup.", listDecorations?.Count ?? 0);
                 return Ok(listDecorations);
@@ -93,8 +104,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 {
                     return ApiResponseHelper.Failure("Invalid decoration setup data.", "warning");
                 }
-                Decorations decorationsObj = new Decorations(_connStr);
-                OwnerRepository ownerRepository = new OwnerRepository(_connStr);
+                var decorationsObj = _decorationsRepository;
 
                 bool nameExists = await decorationsObj.IsDecorationNameExistsAsync(ownerPKID, decoration.Name);
 
@@ -118,7 +128,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                             continue;
                         }
                         var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPKID, DocumentType.EventSetup.GetDisplayName(), false, file.Name);
-                        await ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.EventSetup, decoratinosID);
+                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.EventSetup, decoratinosID);
                     }
                 }
                 _logger.LogInformation("Decoration setup added with ID: {0}", decoratinosID);
@@ -139,7 +149,7 @@ namespace CateringEcommerce.API.Controllers.Owner
             try
             {
                 _logger.LogInformation("Fetching Theme Type.");
-                Decorations decorations = new Decorations(_connStr);
+                var decorations = _decorationsRepository;
                 var listDecorations = await decorations.GetDecorationThemes();
               
                 _logger.LogInformation("Fetched {Count} Theme Type.", listDecorations?.Count ?? 0);
@@ -167,9 +177,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 {
                     return ApiResponseHelper.Failure("Invalid decoration setup data", "warning");
                 }
-                Decorations decorationObj = new Decorations(_connStr);
-                OwnerRepository ownerRepository = new OwnerRepository(_connStr);
-                MediaRepository mediaRepository = new MediaRepository(_connStr);
+                var decorationObj = _decorationsRepository;
 
                 bool nameExists = await decorationObj.IsDecorationNameExistsAsync(ownerPKID, decoration.Name, decoration.Id);
 
@@ -180,7 +188,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 if (decoration?.ExistingDecorationsMediaPaths != null)
                 {
-                    List<MediaFileModel> currentMediaPathsInDb = await mediaRepository.GetMediaFiles(ownerPKID, DocumentType.EventSetup, decoration.Id ?? 0);
+                    List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPKID, DocumentType.EventSetup, decoration.Id ?? 0);
                     var filesToDelete = currentMediaPathsInDb
                         .Where(dbPath => !decoration.ExistingDecorationsMediaPaths
                             .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase)) // optional case-insensitive compare
@@ -190,7 +198,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     foreach (var pathToDelete in filesToDelete)
                     {
                         _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
-                        await ownerRepository.DeleteDocumentFile(pathToDelete.Id);
+                        await _ownerRepository.DeleteDocumentFile(pathToDelete.Id);
                     }
 
                 }
@@ -205,7 +213,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                             continue;
                         }
                         var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPKID, DocumentType.EventSetup.GetDisplayName(), false, file.Name);
-                        await ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.EventSetup, decoration.Id ?? 0);
+                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.EventSetup, decoration.Id ?? 0);
                     }
                 }
 
@@ -231,9 +239,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
 
-                Decorations decorations = new Decorations(_connStr);
-                MediaRepository mediaRepository = new MediaRepository(_connStr);
-                OwnerRepository ownerRepository = new OwnerRepository(_connStr);
+                var decorations = _decorationsRepository;
 
                 if (decorationId <= 0 || !decorations.IsValidDecorationID(ownerPKID, decorationId))
                 {
@@ -241,12 +247,12 @@ namespace CateringEcommerce.API.Controllers.Owner
                 }
 
                 _logger.LogInformation("Delteing Food Item MediaFiles");
-                List<MediaFileModel> currentMediaPathsInDb = await mediaRepository.GetMediaFiles(ownerPKID, DocumentType.EventSetup, decorationId);
+                List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPKID, DocumentType.EventSetup, decorationId);
 
                 // Delete the identified files from storage and the database.
                 foreach (var pathToDelete in currentMediaPathsInDb)
                 {
-                    await ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);
+                    await _ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);
                 }
                 _logger.LogInformation("Deleting Decoration setup.");
                 await decorations.SoftDeleteDecoration(ownerPKID, decorationId);
@@ -272,7 +278,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
 
-                Decorations decorations = new Decorations(_connStr);
+                var decorations = _decorationsRepository;
 
                 if (decorationId <= 0 || !decorations.IsValidDecorationID(ownerPKID, decorationId))
                 {

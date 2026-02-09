@@ -124,9 +124,9 @@ BEGIN
         CONSTRAINT [FK_modifications_payment_stage] FOREIGN KEY ([c_payment_stage_id])
             REFERENCES [dbo].[t_sys_order_payment_stages]([c_payment_stage_id]),
         CONSTRAINT [FK_modifications_requested_by] FOREIGN KEY ([c_requested_by])
-            REFERENCES [dbo].[t_sys_catering_owner]([c_pkid]),
+            REFERENCES [dbo].[t_sys_catering_owner]([c_ownerid]),
         CONSTRAINT [FK_modifications_approved_by] FOREIGN KEY ([c_approved_by])
-            REFERENCES [dbo].[t_sys_user]([c_pkid]),
+            REFERENCES [dbo].[t_sys_user]([c_userid]),
         CONSTRAINT [CHK_modification_status] CHECK ([c_status] IN ('Pending', 'Approved', 'Rejected', 'Paid'))
     );
 

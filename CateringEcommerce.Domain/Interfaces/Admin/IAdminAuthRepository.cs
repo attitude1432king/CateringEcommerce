@@ -6,6 +6,7 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
     {
         AdminModel? AuthenticateAdmin(string username, string passwordHash);
         AdminModel? GetAdminById(long adminId);
+        AdminModel? GetAdminByUsername(string username);
         void UpdateLastLogin(long adminId);
         void IncrementFailedLoginAttempts(string username);
         void ResetFailedLoginAttempts(long adminId);

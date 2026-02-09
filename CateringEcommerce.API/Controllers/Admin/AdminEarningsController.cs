@@ -1,6 +1,7 @@
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Common.Admin;
+using CateringEcommerce.BAL.Base.Admin;
+using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +12,15 @@ namespace CateringEcommerce.API.Controllers.Admin
     [AdminAuthorize]
     public class AdminEarningsController : ControllerBase
     {
-        private readonly string _connStr;
+        private readonly IAdminEarningsRepository _earningsRepository;
+        private readonly ILogger<AdminEarningsController> _logger;
 
-        public AdminEarningsController(IConfiguration config)
+        public AdminEarningsController(
+            IAdminEarningsRepository earningsRepository,
+            ILogger<AdminEarningsController> logger)
         {
-            _connStr = config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _earningsRepository = earningsRepository ?? throw new ArgumentNullException(nameof(earningsRepository));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -26,12 +31,12 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminEarningsRepository(_connStr);
-                var summary = repository.GetEarningsSummary();
+                var summary = _earningsRepository.GetEarningsSummary();
                 return ApiResponseHelper.Success(summary, "Earnings summary retrieved successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get earnings data");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -44,12 +49,12 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminEarningsRepository(_connStr);
-                var earnings = repository.GetEarningsByDate(request);
+                var earnings = _earningsRepository.GetEarningsByDate(request);
                 return ApiResponseHelper.Success(earnings, "Earnings by date retrieved successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get earnings data");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -62,12 +67,12 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminEarningsRepository(_connStr);
-                var result = repository.GetEarningsByCatering(request);
+                var result = _earningsRepository.GetEarningsByCatering(request);
                 return ApiResponseHelper.Success(result, "Earnings by catering retrieved successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get earnings data");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -83,12 +88,12 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (year == 0)
                     year = DateTime.Now.Year;
 
-                var repository = new AdminEarningsRepository(_connStr);
-                var report = repository.GetMonthlyReport(year);
+                var report = _earningsRepository.GetMonthlyReport(year);
                 return ApiResponseHelper.Success(report, "Monthly report retrieved successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get earnings data");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }

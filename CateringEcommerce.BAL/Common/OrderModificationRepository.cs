@@ -1,23 +1,22 @@
+using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Models.Owner;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
 using System.Threading.Tasks;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.BAL.Common
 {
     public class OrderModificationRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public OrderModificationRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public OrderModificationRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         // ===================================
@@ -50,7 +49,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@RequestedBy", modificationData.RequestedBy)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query.ToString(), parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
                 if (dt.Rows.Count > 0)
                 {
                     return Convert.ToInt64(dt.Rows[0][0]);
@@ -93,7 +92,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<OrderModificationDto> modifications = new List<OrderModificationDto>();
 
                 if (dt.Rows.Count > 0)
@@ -140,7 +139,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@ModificationId", modificationId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (dt.Rows.Count > 0)
                 {
@@ -179,7 +178,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@PaymentStageId", (object)paymentStageId ?? DBNull.Value)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -212,7 +211,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@RejectionReason", rejectionReason)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -239,7 +238,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@ModificationId", modificationId)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -276,7 +275,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@PaymentStageId", paymentStageId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<OrderModificationDto> modifications = new List<OrderModificationDto>();
 
                 if (dt.Rows.Count > 0)

@@ -1,0 +1,166 @@
+# Frontend Deployment to IIS
+# React + Vite Static Site Deployment
+
+steps:
+  - checkout: self
+    displayName: 'Checkout Source Code'
+
+  - task: DownloadBuildArtifacts@1
+    displayName: 'Download Frontend Artifacts'
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: 'frontend'
+      downloadPath: '$(System.ArtifactsDirectory)'
+
+  - task: DownloadBuildArtifacts@1
+    displayName: 'Download Deployment Scripts'
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: 'deploy-scripts'
+      downloadPath: '$(System.ArtifactsDirectory)'
+
+  - task: PowerShell@2
+    displayName: 'Stop IIS Website'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Stopping IIS Website: $(IIS_WEB_SITE)"
+        Import-Module WebAdministration
+
+        if (Get-Website -Name "$(IIS_WEB_SITE)" -ErrorAction SilentlyContinue) {
+            Stop-Website -Name "$(IIS_WEB_SITE)"
+            Start-Sleep -Seconds 3
+            Write-Host "##[section]Website stopped successfully"
+        } else {
+            Write-Host "##[warning]Website not found: $(IIS_WEB_SITE)"
+        }
+
+        # Also stop the app pool
+        if (Get-WebAppPoolState -Name "$(IIS_WEB_POOL)" -ErrorAction SilentlyContinue) {
+            Stop-WebAppPool -Name "$(IIS_WEB_POOL)"
+            Start-Sleep -Seconds 3
+            Write-Host "##[section]App pool stopped successfully"
+        }
+
+  - task: PowerShell@2
+    displayName: 'Deploy Frontend to IIS'
+    inputs:
+      targetType: 'filePath'
+      filePath: '$(System.ArtifactsDirectory)/deploy-scripts/deploy-frontend-iis.ps1'
+      arguments: >
+        -SourcePath "$(System.ArtifactsDirectory)/frontend"
+        -DestinationPath "$(IIS_WEB_PATH)"
+        -AppPoolName "$(IIS_WEB_POOL)"
+        -SiteName "$(IIS_WEB_SITE)"
+        -Version "$(VERSION_PREFIX).$(VERSION_SUFFIX)"
+      errorActionPreference: 'stop'
+
+  - task: PowerShell@2
+    displayName: 'Configure web.config for SPA'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Creating web.config for React SPA..."
+
+        $webConfigContent = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <system.webServer>
+    <!-- URL Rewrite for React Router -->
+    <rewrite>
+      <rules>
+        <rule name="React Routes" stopProcessing="true">
+          <match url=".*" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+            <add input="{REQUEST_URI}" pattern="^/(api)" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="/" />
+        </rule>
+      </rules>
+    </rewrite>
+
+    <!-- Security Headers -->
+    <httpProtocol>
+      <customHeaders>
+        <add name="X-Content-Type-Options" value="nosniff" />
+        <add name="X-Frame-Options" value="SAMEORIGIN" />
+        <add name="X-XSS-Protection" value="1; mode=block" />
+        <add name="Referrer-Policy" value="strict-origin-when-cross-origin" />
+        <add name="Permissions-Policy" value="geolocation=(), microphone=(), camera=()" />
+      </customHeaders>
+    </httpProtocol>
+
+    <!-- Static Content Caching -->
+    <staticContent>
+      <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="7.00:00:00" />
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <mimeMap fileExtension=".woff" mimeType="application/font-woff" />
+      <mimeMap fileExtension=".woff2" mimeType="application/font-woff2" />
+    </staticContent>
+
+    <!-- Compression -->
+    <urlCompression doStaticCompression="true" doDynamicCompression="true" />
+
+    <!-- Error Pages -->
+    <httpErrors errorMode="Custom" existingResponse="Replace">
+      <remove statusCode="404" />
+      <error statusCode="404" path="/index.html" responseMode="ExecuteURL" />
+    </httpErrors>
+  </system.webServer>
+</configuration>
+"@
+
+        $webConfigPath = "$(IIS_WEB_PATH)\web.config"
+        $webConfigContent | Set-Content -Path $webConfigPath -Force
+        Write-Host "##[section]web.config created successfully"
+
+  - task: PowerShell@2
+    displayName: 'Start IIS Website'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Starting IIS Website: $(IIS_WEB_SITE)"
+        Import-Module WebAdministration
+
+        # Start app pool first
+        Start-WebAppPool -Name "$(IIS_WEB_POOL)"
+        Start-Sleep -Seconds 3
+
+        # Start website
+        Start-Website -Name "$(IIS_WEB_SITE)"
+        Start-Sleep -Seconds 3
+
+        if ((Get-Website -Name "$(IIS_WEB_SITE)").State -eq "Started") {
+            Write-Host "##[section]Website started successfully"
+        } else {
+            Write-Host "##[error]Failed to start website"
+            exit 1
+        }
+
+  - task: PowerShell@2
+    displayName: 'Verify Frontend Deployment'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Verifying frontend deployment..."
+
+        # Check if index.html exists
+        if (Test-Path "$(IIS_WEB_PATH)\index.html") {
+            Write-Host "##[section]index.html found"
+        } else {
+            Write-Host "##[error]index.html not found!"
+            exit 1
+        }
+
+        # Check if assets folder exists
+        if (Test-Path "$(IIS_WEB_PATH)\assets") {
+            Write-Host "##[section]Assets folder found"
+        } else {
+            Write-Host "##[warning]Assets folder not found"
+        }
+
+        Write-Host "Frontend deployment verification complete"

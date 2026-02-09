@@ -12,19 +12,20 @@ namespace CateringEcommerce.API.Controllers.Common
     [Route("api/Common/Locations")]
     public class LocationsController : ControllerBase
     {
-        private readonly IConfiguration _configuration;
-        private readonly string _connStr;
-
         private const string CityCookieKey = "user_city";
 
+        private readonly ILocation _locationService;
         private readonly IGeoLocationService _geoService;
         private readonly IMemoryCache _cache;
-        public LocationsController(IConfiguration configuration, IGeoLocationService geoService, IMemoryCache cache)
+
+        public LocationsController(
+            ILocation locationService,
+            IGeoLocationService geoService,
+            IMemoryCache cache)
         {
-            _configuration = configuration;
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _geoService = geoService;
-            _cache = cache;
+            _locationService = locationService ?? throw new ArgumentNullException(nameof(locationService));
+            _geoService = geoService ?? throw new ArgumentNullException(nameof(geoService));
+            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         }
 
         [AllowAnonymous]
@@ -33,9 +34,7 @@ namespace CateringEcommerce.API.Controllers.Common
         {
             try
             {
-                var states = new List<State>();
-                Locations locations = new Locations(_connStr);
-                states = await locations.GetStates();
+                var states = await _locationService.GetStates();
                 return Ok(states);
             }
             catch (Exception ex)
@@ -50,16 +49,13 @@ namespace CateringEcommerce.API.Controllers.Common
         {
             try
             {
-                var cities = new List<City>();
-                Locations locations = new Locations(_connStr);
-                cities = await locations.GetCities(stateId);
+                var cities = await _locationService.GetCities(stateId);
                 return Ok(cities);
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 throw new Exception($"An error occurred while fetching cities for state '{stateId}'.", ex); // Internal Server Error
             }
-
         }
 
         [HttpGet("default-city")]

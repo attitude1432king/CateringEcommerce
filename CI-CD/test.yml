@@ -1,0 +1,58 @@
+# Test Execution Stage
+# Runs after backend and frontend builds
+
+steps:
+  - checkout: self
+    displayName: 'Checkout Source Code'
+
+  - task: UseDotNet@2
+    displayName: 'Install .NET SDK $(DOTNET_VERSION)'
+    inputs:
+      packageType: 'sdk'
+      version: '$(DOTNET_VERSION)'
+
+  # Backend Tests
+  - task: DotNetCoreCLI@2
+    displayName: 'Run Backend Unit Tests'
+    inputs:
+      command: 'test'
+      projects: '**/*Tests.csproj'
+      arguments: >
+        --configuration $(BUILD_CONFIGURATION)
+        --logger "trx;LogFileName=backend-tests.trx"
+        --collect "Code Coverage"
+        --verbosity normal
+    continueOnError: false
+
+  - task: PublishTestResults@2
+    displayName: 'Publish Backend Test Results'
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: 'VSTest'
+      testResultsFiles: '**/backend-tests.trx'
+      mergeTestResults: true
+      failTaskOnFailedTests: true
+      testRunTitle: 'Backend Unit Tests'
+
+  # Security Scan (Optional)
+  - task: PowerShell@2
+    displayName: 'Security Vulnerability Scan (Optional)'
+    condition: false  # Enable if security scanning is configured
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Running security scan..."
+        # Add security scanning tools here (e.g., OWASP Dependency Check)
+        dotnet list package --vulnerable --include-transitive
+    continueOnError: true
+
+  # Code Quality Analysis (Optional)
+  - task: PowerShell@2
+    displayName: 'Code Quality Analysis (Optional)'
+    condition: false  # Enable if SonarQube or similar is configured
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Code quality analysis..."
+        # Add SonarQube scanner or similar tool here
+    continueOnError: true

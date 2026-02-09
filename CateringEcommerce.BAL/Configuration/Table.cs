@@ -1,15 +1,26 @@
-﻿namespace CateringEcommerce.BAL.Configuration
+﻿using Microsoft.Identity.Client;
+
+namespace CateringEcommerce.BAL.Configuration
 {
     public static class Table
     {
         #region Common Tables
         public const string State = "t_sys_state";
         public const string City = "t_sys_city";
+
+        // Master Data Tables
+        public const string SysGuestCategory = "t_sys_guest_category";
+        public const string SysCateringServiceCategory = "t_sys_catering_type_category";
+        public const string SysCateringTypeMaster = "t_sys_catering_type_master";
+        public const string SysFoodCategory = "t_sys_food_category";
         #endregion
 
         #region User Tables
         public const string SysUser = "t_sys_user";
         public const string SysUserAddresses = "t_sys_user_addresses";
+        public const string SysUserCart = "t_sys_user_cart";
+        public const string SysCartFoodItems = "t_sys_cart_food_items";
+        public const string SysUserFavorites = "t_sys_user_favorites";
         #endregion
 
         #region Owner Tables
@@ -20,20 +31,21 @@
         public const string SysCateringOwnerImages = "t_sys_catering_owner_images";
         public const string SysCateringOwnerBankDetails = "t_sys_catering_owner_bankdetails";
         public const string SysCateringOwnerAgreement = "t_sys_catering_owner_agreement";
-        public const string SysCateringServiceCategory = "t_sys_catering_type_category";
-        public const string SysCateringTypeMaster = "t_sys_catering_type_master";
         public const string SysCateringMediaUploads = "t_sys_catering_media_uploads";
         public const string SysCateringReview = "t_sys_catering_review";
 
+        // temporiary tables for onboarding process
+        public const string SysMenuItems = "t_sys_menuitems";
+
         // Menu Management
-        public const string SysFoodCategory = "t_sys_food_category";
         public const string SysMenuPackage = "t_sys_catering_packages";
         public const string SysMenuPackageItems = "t_sys_catering_package_items";
         public const string SysFoodItems = "t_sys_fooditems";
 
-        // Decorations 
+        // Decorations
         public const string SysCateringDecorations = "t_sys_catering_decorations";
         public const string SysDecorationThemes = "t_sys_catering_theme_types";
+        public const string SysCateringThemeTypes = "t_sys_catering_theme_types"; // Alias for consistency
 
         // Staff Management
         public const string SysCateringStaff = "t_sys_catering_staff";
@@ -71,6 +83,34 @@
         #region Admin Tables
         public const string SysAdmin = "t_sys_admin";
         public const string SysAdminActivityLog = "t_sys_admin_activity_log";
+        public const string SysAdminNotifications = "t_sys_admin_notifications"; 
+
+        // RBAC Tables
+        public const string SysAdminRoles = "t_sys_admin_roles";
+        public const string SysAdminPermissions = "t_sys_admin_permissions";
+        public const string SysAdminRolePermissions = "t_sys_admin_role_permissions";
+        public const string SysAdminUserRoles = "t_sys_admin_user_roles"; // Deprecated, kept for compatibility
+        public const string SysAdminAuditLogs = "t_sys_admin_audit_logs";
+
+        // Settings & Configuration Tables
+        public const string SysSettings = "t_sys_settings";
+        public const string SysSettingsHistory = "t_sys_settings_history";
+        public const string SysCommissionConfig = "t_sys_commission_config";
+        public const string SysTemplateVariables = "t_sys_template_variables";
+        public const string SysNotificationTemplates = "t_sys_notification_templates";
+        #endregion
+
+        #region Support Tables
+        public const string SysSupportTickets = "t_sys_support_tickets";
+        public const string SysSupportTicketMessages = "t_sys_support_ticket_messages";
+        #endregion
+
+        #region Supervisor Tables
+        public const string SysSupervisor = "t_sys_supervisor";
+        public const string SysSupervisorAssignment = "t_sys_supervisor_assignment";
+        public const string SysPreEventChecklist = "t_sys_pre_event_checklist";
+        public const string SysDuringEventTracking = "t_sys_during_event_tracking";
+        public const string SysPostEventReport = "t_sys_post_event_report";
         #endregion
     }
 }

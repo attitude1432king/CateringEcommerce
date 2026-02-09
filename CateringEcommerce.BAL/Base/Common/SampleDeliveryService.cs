@@ -1,8 +1,9 @@
-using System;
-using System.Threading.Tasks;
 using CateringEcommerce.BAL.Common;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Delivery;
+using System;
+using System.Threading.Tasks;
 
 namespace CateringEcommerce.BAL.Base.Common
 {
@@ -11,13 +12,13 @@ namespace CateringEcommerce.BAL.Base.Common
     /// </summary>
     public class SampleDeliveryService : ISampleDeliveryService
     {
-        private readonly string _connectionString;
+        private readonly IDatabaseHelper _dbHelper;
         private readonly SampleDeliveryRepository _repository;
 
-        public SampleDeliveryService(string connectionString)
+        public SampleDeliveryService(IDatabaseHelper dbHelper)
         {
-            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            _repository = new SampleDeliveryRepository(connectionString);
+            _dbHelper = dbHelper;
+            _repository = new SampleDeliveryRepository(_dbHelper);
         }
 
         // ===================================

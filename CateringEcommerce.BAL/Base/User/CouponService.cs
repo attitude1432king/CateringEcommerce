@@ -2,6 +2,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
@@ -15,12 +16,10 @@ namespace CateringEcommerce.BAL.Base.User
     /// </summary>
     public class CouponService : ICouponService
     {
-        private readonly SqlDatabaseManager _db;
-
-        public CouponService(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public CouponService(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -68,7 +67,7 @@ namespace CateringEcommerce.BAL.Base.User
                     new SqlParameter("@EntireCateringType", DiscountType.EntireCatering.GetHashCode())
                 };
 
-                var discountData = await _db.ExecuteAsync(query, parameters.ToArray());
+                var discountData = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
 
                 if (discountData.Rows.Count == 0)
                     return new List<DiscountModel>();
@@ -218,7 +217,7 @@ namespace CateringEcommerce.BAL.Base.User
                     new SqlParameter("@CouponCode", couponCode.ToUpper())
                 };
 
-                var result = await _db.ExecuteAsync(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
 
                 if (result.Rows.Count == 0)
                     return null;
@@ -270,7 +269,7 @@ namespace CateringEcommerce.BAL.Base.User
                     new SqlParameter("@DiscountId", discountId)
                 };
 
-                var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 return result != null ? Convert.ToInt32(result) : 0;
             }
             catch (Exception)

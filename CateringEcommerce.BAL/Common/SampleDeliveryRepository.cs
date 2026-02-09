@@ -1,11 +1,12 @@
+using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Models.Delivery;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Models.Delivery;
-using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.BAL.Common
 {
@@ -14,12 +15,10 @@ namespace CateringEcommerce.BAL.Common
     /// </summary>
     public class SampleDeliveryRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public SampleDeliveryRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public SampleDeliveryRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         // ===================================
@@ -47,7 +46,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@DeliveryStatus", (int)SampleDeliveryStatus.Requested)
                 };
 
-                var result = await _db.ExecuteScalarAsync(query, parameters);
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
                 return Convert.ToInt64(result);
             }
             catch (Exception ex)
@@ -77,7 +76,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@SampleDeliveryId", sampleDeliveryId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (dt.Rows.Count > 0)
                 {
@@ -113,7 +112,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (dt.Rows.Count > 0)
                 {
@@ -151,7 +150,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@TrackingId", trackingId)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -181,7 +180,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@NewStatus", (int)newStatus)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)

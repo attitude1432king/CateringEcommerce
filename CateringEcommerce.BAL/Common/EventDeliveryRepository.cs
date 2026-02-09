@@ -1,11 +1,12 @@
+using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Models.Delivery;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Models.Delivery;
-using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.BAL.Common
 {
@@ -14,12 +15,10 @@ namespace CateringEcommerce.BAL.Common
     /// </summary>
     public class EventDeliveryRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public EventDeliveryRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public EventDeliveryRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         // ===================================
@@ -51,7 +50,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@ScheduledDispatchTime", (object?)request.ScheduledDispatchTime ?? DBNull.Value)
                 };
 
-                var result = await _db.ExecuteScalarAsync(query, parameters);
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
                 return Convert.ToInt64(result);
             }
             catch (Exception ex)
@@ -83,7 +82,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@EventDeliveryId", eventDeliveryId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (dt.Rows.Count > 0)
                 {
@@ -121,7 +120,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (dt.Rows.Count > 0)
                 {
@@ -175,7 +174,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@Notes", (object?)request.Notes ?? DBNull.Value)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -210,7 +209,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@CompletedStatus", (int)EventDeliveryStatus.EventCompleted)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<EventDeliveryDto> deliveries = new List<EventDeliveryDto>();
 
                 foreach (DataRow row in dt.Rows)
@@ -256,7 +255,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@CompletedStatus", (int)EventDeliveryStatus.EventCompleted)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<AdminDeliveryMonitorDto> monitors = new List<AdminDeliveryMonitorDto>();
 
                 foreach (DataRow row in dt.Rows)
@@ -334,7 +333,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@Notes", (object?)history.Notes ?? DBNull.Value)
                 };
 
-                var result = await _db.ExecuteScalarAsync(query, parameters);
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
                 return Convert.ToInt64(result);
             }
             catch (Exception ex)
@@ -365,7 +364,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@EventDeliveryId", eventDeliveryId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<EventDeliveryHistoryDto> history = new List<EventDeliveryHistoryDto>();
 
                 foreach (DataRow row in dt.Rows)

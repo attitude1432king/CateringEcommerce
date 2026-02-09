@@ -1,6 +1,7 @@
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Common.Admin;
+using CateringEcommerce.BAL.Base.Admin;
+using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +12,18 @@ namespace CateringEcommerce.API.Controllers.Admin
     [AdminAuthorize]
     public class AdminReviewsController : ControllerBase
     {
-        private readonly string _connStr;
+        private readonly IAdminReviewRepository _reviewRepository;
+        private readonly IAdminAuthRepository _adminAuthRepository;
+        private readonly ILogger<AdminReviewsController> _logger;
 
-        public AdminReviewsController(IConfiguration config)
+        public AdminReviewsController(
+            IAdminReviewRepository reviewRepository,
+            IAdminAuthRepository adminAuthRepository,
+            ILogger<AdminReviewsController> logger)
         {
-            _connStr = config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _reviewRepository = reviewRepository ?? throw new ArgumentNullException(nameof(reviewRepository));
+            _adminAuthRepository = adminAuthRepository ?? throw new ArgumentNullException(nameof(adminAuthRepository));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -26,12 +34,12 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminReviewRepository(_connStr);
-                var result = repository.GetAllReviews(request);
+                var result = _reviewRepository.GetAllReviews(request);
                 return ApiResponseHelper.Success(result, "Reviews retrieved successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process review request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -44,8 +52,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminReviewRepository(_connStr);
-                var review = repository.GetReviewById(id);
+                var review = _reviewRepository.GetReviewById(id);
 
                 if (review == null)
                     return ApiResponseHelper.Failure("Review not found.");
@@ -54,6 +61,7 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process review request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -75,20 +83,19 @@ namespace CateringEcommerce.API.Controllers.Admin
                 request.ReviewId = id;
                 request.UpdatedBy = adminId;
 
-                var repository = new AdminReviewRepository(_connStr);
-                bool success = repository.UpdateReviewVisibility(request);
+                bool success = _reviewRepository.UpdateReviewVisibility(request);
 
                 if (!success)
                     return ApiResponseHelper.Failure("Failed to update review visibility.");
 
                 // Log activity
-                var authRepo = new AdminAuthRepository(_connStr);
-                authRepo.LogAdminActivity(adminId, "UPDATE_REVIEW_VISIBILITY", $"Updated review {id} visibility - Hidden: {request.IsHidden}");
+                _adminAuthRepository.LogAdminActivity(adminId, "UPDATE_REVIEW_VISIBILITY", $"Updated review {id} visibility - Hidden: {request.IsHidden}");
 
                 return ApiResponseHelper.Success(null, "Review visibility updated successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process review request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -107,20 +114,19 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return ApiResponseHelper.Failure("Invalid admin session.");
                 }
 
-                var repository = new AdminReviewRepository(_connStr);
-                bool success = repository.DeleteReview(id, adminId);
+                bool success = _reviewRepository.DeleteReview(id, adminId);
 
                 if (!success)
                     return ApiResponseHelper.Failure("Failed to delete review.");
 
                 // Log activity
-                var authRepo = new AdminAuthRepository(_connStr);
-                authRepo.LogAdminActivity(adminId, "DELETE_REVIEW", $"Deleted review {id}");
+                _adminAuthRepository.LogAdminActivity(adminId, "DELETE_REVIEW", $"Deleted review {id}");
 
                 return ApiResponseHelper.Success(null, "Review deleted successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process review request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }

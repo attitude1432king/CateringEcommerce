@@ -2,20 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using CateringEcommerce.BAL.Common;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.User;
 
 namespace CateringEcommerce.BAL.Base.User
 {
     public class UserAddressService
     {
-        private readonly string _connectionString;
+        private readonly IDatabaseHelper _dbHelper;
         private readonly UserAddressRepository _addressRepository;
         private const int MAX_ADDRESSES_PER_USER = 5;
 
-        public UserAddressService(string connectionString)
+        public UserAddressService(IDatabaseHelper dbHelper)
         {
-            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            _addressRepository = new UserAddressRepository(connectionString);
+            _dbHelper = dbHelper;
+            _addressRepository = new UserAddressRepository(dbHelper);
         }
 
         // ===================================

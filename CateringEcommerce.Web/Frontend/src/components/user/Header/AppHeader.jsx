@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCart } from '../../../contexts/CartContext';
+import UserNotifications from '../UserNotifications';
 
 const generateInitialsAvatar = (name) => {
     if (!name) return 'https://placehold.co/64x64/FF6B35/FFFFFF?text=Q';
@@ -61,6 +62,9 @@ export default function AppHeader({ onOpenAuthModal }) {
 
                     {/* Right: Actions */}
                     <div className="flex items-center space-x-3 flex-shrink-0">
+                        {/* Notification Bell - Show only when authenticated */}
+                        {isAuthenticated && <UserNotifications />}
+
                         {/* Cart Icon - Show only when authenticated */}
                         {isAuthenticated && (
                             <button

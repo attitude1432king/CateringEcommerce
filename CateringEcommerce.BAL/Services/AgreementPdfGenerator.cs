@@ -175,7 +175,7 @@ namespace CateringEcommerce.BAL.Services
             try
             {
                 // Create directory structure: secure_uploads/owner_{id}/agreements/
-                string ownerFolder = Path.Combine(baseUploadPath, "secure_uploads", $"owner_{ownerId}", "agreements");
+                string ownerFolder = Path.Combine(baseUploadPath, "secure_uploads", $"owner{ownerId}", "Agreements");
 
                 if (!Directory.Exists(ownerFolder))
                 {
@@ -190,7 +190,7 @@ namespace CateringEcommerce.BAL.Services
                 File.WriteAllBytes(filePath, pdfBytes);
 
                 // Return relative path for database storage
-                return Path.Combine("secure_uploads", $"owner_{ownerId}", "agreements", fileName);
+                return Path.Combine("secure_uploads", $"owner{ownerId}", "Agreements", fileName);
             }
             catch (Exception ex)
             {

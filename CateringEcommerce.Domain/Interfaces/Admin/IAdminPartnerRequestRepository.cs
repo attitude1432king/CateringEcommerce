@@ -20,7 +20,7 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
 
         // Notes
         bool UpdateInternalNotes(long ownerId, string notes, long adminId);
-        bool UpdatePriority(long ownerId, string priority, long adminId);
+        bool UpdatePriority(long ownerId, int priority, long adminId);
 
         // Action Log
         List<PartnerActionLog> GetActionLog(long ownerId);

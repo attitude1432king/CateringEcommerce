@@ -1,0 +1,62 @@
+# Frontend Build Steps
+# React + Vite Frontend
+
+steps:
+  - checkout: self
+    displayName: 'Checkout Source Code'
+
+  - task: NodeTool@0
+    displayName: 'Install Node.js $(NODE_VERSION)'
+    inputs:
+      versionSpec: '$(NODE_VERSION)'
+      checkLatest: false
+
+  - task: Npm@1
+    displayName: 'npm install'
+    inputs:
+      command: 'install'
+      workingDir: '$(FRONTEND_PATH)'
+      verbose: false
+
+  - task: Npm@1
+    displayName: 'npm run lint'
+    inputs:
+      command: 'custom'
+      workingDir: '$(FRONTEND_PATH)'
+      customCommand: 'run lint'
+    continueOnError: true
+
+  - task: Npm@1
+    displayName: 'npm run build (Production)'
+    inputs:
+      command: 'custom'
+      workingDir: '$(FRONTEND_PATH)'
+      customCommand: 'run build'
+    env:
+      NODE_ENV: 'production'
+      VITE_API_BASE_URL: '$(API_HEALTH_ENDPOINT)'
+      VITE_APP_VERSION: '$(VERSION_PREFIX).$(VERSION_SUFFIX)'
+
+  - task: CopyFiles@2
+    displayName: 'Copy Build Output'
+    inputs:
+      SourceFolder: '$(FRONTEND_PATH)/dist'
+      Contents: '**'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/frontend'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Frontend Artifacts'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/frontend'
+      ArtifactName: 'frontend'
+      publishLocation: 'Container'
+
+  # Optional: Run frontend tests if configured
+  - task: Npm@1
+    displayName: 'npm run test (Optional)'
+    condition: false  # Enable if tests are configured
+    inputs:
+      command: 'custom'
+      workingDir: '$(FRONTEND_PATH)'
+      customCommand: 'run test'
+    continueOnError: true

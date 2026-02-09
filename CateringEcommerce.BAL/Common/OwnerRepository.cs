@@ -12,19 +12,17 @@ namespace CateringEcommerce.BAL.Common
 {
     public class OwnerRepository : IOwnerRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public OwnerRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public OwnerRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         public async Task<bool> IsOwnerExistAsync(long ownerPkID)
         {
             string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_ownerid = @OwnerPkID";
             SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@OwnerPkID", ownerPkID) };
-            int count = Convert.ToInt32(await _db.ExecuteScalarAsync(query, parameters));
+            int count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters));
             return count > 0;
         }
 
@@ -34,7 +32,7 @@ namespace CateringEcommerce.BAL.Common
                 throw new ArgumentException("Mobile number cannot be null or empty.", nameof(mobileNumber));
             string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_mobile = @MobileNumber";
             SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", mobileNumber) };
-            int count = Convert.ToInt32(_db.ExecuteScalar(query, parameters));
+            int count = Convert.ToInt32(_dbHelper.ExecuteScalar(query, parameters));
             return count > 0;
         }
 
@@ -44,7 +42,7 @@ namespace CateringEcommerce.BAL.Common
                 throw new ArgumentException("Email cannot be null or empty.", nameof(email));
             string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_email = @Email";
             SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@Email", email) };
-            int count = Convert.ToInt32(_db.ExecuteScalar(query, parameters));
+            int count = Convert.ToInt32(_dbHelper.ExecuteScalar(query, parameters));
             return count > 0;
         }
         public async Task<int> SaveFilePath(string filePath, long ownerPkid, string fileName, DocumentType documentType, long referenceID = 0)
@@ -66,7 +64,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@ReferenceID", referenceID > 0 ? referenceID : DBNull.Value)
                 };
 
-                return await _db.ExecuteNonQueryAsync(query, parameters);
+                return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             }
             catch (SqlException ex)
             {
@@ -94,7 +92,7 @@ namespace CateringEcommerce.BAL.Common
                     parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", number) };
                 }
 
-                var dt = _db.Execute(query.ToString(), parameters);
+                var dt = _dbHelper.Execute(query.ToString(), parameters);
 
                 if (dt.Rows.Count > 0)
                 {
@@ -114,8 +112,6 @@ namespace CateringEcommerce.BAL.Common
                         SupportContact = row["c_support_contact_number"] == DBNull.Value ? string.Empty : row["c_support_contact_number"].ToString(),
                         IsEmailVerified = row["c_email_verified"] == DBNull.Value ? false : row.GetBoolean("c_email_verified"),
                         IsPhoneVerified = row["c_phone_verified"] == DBNull.Value ? false : row.GetBoolean("c_phone_verified"),
-                        IsVerifiedBy_Admin = row["c_verified_by_admin"] == DBNull.Value ? false : row.GetBoolean("c_verified_by_admin"),
-                        IsOnline = row["c_isonline"] == DBNull.Value ? false : row.GetBoolean("c_isonline"),
                     };
                 }
                 else
@@ -140,7 +136,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@documentPKID", documentPKID),
                 };
 
-                return await _db.ExecuteNonQueryAsync(query, parameters);
+                return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
 
             }
             catch (Exception ex)
@@ -158,7 +154,7 @@ namespace CateringEcommerce.BAL.Common
                 {
                     new SqlParameter("@documentPKID", documentPKID),
                 };
-                return await _db.ExecuteNonQueryAsync(query, parameters);
+                return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             }
             catch (Exception ex)
             {
@@ -172,15 +168,15 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                string query = $@"SELECT c_type_id AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_is_active AS IsActive
+                string query = $@"SELECT c_typeid AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_is_active AS IsActive
                             FROM {Table.SysCateringTypeMaster} 
-                            WHERE c_category_id = @ServiceTypeId AND c_is_active = 1";
+                            WHERE c_categoryid = @ServiceTypeId AND c_isactive = 1";
 
                 var parameters = new List<SqlParameter>
                 {
                     new SqlParameter("@ServiceTypeId", cateringMasterCategory.GetHashCode())
                 };
-                var dt = await _db.ExecuteAsync(query, parameters.ToArray());
+                var dt = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
                 List<CateringMasterTypeModel> cateringMasterTypes = new List<CateringMasterTypeModel>();
                 foreach (System.Data.DataRow row in dt.Rows)
                 {
@@ -213,7 +209,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@FilePath", filePath),
                     new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
                 };
-                return await _db.ExecuteNonQueryAsync(query, parameters);
+                return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             }
             catch (Exception ex)
             {
@@ -236,7 +232,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
                 };
                 
-                return await _db.ExecuteNonQueryAsync(query, parameters);
+                return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             }
             catch (Exception ex)
             {

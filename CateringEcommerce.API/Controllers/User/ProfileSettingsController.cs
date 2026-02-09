@@ -1,12 +1,12 @@
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Base.User.Profile;
-using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Extensions;
 
 namespace CateringEcommerce.API.Controllers.User
 {
@@ -14,18 +14,21 @@ namespace CateringEcommerce.API.Controllers.User
     [Route("api/User/ProfileSettings")]
     public class ProfileSettingsController : ControllerBase
     {
-        private readonly IConfiguration _configuration;
-        private readonly string _connStr;
         private readonly ICurrentUserService _currentUser;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IProfileSetting _profileSetting;
+        private readonly IUserRepository _userRepository;
 
-        // Constructor updated to initialize all required fields
-        public ProfileSettingsController(IConfiguration configuration, ICurrentUserService currentUser, IFileStorageService fileStorageService)
+        public ProfileSettingsController(
+            ICurrentUserService currentUser,
+            IFileStorageService fileStorageService,
+            IProfileSetting profileSetting,
+            IUserRepository userRepository)
         {
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connStr = _configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _currentUser = currentUser;
-            _fileStorageService = fileStorageService;
+            _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
+            _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
+            _profileSetting = profileSetting ?? throw new ArgumentNullException(nameof(profileSetting));
+            _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         }
 
         [Authorize]
@@ -35,8 +38,7 @@ namespace CateringEcommerce.API.Controllers.User
             try
             {
                 var userIdClaim = _currentUser.UserId;
-                UserRepository userRepository = new UserRepository(_connStr);
-                UserModel userProfile = userRepository.GetUserDetails(userIdClaim);
+                UserModel userProfile = _userRepository.GetUserDetails(userIdClaim);
                 return Ok(userProfile);
             }
             catch (Exception)
@@ -57,10 +59,8 @@ namespace CateringEcommerce.API.Controllers.User
                 {
                     return ApiResponseHelper.Failure("Invalid user.");
                 }
-                ProfileSetting profileSetting = new ProfileSetting(_connStr);
-                UserRepository userRepository = new UserRepository(_connStr);
                 Dictionary<string, string> userData = new Dictionary<string, string>();
-                
+
                 if(request.StateID > 0)
                     userData.Add("stateID", request.StateID.ToString());
                 if(request.CityID > 0)
@@ -73,9 +73,9 @@ namespace CateringEcommerce.API.Controllers.User
                     return BadRequest(new { message = "No valid data provided for update." });
                 }
 
-                await profileSetting.UpdateUserDetails(userPKID, userData);
+                await _profileSetting.UpdateUserDetails(userPKID, userData);
 
-                return Ok(new { message = "Profile updated successfully.", user = userRepository.GetUserDetails(userPKID) });
+                return Ok(new { message = "Profile updated successfully.", user = _userRepository.GetUserDetails(userPKID) });
             }
             catch (Exception ex)
             {
@@ -100,10 +100,8 @@ namespace CateringEcommerce.API.Controllers.User
                     return BadRequest(new { message = "Profile photo is required." });
                 }
 
-                ProfileSetting profileSetting = new ProfileSetting(_connStr);
-
                 // Delete old profile photo if it exists
-                var oldPhotoPath = profileSetting.GetUserProfilePicture(userPKID);
+                var oldPhotoPath = _profileSetting.GetUserProfilePicture(userPKID);
                 if (!string.IsNullOrEmpty(oldPhotoPath))
                 {
                     _fileStorageService.DeleteFilePath(oldPhotoPath);
@@ -121,7 +119,7 @@ namespace CateringEcommerce.API.Controllers.User
                 {
                     { "pictureUrl", profilePath }
                 };
-                 await profileSetting.UpdateUserDetails(userPKID, userData);
+                 await _profileSetting.UpdateUserDetails(userPKID, userData);
 
                 return Ok(new
                 {

@@ -1,4 +1,5 @@
-﻿using CateringEcommerce.Domain.Models.Common;
+﻿using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Models.Common;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using System.Collections.Concurrent;
@@ -8,7 +9,7 @@ using Twilio.Rest.Iam.V1;
 
 namespace CateringEcommerce.BAL.Configuration
 {
-    public class EmailService
+    public class EmailService : IEmailService
     {
         private readonly EmailSettings _emailSettings;
         private static readonly ConcurrentDictionary<string, OtpEntry> _otpStore = new();

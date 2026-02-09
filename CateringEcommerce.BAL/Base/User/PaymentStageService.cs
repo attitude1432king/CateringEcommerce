@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Services;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.Extensions.Configuration;
@@ -13,14 +14,14 @@ namespace CateringEcommerce.BAL.Base.User
 {
     public class PaymentStageService
     {
-        private readonly string _connectionString;
+        private readonly IDatabaseHelper _dbHelper;
         private readonly PaymentStageRepository _paymentStageRepository;
         private readonly INotificationService? _notificationService;
 
-        public PaymentStageService(string connectionString, INotificationService? notificationService = null)
+        public PaymentStageService(IDatabaseHelper dbHelper, INotificationService? notificationService = null)
         {
-            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            _paymentStageRepository = new PaymentStageRepository(connectionString);
+            _dbHelper = dbHelper;
+            _paymentStageRepository = new PaymentStageRepository(_dbHelper);
             _notificationService = notificationService;
         }
 

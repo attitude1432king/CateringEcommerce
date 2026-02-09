@@ -16,7 +16,7 @@ BEGIN
     CREATE TABLE [dbo].[t_sys_orders](
         [c_orderid] [bigint] IDENTITY(1,1) NOT NULL,
         [c_userid] [bigint] NOT NULL,
-        [c_cateringid] [bigint] NOT NULL,
+        [c_ownerid] [bigint] NOT NULL,
         [c_order_number] [varchar](50) NOT NULL,
         [c_event_date] [datetime] NOT NULL,
         [c_event_time] [varchar](20) NOT NULL,
@@ -34,6 +34,8 @@ BEGIN
         [c_discount_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
         [c_total_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
         [c_payment_method] [varchar](50) NOT NULL,
+        [c_platform_commission] DECIMAL(18,2) NOT NULL DEFAULT 0,
+        [c_commission_rate] DECIMAL(5,2) NOT NULL DEFAULT 10.00,
         [c_payment_status] [varchar](20) NOT NULL DEFAULT 'Pending',
         [c_order_status] [varchar](20) NOT NULL DEFAULT 'Pending',
         [c_created_date] [datetime] NOT NULL DEFAULT GETDATE(),
@@ -42,7 +44,7 @@ BEGIN
         CONSTRAINT [PK_t_sys_orders] PRIMARY KEY CLUSTERED ([c_orderid] ASC),
         CONSTRAINT [UQ_t_sys_orders_order_number] UNIQUE NONCLUSTERED ([c_order_number] ASC),
         CONSTRAINT [FK_t_sys_orders_user] FOREIGN KEY([c_userid]) REFERENCES [dbo].[t_sys_user] ([c_userid]),
-        CONSTRAINT [FK_t_sys_orders_catering] FOREIGN KEY([c_cateringid]) REFERENCES [dbo].[t_sys_catering_owner] ([c_ownerid])
+        CONSTRAINT [FK_t_sys_orders_catering] FOREIGN KEY([c_ownerid]) REFERENCES [dbo].[t_sys_catering_owner] ([c_ownerid])
     ) ON [PRIMARY]
 
     PRINT 'Table t_sys_orders created successfully.'
@@ -156,7 +158,7 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_t_sys_orders_cateringi
 BEGIN
     CREATE NONCLUSTERED INDEX [IX_t_sys_orders_cateringid] ON [dbo].[t_sys_orders]
     (
-        [c_cateringid] ASC
+        [c_ownerid] ASC
     )
     INCLUDE([c_order_number], [c_order_status], [c_event_date], [c_created_date])
     PRINT 'Index IX_t_sys_orders_cateringid created successfully.'
@@ -180,7 +182,7 @@ BEGIN
     (
         [c_event_date] ASC
     )
-    INCLUDE([c_cateringid], [c_order_status])
+    INCLUDE([c_ownerid], [c_order_status])
     PRINT 'Index IX_t_sys_orders_event_date created successfully.'
 END
 GO

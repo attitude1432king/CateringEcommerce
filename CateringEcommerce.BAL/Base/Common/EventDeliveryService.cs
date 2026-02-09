@@ -1,10 +1,11 @@
+using CateringEcommerce.BAL.Common;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Models.Delivery;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using CateringEcommerce.BAL.Common;
-using CateringEcommerce.Domain.Interfaces.Common;
-using CateringEcommerce.Domain.Models.Delivery;
 
 namespace CateringEcommerce.BAL.Base.Common
 {
@@ -13,13 +14,13 @@ namespace CateringEcommerce.BAL.Base.Common
     /// </summary>
     public class EventDeliveryService : IEventDeliveryService
     {
-        private readonly string _connectionString;
+        private readonly IDatabaseHelper _dbHelper;
         private readonly EventDeliveryRepository _repository;
 
-        public EventDeliveryService(string connectionString)
+        public EventDeliveryService(IDatabaseHelper dbHelper)
         {
-            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            _repository = new EventDeliveryRepository(connectionString);
+            _dbHelper = dbHelper;
+            _repository = new EventDeliveryRepository(_dbHelper);
         }
 
         // ===================================

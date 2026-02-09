@@ -1,6 +1,7 @@
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Common.Admin;
+using CateringEcommerce.BAL.Base.Admin;
+using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +12,15 @@ namespace CateringEcommerce.API.Controllers.Admin
     [AdminAuthorize]
     public class AdminNotificationsController : ControllerBase
     {
-        private readonly string _connStr;
+        private readonly IAdminNotificationRepository _notificationRepository;
+        private readonly ILogger<AdminNotificationsController> _logger;
 
-        public AdminNotificationsController(IConfiguration config)
+        public AdminNotificationsController(
+            IAdminNotificationRepository notificationRepository,
+            ILogger<AdminNotificationsController> logger)
         {
-            _connStr = config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _notificationRepository = notificationRepository ?? throw new ArgumentNullException(nameof(notificationRepository));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -28,13 +33,13 @@ namespace CateringEcommerce.API.Controllers.Admin
             {
                 var adminId = GetAdminIdFromToken();
 
-                var repository = new AdminNotificationRepository(_connStr);
-                var result = repository.GetNotifications(request, adminId);
+                var result = _notificationRepository.GetNotifications(request, adminId);
 
                 return ApiResponseHelper.Success(result, "Notifications retrieved successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process notification request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -49,13 +54,13 @@ namespace CateringEcommerce.API.Controllers.Admin
             {
                 var adminId = GetAdminIdFromToken();
 
-                var repository = new AdminNotificationRepository(_connStr);
-                var count = repository.GetUnreadCount(adminId);
+                var count = _notificationRepository.GetUnreadCount(adminId);
 
                 return ApiResponseHelper.Success(new { unreadCount = count }, "Unread count retrieved successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process notification request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -72,8 +77,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!adminId.HasValue)
                     return Unauthorized(ApiResponseHelper.Failure("Admin ID not found in token."));
 
-                var repository = new AdminNotificationRepository(_connStr);
-                var result = repository.MarkAsRead(notificationId, adminId.Value);
+                var result = _notificationRepository.MarkAsRead(notificationId, adminId.Value);
 
                 if (result)
                     return ApiResponseHelper.Success(null, "Notification marked as read.");
@@ -82,6 +86,7 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process notification request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -98,8 +103,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!adminId.HasValue)
                     return Unauthorized(ApiResponseHelper.Failure("Admin ID not found in token."));
 
-                var repository = new AdminNotificationRepository(_connStr);
-                var result = repository.MarkAllAsRead(adminId.Value);
+                var result = _notificationRepository.MarkAllAsRead(adminId.Value);
 
                 if (result)
                     return ApiResponseHelper.Success(null, "All notifications marked as read.");
@@ -108,6 +112,7 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process notification request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -120,8 +125,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminNotificationRepository(_connStr);
-                var result = repository.DeleteNotification(notificationId);
+                var result = _notificationRepository.DeleteNotification(notificationId);
 
                 if (result)
                     return ApiResponseHelper.Success(null, "Notification deleted successfully.");
@@ -130,6 +134,7 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to process notification request");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }

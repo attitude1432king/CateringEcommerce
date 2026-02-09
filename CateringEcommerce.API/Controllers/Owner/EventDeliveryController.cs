@@ -1,5 +1,7 @@
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Common;
+using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Delivery;
 using Microsoft.AspNetCore.Authorization;
@@ -20,16 +22,19 @@ namespace CateringEcommerce.API.Controllers.Owner
     [Route("api/Owner/[controller]")]
     public class EventDeliveryController : ControllerBase
     {
+        private readonly IDatabaseHelper _dbHelper;
         private readonly ILogger<EventDeliveryController> _logger;
         private readonly ICurrentUserService _currentUser;
         private readonly IConfiguration _configuration;
         private readonly string _connStr;
 
         public EventDeliveryController(
+            IDatabaseHelper dbHelper,
             ILogger<EventDeliveryController> logger,
             ICurrentUserService currentUser,
             IConfiguration configuration)
         {
+            _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -57,7 +62,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 _logger.LogInformation($"Partner {ownerId} initializing event delivery for order {request.OrderId}");
 
-                var service = new EventDeliveryService(_connStr);
+                var service = new EventDeliveryService(_dbHelper);
                 var delivery = await service.InitEventDeliveryAsync(request);
 
                 _logger.LogInformation($"Event delivery initialized successfully for order {request.OrderId}");
@@ -97,7 +102,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 _logger.LogInformation($"Partner {ownerId} updating event delivery {request.EventDeliveryId} to status {request.NewStatus}");
 
-                var service = new EventDeliveryService(_connStr);
+                var service = new EventDeliveryService(_dbHelper);
 
                 // Verify partner owns this delivery
                 var currentDelivery = await service.GetEventDeliveryByOrderIdAsync(request.EventDeliveryId);
@@ -110,6 +115,12 @@ namespace CateringEcommerce.API.Controllers.Owner
                 var updatedDelivery = await service.UpdateEventDeliveryStatusAsync(request);
 
                 _logger.LogInformation($"Event delivery {request.EventDeliveryId} updated successfully to {request.NewStatus}");
+
+                // TODO: Send delivery status notification to customer
+                // Commented out until EventDeliveryDto model is updated with required properties
+                // (CustomerName, CustomerEmail, CustomerPhone, OrderNumber, DeliveryDate, DeliveryTime, DeliveryAddress, PartnerName)
+                _logger.LogInformation("Delivery status updated. EventDeliveryId: {EventDeliveryId}, NewStatus: {Status}",
+                    request.EventDeliveryId, request.NewStatus);
 
                 return ApiResponseHelper.Success(updatedDelivery, "Delivery status updated successfully.");
             }
@@ -142,7 +153,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 _logger.LogInformation($"Partner {ownerId} fetching active deliveries");
 
-                var service = new EventDeliveryService(_connStr);
+                var service = new EventDeliveryService(_dbHelper);
                 var deliveries = await service.GetPartnerActiveDeliveriesAsync(ownerId);
 
                 return ApiResponseHelper.Success(deliveries);
@@ -171,7 +182,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 _logger.LogInformation($"Partner {ownerId} fetching event delivery for order {orderId}");
 
-                var service = new EventDeliveryService(_connStr);
+                var service = new EventDeliveryService(_dbHelper);
                 var delivery = await service.GetEventDeliveryByOrderIdAsync(orderId);
 
                 if (delivery == null)
@@ -212,7 +223,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 _logger.LogInformation($"Partner {ownerId} fetching delivery timeline for order {orderId}");
 
-                var service = new EventDeliveryService(_connStr);
+                var service = new EventDeliveryService(_dbHelper);
                 var timeline = await service.GetDeliveryTimelineAsync(orderId);
 
                 if (timeline.EventDelivery != null && timeline.EventDelivery.OwnerId != ownerId)

@@ -13,14 +13,15 @@ export const apiService = {
      * @param {string} currentAction - The currentAction Mode.
      * @param {string} phoneNumber - The phone number.
      * @param {bool|false} isPartnerLogin - Is Partner or User Login flag.
+     * @param {string} deviceFingerprint - Device fingerprint for 2FA/device tracking.
      * @returns {Promise<object>}
      */
 
-    sendOtp: async (currentAction, phoneNumber, isPartnerLogin) => {
+    sendOtp: async (currentAction, phoneNumber, isPartnerLogin, deviceFingerprint = null) => {
         const response = await fetch(`${API_BASE_URL}/api/User/Auth/send-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentAction, phoneNumber, isPartnerLogin }),
+            body: JSON.stringify({ currentAction, phoneNumber, isPartnerLogin, deviceFingerprint }),
         });
         if (!response.ok) {
             const errorData = await response.json();
@@ -35,19 +36,30 @@ export const apiService = {
     * @param {string} otp - The OTP code.
     * @param {string|null} name - The user's full name for signups.
     * @param {bool|false} isPartnerLogin - Is Partner or User Login flag.
+    * @param {object} deviceInfo - Device information for 2FA (fingerprint, trustDevice, browser, os).
     * @returns {Promise<object>}
     */
-    verifyOtp: async (currentAction, phoneNumber, name, otp, isPartnerLogin ) => {
+    verifyOtp: async (currentAction, phoneNumber, name, otp, isPartnerLogin, deviceInfo = {}) => {
         const response = await fetch(`${API_BASE_URL}/api/User/Auth/verify-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentAction, phoneNumber, name, otp, isPartnerLogin }),
+            body: JSON.stringify({
+                currentAction,
+                phoneNumber,
+                name,
+                otp,
+                isPartnerLogin,
+                deviceFingerprint: deviceInfo.deviceFingerprint || null,
+                trustDevice: deviceInfo.trustDevice || false,
+                browser: deviceInfo.browser || null,
+                os: deviceInfo.os || null
+            }),
         });
         if (!response.ok) {
             const errorData = await response.json();
             return errorData;
         }
-        return response.json(); // Should return { token, user }
+        return response.json(); // Should return { token, user, deviceTrusted, trustedDeviceId }
     },
 
     // Login endpoint
@@ -115,6 +127,75 @@ export const apiService = {
     getGoogleAuthUrl: async () => {
         const response = await fetch(`${API_BASE_URL}/api/auth/google/login`);
         return response;
+    },
+
+    // ===================================
+    // DEVICE MANAGEMENT (2FA/Trusted Devices)
+    // ===================================
+
+    /**
+     * Get all trusted devices for the authenticated user
+     * @returns {Promise<object>}
+     */
+    getTrustedDevices: async () => {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/User/Auth/trusted-devices`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            return errorData;
+        }
+        return response.json();
+    },
+
+    /**
+     * Revoke a specific trusted device
+     * @param {number} deviceId - The device ID to revoke
+     * @param {string} reason - Reason for revocation
+     * @returns {Promise<object>}
+     */
+    revokeTrustedDevice: async (deviceId, reason = 'User revoked') => {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/User/Auth/trusted-devices/${deviceId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ reason })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            return errorData;
+        }
+        return response.json();
+    },
+
+    /**
+     * Revoke all trusted devices (security measure)
+     * @param {string} reason - Reason for revocation
+     * @returns {Promise<object>}
+     */
+    revokeAllTrustedDevices: async (reason = 'Security measure') => {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/User/Auth/revoke-all-devices`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ reason })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            return errorData;
+        }
+        return response.json();
     },
 
 };

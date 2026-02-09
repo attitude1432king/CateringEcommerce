@@ -2,6 +2,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
@@ -11,12 +12,10 @@ namespace CateringEcommerce.BAL.Base.Owner
 {
     public class BannerService: IBannerService
     {
-        private readonly SqlDatabaseManager _db;
-
-        public BannerService(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public BannerService(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -36,7 +35,7 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 countQuery.Append(BuildFilterQuery(filter, parameters));
 
-                var result = await _db.ExecuteScalarAsync(countQuery.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(countQuery.ToString(), parameters.ToArray());
                 return result != null ? Convert.ToInt32(result) : 0;
             }
             catch (Exception ex)
@@ -88,7 +87,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FETCH NEXT @PageSize ROWS ONLY;
                 ");
 
-                var bannersData = await _db.ExecuteAsync(selectQuery.ToString(), parameters.ToArray());
+                var bannersData = await _dbHelper.ExecuteAsync(selectQuery.ToString(), parameters.ToArray());
 
                 if (bannersData.Rows.Count == 0)
                     return new List<BannerDto>();
@@ -148,7 +147,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@EndDate", banner.EndDate ?? (object)DBNull.Value)
                 };
 
-                var result = await _db.ExecuteScalarAsync(insertQuery, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(insertQuery, parameters.ToArray());
                 return result != null ? Convert.ToInt64(result) : 0;
             }
             catch (Exception ex)
@@ -192,7 +191,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@EndDate", banner.EndDate ?? (object)DBNull.Value)
                 };
 
-                var rowsAffected = await _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+                var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -223,7 +222,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@OwnerPKID", ownerPKID)
                 };
 
-                var rowsAffected = await _db.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
+                var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -255,7 +254,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@IsActive", isActive.ToBinary())
                 };
 
-                var rowsAffected = await _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+                var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -290,7 +289,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     parameters.Add(new SqlParameter("@ExcludeId", excludeId.Value));
                 }
 
-                var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
                 return count > 0;
             }
@@ -325,7 +324,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     AND o.c_isactive = 1
                     ORDER BY b.c_display_order ASC, b.c_createddate DESC";
 
-                var bannersData = await _db.ExecuteAsync(selectQuery);
+                var bannersData = await _dbHelper.ExecuteAsync(selectQuery);
 
                 if (bannersData.Rows.Count == 0)
                     return new List<BannerDto>();
@@ -370,7 +369,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Id", bannerId)
                 };
 
-                await _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -395,7 +394,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Id", bannerId)
                 };
 
-                await _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
             }
             catch (Exception ex)
             {

@@ -8,6 +8,7 @@ import AddressContactForm from '../components/user/checkout/AddressContactForm';
 import PaymentReviewForm from '../components/user/checkout/PaymentReviewForm';
 import OrderConfirmationModal from '../components/user/OrderConfirmationModal';
 import EnhancedProgressStepper from '../components/user/checkout/EnhancedProgressStepper';
+import OTPVerificationModal from '../components/common/OTPVerificationModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
@@ -20,6 +21,8 @@ const CheckoutPage = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [createdOrder, setCreatedOrder] = useState(null);
   const [error, setError] = useState(null);
+  const [showOtpModal, setShowOtpModal] = useState(false); // OTP verification modal
+  const [otpVerified, setOtpVerified] = useState(false); // Track OTP verification status
 
   const [checkoutData, setCheckoutData] = useState({
     // Event Details
@@ -79,7 +82,22 @@ const CheckoutPage = () => {
     }
   };
 
-  const handleSubmitOrder = async () => {
+  // Handle OTP verification before submitting order
+  const handleSubmitOrder = () => {
+    // Show OTP modal for sensitive action verification
+    setShowOtpModal(true);
+  };
+
+  // Handle OTP verification success
+  const handleOtpVerified = async (otp, token) => {
+    setOtpVerified(true);
+    setShowOtpModal(false);
+    // Proceed with actual order submission
+    await actuallySubmitOrder();
+  };
+
+  // Actually submit the order after OTP verification
+  const actuallySubmitOrder = async () => {
     setIsSubmitting(true);
     setError(null);
 
@@ -318,6 +336,18 @@ const CheckoutPage = () => {
           onClose={() => setShowConfirmation(false)}
         />
       )}
+
+      {/* OTP Verification Modal - Required before placing order */}
+      <OTPVerificationModal
+        isOpen={showOtpModal}
+        onClose={() => setShowOtpModal(false)}
+        onVerify={handleOtpVerified}
+        purpose="Place Order"
+        phoneNumber={user?.phone || checkoutData.contactPhone}
+        actionDescription={`Confirm your order for ₹${cart.totalAmount?.toLocaleString('en-IN')} by verifying your identity`}
+        requireOtp={true}
+        autoSendOtp={true}
+      />
     </div>
   );
 };

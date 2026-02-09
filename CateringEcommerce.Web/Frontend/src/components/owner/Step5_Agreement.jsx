@@ -4,6 +4,7 @@ File: src/components/owner/Step5_Agreement.jsx (NEW)
 ========================================
 */
 import React, { useState, useRef, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 
 // Signature Pad Component
 const SignaturePad = ({ onSignatureChange, signature }) => {
@@ -155,8 +156,13 @@ export default function Step5_Agreement({ formData, setFormData, errors }) {
     }, []);
 
     const handlePrint = () => {
-        // Create a new window for printing
+        // SECURITY FIX: Sanitize all user inputs before printing
         const printWindow = window.open('', '_blank');
+
+        if (!printWindow) {
+            console.error('Failed to open print window. Please allow popups.');
+            return;
+        }
 
         // Get the current date
         const currentDate = new Date().toLocaleDateString('en-IN', {
@@ -165,12 +171,47 @@ export default function Step5_Agreement({ formData, setFormData, errors }) {
             day: 'numeric'
         });
 
-        // Build the print content with agreement and signature
+        // SECURITY: Sanitize all user-controlled inputs with DOMPurify
+        const sanitizedAgreementText = DOMPurify.sanitize(agreementText, {
+            ALLOWED_TAGS: ['br', 'p', 'strong', 'em', 'b', 'i', 'u'],
+            ALLOWED_ATTR: [],
+            KEEP_CONTENT: true
+        });
+
+        const sanitizedCateringName = DOMPurify.sanitize(formData.cateringName || 'Not provided', {
+            ALLOWED_TAGS: [],
+            ALLOWED_ATTR: []
+        });
+
+        const sanitizedOwnerName = DOMPurify.sanitize(formData.ownerName || 'Not provided', {
+            ALLOWED_TAGS: [],
+            ALLOWED_ATTR: []
+        });
+
+        // SECURITY: Validate signature is a valid data URL
+        let signatureHTML = '<p style="color: #ef4444; font-style: italic;">No signature provided</p>';
+        if (formData.signature) {
+            // Validate it's a data URL for image
+            if (formData.signature.startsWith('data:image/')) {
+                // Additional sanitization: ensure it's a safe data URL
+                const sanitizedSignature = DOMPurify.sanitize(formData.signature, {
+                    ALLOWED_TAGS: [],
+                    ALLOWED_ATTR: []
+                });
+                signatureHTML = `<img src="${sanitizedSignature}" alt="Partner Signature" class="signature-image" />`;
+            } else {
+                signatureHTML = '<p style="color: #ef4444; font-style: italic;">Invalid signature format</p>';
+            }
+        }
+
+        // Build the print content with sanitized data
         const printContent = `
             <!DOCTYPE html>
             <html>
             <head>
                 <title>Partner Agreement</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
                     body {
                         font-family: Arial, sans-serif;
@@ -250,25 +291,21 @@ export default function Step5_Agreement({ formData, setFormData, errors }) {
                 <div class="header">
                     <h1>PARTNER AGREEMENT</h1>
                     <p>ENYVORA Catering Platform</p>
-                    <p>Date: ${currentDate}</p>
+                    <p>Date: ${DOMPurify.sanitize(currentDate)}</p>
                 </div>
 
                 <div class="agreement-content">
-                    ${agreementText}
+                    ${sanitizedAgreementText}
                 </div>
 
                 <div class="signature-section">
                     <div class="signature-box">
                         <div class="signature-label">Partner's Digital Signature:</div>
-                        ${formData.signature ? `
-                            <img src="${formData.signature}" alt="Partner Signature" class="signature-image" />
-                        ` : `
-                            <p style="color: #ef4444; font-style: italic;">No signature provided</p>
-                        `}
+                        ${signatureHTML}
                         <div class="date-info">
-                            <strong>Signed Date:</strong> ${currentDate}<br/>
-                            <strong>Business Name:</strong> ${formData.cateringName || 'Not provided'}<br/>
-                            <strong>Owner Name:</strong> ${formData.ownerName || 'Not provided'}
+                            <strong>Signed Date:</strong> ${DOMPurify.sanitize(currentDate)}<br/>
+                            <strong>Business Name:</strong> ${sanitizedCateringName}<br/>
+                            <strong>Owner Name:</strong> ${sanitizedOwnerName}
                         </div>
                     </div>
                 </div>
@@ -287,6 +324,7 @@ export default function Step5_Agreement({ formData, setFormData, errors }) {
             </html>
         `;
 
+        // SECURITY: Write sanitized content
         printWindow.document.write(printContent);
         printWindow.document.close();
     };

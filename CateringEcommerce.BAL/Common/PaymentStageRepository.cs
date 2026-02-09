@@ -1,24 +1,24 @@
+using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Models.User;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.BAL.Common
 {
-    public class PaymentStageRepository
+    public class PaymentStageRepository : IPaymentStageRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public PaymentStageRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public PaymentStageRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         // ===================================
@@ -49,7 +49,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@DueDate", (object)dueDate ?? DBNull.Value)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query.ToString(), parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
                 if (dt.Rows.Count > 0)
                 {
                     return Convert.ToInt64(dt.Rows[0][0]);
@@ -86,7 +86,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<PaymentStageDto> stages = new List<PaymentStageDto>();
 
                 if (dt.Rows.Count > 0)
@@ -128,7 +128,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<PaymentStageDto> stages = new List<PaymentStageDto>();
 
                 if (dt.Rows.Count > 0)
@@ -180,7 +180,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UpiId", (object)paymentData.UpiId ?? DBNull.Value)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -211,7 +211,7 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY o.c_event_date ASC
                 ";
 
-                DataTable dt = await _db.ExecuteAsync(query, Array.Empty<SqlParameter>());
+                DataTable dt = await _dbHelper.ExecuteAsync(query, Array.Empty<SqlParameter>());
                 return dt;
             }
             catch (Exception ex)
@@ -240,7 +240,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@PaymentStageId", paymentStageId)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)

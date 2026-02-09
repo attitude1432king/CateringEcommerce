@@ -1,26 +1,31 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
 using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Services;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 
 namespace CateringEcommerce.BAL.Base.Owner
 {
-    public class OrderModificationService
+    public class OrderModificationService : IOrderModificationService
     {
-        private readonly string _connectionString;
+        private readonly IDatabaseHelper _dbHelper;
         private readonly OrderModificationRepository _modificationRepository;
         private readonly PaymentStageRepository _paymentStageRepository;
         private readonly INotificationService? _notificationService;
 
-        public OrderModificationService(string connectionString, INotificationService? notificationService = null)
+        public OrderModificationService(IDatabaseHelper dbHelper, INotificationService? notificationService = null)
         {
-            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            _modificationRepository = new OrderModificationRepository(connectionString);
-            _paymentStageRepository = new PaymentStageRepository(connectionString);
+            _dbHelper = dbHelper;
+            _modificationRepository = new OrderModificationRepository(dbHelper);
+            _paymentStageRepository = new PaymentStageRepository(dbHelper);
             _notificationService = notificationService;
         }
 
@@ -38,6 +43,15 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 // Validate modification data
                 ValidateModificationData(modificationData);
+
+                // Block modifications during live event
+                string statusCheckQuery = $"SELECT c_order_status FROM {Table.SysOrders} WHERE c_orderid = @OrderId AND c_isactive = 1";
+                var statusParams = new SqlParameter[] { new SqlParameter("@OrderId", modificationData.OrderId) };
+                DataTable statusDt = await _dbHelper.ExecuteAsync(statusCheckQuery, statusParams);
+                if (statusDt.Rows.Count > 0 && statusDt.Rows[0]["c_order_status"]?.ToString() == "InProgress")
+                {
+                    throw new InvalidOperationException("Order modifications are not allowed during a live event.");
+                }
 
                 // Insert modification
                 long modificationId = await _modificationRepository.InsertOrderModificationAsync(modificationData);

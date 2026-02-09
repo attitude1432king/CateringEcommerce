@@ -96,7 +96,7 @@ GO
 CREATE TABLE t_sys_partner_request_actions (
     c_action_id BIGINT PRIMARY KEY IDENTITY(1,1),
     c_ownerid BIGINT NOT NULL, -- References t_sys_catering_owner
-    c_admin_id BIGINT NOT NULL,
+    c_adminid BIGINT NOT NULL,
     c_action_type VARCHAR(50) NOT NULL,
         -- Values: SUBMITTED, VIEWED, STATUS_CHANGED, APPROVED, REJECTED, INFO_REQUESTED, DOCUMENT_UPLOADED
     c_old_status VARCHAR(50),
@@ -107,13 +107,13 @@ CREATE TABLE t_sys_partner_request_actions (
 
     CONSTRAINT FK_partner_action_owner FOREIGN KEY (c_ownerid)
         REFERENCES t_sys_catering_owner(c_ownerid),
-    CONSTRAINT FK_partner_action_admin FOREIGN KEY (c_admin_id)
-        REFERENCES t_sys_admin(c_admin_id)
+    CONSTRAINT FK_partner_action_admin FOREIGN KEY (c_adminid)
+        REFERENCES t_sys_admin(c_adminid)
 );
 
 -- Indexes for performance
 CREATE INDEX IX_partner_actions_ownerid ON t_sys_partner_request_actions(c_ownerid);
-CREATE INDEX IX_partner_actions_admin_id ON t_sys_partner_request_actions(c_admin_id);
+CREATE INDEX IX_partner_actions_admin_id ON t_sys_partner_request_actions(c_adminid);
 CREATE INDEX IX_partner_actions_date ON t_sys_partner_request_actions(c_action_date DESC);
 
 GO
@@ -124,7 +124,7 @@ GO
 CREATE TABLE t_sys_partner_request_communications (
     c_communication_id BIGINT PRIMARY KEY IDENTITY(1,1),
     c_ownerid BIGINT NOT NULL, -- References t_sys_catering_owner
-    c_admin_id BIGINT NOT NULL,
+    c_adminid BIGINT NOT NULL,
     c_communication_type VARCHAR(20) NOT NULL, -- EMAIL, SMS, BOTH, WHATSAPP
     c_subject NVARCHAR(200),
     c_message NVARCHAR(MAX) NOT NULL,
@@ -138,8 +138,8 @@ CREATE TABLE t_sys_partner_request_communications (
 
     CONSTRAINT FK_partner_comm_owner FOREIGN KEY (c_ownerid)
         REFERENCES t_sys_catering_owner(c_ownerid),
-    CONSTRAINT FK_partner_comm_admin FOREIGN KEY (c_admin_id)
-        REFERENCES t_sys_admin(c_admin_id)
+    CONSTRAINT FK_partner_comm_admin FOREIGN KEY (c_adminid)
+        REFERENCES t_sys_admin(c_adminid)
 );
 
 -- Indexes for performance
@@ -153,7 +153,7 @@ GO
 -- ======================================================
 CREATE TABLE t_sys_admin_notifications (
     c_notification_id BIGINT PRIMARY KEY IDENTITY(1,1),
-    c_admin_id BIGINT NULL, -- NULL for all admins
+    c_adminid BIGINT NULL, -- NULL for all admins
     c_notification_type VARCHAR(50) NOT NULL,
         -- PARTNER_REQUEST_NEW, PARTNER_REQUEST_UPDATE, DOCUMENT_UPLOADED
     c_title NVARCHAR(200) NOT NULL,
@@ -165,12 +165,12 @@ CREATE TABLE t_sys_admin_notifications (
     c_read_date DATETIME NULL,
     c_created_date DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT FK_notification_admin FOREIGN KEY (c_admin_id)
-        REFERENCES t_sys_admin(c_admin_id)
+    CONSTRAINT FK_notification_admin FOREIGN KEY (c_adminid)
+        REFERENCES t_sys_admin(c_adminid)
 );
 
 -- Indexes for performance
-CREATE INDEX IX_admin_notifications_admin_id ON t_sys_admin_notifications(c_admin_id);
+CREATE INDEX IX_admin_notifications_admin_id ON t_sys_admin_notifications(c_adminid);
 CREATE INDEX IX_admin_notifications_is_read ON t_sys_admin_notifications(c_is_read);
 CREATE INDEX IX_admin_notifications_created_date ON t_sys_admin_notifications(c_created_date DESC);
 CREATE INDEX IX_admin_notifications_type ON t_sys_admin_notifications(c_notification_type);

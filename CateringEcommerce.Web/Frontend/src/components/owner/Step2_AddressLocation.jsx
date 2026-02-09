@@ -35,6 +35,7 @@ const LocationMapSelector = ({ latitude, longitude, onLocationSelect }) => {
             setMapLoaded(true);
         });
     }, []);
+    setMapLoaded(false);
 
     useEffect(() => {
         if (mapLoaded && mapRef.current && !map) {
@@ -466,40 +467,40 @@ export default function Step2_AddressLocation({ formData, setFormData, errors })
 
             {/* Map Location Section */}
             <section className="bg-white p-6 rounded-xl border-2 border-neutral-100 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h4 className="text-xl font-bold text-neutral-800">Map Location Selector</h4>
-                            <p className="text-sm text-neutral-500">Pin your exact location on the map</p>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={handleGetCurrentLocation}
-                        disabled={useCurrentLocation}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {useCurrentLocation ? (
-                            <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                Getting...
-                            </>
-                        ) : (
-                            <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                Use Current Location
-                            </>
-                        )}
-                    </button>
-                </div>
+                {/*<div className="flex items-center justify-between mb-6">*/}
+                {/*    <div className="flex items-center gap-3">*/}
+                {/*        <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">*/}
+                {/*            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">*/}
+                {/*                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />*/}
+                {/*            </svg>*/}
+                {/*        </div>*/}
+                {/*        <div>*/}
+                {/*            <h4 className="text-xl font-bold text-neutral-800">Map Location Selector</h4>*/}
+                {/*            <p className="text-sm text-neutral-500">Pin your exact location on the map</p>*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
+                {/*    <button*/}
+                {/*        type="button"*/}
+                {/*        onClick={handleGetCurrentLocation}*/}
+                {/*        disabled={useCurrentLocation}*/}
+                {/*        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"*/}
+                {/*    >*/}
+                {/*        {useCurrentLocation ? (*/}
+                {/*            <>*/}
+                {/*                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>*/}
+                {/*                Getting...*/}
+                {/*            </>*/}
+                {/*        ) : (*/}
+                {/*            <>*/}
+                {/*                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">*/}
+                {/*                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />*/}
+                {/*                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />*/}
+                {/*                </svg>*/}
+                {/*                Use Current Location*/}
+                {/*            </>*/}
+                {/*        )}*/}
+                {/*    </button>*/}
+                {/*</div>*/}
 
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
                     <p className="text-sm text-amber-800 flex items-start gap-2">
@@ -510,11 +511,11 @@ export default function Step2_AddressLocation({ formData, setFormData, errors })
                     </p>
                 </div>
 
-                <LocationMapSelector
-                    latitude={formData.latitude}
-                    longitude={formData.longitude}
-                    onLocationSelect={handleLocationSelect}
-                />
+                {/*<LocationMapSelector*/}
+                {/*    latitude={formData.latitude}*/}
+                {/*    longitude={formData.longitude}*/}
+                {/*    onLocationSelect={handleLocationSelect}*/}
+                {/*/>*/}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                     <div>

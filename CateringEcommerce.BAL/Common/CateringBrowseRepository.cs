@@ -1,5 +1,8 @@
 ﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Enums.Admin;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.Data.SqlClient;
 using System.Data;
@@ -14,12 +17,10 @@ namespace CateringEcommerce.BAL.Common
     /// </summary>
     public class CateringBrowseRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public CateringBrowseRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public CateringBrowseRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         #region Public Methods - Catering List for Browsing
@@ -62,7 +63,7 @@ namespace CateringEcommerce.BAL.Common
                         WHERE c_is_visible = 1 and c_is_verified = 1
                         GROUP BY c_ownerid
                     ) r ON o.c_ownerid = r.c_ownerid
-                    WHERE o.c_verified_by_admin = 1 
+                    WHERE o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()}
                         AND o.c_isactive = 1
                 ");
 
@@ -77,7 +78,7 @@ namespace CateringEcommerce.BAL.Common
 
                 sb.Append(" ORDER BY o.c_catering_name ASC ");
 
-                var result = await _db.ExecuteAsync(sb.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteAsync(sb.ToString(), parameters.ToArray());
                 return MapOwnerDataToCateringBusinessListDto(result);
             }
             catch (Exception ex)
@@ -138,11 +139,11 @@ namespace CateringEcommerce.BAL.Common
                         GROUP BY c_ownerid
                     ) r ON o.c_ownerid = r.c_ownerid
                     WHERE o.c_ownerid = @CateringId 
-                        AND o.c_verified_by_admin = 1 
+                        AND o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()}
                         AND o.c_isactive = 1";
 
                 var parameters = new[] { new SqlParameter("@CateringId", cateringId) };
-                var result = await _db.ExecuteAsync(query, parameters);
+                var result = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (result.Rows.Count == 0)
                     return null;
@@ -181,7 +182,7 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY c_uploaded_at DESC";
 
                 var parameters = new[] { new SqlParameter("@CateringId", cateringDetail.CateringId) };
-                var mediaResult = await _db.ExecuteAsync(mediaQuery, parameters);
+                var mediaResult = await _dbHelper.ExecuteAsync(mediaQuery, parameters);
 
                 cateringDetail.KitchenPhotos = new List<CateringMediaDto>();
                 cateringDetail.KitchenVideos = new List<CateringMediaDto>();
@@ -242,7 +243,7 @@ namespace CateringEcommerce.BAL.Common
                             ISNULL(r.ReviewCount, 0) AS Reviews,
                             o.c_logo_path AS Image,
                             ISNULL(ops.c_min_dish_order, 0) AS MinOrder,
-                            CASE WHEN o.c_verified_by_admin = 1 THEN 1 ELSE 0 END AS Verified,
+                            CASE WHEN o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()} THEN 1 ELSE 0 END AS Verified,
                             CASE WHEN o.c_isfeatured = 1 THEN 1 ELSE 0 END AS Featured
                         FROM {Table.SysCateringOwner} o
 
@@ -272,12 +273,12 @@ namespace CateringEcommerce.BAL.Common
                                 ON ops2.c_ownerid = o2.c_ownerid
                             INNER JOIN {Table.SysCateringTypeMaster} tm
                                 ON ',' + ops2.c_cuisine_types + ',' 
-                                   LIKE '%,' + CAST(tm.c_type_id AS VARCHAR) + ',%'
-                               AND tm.c_category_id = 2
+                                   LIKE '%,' + CAST(tm.c_typeid AS VARCHAR) + ',%'
+                               AND tm.c_categoryid = {ServiceType.CuisineType.GetHashCode()}
                             GROUP BY o2.c_ownerid
                         ) Cuisine ON Cuisine.c_ownerid = o.c_ownerid
 
-                        WHERE o.c_verified_by_admin = 1
+                        WHERE o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()}
                           AND o.c_isactive = 1
                           AND (
                                 o.c_isfeatured = 1
@@ -288,7 +289,7 @@ namespace CateringEcommerce.BAL.Common
                             o.c_isfeatured DESC,
                             ISNULL(r.AverageRating, 0) DESC;";
 
-                var result = await _db.ExecuteAsync(query);
+                var result = await _dbHelper.ExecuteAsync(query);
                 return MapToFeaturedCatererDto(result);
             }
             catch (Exception ex)
@@ -323,7 +324,7 @@ namespace CateringEcommerce.BAL.Common
                         AND LEN(ISNULL(r.c_review_comment, '')) > 100
                     ORDER BY r.c_createddate DESC, r.c_overall_rating DESC";
 
-                var result = await _db.ExecuteAsync(query);
+                var result = await _dbHelper.ExecuteAsync(query);
                 return MapToHomePageTestimonialDto(result);
             }
             catch (Exception ex)
@@ -348,7 +349,7 @@ namespace CateringEcommerce.BAL.Common
                     FROM {Table.SysHomepageStats}
                     ORDER BY c_last_updated DESC";
 
-                var result = await _db.ExecuteAsync(query);
+                var result = await _dbHelper.ExecuteAsync(query);
 
                 if (result.Rows.Count == 0)
                 {
@@ -538,7 +539,7 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY p.c_price ASC";
 
                 var parameters = new[] { new SqlParameter("@CateringId", cateringId) };
-                var result = await _db.ExecuteAsync(query, parameters);
+                var result = await _dbHelper.ExecuteAsync(query, parameters);
                 return MapToCateringPackageDto(result);
             }
             catch (Exception ex)
@@ -602,7 +603,7 @@ namespace CateringEcommerce.BAL.Common
 
                 sb.Append(" ORDER BY cat.c_categoryname, f.c_foodname");
 
-                var result = await _db.ExecuteAsync(sb.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteAsync(sb.ToString(), parameters.ToArray());
                 return MapToCateringFoodItemDto(result);
             }
             catch (Exception ex)
@@ -639,7 +640,7 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY d.c_price ASC";
 
                 var parameters = new[] { new SqlParameter("@CateringId", cateringId) };
-                var result = await _db.ExecuteAsync(query, parameters);
+                var result = await _dbHelper.ExecuteAsync(query, parameters);
                 return MapToDecorationDto(result);
             }
             catch (Exception ex)
@@ -690,7 +691,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@PageSize", pageSize)
                 };
 
-                var result = await _db.ExecuteAsync(query, parameters);
+                var result = await _dbHelper.ExecuteAsync(query, parameters);
                 return MapToCateringReviewDto(result);
             }
             catch (Exception ex)
@@ -723,7 +724,7 @@ namespace CateringEcommerce.BAL.Common
                     GROUP BY c.c_categoryid, c.c_categoryname, c.c_description
                     ORDER BY c.c_categoryname";
 
-                var result = await _db.ExecuteAsync(query);
+                var result = await _dbHelper.ExecuteAsync(query);
                 return MapToFoodCategoryDisplayDto(result);
             }
             catch (Exception ex)
@@ -944,7 +945,7 @@ namespace CateringEcommerce.BAL.Common
                 // ==============================
 
                 if (filter.VerifiedOnly != false)
-                    sb.Append(" AND o.c_verified_by_admin = 1 ");
+                    sb.Append($" AND o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()} ");
 
                 if (cityId.HasValue && cityId.Value > 0)
                 {
@@ -1018,6 +1019,18 @@ namespace CateringEcommerce.BAL.Common
                     sb.Append(") ");
                 }
 
+                // Decorations filter - filter caterings that have decorations
+                if (filter.HasDecorations == true)
+                {
+                    sb.Append($@"
+                AND EXISTS (
+                    SELECT 1
+                    FROM {Table.SysCateringDecorations} deco
+                    WHERE deco.c_ownerid = o.c_ownerid
+                    AND deco.c_is_active = 1
+                ) ");
+                }
+
                 // Keyword search
                 if (!string.IsNullOrWhiteSpace(filter.SearchKeyword))
                 {
@@ -1062,7 +1075,7 @@ namespace CateringEcommerce.BAL.Common
                 // ==============================
                 // STEP 5: EXECUTE
                 // ==============================
-                var result = await _db.ExecuteAsync(sb.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteAsync(sb.ToString(), parameters.ToArray());
 
                 int totalCount = totalCountParam.Value != DBNull.Value
                     ? Convert.ToInt32(totalCountParam.Value)
@@ -1124,7 +1137,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@CateringId", cateringId)
                 };
 
-                var packageResult = await _db.ExecuteAsync(packageQuery, packageParams);
+                var packageResult = await _dbHelper.ExecuteAsync(packageQuery, packageParams);
 
                 if (packageResult == null || packageResult.Rows.Count == 0)
                 {
@@ -1155,7 +1168,7 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY fc.c_categoryname";
 
                 var categoryParams = new[] { new SqlParameter("@PackageId", packageId) };
-                var categoryResult = await _db.ExecuteAsync(categoryQuery, categoryParams);
+                var categoryResult = await _dbHelper.ExecuteAsync(categoryQuery, categoryParams);
 
                 if (categoryResult == null || categoryResult.Rows.Count == 0)
                 {
@@ -1196,7 +1209,7 @@ namespace CateringEcommerce.BAL.Common
                                 FOR XML PATH('')
                             ), 1, 1, '') AS ImagePaths
                         FROM {Table.SysFoodItems} f
-                        LEFT JOIN {Table.SysCateringTypeMaster} ct ON ct.c_type_id = f.c_cuisinetypeid
+                        LEFT JOIN {Table.SysCateringTypeMaster} ct ON ct.c_typeid = f.c_cuisinetypeid
                         WHERE f.c_ownerid = @CateringId
                             AND f.c_categoryid = @CategoryId
                             AND f.c_ispackage_item = 1
@@ -1210,7 +1223,7 @@ namespace CateringEcommerce.BAL.Common
                         new SqlParameter("@CategoryId", categoryId)
                     };
 
-                    var foodItemsResult = await _db.ExecuteAsync(foodItemsQuery, foodItemParams);
+                    var foodItemsResult = await _dbHelper.ExecuteAsync(foodItemsQuery, foodItemParams);
 
                     if (foodItemsResult != null && foodItemsResult.Rows.Count > 0)
                     {
@@ -1276,7 +1289,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@CateringId", cateringId)
                 };
 
-                var result = await _db.ExecuteAsync(query, parameters);
+                var result = await _dbHelper.ExecuteAsync(query, parameters);
                 var categories = new List<PackageCategoryBasicDto>();
 
                 if (result != null && result.Rows.Count > 0)

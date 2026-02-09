@@ -3,6 +3,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
@@ -15,12 +16,10 @@ namespace CateringEcommerce.BAL.Base.Owner
 {
     public class Discounts : IDiscounts
     {
-        private readonly SqlDatabaseManager _db;
-
-        public Discounts(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public Discounts(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -65,7 +64,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 };
 
                 // ✅ Execute insert query
-                var result = await _db.ExecuteScalarAsync(insertQuery, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(insertQuery, parameters.ToArray());
 
                 // ✅ Convert result to int (new record ID)
                 int newDiscountId = result != null ? Convert.ToInt32(result) : 0;
@@ -95,7 +94,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@OwnerPKID", ownerPKID),
                     new SqlParameter("@DiscountID", discountPKID)
                 }; 
-                return Convert.ToInt16(await _db.ExecuteNonQueryAsync(query, parameters.ToArray())) > 0;
+                return Convert.ToInt16(await _dbHelper.ExecuteNonQueryAsync(query, parameters.ToArray())) > 0;
             }
             catch (Exception)
             {
@@ -159,7 +158,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FETCH NEXT @PageSize ROWS ONLY;
                 ");
 
-                var discountData = await _db.ExecuteAsync(selectQuery.ToString(), parameters.ToArray());
+                var discountData = await _dbHelper.ExecuteAsync(selectQuery.ToString(), parameters.ToArray());
                 if (discountData.Rows.Count == 0)
                     return new List<DiscountModel>();
 
@@ -186,7 +185,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     })
                     .ToList();
 
-                MappingSyncService _mappingSyncService = new MappingSyncService(_db.GetConnectionString());
+                MappingSyncService _mappingSyncService = new MappingSyncService(_dbHelper);
                 // ✅ Load selected items based on Discount Type
                 foreach (var discount in discountList)
                 {
@@ -254,7 +253,7 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 selectQuery.Append(BuildDiscountFilterQuery(filter, parameters));
 
-                var result = await _db.ExecuteScalarAsync(selectQuery.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(selectQuery.ToString(), parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
 
                 return count;
@@ -283,7 +282,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@OwnerPKID", ownerPKID),
                     new SqlParameter("@DiscountID", discountPKID)
                 };
-                var result = await _db.ExecuteScalarAsync(selectQuery, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(selectQuery, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
                 return count > 0;
             }
@@ -355,7 +354,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 updateQuery.Append(" WHERE c_ownerid = @OwnerPKID AND c_discountid = @DiscountID");
 
                 // ✅ Execute update query
-                var result = await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
                 return result;
             }
             catch (Exception ex)
@@ -491,7 +490,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 {
                     new SqlParameter("@DiscountCode", discountCode)
                 };
-                var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
                 return count > 0;
             }
@@ -536,7 +535,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 if (discountPKID.HasValue && discountPKID.Value > 0)
                     parameters.Add(new SqlParameter("@DiscountPKID", discountPKID.Value));
 
-                var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
                 return count > 0;
             }
@@ -568,7 +567,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 foreach (var itemId in selectedItemIds)
                 {
                     parameters.Add(new SqlParameter("@ID", itemId));
-                    var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                    var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                     int count = result != null ? Convert.ToInt32(result) : 0;
                     if (count > 0)
                         return true;

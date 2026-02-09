@@ -13,6 +13,56 @@ namespace CateringEcommerce.Domain.Interfaces.User
         Task<List<CateringBusinessListDto>> GetVerifiedCateringListAsync(string cityName);
 
         /// <summary>
+        /// Gets catering detail for browsing
+        /// </summary>
+        Task<CateringDetailDto> GetCateringDetailForBrowsingAsync(long cateringId);
+
+        /// <summary>
+        /// Gets featured caterers for homepage
+        /// </summary>
+        Task<List<FeaturedCatererDto>> GetFeaturedCaterersAsync();
+
+        /// <summary>
+        /// Gets testimonials for homepage
+        /// </summary>
+        Task<List<HomePageTestimonialDto>> GetHomePageTestimonialsAsync();
+
+        /// <summary>
+        /// Gets homepage statistics
+        /// </summary>
+        Task<HomePageStatsDto> GetHomePageStatsAsync();
+
+        /// <summary>
+        /// Gets catering packages
+        /// </summary>
+        Task<List<CateringPackageDto>> GetCateringPackagesAsync(long cateringId);
+
+        /// <summary>
+        /// Gets catering food items
+        /// </summary>
+        Task<List<CateringFoodItemDto>> GetCateringFoodItemsAsync(long cateringId, long? categoryId = null, bool? isPackageItem = null);
+
+        /// <summary>
+        /// Gets catering decorations
+        /// </summary>
+        Task<List<DecorationDto>> GetCateringDecorationsAsync(long cateringId);
+
+        /// <summary>
+        /// Gets catering reviews
+        /// </summary>
+        Task<List<CateringReviewDto>> GetCateringReviewsAsync(long cateringId, int pageNumber = 1, int pageSize = 10);
+
+        /// <summary>
+        /// Gets food categories
+        /// </summary>
+        Task<List<FoodCategoryDisplayDto>> GetFoodCategoriesAsync();
+
+        /// <summary>
+        /// Gets package selection details
+        /// </summary>
+        Task<PackageSelectionDto> GetPackageSelectionDetailsAsync(long packageId, long cateringId);
+
+        /// <summary>
         /// Gets food categories included in a specific package.
         /// Used for displaying category badges on package cards.
         /// </summary>
@@ -37,5 +87,10 @@ namespace CateringEcommerce.Domain.Interfaces.User
         /// <param name="cateringId">The catering owner ID</param>
         /// <returns>Supported guest categories and minimum guest count</returns>
         Task<CateringGuestCategoriesDto> GetCateringGuestCategoriesAsync(long cateringId);
+
+        /// <summary>
+        /// Searches caterings based on filter criteria
+        /// </summary>
+        Task<CateringSearchResultDto> SearchCateringsAsync(CateringSearchFilterDto filter);
     }
 }

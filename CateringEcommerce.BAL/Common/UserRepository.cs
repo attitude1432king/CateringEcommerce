@@ -10,13 +10,12 @@ namespace CateringEcommerce.BAL.Common
 {
     public class UserRepository : IUserRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public UserRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public UserRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
+
         public UserModel GetUserDetails(Int64 userPKID)
         {
             string query = $"SELECT * FROM {Table.SysUser} WHERE c_userid = @UserPKID";
@@ -30,7 +29,7 @@ namespace CateringEcommerce.BAL.Common
                 };
             }
 
-            var dt = _db.Execute(query, parameters);
+            var dt = _dbHelper.Execute(query, parameters);
 
             if (dt.Rows.Count > 0)
             {
@@ -67,7 +66,7 @@ namespace CateringEcommerce.BAL.Common
             SqlParameter[] parameters = {
                     new SqlParameter("@Email", email)
                     };
-            return Convert.ToBoolean(_db.ExecuteScalar(query, parameters));
+            return Convert.ToBoolean(_dbHelper.ExecuteScalar(query, parameters));
         }
 
 
@@ -83,7 +82,7 @@ namespace CateringEcommerce.BAL.Common
             SqlParameter[] parameters = {
                     new SqlParameter("@phoneNumber", phoneNumber)
                     };
-            return Convert.ToBoolean(_db.ExecuteScalar(query, parameters));
+            return Convert.ToBoolean(_dbHelper.ExecuteScalar(query, parameters));
         }
 
         public bool IsExistRoleBaseNumber(string phoneNumber, string type, string role)
@@ -94,7 +93,7 @@ namespace CateringEcommerce.BAL.Common
             SqlParameter[] parameters = {
                     new SqlParameter("@phoneNumber", phoneNumber.Substring(3))
                     };
-            return Convert.ToBoolean(_db.ExecuteScalar(query, parameters));
+            return Convert.ToBoolean(_dbHelper.ExecuteScalar(query, parameters));
         }
 
         private string GetUserTableName(string role)

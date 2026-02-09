@@ -1,6 +1,7 @@
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.Data.SqlClient;
@@ -14,13 +15,10 @@ namespace CateringEcommerce.BAL.Base.User
     public class HomeService : IHomeService
     {
     
-        private readonly SqlDatabaseManager _db;
-
-
-        public HomeService(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public HomeService(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
 
@@ -35,8 +33,8 @@ namespace CateringEcommerce.BAL.Base.User
             try
             {
                 List<CateringBusinessListDto> cateringList;
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
-                Locations locations = new Locations(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
+                Locations locations = new Locations(_dbHelper);
 
                 int cityId = await locations.GetCityID(cityName);
 
@@ -73,7 +71,7 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentException("Invalid catering ID.", nameof(cateringId));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 var cateringDetail = await cateringRepository.GetCateringDetailForUserBrowseAsync(cateringId);
 
                 if (cateringDetail == null)
@@ -97,7 +95,7 @@ namespace CateringEcommerce.BAL.Base.User
         {
             try
             {
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetFeaturedCaterersAsync();
             }
             catch (Exception ex)
@@ -114,7 +112,7 @@ namespace CateringEcommerce.BAL.Base.User
         {
             try
             {
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetHomePageTestimonialsAsync();
             }
             catch (Exception ex)
@@ -131,7 +129,7 @@ namespace CateringEcommerce.BAL.Base.User
         {
             try
             {
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetHomePageStatsAsync();
             }
             catch (Exception ex)
@@ -154,7 +152,7 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentException("Invalid catering ID.", nameof(cateringId));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetCateringPackagesAsync(cateringId);
             }
             catch (Exception ex)
@@ -182,7 +180,7 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentException("Invalid catering ID.", nameof(cateringId));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetCateringFoodItemsAsync(cateringId, categoryId, isPackageItem);
             }
             catch (Exception ex)
@@ -205,7 +203,7 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentException("Invalid catering ID.", nameof(cateringId));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetCateringDecorationsAsync(cateringId);
             }
             catch (Exception ex)
@@ -233,7 +231,7 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentException("Invalid catering ID.", nameof(cateringId));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetCateringReviewsAsync(cateringId, pageNumber, pageSize);
             }
             catch (Exception ex)
@@ -250,7 +248,7 @@ namespace CateringEcommerce.BAL.Base.User
         {
             try
             {
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetFoodCategoriesAsync();
             }
             catch (Exception ex)
@@ -280,7 +278,7 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentException("Invalid catering ID.", nameof(cateringId));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetPackageSelectionDetailsAsync(packageId, cateringId);
             }
             catch (Exception ex)
@@ -310,7 +308,7 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentException("Invalid catering ID.", nameof(cateringId));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 return await cateringRepository.GetPackageCategoriesAsync(packageId, cateringId);
             }
             catch (Exception ex)
@@ -341,7 +339,7 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentException("Invalid catering ID.", nameof(cateringId));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
                 var packageSelection = await cateringRepository.GetPackageSelectionDetailsAsync(packageId, cateringId);
 
                 // If no search query, return all items
@@ -401,7 +399,7 @@ namespace CateringEcommerce.BAL.Base.User
                     FROM {Table.SysCateringOwnerService}
                     WHERE c_catering_id = @CateringId";
 
-                var operationsData = await _db.ExecuteAsync(
+                var operationsData = await _dbHelper.ExecuteAsync(
                     operationsQuery,
                     new[] { new SqlParameter("@CateringId", cateringId) });
 
@@ -428,15 +426,15 @@ namespace CateringEcommerce.BAL.Base.User
                     // Query to get category details from master table
                     var categoriesQuery = $@"
                         SELECT
-                            c_type_id as CategoryId,
+                            c_typeid as CategoryId,
                             c_type_name as CategoryName,
                             c_description as Description,
                         FROM {Table.SysCateringTypeMaster}
-                        WHERE c_type_id IN @FoodTypeIds
-                        AND c_is_active = 1
+                        WHERE c_typeid IN @FoodTypeIds
+                        AND c_isactive = 1
                         ORDER BY c_type_name";
 
-                    var categoriesTable = await _db.ExecuteAsync(categoriesQuery, null);
+                    var categoriesTable = await _dbHelper.ExecuteAsync(categoriesQuery, null);
                     categories = new List<GuestCategoryDto>();
                     if (categoriesTable != null)
                     {
@@ -491,8 +489,8 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new ArgumentNullException(nameof(filter));
                 }
 
-                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_db.GetConnectionString());
-                Locations locations = new Locations(_db.GetConnectionString());
+                CateringBrowseRepository cateringRepository = new CateringBrowseRepository(_dbHelper);
+                Locations locations = new Locations(_dbHelper);
 
                 // Get city ID if city name is provided
                 int? cityId = null;

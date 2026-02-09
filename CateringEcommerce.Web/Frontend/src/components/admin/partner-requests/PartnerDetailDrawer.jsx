@@ -1,438 +1,576 @@
 import { useState } from 'react';
-import { X, CheckCircle, XCircle, FileQuestion, Phone, Mail, MapPin, FileText, Image, Calendar, User, Building } from 'lucide-react';
+import { X, CheckCircle, XCircle, Phone, Mail, MapPin, FileText, Image, Calendar, User, Building, CreditCard, Shield, Briefcase, Play, Pause, ChevronLeft, ChevronRight, Video } from 'lucide-react';
 import PartnerStatusBadge from './PartnerStatusBadge';
 import PartnerActionModal from './PartnerActionModal';
-import { PermissionGuard } from '../auth/PermissionGuard';
 import { PermissionButton } from '../ui/PermissionButton';
+import { ApprovalStatus } from '../../../services/partnerApprovalApi';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
 /**
- * Partner Detail Drawer Component
+ * Media Viewer Component - Common viewer for images, videos, and documents
+ */
+const MediaViewer = ({ mediaItems, currentIndex, onClose, onNavigate }) => {
+    const [isPlaying, setIsPlaying] = useState(true);
+    const currentMedia = mediaItems[currentIndex];
+
+    if (!currentMedia) return null;
+
+    const mediaUrl = currentMedia.filePath.startsWith('http')
+        ? currentMedia.filePath
+        : `${API_BASE_URL}${currentMedia.filePath}`;
+
+    const isVideo = (item) => {
+        const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
+        return videoExtensions.some(ext => item.filePath.toLowerCase().endsWith(ext));
+    };
+
+    const isDocument = (item) => {
+        const docExtensions = ['.pdf', '.doc', '.docx'];
+        return docExtensions.some(ext => item.filePath.toLowerCase().endsWith(ext));
+    };
+
+    const handleVideoToggle = () => {
+        const video = document.getElementById('media-video');
+        if (video) {
+            if (isPlaying) {
+                video.pause();
+            } else {
+                video.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+
+    const handlePrevious = () => {
+        if (currentIndex > 0) {
+            onNavigate(currentIndex - 1);
+            setIsPlaying(true);
+        }
+    };
+
+    const handleNext = () => {
+        if (currentIndex < mediaItems.length - 1) {
+            onNavigate(currentIndex + 1);
+            setIsPlaying(true);
+        }
+    };
+
+    const renderMedia = () => {
+        if (isVideo(currentMedia)) {
+            return (
+                <div className="relative w-full h-full flex items-center justify-center">
+                    <video
+                        id="media-video"
+                        src={mediaUrl}
+                        autoPlay
+                        controls
+                        className="max-w-full max-h-full"
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                    >
+                        Your browser does not support the video tag.
+                    </video>
+                    <button
+                        onClick={handleVideoToggle}
+                        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
+                    >
+                        {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                    </button>
+                </div>
+            );
+        } else if (isDocument(currentMedia)) {
+            return (
+                <div className="w-full h-full flex items-center justify-center">
+                    <iframe
+                        src={mediaUrl}
+                        className="w-full h-full border-0"
+                        title={currentMedia.fileName || 'Document'}
+                    />
+                </div>
+            );
+        } else {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-4">
+                    <img
+                        src={mediaUrl}
+                        alt={currentMedia.fileName || 'Media'}
+                        className="max-w-full max-h-full object-contain"
+                    />
+                </div>
+            );
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black bg-opacity-90"
+                onClick={onClose}
+            ></div>
+
+            {/* Media Container */}
+            <div className="relative w-full h-full max-w-7xl max-h-screen p-4 flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4 z-10">
+                    <div className="text-white">
+                        <p className="text-lg font-medium">
+                            {currentMedia.fileName || currentMedia.label || 'Media'}
+                        </p>
+                        <p className="text-sm text-gray-300">
+                            {currentIndex + 1} of {mediaItems.length}
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+
+                {/* Media Content */}
+                <div className="flex-1 relative overflow-hidden rounded-lg">
+                    {renderMedia()}
+                </div>
+
+                {/* Navigation */}
+                {mediaItems.length > 1 && (
+                    <div className="flex items-center justify-center mt-4 space-x-4">
+                        <button
+                            onClick={handlePrevious}
+                            disabled={currentIndex === 0}
+                            className="p-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronLeft className="w-6 h-6" />
+                        </button>
+                        <span className="text-white text-sm">
+                            {currentIndex + 1} / {mediaItems.length}
+                        </span>
+                        <button
+                            onClick={handleNext}
+                            disabled={currentIndex === mediaItems.length - 1}
+                            className="p-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight className="w-6 h-6" />
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+/**
+ * Partner Detail Drawer Component (UPDATED - Enum-based)
  *
- * Slide-out panel showing complete partner registration details
- * with action buttons for approve/reject/request info
+ * Shows complete partner registration details
+ * Works with NEW PartnerApprovalController backend
  */
 const PartnerDetailDrawer = ({ request, onClose, onActionSuccess }) => {
-  const [showActionModal, setShowActionModal] = useState(false);
-  const [actionType, setActionType] = useState(null);
-  const [selectedDocument, setSelectedDocument] = useState(null);
+    const [showActionModal, setShowActionModal] = useState(false);
+    const [actionType, setActionType] = useState(null);
+    const [mediaViewer, setMediaViewer] = useState({ show: false, items: [], currentIndex: 0 });
 
-  const handleAction = (type) => {
-    setActionType(type);
-    setShowActionModal(true);
-  };
+    if (!request) return null;
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+    const handleAction = (type) => {
+        setActionType(type);
+        setShowActionModal(true);
+    };
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
-        onClick={onClose}
-      ></div>
+    const openMediaViewer = (items, index = 0) => {
+        setMediaViewer({ show: true, items, currentIndex: index });
+    };
 
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-hidden flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-gray-900 truncate">
-              {request.businessInfo.businessName}
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Request ID: {request.requestNumber}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="ml-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
+    const closeMediaViewer = () => {
+        setMediaViewer({ show: false, items: [], currentIndex: 0 });
+    };
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Status & Quick Actions */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div>
-              <div className="text-sm text-gray-600 mb-2">Current Status</div>
-              <PartnerStatusBadge status={request.status} size="lg" />
-            </div>
+    const navigateMedia = (newIndex) => {
+        setMediaViewer(prev => ({ ...prev, currentIndex: newIndex }));
+    };
 
-            {request.status === 'PENDING' && (
-              <div className="flex items-center space-x-2">
-                <PermissionButton
-                  permission="PARTNER_REQUEST_APPROVE"
-                  variant="success"
-                  onClick={() => handleAction('APPROVE')}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Approve
-                </PermissionButton>
+    const isVideo = (filePath) => {
+        const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
+        return videoExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
+    };
 
-                <PermissionButton
-                  permission="PARTNER_REQUEST_REJECT"
-                  variant="danger"
-                  onClick={() => handleAction('REJECT')}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Reject
-                </PermissionButton>
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+    };
 
-                <PermissionButton
-                  permission="PARTNER_REQUEST_REQUEST_INFO"
-                  variant="secondary"
-                  onClick={() => handleAction('REQUEST_INFO')}
-                >
-                  <FileQuestion className="w-4 h-4 mr-2" />
-                  Request Info
-                </PermissionButton>
-              </div>
-            )}
-          </div>
+    // Check if can approve/reject (only PENDING requests)
+    const canTakeAction = request.approvalStatusId === ApprovalStatus.PENDING;
 
-          {/* Business Information */}
-          <section>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-              <Building className="w-5 h-5 mr-2 text-indigo-600" />
-              Business Information
-            </h3>
-            <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-              <InfoRow label="Business Name" value={request.businessInfo.businessName} />
-              <InfoRow label="Business Type" value={request.businessInfo.businessType} />
-              <InfoRow
-                label="Cuisine Types"
-                value={request.businessInfo.cuisineTypes?.join(', ') || 'N/A'}
-              />
-              <InfoRow label="Description" value={request.businessInfo.description} />
-              <InfoRow
-                label="Delivery Radius"
-                value={`${request.businessInfo.deliveryRadius || 0} km`}
-              />
-            </div>
-          </section>
+    return (
+        <>
+            {/* Backdrop */}
+            <div
+                className="fixed inset-0 bg-black bg-opacity-50 z-40"
+                onClick={onClose}
+            ></div>
 
-          {/* Owner Information */}
-          <section>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-              <User className="w-5 h-5 mr-2 text-indigo-600" />
-              Owner Information
-            </h3>
-            <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-              <InfoRow label="Name" value={request.ownerInfo.name} />
-              <InfoRow
-                label="Phone"
-                value={request.ownerInfo.phone}
-                icon={<Phone className="w-4 h-4" />}
-              />
-              {request.ownerInfo.alternatePhone && (
-                <InfoRow
-                  label="Alternate Phone"
-                  value={request.ownerInfo.alternatePhone}
-                  icon={<Phone className="w-4 h-4" />}
-                />
-              )}
-              <InfoRow
-                label="Email"
-                value={request.ownerInfo.email}
-                icon={<Mail className="w-4 h-4" />}
-              />
-            </div>
-          </section>
-
-          {/* Location Information */}
-          <section>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-              <MapPin className="w-5 h-5 mr-2 text-indigo-600" />
-              Location Information
-            </h3>
-            <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-              <InfoRow label="Address Line 1" value={request.location.addressLine1} />
-              {request.location.addressLine2 && (
-                <InfoRow label="Address Line 2" value={request.location.addressLine2} />
-              )}
-              <InfoRow label="City" value={request.location.city} />
-              <InfoRow label="State" value={request.location.state} />
-              <InfoRow label="Pincode" value={request.location.pincode} />
-              {request.location.latitude && request.location.longitude && (
-                <InfoRow
-                  label="Coordinates"
-                  value={`${request.location.latitude}, ${request.location.longitude}`}
-                />
-              )}
-            </div>
-
-            {/* Map View (Optional) */}
-            {request.location.latitude && request.location.longitude && (
-              <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden h-48 bg-gray-100 flex items-center justify-center">
-                <p className="text-gray-500 text-sm">Map view placeholder</p>
-                {/* Integrate Google Maps or similar here */}
-              </div>
-            )}
-          </section>
-
-          {/* Documents */}
-          <section>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-              <FileText className="w-5 h-5 mr-2 text-indigo-600" />
-              Documents
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {request.documents.gstNumber && (
-                <DocumentCard
-                  title="GST Certificate"
-                  number={request.documents.gstNumber}
-                  url={request.documents.gstDocumentUrl}
-                  onClick={() => setSelectedDocument(request.documents.gstDocumentUrl)}
-                />
-              )}
-              {request.documents.fssaiNumber && (
-                <DocumentCard
-                  title="FSSAI License"
-                  number={request.documents.fssaiNumber}
-                  url={request.documents.fssaiDocumentUrl}
-                  onClick={() => setSelectedDocument(request.documents.fssaiDocumentUrl)}
-                />
-              )}
-              {request.documents.panNumber && (
-                <DocumentCard
-                  title="PAN Card"
-                  number={request.documents.panNumber}
-                  url={request.documents.panDocumentUrl}
-                  onClick={() => setSelectedDocument(request.documents.panDocumentUrl)}
-                />
-              )}
-              {request.documents.bankAccountProofUrl && (
-                <DocumentCard
-                  title="Bank Account Proof"
-                  url={request.documents.bankAccountProofUrl}
-                  onClick={() => setSelectedDocument(request.documents.bankAccountProofUrl)}
-                />
-              )}
-            </div>
-          </section>
-
-          {/* Photos */}
-          <section>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-              <Image className="w-5 h-5 mr-2 text-indigo-600" />
-              Photos
-            </h3>
-
-            {/* Logo */}
-            {request.images.logoUrl && (
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Business Logo</p>
-                <img
-                  src={request.images.logoUrl}
-                  alt="Business Logo"
-                  className="w-32 h-32 object-cover rounded-lg border border-gray-200"
-                />
-              </div>
-            )}
-
-            {/* Kitchen Photos */}
-            {request.images.kitchenPhotos && request.images.kitchenPhotos.length > 0 && (
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Kitchen Photos</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {request.images.kitchenPhotos.map((photo, index) => (
-                    <img
-                      key={index}
-                      src={photo}
-                      alt={`Kitchen ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity"
-                      onClick={() => setSelectedDocument(photo)}
-                    />
-                  ))}
+            {/* Drawer */}
+            <div className="fixed right-0 top-0 h-full w-full max-w-4xl bg-white shadow-2xl z-50 overflow-hidden flex flex-col animate-slide-in-right">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-xl font-bold text-gray-900 truncate">
+                            {request.businessName}
+                        </h2>
+                        <p className="text-sm text-gray-600 mt-1">
+                            Owner ID: {request.ownerId} | Registered: {formatDate(request.registrationDate)}
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="ml-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
                 </div>
-              </div>
-            )}
 
-            {/* Menu Photos */}
-            {request.images.menuPhotos && request.images.menuPhotos.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Menu Photos</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {request.images.menuPhotos.map((photo, index) => (
-                    <img
-                      key={index}
-                      src={photo}
-                      alt={`Menu ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity"
-                      onClick={() => setSelectedDocument(photo)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Status & Quick Actions */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                            <div className="text-sm text-gray-600 mb-2">Current Status</div>
+                            <PartnerStatusBadge
+                                statusId={request.approvalStatusId}
+                                statusName={request.approvalStatusName}
+                                size="lg"
+                            />
+                        </div>
 
-          {/* Timeline / Audit Log */}
-          <section>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-              <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
-              Timeline
-            </h3>
-            <div className="space-y-3">
-              {request.actionsLog && request.actionsLog.map((action, index) => (
-                <div key={action.actionId} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-semibold text-indigo-600">
-                      {index + 1}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {action.actionType.replace('_', ' ')}
-                    </p>
-                    {action.adminName && (
-                      <p className="text-xs text-gray-600 mt-1">by {action.adminName}</p>
+                        {canTakeAction && (
+                            <div className="flex items-center space-x-2">
+                                <PermissionButton
+                                    permission="PARTNER_REQUEST_APPROVE"
+                                    onClick={() => handleAction('APPROVE')}
+                                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Approve
+                                </PermissionButton>
+
+                                <PermissionButton
+                                    permission="PARTNER_REQUEST_REJECT"
+                                    onClick={() => handleAction('REJECT')}
+                                    className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                                >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Reject
+                                </PermissionButton>
+                            </div>
+                        )}
+
+                        {request.approvalStatusId === ApprovalStatus.REJECTED && request.rejectionReason && (
+                            <div className="ml-4 flex-1">
+                                <p className="text-sm text-red-600 font-medium">Rejection Reason:</p>
+                                <p className="text-sm text-gray-700 mt-1">{request.rejectionReason}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Business Information */}
+                    <Section title="Business Information" icon={Building}>
+                        <InfoRow label="Business Name" value={request.businessName} />
+                        <InfoRow label="Owner Name" value={request.ownerName} />
+                        <InfoRow label="Email" value={request.email} icon={<Mail className="w-4 h-4" />} />
+                        <InfoRow label="Phone" value={request.phone} icon={<Phone className="w-4 h-4" />} />
+                        {request.supportContact && (
+                            <InfoRow label="Support Contact" value={request.supportContact} icon={<Phone className="w-4 h-4" />} />
+                        )}
+                        {request.whatsAppNumber && (
+                            <InfoRow label="WhatsApp" value={request.whatsAppNumber} />
+                        )}
+                        {request.alternateEmail && (
+                            <InfoRow label="Alternate Email" value={request.alternateEmail} />
+                        )}
+                    </Section>
+
+                    {/* Address Information */}
+                    {request.address && (
+                        <Section title="Address Details" icon={MapPin}>
+                            <InfoRow label="Building" value={request.address.building} />
+                            {request.address.street && <InfoRow label="Street" value={request.address.street} />}
+                            {request.address.area && <InfoRow label="Area" value={request.address.area} />}
+                            <InfoRow label="City" value={request.address.cityName || 'N/A'} />
+                            <InfoRow label="State" value={request.address.stateName || 'N/A'} />
+                            <InfoRow label="Pincode" value={request.address.pincode} />
+                            {request.address.latitude && request.address.longitude && (
+                                <InfoRow
+                                    label="Coordinates"
+                                    value={`${request.address.latitude}, ${request.address.longitude}`}
+                                />
+                            )}
+                        </Section>
                     )}
-                    {action.remarks && (
-                      <p className="text-xs text-gray-600 mt-1">{action.remarks}</p>
+
+                    {/* Legal Compliance */}
+                    {request.legalCompliance && (
+                        <Section title="Legal & Compliance" icon={Shield}>
+                            <InfoRow label="FSSAI Number" value={request.legalCompliance.fssaiNumber} />
+                            <InfoRow label="FSSAI Expiry" value={formatDate(request.legalCompliance.fssaiExpiryDate)} />
+                            {request.legalCompliance.fssaiCertificatePath && (
+                                <DocumentLink
+                                    label="FSSAI Certificate"
+                                    path={request.legalCompliance.fssaiCertificatePath}
+                                    onClick={() => openMediaViewer([{
+                                        filePath: request.legalCompliance.fssaiCertificatePath,
+                                        fileName: 'FSSAI Certificate',
+                                        label: 'FSSAI Certificate'
+                                    }], 0)}
+                                />
+                            )}
+
+                            <InfoRow
+                                label="GST Applicable"
+                                value={request.legalCompliance.gstApplicable ? 'Yes' : 'No'}
+                            />
+                            {request.legalCompliance.gstApplicable && (
+                                <>
+                                    <InfoRow label="GST Number" value={request.legalCompliance.gstNumber || 'N/A'} />
+                                    {request.legalCompliance.gstCertificatePath && (
+                                        <DocumentLink
+                                            label="GST Certificate"
+                                            path={request.legalCompliance.gstCertificatePath}
+                                            onClick={() => openMediaViewer([{
+                                                filePath: request.legalCompliance.gstCertificatePath,
+                                                fileName: 'GST Certificate',
+                                                label: 'GST Certificate'
+                                            }], 0)}
+                                        />
+                                    )}
+                                </>
+                            )}
+
+                            <InfoRow label="PAN Name" value={request.legalCompliance.panName} />
+                            <InfoRow label="PAN Number" value={request.legalCompliance.panNumber} />
+                            {request.legalCompliance.panFilePath && (
+                                <DocumentLink
+                                    label="PAN Card"
+                                    path={request.legalCompliance.panFilePath}
+                                    onClick={() => openMediaViewer([{
+                                        filePath: request.legalCompliance.panFilePath,
+                                        fileName: 'PAN Card',
+                                        label: 'PAN Card'
+                                    }], 0)}
+                                />
+                            )}
+                        </Section>
                     )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formatDate(action.actionDate)}
-                    </p>
-                  </div>
+
+                    {/* Bank Details */}
+                    {request.bankDetails && (
+                        <Section title="Bank Account Details" icon={CreditCard}>
+                            <InfoRow label="Account Holder" value={request.bankDetails.accountHolderName} />
+                            <InfoRow label="Account Number" value={request.bankDetails.accountNumber} />
+                            <InfoRow label="IFSC Code" value={request.bankDetails.ifscCode} />
+                            {request.bankDetails.upiId && <InfoRow label="UPI ID" value={request.bankDetails.upiId} />}
+                            {request.bankDetails.chequePath && (
+                                <DocumentLink
+                                    label="Cancelled Cheque"
+                                    path={request.bankDetails.chequePath}
+                                    onClick={() => openMediaViewer([{
+                                        filePath: request.bankDetails.chequePath,
+                                        fileName: 'Cancelled Cheque',
+                                        label: 'Cancelled Cheque'
+                                    }], 0)}
+                                />
+                            )}
+                        </Section>
+                    )}
+
+                    {/* Service Operations */}
+                    {request.serviceOperations && (
+                        <Section title="Service & Operations" icon={Briefcase}>
+                            {request.serviceOperations.cuisineTypes && (
+                                <InfoRow label="Cuisine Types" value={request.serviceOperations.cuisineTypes} />
+                            )}
+                            {request.serviceOperations.serviceTypes && (
+                                <InfoRow label="Service Types" value={request.serviceOperations.serviceTypes} />
+                            )}
+                            {request.serviceOperations.eventTypes && (
+                                <InfoRow label="Event Types" value={request.serviceOperations.eventTypes} />
+                            )}
+                            {request.serviceOperations.foodTypes && (
+                                <InfoRow label="Food Types" value={request.serviceOperations.foodTypes} />
+                            )}
+                            {request.serviceOperations.minDishOrder && (
+                                <InfoRow label="Min Dish Order" value={`₹${request.serviceOperations.minDishOrder}`} />
+                            )}
+                            <InfoRow
+                                label="Delivery Available"
+                                value={request.serviceOperations.deliveryAvailable ? 'Yes' : 'No'}
+                            />
+                            {request.serviceOperations.deliveryRadiusKm && (
+                                <InfoRow
+                                    label="Delivery Radius"
+                                    value={`${request.serviceOperations.deliveryRadiusKm} km`}
+                                />
+                            )}
+                        </Section>
+                    )}
+
+                    {/* Documents */}
+                    {request.documents && request.documents.length > 0 && (
+                        <Section title="Uploaded Kitchen Image/Videos" icon={FileText}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {request.documents.map((doc) => (
+                                    <div
+                                        key={doc.mediaId}
+                                        className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                                    >
+                                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                            <FileText className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-gray-900 truncate">
+                                                    {doc.fileName}
+                                                </p>
+                                                <p className="text-xs text-gray-500">
+                                                    {formatDate(doc.uploadedAt)} • {doc.extension.toUpperCase()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <a
+                                            href={doc.filePath}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="ml-2 px-3 py-1 text-sm text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                        >
+                                            View
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        </Section>
+                    )}
+
+                    {/* Photos & Videos */}
+                    {request.photos && request.photos.length > 0 && (
+                        <Section title="Uploaded Kitchen Media" icon={Image}>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                {request.photos.map((photo, index) => {
+                                    const mediaUrl = `${API_BASE_URL}${photo.filePath}`;
+                                    const isVideoFile = isVideo(photo.filePath);
+
+                                    return (
+                                        <button
+                                            key={photo.mediaId}
+                                            onClick={() => openMediaViewer(request.photos, index)}
+                                            className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-indigo-500 transition-all"
+                                        >
+                                            {isVideoFile ? (
+                                                <>
+                                                    <video
+                                                        src={mediaUrl}
+                                                        className="w-full h-full object-cover"
+                                                        muted
+                                                    />
+                                                    <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                                                        <div className="bg-white bg-opacity-90 rounded-full p-3">
+                                                            <Video className="w-6 h-6 text-indigo-600" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity flex items-center justify-center">
+                                                        <Play className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <img
+                                                        src={mediaUrl}
+                                                        alt={photo.fileName}
+                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity flex items-center justify-center">
+                                                        <Image className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </Section>
+                    )}
                 </div>
-              ))}
             </div>
-          </section>
-        </div>
 
-        {/* Footer Actions */}
-        <div className="border-t border-gray-200 p-6 bg-gray-50 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Close
-          </button>
+            {/* Action Modal */}
+            {showActionModal && (
+                <PartnerActionModal
+                    request={request}
+                    actionType={actionType}
+                    onClose={() => {
+                        setShowActionModal(false);
+                        setActionType(null);
+                    }}
+                    onSuccess={() => {
+                        setShowActionModal(false);
+                        setActionType(null);
+                        onActionSuccess();
+                    }}
+                />
+            )}
 
-          {request.status === 'PENDING' && (
-            <div className="flex items-center space-x-3">
-              <PermissionButton
-                permission="PARTNER_REQUEST_REQUEST_INFO"
-                variant="secondary"
-                onClick={() => handleAction('REQUEST_INFO')}
-              >
-                <FileQuestion className="w-4 h-4 mr-2" />
-                Request Info
-              </PermissionButton>
-
-              <PermissionButton
-                permission="PARTNER_REQUEST_REJECT"
-                onClick={() => handleAction('REJECT')}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Reject
-              </PermissionButton>
-
-              <PermissionButton
-                permission="PARTNER_REQUEST_APPROVE"
-                onClick={() => handleAction('APPROVE')}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Approve
-              </PermissionButton>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Action Modal */}
-      {showActionModal && (
-        <PartnerActionModal
-          request={request}
-          actionType={actionType}
-          onClose={() => {
-            setShowActionModal(false);
-            setActionType(null);
-          }}
-          onSuccess={() => {
-            setShowActionModal(false);
-            setActionType(null);
-            onActionSuccess();
-          }}
-        />
-      )}
-
-      {/* Document Viewer Modal */}
-      {selectedDocument && (
-        <DocumentViewerModal
-          url={selectedDocument}
-          onClose={() => setSelectedDocument(null)}
-        />
-      )}
-    </>
-  );
+            {/* Media Viewer */}
+            {mediaViewer.show && (
+                <MediaViewer
+                    mediaItems={mediaViewer.items}
+                    currentIndex={mediaViewer.currentIndex}
+                    onClose={closeMediaViewer}
+                    onNavigate={navigateMedia}
+                />
+            )}
+        </>
+    );
 };
 
 // Helper Components
+const Section = ({ title, icon: Icon, children }) => (
+    <section>
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+            <Icon className="w-5 h-5 mr-2 text-indigo-600" />
+            {title}
+        </h3>
+        <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+            {children}
+        </div>
+    </section>
+);
+
 const InfoRow = ({ label, value, icon }) => (
-  <div className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
-    <span className="text-sm font-medium text-gray-600">{label}</span>
-    <span className="text-sm text-gray-900 text-right flex items-center space-x-2">
-      {icon && <span className="text-gray-500">{icon}</span>}
-      <span>{value || 'N/A'}</span>
-    </span>
-  </div>
-);
-
-const DocumentCard = ({ title, number, url, onClick }) => (
-  <div
-    onClick={onClick}
-    className="p-4 border border-gray-200 rounded-lg hover:border-indigo-600 hover:shadow-md transition-all cursor-pointer"
-  >
-    <div className="flex items-center justify-between mb-2">
-      <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
-      <FileText className="w-5 h-5 text-indigo-600" />
+    <div className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
+        <span className="text-sm font-medium text-gray-600 flex items-center">
+            {icon && <span className="mr-2 text-gray-400">{icon}</span>}
+            {label}
+        </span>
+        <span className="text-sm text-gray-900 text-right ml-4">
+            {value || 'N/A'}
+        </span>
     </div>
-    {number && (
-      <p className="text-xs text-gray-600 mb-2 font-mono">{number}</p>
-    )}
-    <p className="text-xs text-indigo-600 font-medium">Click to view</p>
-  </div>
 );
 
-const DocumentViewerModal = ({ url, onClose }) => (
-  <>
-    <div
-      className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div className="relative max-w-4xl w-full bg-white rounded-lg overflow-hidden">
+const DocumentLink = ({ label, path, onClick }) => (
+    <div className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
+        <span className="text-sm font-medium text-gray-600">{label}</span>
         <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors z-10"
+            onClick={onClick}
+            className="text-sm text-indigo-600 hover:text-indigo-700 underline ml-4 focus:outline-none"
         >
-          <X className="w-6 h-6" />
+            View Document
         </button>
-        <img
-          src={url}
-          alt="Document"
-          className="w-full h-auto max-h-[80vh] object-contain"
-          onClick={(e) => e.stopPropagation()}
-        />
-      </div>
     </div>
-  </>
 );
 
 export default PartnerDetailDrawer;

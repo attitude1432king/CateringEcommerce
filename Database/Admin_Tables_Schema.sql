@@ -138,13 +138,6 @@ BEGIN
     ADD [c_last_login] DATETIME NULL;
     PRINT 'Column c_last_login added to t_sys_user.';
 END
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N't_sys_user') AND name = 'c_last_modified')
-BEGIN
-    ALTER TABLE [dbo].[t_sys_user]
-    ADD [c_last_modified] DATETIME NULL;
-    PRINT 'Column c_last_modified added to t_sys_user.';
-END
 GO
 
 -- Add columns to t_sys_catering_review for moderation

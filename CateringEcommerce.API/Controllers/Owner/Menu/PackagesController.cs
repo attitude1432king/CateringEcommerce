@@ -1,5 +1,6 @@
 ﻿using CateringEcommerce.BAL.Base.Owner.Menu;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CateringEcommerce.Domain.Models.Owner;
@@ -13,15 +14,18 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
     [Authorize(Roles = "Owner")]
     public class PackagesController : ControllerBase
     {
-        private readonly string _connStr;
         private readonly ILogger<PackagesController> _logger;
         private readonly ICurrentUserService _currentUser;
+        private readonly IPackages _packagesRepository;
 
-        public PackagesController(ILogger<PackagesController> logger, IConfiguration configuration, ICurrentUserService currentUser)
+        public PackagesController(
+            ILogger<PackagesController> logger,
+            ICurrentUserService currentUser,
+            IPackages packagesRepository)
         {
-            _logger = logger;
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _currentUser = currentUser;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
+            _packagesRepository = packagesRepository ?? throw new ArgumentNullException(nameof(packagesRepository));
         }
 
         [HttpGet("GetFoodCategory")]
@@ -30,7 +34,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
             try
             {
                 _logger.LogInformation("Fetching food categories.");
-                Packages packages = new Packages(_connStr);
+                var packages = _packagesRepository;
                 List<FoodCategoryDto> listFoodCategory = await packages.GetCategories();
                 _logger.LogInformation("Fetched {Count} food categories.", listFoodCategory?.Count ?? 0);
                 return Ok(listFoodCategory);
@@ -53,7 +57,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
                 _logger.LogInformation("Get packages counts");
-                Packages packages = new Packages(_connStr);
+                var packages = _packagesRepository;
                 Int32 packageCount = await packages.GetPackageCount(ownerPKID, searchPackage);
                 _logger.LogInformation("Fetched {Count} packages.", packageCount);
                 return Ok(packageCount);
@@ -80,7 +84,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
 
 
                 _logger.LogInformation("Fetching packages.");
-                Packages packages = new Packages(_connStr);
+                var packages = _packagesRepository;
                 var listPackages = await packages.GetPackages(ownerPKID, page, pageSize, searchPackage);
                 _logger.LogInformation("Fetched {Count} packages.", listPackages?.Count ?? 0);
                 return Ok(listPackages ?? new List<PackageDto>());
@@ -103,7 +107,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
                 _logger.LogInformation("Adding new package for owner PKID: {OwnerPKID}", ownerPKID);
-                Packages packages = new Packages(_connStr);
+                var packages = _packagesRepository;
 
                 // Check the Package Name same exists or not
                 if (packages.PackageExistOrNot(ownerPKID, packageDto.Name))
@@ -138,7 +142,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
                 _logger.LogInformation("Updating existing package for owner PKID: {OwnerPKID}", ownerPKID);
-                Packages packages = new Packages(_connStr);
+                var packages = _packagesRepository;
 
                 bool isValidPackageID = await packages.IsValidPackageID(ownerPKID, packageDto.PackageId);
                 if(!isValidPackageID)
@@ -194,7 +198,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 {
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
-                Packages packages = new Packages(_connStr);
+                var packages = _packagesRepository;
 
                 bool isValidPackageID = await packages.IsValidPackageID(ownerPKID, packageId);
                 if (!isValidPackageID)
@@ -228,7 +232,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
 
                 _logger.LogInformation("Fetching package lookup.");
 
-                Packages packages = new Packages(_connStr);
+                var packages = _packagesRepository;
                 var listPackages = await packages.GetPackagesLookup(ownerPKID);
 
                 // Safely handle null or empty list

@@ -1185,8 +1185,14 @@ export default function CateringDetailPage() {
                                                             alt={item.name}
                                                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                                             onError={(e) => {
+                                                                // SECURITY FIX: Use createElement instead of innerHTML to prevent XSS
                                                                 e.target.style.display = 'none';
-                                                                e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-6xl">${item.isVegetarian ? '🥗' : '🍖'}</div>`;
+                                                                const parent = e.target.parentElement;
+                                                                const fallbackDiv = document.createElement('div');
+                                                                fallbackDiv.className = 'w-full h-full flex items-center justify-center text-6xl';
+                                                                fallbackDiv.textContent = item.isVegetarian ? '🥗' : '🍖';
+                                                                parent.innerHTML = ''; // Clear parent
+                                                                parent.appendChild(fallbackDiv);
                                                             }}
                                                         />
                                                     ) : (

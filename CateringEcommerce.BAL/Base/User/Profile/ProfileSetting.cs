@@ -1,5 +1,6 @@
 ﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using Microsoft.Data.SqlClient;
 using System.Text;
@@ -8,12 +9,10 @@ namespace CateringEcommerce.BAL.Base.User.Profile
 {
     public class ProfileSetting : IProfileSetting
     {
-        private readonly SqlDatabaseManager _db;
-
-        public ProfileSetting(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public ProfileSetting(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         public async Task UpdateUserDetails(long? userPKID, Dictionary<string, string> dicData = null)
@@ -78,7 +77,7 @@ namespace CateringEcommerce.BAL.Base.User.Profile
                 updateQuery.Append(" WHERE c_userid = @UserPKID");
 
 
-                await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -98,7 +97,7 @@ namespace CateringEcommerce.BAL.Base.User.Profile
                     new SqlParameter("@UserPKID", userPkid)
                 };
 
-                var result = _db.ExecuteScalar(query, parameters.ToArray());
+                var result = _dbHelper.ExecuteScalar(query, parameters.ToArray());
 
                 // Return the picture URL if it exists and is not empty, otherwise return empty string
                 return !string.IsNullOrEmpty(result?.ToString()) ? result.ToString() : string.Empty;

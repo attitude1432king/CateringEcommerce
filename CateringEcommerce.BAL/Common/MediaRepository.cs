@@ -9,11 +9,10 @@ namespace CateringEcommerce.BAL.Common
 {
     public class MediaRepository: IMediaRepository
     {
-        private readonly SqlDatabaseManager _db;
-        public MediaRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public MediaRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         public async Task<List<MediaFileModel>> GetMediaFiles(long ownerPKID, DocumentType documentTypeID, long referenceID = 0)
@@ -34,7 +33,7 @@ namespace CateringEcommerce.BAL.Common
                     query += " AND c_reference_id = @ReferenceID";
                     parameters.Add(new SqlParameter("@ReferenceID", referenceID));
                 }
-                var mediaData = await _db.ExecuteAsync(query.ToString(), parameters.ToArray());
+                var mediaData = await _dbHelper.ExecuteAsync(query.ToString(), parameters.ToArray());
                 var mediaList = new List<MediaFileModel>();
                 if (mediaData.Rows.Count > 0)
                 {

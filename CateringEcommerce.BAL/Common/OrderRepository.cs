@@ -1,25 +1,26 @@
+using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
+using CateringEcommerce.Domain.Models.User;
+using Microsoft.Data.SqlClient;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
-using Newtonsoft.Json;
 
 namespace CateringEcommerce.BAL.Common
 {
-    public class OrderRepository
+    public class OrderRepository: IOrderRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public OrderRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public OrderRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         // ===================================
@@ -32,7 +33,7 @@ namespace CateringEcommerce.BAL.Common
                 StringBuilder query = new StringBuilder();
                 query.Append($@"
                     INSERT INTO {Table.SysOrders} (
-                        c_userid, c_cateringid, c_order_number, c_event_date, c_event_time,
+                        c_userid, c_ownerid, c_order_number, c_event_date, c_event_time,
                         c_event_type, c_event_location, c_guest_count, c_special_instructions,
                         c_delivery_address, c_contact_person, c_contact_phone, c_contact_email,
                         c_base_amount, c_tax_amount, c_delivery_charges, c_discount_amount, c_total_amount,
@@ -91,7 +92,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@SavedAddressId", (object)orderData.SavedAddressId ?? DBNull.Value)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query.ToString(), parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
                 if (dt.Rows.Count > 0)
                 {
                     return Convert.ToInt64(dt.Rows[0][0]);
@@ -141,7 +142,7 @@ namespace CateringEcommerce.BAL.Common
                     parameters.Add(new SqlParameter($"@PackageSelections{i}", (object)item.PackageSelections ?? DBNull.Value));
                 }
 
-                await _db.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
                 return true;
             }
             catch (Exception ex)
@@ -178,7 +179,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@PaymentStageType", (object)paymentStageType ?? DBNull.Value)
                 };
 
-                await _db.ExecuteNonQueryAsync(query.ToString(), parameters);
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters);
                 return true;
             }
             catch (Exception ex)
@@ -211,7 +212,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UpdatedBy", (object)updatedBy ?? DBNull.Value)
                 };
 
-                await _db.ExecuteNonQueryAsync(query.ToString(), parameters);
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters);
                 return true;
             }
             catch (Exception ex)
@@ -234,7 +235,7 @@ namespace CateringEcommerce.BAL.Common
                     WHERE c_order_number LIKE 'ORD-{datePrefix}-%'
                 ";
 
-                DataTable dt = await _db.ExecuteAsync(query, null);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, null);
                 int count = dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0][0]) : 0;
                 int nextNumber = count + 1;
 
@@ -260,7 +261,7 @@ namespace CateringEcommerce.BAL.Common
                     SELECT
                         o.c_orderid AS OrderId,
                         o.c_order_number AS OrderNumber,
-                        o.c_cateringid AS CateringId,
+                        o.c_ownerid AS CateringId,
                         ca.c_catering_name AS CateringName,
                         ca.c_logo_path AS CateringLogo,
                         o.c_event_date AS EventDate,
@@ -272,7 +273,7 @@ namespace CateringEcommerce.BAL.Common
                         o.c_payment_method AS PaymentMethod,
                         o.c_created_date AS CreatedDate
                     FROM {Table.SysOrders} o
-                    LEFT JOIN {Table.SysCateringOwner} ca ON o.c_cateringid = ca.c_ownerid
+                    LEFT JOIN {Table.SysCateringOwner} ca ON o.c_ownerid = ca.c_ownerid
                     WHERE o.c_userid = @UserId AND o.c_isactive = 1
                     ORDER BY o.c_created_date DESC
                     OFFSET @Offset ROWS
@@ -286,7 +287,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@PageSize", pageSize)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query.ToString(), parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
                 return MapToOrderListItemDto(dt);
             }
             catch (Exception ex)
@@ -307,7 +308,7 @@ namespace CateringEcommerce.BAL.Common
                     SELECT
                         o.c_orderid AS OrderId,
                         o.c_userid AS UserId,
-                        o.c_cateringid AS CateringId,
+                        o.c_ownerid AS CateringId,
                         ca.c_catering_name AS CateringName,
                         ca.c_logo_path AS CateringLogo,
                         o.c_order_number AS OrderNumber,
@@ -332,7 +333,7 @@ namespace CateringEcommerce.BAL.Common
                         o.c_created_date AS CreatedDate,
                         o.c_updated_date AS UpdatedDate
                     FROM {Table.SysOrders} o
-                    LEFT JOIN {Table.SysCateringOwner} ca ON o.c_cateringid = ca.c_ownerid
+                    LEFT JOIN {Table.SysCateringOwner} ca ON o.c_ownerid = ca.c_ownerid
                     WHERE o.c_orderid = @OrderId AND o.c_userid = @UserId AND o.c_isactive = 1
                 ");
 
@@ -342,7 +343,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UserId", userId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query.ToString(), parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
                 if (dt.Rows.Count == 0)
                     return null;
 
@@ -356,6 +357,12 @@ namespace CateringEcommerce.BAL.Common
 
                 // Get status history
                 order.StatusHistory = await GetOrderStatusHistoryAsync(orderId);
+
+                // Get live event status (only for InProgress or Completed orders)
+                if (order.OrderStatus == "InProgress" || order.OrderStatus == "Completed")
+                {
+                    order.LiveEventStatus = await GetLiveEventStatusAsync(orderId);
+                }
 
                 return order;
             }
@@ -394,7 +401,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 return MapToOrderItemDto(dt);
             }
             catch (Exception ex)
@@ -434,7 +441,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 if (dt.Rows.Count == 0)
                     return null;
 
@@ -471,12 +478,92 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 return MapToOrderStatusHistoryDto(dt);
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException("Error fetching order status history.", ex);
+            }
+        }
+
+        // ===================================
+        // GET LIVE EVENT STATUS
+        // ===================================
+        private async Task<LiveEventStatusDto?> GetLiveEventStatusAsync(long orderId)
+        {
+            try
+            {
+                string query = $@"
+                    SELECT
+                        sa.c_assignment_id AS AssignmentId,
+                        sa.c_status AS AssignmentStatus,
+                        s.c_first_name AS SupervisorName,
+                        sa.c_check_in_time AS CheckInTime,
+                        sa.c_quality_rating AS QualityRating,
+                        sa.c_payment_release_requested AS PaymentReleaseRequested,
+                        sa.c_payment_release_approved AS PaymentReleaseApproved,
+                        sa.c_extra_charges_amount AS ExtraChargesAmount,
+                        sa.c_modified_date AS LastUpdated,
+                        per.c_report_id AS ReportId,
+                        per.c_final_guest_count AS ActualGuestCount,
+                        per.c_event_rating AS EventRating,
+                        per.c_supervisor_notes AS SupervisorNotes,
+                        per.c_submitted_date AS ReportSubmittedDate,
+                        per.c_final_payable_amount AS FinalPayableAmount,
+                        pec.c_supervisor_signed_off AS PreEventSignedOff
+                    FROM {Table.SysSupervisorAssignment} sa
+                    INNER JOIN {Table.SysSupervisor} s ON sa.c_supervisor_id = s.c_supervisor_id
+                    LEFT JOIN {Table.SysPostEventReport} per ON sa.c_assignment_id = per.c_assignment_id
+                    LEFT JOIN {Table.SysPreEventChecklist} pec ON sa.c_assignment_id = pec.c_assignment_id
+                    WHERE sa.c_order_id = @OrderId
+                        AND sa.c_status NOT IN ('CANCELLED', 'REJECTED')
+                    ORDER BY sa.c_assigned_date DESC
+                ";
+
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@OrderId", orderId)
+                };
+
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
+                if (dt.Rows.Count == 0)
+                    return null;
+
+                DataRow row = dt.Rows[0];
+                string assignmentStatus = row["AssignmentStatus"]?.ToString() ?? "";
+                bool hasReport = row["ReportId"] != DBNull.Value;
+                bool preEventDone = row["PreEventSignedOff"] != DBNull.Value && Convert.ToBoolean(row["PreEventSignedOff"]);
+
+                // Determine event timeline stage from assignment status
+                string timelineStage = assignmentStatus switch
+                {
+                    "ASSIGNED" or "ACCEPTED" => preEventDone ? "Prepared" : "Assigned",
+                    "CHECKED_IN" => "Arrived",
+                    "IN_PROGRESS" => "InProgress",
+                    "COMPLETED" => "Completed",
+                    _ => "Assigned"
+                };
+
+                return new LiveEventStatusDto
+                {
+                    SupervisorAssigned = true,
+                    SupervisorName = row["SupervisorName"]?.ToString(),
+                    EventTimelineStage = timelineStage,
+                    LastUpdatedAt = row["LastUpdated"] != DBNull.Value ? Convert.ToDateTime(row["LastUpdated"]) : null,
+                    ActualGuestCount = row["ActualGuestCount"] != DBNull.Value ? Convert.ToInt32(row["ActualGuestCount"]) : null,
+                    ServiceQualityRating = row["QualityRating"] != DBNull.Value ? Convert.ToInt32(row["QualityRating"]) : null,
+                    SupervisorNotes = row["SupervisorNotes"] != DBNull.Value ? row["SupervisorNotes"].ToString() : null,
+                    SupervisorReportSubmitted = hasReport,
+                    PaymentRequestRaised = row["PaymentReleaseRequested"] != DBNull.Value && Convert.ToBoolean(row["PaymentReleaseRequested"]),
+                    ExtraChargesAmount = row["ExtraChargesAmount"] != DBNull.Value ? Convert.ToDecimal(row["ExtraChargesAmount"]) : null,
+                    FinalPayableAmount = row["FinalPayableAmount"] != DBNull.Value ? Convert.ToDecimal(row["FinalPayableAmount"]) : null
+                };
+            }
+            catch (Exception ex)
+            {
+                // Non-critical - return null if supervisor data can't be fetched
+                return null;
             }
         }
 
@@ -499,7 +586,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@Status", status)
                 };
 
-                await _db.ExecuteNonQueryAsync(query, parameters);
+                await _dbHelper.ExecuteNonQueryAsync(query, parameters);
 
                 // Insert into status history
                 await InsertOrderStatusHistoryAsync(orderId, status, remarks);
@@ -532,13 +619,16 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UserId", userId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(checkQuery, checkParams);
+                DataTable dt = await _dbHelper.ExecuteAsync(checkQuery, checkParams);
                 if (dt.Rows.Count == 0)
                     throw new InvalidOperationException("Order not found.");
 
                 string currentStatus = dt.Rows[0]["c_order_status"].ToString() ?? "";
                 DateTime createdDate = Convert.ToDateTime(dt.Rows[0]["c_created_date"]);
                 TimeSpan timeSinceCreation = DateTime.Now - createdDate;
+
+                if (currentStatus == "InProgress")
+                    throw new InvalidOperationException("Order cannot be cancelled during a live event.");
 
                 if (currentStatus != "Pending")
                     throw new InvalidOperationException("Order cannot be cancelled - already confirmed by vendor.");
@@ -576,7 +666,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@CateringId", cateringId)
                 };
 
-                DataTable globalDt = await _db.ExecuteAsync(globalQuery, globalParams);
+                DataTable globalDt = await _dbHelper.ExecuteAsync(globalQuery, globalParams);
                 if (globalDt.Rows.Count > 0)
                 {
                     string globalStatus = globalDt.Rows[0]["c_global_status"].ToString() ?? "";
@@ -598,7 +688,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@EventDate", eventDate)
                 };
 
-                DataTable dateDt = await _db.ExecuteAsync(dateQuery, dateParams);
+                DataTable dateDt = await _dbHelper.ExecuteAsync(dateQuery, dateParams);
                 if (dateDt.Rows.Count > 0)
                 {
                     string dateStatus = dateDt.Rows[0]["c_status"].ToString() ?? "";

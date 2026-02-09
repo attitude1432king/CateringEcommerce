@@ -9,7 +9,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import AppHeader from './components/user/Header/AppHeader';
 import AppFooter from './components/user/Footer/AppFooter';
 import AuthModal from './components/user/AuthModal';
-import CartDrawer from './components/user/CartDrawer';
+import EnhancedCartDrawer from './components/user/EnhancedCartDrawer';
+import FloatingCartButton from './components/user/FloatingCartButton';
 
 
 
@@ -99,7 +100,10 @@ export default function App() {
                 onClose={() => setIsAuthModalOpen(false)}
             />
 
-            <CartDrawer />
+            <EnhancedCartDrawer />
+
+            {/* Floating Cart Button - Only visible when cart has items */}
+            <FloatingCartButton />
         </div>
     );
 }

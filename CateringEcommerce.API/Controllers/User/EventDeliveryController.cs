@@ -22,19 +22,16 @@ namespace CateringEcommerce.API.Controllers.User
     {
         private readonly ILogger<EventDeliveryController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly IConfiguration _configuration;
-        private readonly string _connStr;
+        private readonly IEventDeliveryService _eventDeliveryService;
 
         public EventDeliveryController(
             ILogger<EventDeliveryController> logger,
             ICurrentUserService currentUser,
-            IConfiguration configuration)
+            IEventDeliveryService eventDeliveryService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _eventDeliveryService = eventDeliveryService ?? throw new ArgumentNullException(nameof(eventDeliveryService));
         }
 
         // ===================================
@@ -54,7 +51,7 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"User {userId} fetching event delivery for order {orderId}");
 
-                var service = new EventDeliveryService(_connStr);
+                var service = _eventDeliveryService;
                 var delivery = await service.GetEventDeliveryByOrderIdAsync(orderId);
 
                 if (delivery == null)
@@ -91,7 +88,7 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"User {userId} fetching delivery timeline for order {orderId}");
 
-                var service = new EventDeliveryService(_connStr);
+                var service = _eventDeliveryService;
                 var timeline = await service.GetDeliveryTimelineAsync(orderId);
 
                 // TODO: Add validation to check if user owns this order

@@ -156,7 +156,11 @@ const AdminDashboard = () => {
           />
           <StatCard
             title="Total Revenue"
-            value={`₹${(metrics?.totalRevenue / 1000).toFixed(1)}K` || '₹0'}
+            value={
+              metrics?.totalRevenue != null
+                ? `₹${(metrics.totalRevenue / 1000).toFixed(1)}K`
+                : '₹0'
+            }
             change={20}
             icon={DollarSign}
             color="bg-indigo-500"

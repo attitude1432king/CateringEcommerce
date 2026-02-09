@@ -2,13 +2,14 @@
 using CateringEcommerce.BAL.Base.User.AuthLogic;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Extensions;
 using System.Security.Claims;
 
 namespace CateringEcommerce.API.Controllers.User
@@ -20,16 +21,14 @@ namespace CateringEcommerce.API.Controllers.User
     {
 
         private readonly ISmsService _smsService;
-        private readonly IConfiguration _config;
-        private readonly TokenService _tokenService;
-        private readonly string _connStr;
+        private readonly ITokenService _tokenService;
+        private readonly IDatabaseHelper _dbHelper;
 
-        public AuthController(ISmsService smsService, IConfiguration config)
+        public AuthController(ISmsService smsService, IConfiguration config, IDatabaseHelper dbHelper, ITokenService tokenService)
         {
-            _smsService = smsService;
-            _config = config ?? throw new ArgumentNullException(nameof(config)); // Ensure config is not null
-            _connStr = _config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured."); // Ensure connection string is not null
-            _tokenService = new TokenService(config);
+            _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
+            _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
+            _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
         }
 
         [AllowAnonymous]
@@ -41,7 +40,7 @@ namespace CateringEcommerce.API.Controllers.User
                 Role role  = request.IsPartnerLogin ? Role.Owner : Role.User; // Determine role based on IsPartnerLogin
                 if (string.IsNullOrEmpty(request.PhoneNumber) && !System.Text.RegularExpressions.Regex.IsMatch(request.PhoneNumber, @"^\+91[6-9]\d{9}$"))
                     return BadRequest(new { result = false, message = "The phone number you entered is not valid. Use + followed by the 10-digit number." });
-                UserRepository authentication = new UserRepository(_connStr);
+                UserRepository authentication = new UserRepository(_dbHelper);
                 string mgs = string.Empty;
                 if (!string.IsNullOrEmpty(request.CurrentAction) && request.CurrentAction == "login")
                 {
@@ -89,8 +88,8 @@ namespace CateringEcommerce.API.Controllers.User
                 //if (_smsService.VerifyOtp(request.PhoneNumber, request.Otp))
                 if (true)
                 {
-                    Authentication authenticationDB = new Authentication(_connStr);
-                    OwnerRepository ownerRepository = new OwnerRepository(_connStr);
+                    Authentication authenticationDB = new Authentication(_dbHelper);
+                    OwnerRepository ownerRepository = new OwnerRepository(_dbHelper);
                     if (!string.IsNullOrEmpty(request.PhoneNumber) && !string.IsNullOrEmpty(request.Name) && request.CurrentAction == "signup" && !request.IsPartnerLogin)
                     {
                         authenticationDB.CreateUserAccount(request.Name, request.PhoneNumber);
@@ -121,7 +120,13 @@ namespace CateringEcommerce.API.Controllers.User
                         }
                     }
 
-                    string newToken = _tokenService.GenerateToken(request.Name, roleName, pkId, request.PhoneNumber);
+                    // Generate token with additional claims
+                    var additionalClaims = new Dictionary<string, string>
+                    {
+                        { "UserId", pkId ?? "0" },
+                        { "PhoneNumber", request.PhoneNumber ?? "" }
+                    };
+                    string newToken = _tokenService.GenerateToken(request.Name ?? "", roleName, additionalClaims);
                     return Ok(new { result = true, message = msg, token = newToken, user = loginUserDetails, role = roleName });
                 }
                 else
@@ -141,8 +146,8 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                UserRepository userRepository = new UserRepository(_connStr);
-                Authentication authentication = new Authentication(_connStr);
+                UserRepository userRepository = new UserRepository(_dbHelper);
+                Authentication authentication = new Authentication(_dbHelper);
                 var payload = await GoogleJsonWebSignature.ValidateAsync(token);
 
                 var email = payload.Email;

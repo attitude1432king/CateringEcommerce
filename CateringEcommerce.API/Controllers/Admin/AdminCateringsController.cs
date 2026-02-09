@@ -1,6 +1,7 @@
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Common.Admin;
+using CateringEcommerce.BAL.Base.Admin;
+using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +12,18 @@ namespace CateringEcommerce.API.Controllers.Admin
     [AdminAuthorize]
     public class AdminCateringsController : ControllerBase
     {
-        private readonly string _connStr;
+        private readonly IAdminCateringRepository _cateringRepository;
+        private readonly IAdminAuthRepository _adminAuthRepository;
+        private readonly ILogger<AdminCateringsController> _logger;
 
-        public AdminCateringsController(IConfiguration config)
+        public AdminCateringsController(
+            IAdminCateringRepository cateringRepository,
+            IAdminAuthRepository adminAuthRepository,
+            ILogger<AdminCateringsController> logger)
         {
-            _connStr = config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _cateringRepository = cateringRepository ?? throw new ArgumentNullException(nameof(cateringRepository));
+            _adminAuthRepository = adminAuthRepository ?? throw new ArgumentNullException(nameof(adminAuthRepository));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -26,12 +34,12 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminCateringRepository(_connStr);
-                var result = repository.GetAllCaterings(request);
+                var result = _cateringRepository.GetAllCaterings(request);
                 return ApiResponseHelper.Success(result, "Caterings retrieved successfully.");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get all caterings");
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -44,8 +52,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminCateringRepository(_connStr);
-                var catering = repository.GetCateringById(id);
+                var catering = _cateringRepository.GetCateringById(id);
 
                 if (catering == null)
                     return ApiResponseHelper.Failure("Catering not found.");
@@ -54,6 +61,7 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get catering by ID: {CateringId}", id);
                 return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
             }
         }
@@ -75,15 +83,13 @@ namespace CateringEcommerce.API.Controllers.Admin
                 request.CateringId = id;
                 request.UpdatedBy = adminId;
 
-                var repository = new AdminCateringRepository(_connStr);
-                bool success = repository.UpdateCateringStatus(request);
+                bool success = _cateringRepository.UpdateCateringStatus(request);
 
                 if (!success)
                     return ApiResponseHelper.Failure("Failed to update catering status.");
 
                 // Log activity
-                var authRepo = new AdminAuthRepository(_connStr);
-                authRepo.LogAdminActivity(adminId, "UPDATE_CATERING_STATUS", $"Updated catering {id} status to {request.Status}");
+                _adminAuthRepository.LogAdminActivity(adminId, "UPDATE_CATERING_STATUS", $"Updated catering {id} status to {request.Status}");
 
                 return ApiResponseHelper.Success(null, "Catering status updated successfully.");
             }
@@ -107,15 +113,13 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return ApiResponseHelper.Failure("Invalid admin session.");
                 }
 
-                var repository = new AdminCateringRepository(_connStr);
-                bool success = repository.DeleteCatering(id, adminId);
+                bool success = _cateringRepository.DeleteCatering(id, adminId);
 
                 if (!success)
                     return ApiResponseHelper.Failure("Failed to delete catering.");
 
                 // Log activity
-                var authRepo = new AdminAuthRepository(_connStr);
-                authRepo.LogAdminActivity(adminId, "DELETE_CATERING", $"Deleted catering {id}");
+                _adminAuthRepository.LogAdminActivity(adminId, "DELETE_CATERING", $"Deleted catering {id}");
 
                 return ApiResponseHelper.Success(null, "Catering deleted successfully.");
             }

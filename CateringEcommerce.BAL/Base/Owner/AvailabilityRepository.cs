@@ -2,6 +2,7 @@
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
@@ -10,12 +11,10 @@ namespace CateringEcommerce.BAL.Base.Owner
 {
     public class AvailabilityRepository : IAvailabilityRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public AvailabilityRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public AvailabilityRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -60,7 +59,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@OwnerId", ownerId),
                 };
 
-                var result = await _db.ExecuteScalarAsync(query, sqlParameter);
+                var result = await _dbHelper.ExecuteScalarAsync(query, sqlParameter);
                 int status = result == DBNull.Value ? 1 : Convert.ToInt16(result);
                 return status;
             }
@@ -101,7 +100,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Month", month)
                 };
 
-                using var reader = await _db.ExecuteReaderAsync(query, sqlParameter);
+                using var reader = await _dbHelper.ExecuteReaderAsync(query, sqlParameter);
 
                 while (await reader.ReadAsync())
                 {
@@ -153,7 +152,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Status", status)
                 };
 
-                await _db.ExecuteNonQueryAsync(sql, sqlParameter);
+                await _dbHelper.ExecuteNonQueryAsync(sql, sqlParameter);
             }
             catch (Exception ex)
             {
@@ -204,7 +203,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 new SqlParameter("@Note", (object?)note ?? DBNull.Value)
                 };
 
-                await _db.ExecuteNonQueryAsync(sql, sqlParameter);
+                await _dbHelper.ExecuteNonQueryAsync(sql, sqlParameter);
             }
             catch (Exception ex)
             {

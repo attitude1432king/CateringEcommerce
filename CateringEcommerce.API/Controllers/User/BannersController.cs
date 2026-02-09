@@ -1,4 +1,4 @@
-using CateringEcommerce.BAL.Base.Owner;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CateringEcommerce.API.Controllers.User
@@ -7,16 +7,15 @@ namespace CateringEcommerce.API.Controllers.User
     [Route("api/User/Banners")]
     public class UserBannersController : ControllerBase
     {
-        private readonly string _connStr;
         private readonly ILogger<UserBannersController> _logger;
+        private readonly IBannerService _bannerService;
 
         public UserBannersController(
             ILogger<UserBannersController> logger,
-            IConfiguration configuration)
+            IBannerService bannerService)
         {
-            _logger = logger;
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _bannerService = bannerService ?? throw new ArgumentNullException(nameof(bannerService));
         }
 
         [HttpGet("Active")]
@@ -26,8 +25,7 @@ namespace CateringEcommerce.API.Controllers.User
             {
                 _logger.LogInformation("Fetching active banners for homepage.");
 
-                var bannerService = new BannerService(_connStr);
-                var banners = await bannerService.GetActiveBannersForHomepage();
+                var banners = await _bannerService.GetActiveBannersForHomepage();
 
                 _logger.LogInformation("Fetched {Count} active banners.", banners?.Count ?? 0);
                 return Ok(banners);
@@ -44,8 +42,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                var bannerService = new BannerService(_connStr);
-                await bannerService.IncrementViewCount(bannerId);
+                await _bannerService.IncrementViewCount(bannerId);
                 return Ok();
             }
             catch (Exception ex)
@@ -60,8 +57,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                var bannerService = new BannerService(_connStr);
-                await bannerService.IncrementClickCount(bannerId);
+                await _bannerService.IncrementClickCount(bannerId);
                 return Ok();
             }
             catch (Exception ex)

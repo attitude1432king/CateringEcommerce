@@ -1,12 +1,14 @@
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Extensions;
 using Newtonsoft.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner
@@ -16,18 +18,24 @@ namespace CateringEcommerce.API.Controllers.Owner
     [Authorize(Roles = "Owner")]
     public class BannersController : ControllerBase
     {
-        private readonly string _connStr;
         private readonly ILogger<BannersController> _logger;
         private readonly ICurrentUserService _currentUser;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IBannerService _bannerService;
+        private readonly IOwnerRepository _ownerRepository;
 
-        public BannersController( IFileStorageService fileStorageService, ILogger<BannersController> logger, IConfiguration configuration, ICurrentUserService currentUser)
+        public BannersController(
+            IFileStorageService fileStorageService,
+            ILogger<BannersController> logger,
+            ICurrentUserService currentUser,
+            IBannerService bannerService,
+            IOwnerRepository ownerRepository)
         {
-            _fileStorageService = fileStorageService;
-            _logger = logger;
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _currentUser = currentUser;
+            _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
+            _bannerService = bannerService ?? throw new ArgumentNullException(nameof(bannerService));
+            _ownerRepository = ownerRepository ?? throw new ArgumentNullException(nameof(ownerRepository));
         }
 
         [HttpGet("Count")]
@@ -44,7 +52,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 var filter = JsonConvert.DeserializeObject<BannerFilter>(filterJson ?? "{}");
                 _logger.LogInformation("Fetching banners count for owner: {OwnerPKID}", ownerPKID);
 
-                var bannerService = new BannerService(_connStr);
+                var bannerService = _bannerService;
                 var count = await bannerService.GetBannersCount(ownerPKID, filter);
 
                 _logger.LogInformation("Fetched {Count} banners.", count);
@@ -71,7 +79,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 var filter = JsonConvert.DeserializeObject<BannerFilter>(filterJson ?? "{}");
                 _logger.LogInformation("Fetching banners list for owner: {OwnerPKID}", ownerPKID);
 
-                var bannerService = new BannerService(_connStr);
+                var bannerService = _bannerService;
                 var banners = await bannerService.GetBanners(ownerPKID, page, pageSize, filter);
 
                 _logger.LogInformation("Fetched {Count} banners.", banners?.Count ?? 0);
@@ -101,7 +109,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid banner data.", "warning");
                 }
 
-                var bannerService = new BannerService(_connStr);
+                var bannerService = _bannerService;
 
                 // Check if title already exists
                 bool titleExists = await bannerService.IsBannerTitleExists(ownerPKID, banner.Title);
@@ -130,8 +138,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     banner.ImagePath = imagePath;
 
                     // Save to media uploads table
-                    var ownerRepository = new OwnerRepository(_connStr);
-                    await ownerRepository.SaveFilePath(
+                    await _ownerRepository.SaveFilePath(
                         imagePath,
                         ownerPKID,
                         banner.BannerImage.Name,
@@ -166,7 +173,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid banner data.", "warning");
                 }
 
-                var bannerService = new BannerService(_connStr);
+                var bannerService = _bannerService;
 
                 // Check if title already exists (excluding current banner)
                 bool titleExists = await bannerService.IsBannerTitleExists(ownerPKID, banner.Title, banner.Id);
@@ -200,8 +207,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     banner.ImagePath = imagePath;
 
                     // Update media uploads table
-                    var ownerRepository = new OwnerRepository(_connStr);
-                    await ownerRepository.UpdateDocumentFilePath(
+                    await _ownerRepository.UpdateDocumentFilePath(
                         banner.Id.Value,
                         DocumentType.Banner,
                         imagePath);
@@ -229,7 +235,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
 
-                var bannerService = new BannerService(_connStr);
+                var bannerService = _bannerService;
                 bool deleted = await bannerService.DeleteBanner(ownerPKID, bannerId);
 
                 if (!deleted)
@@ -238,8 +244,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 }
 
                 // Soft delete media uploads table
-                var ownerRepository = new OwnerRepository(_connStr);
-                await ownerRepository.SoftDeleteByReferenceID(bannerId, DocumentType.Banner);
+                await _ownerRepository.SoftDeleteByReferenceID(bannerId, DocumentType.Banner);
 
                 _logger.LogInformation("Banner deleted with ID: {BannerId}", bannerId);
                 return ApiResponseHelper.Success(null, "Banner deleted successfully!");
@@ -263,7 +268,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
 
-                var bannerService = new BannerService(_connStr);
+                var bannerService = _bannerService;
                 bool updated = await bannerService.UpdateBannerStatus(ownerPKID, bannerId, isActive);
 
                 if (!updated)
