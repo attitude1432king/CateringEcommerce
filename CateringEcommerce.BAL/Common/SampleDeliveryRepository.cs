@@ -30,7 +30,7 @@ namespace CateringEcommerce.BAL.Common
             {
                 string query = $@"
                     INSERT INTO {Table.SysSampleDelivery}
-                    (c_orderid, c_userid, c_ownerid, c_provider, c_delivery_status, c_created_at)
+                    (c_orderid, c_userid, c_ownerid, c_provider, c_delivery_status, c_createddate)
                     VALUES
                     (@OrderId, @UserId, @OwnerId, @Provider, @DeliveryStatus, GETDATE());
 
@@ -66,7 +66,7 @@ namespace CateringEcommerce.BAL.Common
                     SELECT
                         c_sample_delivery_id, c_orderid, c_userid, c_ownerid,
                         c_provider, c_tracking_url, c_tracking_id, c_delivery_status,
-                        c_created_at, c_updated_at
+                        c_createddate, c_modifieddate
                     FROM {Table.SysSampleDelivery}
                     WHERE c_sample_delivery_id = @SampleDeliveryId
                 ";
@@ -102,7 +102,7 @@ namespace CateringEcommerce.BAL.Common
                     SELECT
                         c_sample_delivery_id, c_orderid, c_userid, c_ownerid,
                         c_provider, c_tracking_url, c_tracking_id, c_delivery_status,
-                        c_created_at, c_updated_at
+                        c_createddate, c_modifieddate
                     FROM {Table.SysSampleDelivery}
                     WHERE c_orderid = @OrderId
                 ";
@@ -139,7 +139,7 @@ namespace CateringEcommerce.BAL.Common
                     SET
                         c_tracking_url = @TrackingUrl,
                         c_tracking_id = @TrackingId,
-                        c_updated_at = GETDATE()
+                        c_modifieddate = GETDATE()
                     WHERE c_sample_delivery_id = @SampleDeliveryId
                 ";
 
@@ -170,7 +170,7 @@ namespace CateringEcommerce.BAL.Common
                     UPDATE {Table.SysSampleDelivery}
                     SET
                         c_delivery_status = @NewStatus,
-                        c_updated_at = GETDATE()
+                        c_modifieddate = GETDATE()
                     WHERE c_sample_delivery_id = @SampleDeliveryId
                 ";
 
@@ -204,8 +204,8 @@ namespace CateringEcommerce.BAL.Common
                 TrackingUrl = row["c_tracking_url"] != DBNull.Value ? row["c_tracking_url"].ToString() : null,
                 TrackingId = row["c_tracking_id"] != DBNull.Value ? row["c_tracking_id"].ToString() : null,
                 DeliveryStatus = (SampleDeliveryStatus)Convert.ToInt32(row["c_delivery_status"]),
-                CreatedAt = Convert.ToDateTime(row["c_created_at"]),
-                UpdatedAt = row["c_updated_at"] != DBNull.Value ? Convert.ToDateTime(row["c_updated_at"]) : null
+                CreatedAt = Convert.ToDateTime(row["c_createddate"]),
+                UpdatedAt = row["c_modifieddate"] != DBNull.Value ? Convert.ToDateTime(row["c_modifieddate"]) : null
             };
         }
     }

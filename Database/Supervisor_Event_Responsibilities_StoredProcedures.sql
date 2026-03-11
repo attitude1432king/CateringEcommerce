@@ -3,7 +3,7 @@
 -- Pre-Event, During-Event, Post-Event Workflows
 -- =============================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '================================================';
@@ -74,7 +74,7 @@ BEGIN
             c_pre_event_checklist_completion_date = GETDATE(),
             c_pre_event_issues_found = @IssuesFound,
             c_pre_event_issues_description = @IssuesDescription,
-            c_modified_date = GETDATE()
+            c_modifieddate = GETDATE()
         WHERE c_assignment_id = @AssignmentId;
 
         -- Log action
@@ -450,7 +450,7 @@ BEGIN
             c_event_completion_summary = @ReportSummary,
             c_event_completion_photos = @CompletionPhotos,
             c_status = 'COMPLETED',
-            c_modified_date = GETDATE()
+            c_modifieddate = GETDATE()
         WHERE c_assignment_id = @AssignmentId;
 
         -- Log action

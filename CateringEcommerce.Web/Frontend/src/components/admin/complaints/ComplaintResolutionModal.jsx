@@ -8,6 +8,7 @@ import {
   Loader
 } from 'lucide-react';
 import { calculateComplaintRefund } from '../../../services/adminComplaintApi';
+import { toast } from 'react-hot-toast'; // P1 FIX: Replace alert() with toast
 
 const ComplaintResolutionModal = ({ complaint, isOpen, onClose, onSubmitResolution }) => {
   const [resolutionType, setResolutionType] = useState('PARTIAL_REFUND');
@@ -55,13 +56,14 @@ const ComplaintResolutionModal = ({ complaint, isOpen, onClose, onSubmitResoluti
   };
 
   const handleSubmit = async () => {
+    // P1 FIX: Replace alert() with toast notifications for better UX
     if (!isValidComplaint && !validityReason.trim()) {
-      alert('Please provide a validity reason for rejecting the complaint.');
+      toast.error('Please provide a validity reason for rejecting the complaint.');
       return;
     }
 
     if (isValidComplaint && resolutionType !== 'NO_RESOLUTION' && refundAmount <= 0 && goodwillCredit <= 0) {
-      alert('Please provide either a refund amount or goodwill credit for approved complaints.');
+      toast.error('Please provide either a refund amount or goodwill credit for approved complaints.');
       return;
     }
 

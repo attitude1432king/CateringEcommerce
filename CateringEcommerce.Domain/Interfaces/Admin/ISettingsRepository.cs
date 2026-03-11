@@ -121,6 +121,11 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
         Task<EmailTemplateItem> GetEmailTemplateByCodeAsync(string templateCode);
 
         /// <summary>
+        /// Create a new email template
+        /// </summary>
+        Task<long> CreateEmailTemplateAsync(CreateEmailTemplateRequest request, long adminId);
+
+        /// <summary>
         /// Update an existing email template (increments version)
         /// </summary>
         Task<bool> UpdateEmailTemplateAsync(UpdateEmailTemplateRequest request, long adminId, string adminName);

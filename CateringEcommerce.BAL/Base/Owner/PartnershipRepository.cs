@@ -1,3 +1,4 @@
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
@@ -19,14 +20,14 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<PartnershipTierModel> GetPartnerTierAsync(long ownerId)
         {
-            var query = @"
+            var query = $@"
                 SELECT vpt.*,
                        DATEDIFF(DAY, GETDATE(), vpt.c_tier_lock_end_date) AS c_days_remaining_in_lock,
                        co.c_catering_name,
                        co.c_owner_name,
                        co.c_email
-                FROM t_sys_owner_partnership_tiers vpt
-                INNER JOIN t_sys_catering_owner co ON vpt.c_ownerid = co.c_ownerid
+                FROM {Table.SysOwnerPartnershipTiers} vpt
+                INNER JOIN {Table.SysCateringOwner} co ON vpt.c_ownerid = co.c_ownerid
                 WHERE vpt.c_ownerid = @OwnerId";
 
             var parameters = new[]
@@ -40,7 +41,7 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<PartnershipDashboard> GetPartnerDashboardAsync(long ownerId)
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     vpt.c_tier_name AS CurrentTierName,
                     vpt.c_current_commission_rate AS CurrentCommissionRate,
@@ -61,15 +62,15 @@ namespace CateringEcommerce.BAL.Base.Owner
                     vsd.c_available_balance AS SecurityDepositAvailable,
                     vsd.c_holds_amount AS SecurityDepositHolds,
                     (SELECT SUM(c_amount)
-                     FROM t_sys_deposit_transactions
+                     FROM {Table.SysDepositTransactions}
                      WHERE c_ownerid = @OwnerId AND c_transaction_type = 'DEDUCTION') AS TotalDeductions,
                     (SELECT COUNT(*)
-                     FROM t_sys_order_complaints oc
-                     INNER JOIN t_sys_order o ON oc.c_orderid = o.c_orderid
+                     FROM {Table.SysOrderComplaints} oc
+                     INNER JOIN {Table.SysOrders} o ON oc.c_orderid = o.c_orderid
                      WHERE o.c_cateringownerid = @OwnerId
-                       AND oc.c_created_date >= DATEADD(MONTH, -3, GETDATE())) AS RecentComplaintsCount
-                FROM t_sys_owner_partnership_tiers vpt
-                LEFT JOIN t_sys_owner_security_deposits vsd ON vpt.c_ownerid = vsd.c_ownerid AND vsd.c_is_active = 1
+                       AND oc.c_createddate >= DATEADD(MONTH, -3, GETDATE())) AS RecentComplaintsCount
+                FROM {Table.SysOwnerPartnershipTiers} vpt
+                LEFT JOIN {Table.SysOwnerSecurityDeposits} vsd ON vpt.c_ownerid = vsd.c_ownerid AND vsd.c_is_active = 1
                 WHERE vpt.c_ownerid = @OwnerId";
 
             var parameters = new[]
@@ -83,8 +84,8 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<List<CommissionTierHistoryModel>> GetCommissionHistoryAsync(long ownerId)
         {
-            var query = @"
-                SELECT * FROM t_sys_commission_tier_history
+            var query = $@"
+                SELECT * FROM {Table.SysCommissionTierHistory}
                 WHERE c_ownerid = @OwnerId
                 ORDER BY c_effective_date DESC";
 
@@ -98,11 +99,11 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<bool> AcknowledgeTierChangeAsync(long historyId, long ownerId)
         {
-            var query = @"
-                UPDATE t_sys_commission_tier_history
+            var query = $@"
+                UPDATE {Table.SysCommissionTierHistory}
                 SET c_acknowledged = 1,
                     c_acknowledged_date = GETDATE(),
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_history_id = @HistoryId
                   AND c_ownerid = @OwnerId
                   AND c_acknowledged = 0";
@@ -119,10 +120,10 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<bool> UpdateMonthlyOrderCountAsync(long ownerId, int orderCount)
         {
-            var query = @"
-                UPDATE t_sys_owner_partnership_tiers
+            var query = $@"
+                UPDATE {Table.SysOwnerPartnershipTiers}
                 SET c_monthly_order_count = @OrderCount,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_ownerid = @OwnerId";
 
             var parameters = new[]
@@ -137,10 +138,10 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<bool> UpdateAverageRatingAsync(long ownerId, decimal averageRating)
         {
-            var query = @"
-                UPDATE t_sys_owner_partnership_tiers
+            var query = $@"
+                UPDATE {Table.SysOwnerPartnershipTiers}
                 SET c_average_rating = @AverageRating,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_ownerid = @OwnerId";
 
             var parameters = new[]
@@ -155,8 +156,8 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<PartnerSecurityDepositModel> GetPartnerSecurityDepositAsync(long ownerId)
         {
-            var query = @"
-                SELECT * FROM t_sys_partner_security_deposits
+            var query = $@"
+                SELECT * FROM {Table.SysPartnerSecurityDeposits}
                 WHERE c_ownerid = @OwnerId
                   AND c_is_active = 1";
 
@@ -171,12 +172,12 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<List<DepositTransactionModel>> GetDepositTransactionHistoryAsync(long ownerId, DateTime? startDate = null, DateTime? endDate = null)
         {
-            var query = @"
-                SELECT * FROM t_sys_deposit_transactions
+            var query = $@"
+                SELECT * FROM {Table.SysDepositTransactions}
                 WHERE c_ownerid = @OwnerId
-                  AND (@StartDate IS NULL OR c_created_date >= @StartDate)
-                  AND (@EndDate IS NULL OR c_created_date <= @EndDate)
-                ORDER BY c_created_date DESC";
+                  AND (@StartDate IS NULL OR c_createddate >= @StartDate)
+                  AND (@EndDate IS NULL OR c_createddate <= @EndDate)
+                ORDER BY c_createddate DESC";
 
             var parameters = new[]
             {
@@ -191,9 +192,9 @@ namespace CateringEcommerce.BAL.Base.Owner
         public async Task<bool> RequestDepositRefundAsync(RequestDepositRefundDto request)
         {
             // Check if partner is eligible for refund
-            var eligibilityQuery = @"
+            var eligibilityQuery = $@"
                 SELECT c_deposit_id, c_current_balance, c_holds_amount, c_available_balance
-                FROM t_sys_partner_security_deposits
+                FROM {Table.SysPartnerSecurityDeposits}
                 WHERE c_ownerid = @OwnerId
                   AND c_is_active = 1
                   AND c_status = 'Active'";
@@ -217,13 +218,13 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
 
             // Create refund request for full available balance
-            var updateDepositQuery = @"
-                UPDATE t_sys_partner_security_deposits
+            var updateDepositQuery = $@"
+                UPDATE {Table.SysPartnerSecurityDeposits}
                 SET c_refund_requested = 1,
                     c_refund_request_date = GETDATE(),
                     c_refund_amount = @AvailableBalance,
                     c_status = 'Refund_Requested',
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_ownerid = @OwnerId
                   AND c_is_active = 1";
 
@@ -239,25 +240,25 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<bool> ProcessDepositDeductionAsync(ProcessDepositDeductionDto request)
         {
-            var query = @"
+            var query = $@"
                 DECLARE @DepositId BIGINT, @BalanceBefore DECIMAL(18,2), @BalanceAfter DECIMAL(18,2);
 
                 SELECT @DepositId = c_deposit_id, @BalanceBefore = c_current_balance
-                FROM t_sys_partner_security_deposits
+                FROM {Table.SysPartnerSecurityDeposits}
                 WHERE c_ownerid = @OwnerId AND c_is_active = 1;
 
                 IF @DepositId IS NULL
                     RETURN;
 
-                UPDATE t_sys_partner_security_deposits
+                UPDATE {Table.SysPartnerSecurityDeposits}
                 SET c_current_balance = c_current_balance - @Amount,
                     c_available_balance = c_available_balance - @Amount,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_deposit_id = @DepositId;
 
                 SET @BalanceAfter = @BalanceBefore - @Amount;
 
-                INSERT INTO t_sys_deposit_transactions (
+                INSERT INTO {Table.SysDepositTransactions} (
                     c_deposit_id, c_ownerid, c_transaction_type, c_amount,
                     c_balance_before, c_balance_after, c_reason, c_reference_type, c_reference_id
                 )
@@ -293,7 +294,7 @@ namespace CateringEcommerce.BAL.Base.Owner
 
         public async Task<bool> CheckAndTransitionTierAsync(long ownerId)
         {
-            var query = @"
+            var query = $@"
                 DECLARE @CurrentTier VARCHAR(50), @NextTier VARCHAR(50), @NextTierRate DECIMAL(5,2);
                 DECLARE @LockEndDate DATE, @IsLockActive BIT;
 
@@ -303,26 +304,26 @@ namespace CateringEcommerce.BAL.Base.Owner
                     @NextTierRate = c_next_tier_commission_rate,
                     @LockEndDate = c_tier_lock_end_date,
                     @IsLockActive = c_is_lock_period_active
-                FROM t_sys_partnership_tiers
+                FROM {Table.SysOwnerPartnershipTiers}
                 WHERE c_ownerid = @OwnerId;
 
                 -- Check if lock period has ended
                 IF @IsLockActive = 1 AND @LockEndDate < GETDATE()
                 BEGIN
                     -- Create tier history record
-                    INSERT INTO t_sys_commission_tier_history (
+                    INSERT INTO {Table.SysCommissionTierHistory} (
                         c_ownerid, c_previous_tier_name, c_previous_commission_rate,
                         c_new_tier_name, c_new_commission_rate, c_effective_date,
                         c_change_reason, c_acknowledged
                     )
                     VALUES (
-                        @OwnerId, @CurrentTier, (SELECT c_current_commission_rate FROM t_sys_partnership_tiers WHERE c_ownerid = @OwnerId),
+                        @OwnerId, @CurrentTier, (SELECT c_current_commission_rate FROM {Table.SysOwnerPartnershipTiers} WHERE c_ownerid = @OwnerId),
                         @NextTier, @NextTierRate, GETDATE(),
                         'Lock period expired - transitioning to next tier', 0
                     );
 
                     -- Update partner tier
-                    UPDATE t_sys_owner_partnership_tiers
+                    UPDATE {Table.SysOwnerPartnershipTiers}
                     SET c_tier_name = @NextTier,
                         c_current_commission_rate = @NextTierRate,
                         c_is_lock_period_active = 0,
@@ -330,7 +331,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                         c_next_tier_name = NULL,
                         c_next_tier_commission_rate = NULL,
                         c_next_tier_effective_date = NULL,
-                        c_modified_date = GETDATE()
+                        c_modifieddate = GETDATE()
                     WHERE c_ownerid = @OwnerId;
                 END";
 

@@ -1,13 +1,14 @@
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace CateringEcommerce.API.Controllers.User
 {
-    [Authorize]
+    [UserAuthorize]
     [Route("api/User/Cart")]
     [ApiController]
     public class CartController : ControllerBase

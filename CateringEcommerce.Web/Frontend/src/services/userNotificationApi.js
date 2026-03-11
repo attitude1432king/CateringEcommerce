@@ -11,7 +11,7 @@ const userNotificationApi = {
      * @param {number} pageSize - Items per page (default: 20)
      */
 
-    getNotifications: async (pageNumber = 1, pageSize = 20) => fetchApi(`/user/notifications?pageNumber=${pageNumber}&pageSize${pageSize}`),
+    getNotifications: async (pageNumber = 1, pageSize = 20) => fetchApi(`/user/notifications?pageNumber=${pageNumber}&pageSize=${pageSize}`), // P1 FIX: Add missing = sign
 
     /**
      * Mark a specific notification as read

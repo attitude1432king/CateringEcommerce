@@ -11,7 +11,9 @@ using CateringEcommerce.BAL.Base.Supervisor;
 using CateringEcommerce.BAL.Base.User;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.Configuration.Providers;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces.Sms;
 using CateringEcommerce.BAL.Notification;
 using CateringEcommerce.BAL.Services;
 using CateringEcommerce.Domain.Interfaces;
@@ -22,11 +24,12 @@ using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Interfaces.User;
-using CateringEcommerce.Domain.Models.Common;
 using Hangfire;
 using Hangfire.SqlServer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
@@ -35,21 +38,44 @@ using RabbitMQ.Client;
 using System.Globalization;
 using System.Text;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting;
 using Twilio.Base;
+using CateringEcommerce.BAL.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Core helpers
+builder.Services.AddScoped<IDatabaseHelper, SqlDatabaseManager>();
+
+// System Settings Provider (Singleton - loads all config from t_sys_settings)
+var settingsProvider = new CateringEcommerce.BAL.Configuration.SystemSettingsProvider(builder.Configuration);
+await settingsProvider.RefreshAsync();
+builder.Services.AddSingleton<ISystemSettingsProvider>(settingsProvider);
+
 // Add services to the container.
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(settingsProvider.GetInt("SYSTEM.SESSION_TIMEOUT_MINUTES", 20));
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
+// ── SMS Provider (config-driven, single active provider, app restart to switch) ──
+builder.Services.AddHttpClient("msg91", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+var smsProvider = builder.Configuration["SMS:Provider"]
+    ?? settingsProvider.GetString("SMS.PROVIDER", "TWILIO");
+if (smsProvider.Equals("MSG91", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<ISmsOtpProvider, Msg91OtpProvider>();
+else
+    builder.Services.AddScoped<ISmsOtpProvider, TwilioOtpProvider>();
 builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Common.ISmsService, CateringEcommerce.BAL.Configuration.SmsService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-
-// Core helpers
-builder.Services.AddScoped<IDatabaseHelper, SqlDatabaseManager>();
 
 // Financial Strategy Repositories
 builder.Services.AddScoped<ICancellationRepository, CancellationRepository>();
@@ -73,6 +99,8 @@ builder.Services.AddScoped<IOwnerDashboardRepository, OwnerDashboardRepository>(
 builder.Services.AddScoped<IOwnerOrderRepository, OwnerOrderManagementRepository>();
 builder.Services.AddScoped<IOwnerProfile, OwnerProfile>();
 builder.Services.AddScoped<IOwnerReportsRepository, OwnerReportsRepository>();
+builder.Services.AddScoped<OwnerReviewRepository>();
+builder.Services.AddScoped<OwnerSupportRepository>();
 
 // Partner side Menu Repositories
 builder.Services.AddScoped<IFoodItems, FoodItems>();
@@ -85,7 +113,7 @@ builder.Services.AddScoped<IDecorations, Decorations>();
 builder.Services.AddScoped<IStaff, Staff>();
 builder.Services.AddScoped<IDiscounts, Discounts>();
 builder.Services.AddScoped<IOwnerRegister, OwnerRegister>();
-builder.Services.AddScoped<IPartnershipRepository, PartnershipRepository>();
+// IPartnershipRepository already registered at line 83
 builder.Services.AddScoped<IOrderModificationService, OrderModificationService>();
 builder.Services.AddScoped<IMappingSyncService, MappingSyncService>();
 
@@ -100,6 +128,9 @@ builder.Services.AddScoped<IUserReviewRepository, CateringEcommerce.BAL.Base.Use
 builder.Services.AddScoped<IFavoritesRepository, FavoritesRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 
+// Public Stats (Partner Login page — live DB counts, 1h in-process cache)
+builder.Services.AddScoped<IPublicStatsRepository, PublicStatsRepository>();
+
 // OAuth Authentication (Google, Facebook, etc.)
 builder.Services.AddHttpClient(); // Required for OAuth API calls
 builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Security.IOAuthRepository, CateringEcommerce.BAL.Base.Security.OAuthRepository>();
@@ -110,24 +141,31 @@ builder.Services.AddScoped<CateringEcommerce.BAL.Base.Security.ITwoFactorAuthSer
 // Notification Services
 builder.Services.AddScoped<INotificationRepository, CateringEcommerce.BAL.Notification.NotificationRepository>();
 
-// RabbitMQ Configuration
+// RabbitMQ Configuration (from t_sys_settings)
 var rabbitMQSettings = new CateringEcommerce.BAL.Services.RabbitMQSettings
 {
-    Enabled = builder.Configuration.GetValue<bool>("RabbitMQ:Enabled", false),
-    HostName = builder.Configuration.GetValue<string>("RabbitMQ:HostName", "localhost") ?? "localhost",
-    Port = builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672),
-    UserName = builder.Configuration.GetValue<string>("RabbitMQ:UserName", "guest") ?? "guest",
-    Password = builder.Configuration.GetValue<string>("RabbitMQ:Password", "guest") ?? "guest",
-    VirtualHost = builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost", "/")
+    Enabled = settingsProvider.GetBool("RABBITMQ.ENABLED", false),
+    HostName = settingsProvider.GetString("RABBITMQ.HOSTNAME", "localhost"),
+    Port = settingsProvider.GetInt("RABBITMQ.PORT", 5672),
+    UserName = settingsProvider.GetString("RABBITMQ.USERNAME", "guest"),
+    Password = settingsProvider.GetString("RABBITMQ.PASSWORD", "guest"),
+    VirtualHost = "/"
 };
 builder.Services.AddSingleton(rabbitMQSettings);
 builder.Services.AddSingleton<CateringEcommerce.BAL.Services.RabbitMQPublisher>();
 
-// Common Repositories 
-builder.Services.AddScoped<MappingSyncService>();
+// Common Repositories
+// MappingSyncService already registered as IMappingSyncService at line 115
 builder.Services.AddScoped<ILocation, Locations>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IPaymentStageRepository, PaymentStageRepository>();
+builder.Services.AddScoped<PaymentStageService>();
+builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Invoice.IInvoiceRepository, CateringEcommerce.BAL.Base.Common.InvoiceRepository>();
+builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Invoice.IInvoicePdfService, CateringEcommerce.BAL.Services.InvoicePdfService>();
+builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Order.IPaymentStateMachineService, CateringEcommerce.BAL.Services.PaymentStateMachineService>();
+builder.Services.AddScoped<CateringEcommerce.BAL.Services.InvoiceBackgroundJobs>();
+builder.Services.AddScoped<CateringEcommerce.BAL.Services.InvoiceAutomationService>();
+builder.Services.AddScoped<CateringEcommerce.BAL.Services.InvoiceNotificationService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 builder.Services.AddScoped<IOwnerRepository, OwnerRepository>();
@@ -138,9 +176,11 @@ builder.Services.AddScoped<AdminAnalyticsRepository>();
 builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
 builder.Services.AddScoped<IAdminAuthRepository, AdminAuthRepository>();
 builder.Services.AddScoped<IAdminCateringRepository, AdminCateringRepository>();
+builder.Services.AddScoped<IAdminSupervisorRepository, AdminSupervisorRepository>();
 builder.Services.AddScoped<IAdminEarningsRepository, AdminEarningsRepository>();
 builder.Services.AddScoped<IAdminManagementRepository, AdminManagementRepository>();
-builder.Services.AddScoped<IAdminNotificationRepository, AdminNotificationRepository>();    
+builder.Services.AddScoped<IAdminNotificationRepository, AdminNotificationRepository>();
+builder.Services.AddScoped<IAdminOrderRepository, AdminOrderRepository>();
 builder.Services.AddScoped<IAdminPartnerApprovalRepository, AdminPartnerApprovalRepository>();
 builder.Services.AddScoped<IAdminPartnerRequestRepository, AdminPartnerRequestRepository>();
 builder.Services.AddScoped<IAdminReviewRepository, AdminReviewRepository>();
@@ -167,10 +207,6 @@ builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Common.IEmailServ
 builder.Services.AddScoped<ITokenService, CateringEcommerce.BAL.Configuration.TokenService>();
 
 
-builder.Services.Configure<EmailSettings>(
-    builder.Configuration.GetSection("EmailSettings"));
-builder.Services.Configure<EncryptionSettings>(
-    builder.Configuration.GetSection("EncryptionSettings"));
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ValidateModelAttribute>();
@@ -185,18 +221,24 @@ builder.Services.AddHttpClient<IGeoLocationService, IpApiGeoLocationService>(
 // 1. Configure Kestrel for the overall request body size
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
-    // Set the limit to 50 MB, for example
-    options.Limits.MaxRequestBodySize = long.MaxValue; // 100 MB;
+    // SECURITY FIX: Set reasonable limit to prevent DoS attacks
+    // Allows multiple file uploads (images, documents, menus) up to 100 MB total
+    options.Limits.MaxRequestBodySize = 104_857_600; // 100 MB (100 * 1024 * 1024)
 });
 
 // 2. Configure FormOptions to increase the limit for individual values
 builder.Services.Configure<FormOptions>(options =>
 {
-    // Set the value length limit to a large value
-    options.ValueLengthLimit = int.MaxValue;
-    // Also increase the multipart body length limit
-    options.MultipartBodyLengthLimit = long.MaxValue; ; // 100 MB
-    options.MemoryBufferThreshold = int.MaxValue;
+    // SECURITY FIX: Set reasonable limits to prevent memory exhaustion
+    // ValueLengthLimit: Maximum size for individual form field values
+    options.ValueLengthLimit = 104_857_600; // 100 MB
+
+    // MultipartBodyLengthLimit: Maximum size for multipart/form-data requests
+    options.MultipartBodyLengthLimit = 104_857_600; // 100 MB
+
+    // MemoryBufferThreshold: Files smaller than this are buffered in memory, larger are streamed to disk
+    // Set to 2 MB to avoid loading large files entirely in memory
+    options.MemoryBufferThreshold = 2_097_152; // 2 MB (2 * 1024 * 1024)
 });
 
 // --- END OF SECTION --
@@ -204,33 +246,32 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
     {
-        var jwt = builder.Configuration.GetSection("Jwt");
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwt["Issuer"],
-            ValidAudience = jwt["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]))
+            ValidIssuer = settingsProvider.GetString("JWT.ISSUER"),
+            ValidAudience = settingsProvider.GetString("JWT.AUDIENCE"),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settingsProvider.GetString("JWT.KEY")))
         };
 
         // SECURITY FIX: Read JWT token from httpOnly cookie (fallback to Authorization header)
-        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
             {
-                // First, try to get token from cookie (most secure)
+                // Try reading token from httpOnly cookies first
                 var token = context.Request.Cookies["adminToken"]
                          ?? context.Request.Cookies["authToken"]
                          ?? context.Request.Cookies["supervisorToken"];
 
-                // Fallback to Authorization header (for backward compatibility)
+                // Fallback to Authorization header
                 if (string.IsNullOrEmpty(token))
                 {
-                    token = context.Request.Headers["Authorization"]
-                        .FirstOrDefault()?.Split(" ").Last();
+                    var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                    token = authHeader?.Split(" ").Last();
                 }
 
                 if (!string.IsNullOrEmpty(token))
@@ -239,17 +280,42 @@ builder.Services.AddAuthentication("Bearer")
                 }
 
                 return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine("Token validated successfully");
+                return Task.CompletedTask;
             }
         };
     })
     .AddCookie("CateringCookieAuth", authenticationScheme =>
     {
-        authenticationScheme.ExpireTimeSpan = TimeSpan.FromDays(7);
+        authenticationScheme.ExpireTimeSpan = TimeSpan.FromDays(settingsProvider.GetInt("SYSTEM.COOKIE_EXPIRY_DAYS", 7));
         authenticationScheme.SlidingExpiration = true;
         authenticationScheme.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         authenticationScheme.Cookie.HttpOnly = true;
         authenticationScheme.Cookie.Name = "CateringAuthCookie";
-        authenticationScheme.Cookie.SameSite = SameSiteMode.Strict;// Adjust the path as needed
+        authenticationScheme.Cookie.SameSite = SameSiteMode.None;
+
+        authenticationScheme.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = 401;
+            return Task.CompletedTask;
+        };
+    })
+    .AddCookie("adminToken", authenticationScheme =>
+    {
+        authenticationScheme.ExpireTimeSpan = TimeSpan.FromDays(settingsProvider.GetInt("SYSTEM.COOKIE_EXPIRY_DAYS", 7));
+        authenticationScheme.SlidingExpiration = true;
+        authenticationScheme.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        authenticationScheme.Cookie.HttpOnly = true;
+        authenticationScheme.Cookie.Name = "adminToken";
+        authenticationScheme.Cookie.SameSite = SameSiteMode.None;
 
         authenticationScheme.Events.OnRedirectToLogin = context =>
         {
@@ -269,7 +335,7 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.Name = "CSRF-TOKEN";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS only
-    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SameSite = SameSiteMode.None;
 });
 
 // ==========================================
@@ -280,50 +346,50 @@ builder.Services.AddRateLimiter(options =>
     // Admin login rate limiting - Prevent brute force attacks
     options.AddFixedWindowLimiter("admin_login", config =>
     {
-        config.PermitLimit = 3;  // 3 attempts
-        config.Window = TimeSpan.FromMinutes(15);  // per 15 minutes
+        config.PermitLimit = settingsProvider.GetInt("SECURITY.ADMIN_LOGIN_PERMITS", 3);
+        config.Window = TimeSpan.FromMinutes(settingsProvider.GetInt("SECURITY.ADMIN_LOGIN_WINDOW_MINUTES", 15));
         config.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        config.QueueLimit = 0;  // No queuing
+        config.QueueLimit = 0;
     });
 
     // User login rate limiting
     options.AddFixedWindowLimiter("user_login", config =>
     {
-        config.PermitLimit = 5;  // 5 attempts
-        config.Window = TimeSpan.FromMinutes(10);  // per 10 minutes
+        config.PermitLimit = settingsProvider.GetInt("SECURITY.USER_LOGIN_PERMITS", 5);
+        config.Window = TimeSpan.FromMinutes(settingsProvider.GetInt("SECURITY.USER_LOGIN_WINDOW_MINUTES", 10));
         config.QueueLimit = 0;
     });
 
     // OTP sending rate limiting - Prevent SMS/Email spam
     options.AddSlidingWindowLimiter("otp_send", config =>
     {
-        config.PermitLimit = 3;  // 3 OTPs
-        config.Window = TimeSpan.FromHours(1);  // per hour
-        config.SegmentsPerWindow = 4;  // Sliding window segments
+        config.PermitLimit = settingsProvider.GetInt("SECURITY.OTP_SEND_PERMITS", 3);
+        config.Window = TimeSpan.FromMinutes(settingsProvider.GetInt("SECURITY.OTP_SEND_WINDOW_MINUTES", 60));
+        config.SegmentsPerWindow = 4;
         config.QueueLimit = 0;
     });
 
     // OTP verification rate limiting - Prevent brute force
     options.AddFixedWindowLimiter("otp_verify", config =>
     {
-        config.PermitLimit = 5;  // 5 verification attempts
-        config.Window = TimeSpan.FromMinutes(5);  // per 5 minutes
+        config.PermitLimit = settingsProvider.GetInt("SECURITY.OTP_VERIFY_PERMITS", 5);
+        config.Window = TimeSpan.FromMinutes(settingsProvider.GetInt("SECURITY.OTP_VERIFY_WINDOW_MINUTES", 5));
         config.QueueLimit = 0;
     });
 
     // API general rate limiting - Prevent DoS
     options.AddFixedWindowLimiter("api_general", config =>
     {
-        config.PermitLimit = 100;  // 100 requests
-        config.Window = TimeSpan.FromMinutes(1);  // per minute
+        config.PermitLimit = settingsProvider.GetInt("SECURITY.API_GENERAL_PERMITS", 100);
+        config.Window = TimeSpan.FromMinutes(settingsProvider.GetInt("SECURITY.API_GENERAL_WINDOW_MINUTES", 1));
         config.QueueLimit = 10;
     });
 
     // File upload rate limiting - Prevent abuse
     options.AddFixedWindowLimiter("file_upload", config =>
     {
-        config.PermitLimit = 10;  // 10 uploads
-        config.Window = TimeSpan.FromMinutes(10);  // per 10 minutes
+        config.PermitLimit = settingsProvider.GetInt("SECURITY.FILE_UPLOAD_PERMITS", 10);
+        config.Window = TimeSpan.FromMinutes(settingsProvider.GetInt("SECURITY.FILE_UPLOAD_WINDOW_MINUTES", 10));
         config.QueueLimit = 0;
     });
 
@@ -352,9 +418,15 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactApp",
         policy =>
         {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyMethod()
+            // SECURITY FIX: Support both HTTP (dev) and HTTPS (production)
+            // In production, remove http://localhost:5173 and use only your production domain
+            policy.WithOrigins(
+                      "http://localhost:5173",   // Vite dev server (development)
+                      "https://localhost:5173",  // HTTPS local (if configured)
+                      settingsProvider.GetString("CORS.PRODUCTION_ORIGIN", "https://yourdomain.com") // Production
+                  )
                   .AllowAnyHeader()
+                  .AllowAnyMethod()
                   .AllowCredentials();  // SECURITY FIX: Required for httpOnly cookies
         });
 });
@@ -377,9 +449,7 @@ builder.Services.AddHangfire(configuration => configuration
 builder.Services.AddHangfireServer();
 
 var app = builder.Build();
-
-// Only one correct UseCors line here 👇
-app.UseCors("AllowReactApp");
+app.UseSession();
 
 // Configure Hangfire Dashboard
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
@@ -437,6 +507,34 @@ RecurringJob.AddOrUpdate<CateringEcommerce.BAL.Services.FinancialStrategyJobs>(
         TimeZone = TimeZoneInfo.Local
     });
 
+// Invoice System Background Jobs
+RecurringJob.AddOrUpdate<CateringEcommerce.BAL.Services.InvoiceBackgroundJobs>(
+    "mark-overdue-invoices",
+    x => x.MarkOverdueInvoicesAsync(),
+    Cron.Hourly, // Every hour
+    new RecurringJobOptions
+    {
+        TimeZone = TimeZoneInfo.Local
+    });
+
+RecurringJob.AddOrUpdate<CateringEcommerce.BAL.Services.InvoiceBackgroundJobs>(
+    "auto-generate-pre-event-invoices",
+    x => x.AutoGeneratePreEventInvoicesAsync(),
+    Cron.Hourly, // Every hour
+    new RecurringJobOptions
+    {
+        TimeZone = TimeZoneInfo.Local
+    });
+
+RecurringJob.AddOrUpdate<CateringEcommerce.BAL.Services.InvoiceBackgroundJobs>(
+    "send-payment-reminders",
+    x => x.SendPaymentRemindersAsync(),
+    Cron.Daily(9), // Daily at 9:00 AM
+    new RecurringJobOptions
+    {
+        TimeZone = TimeZoneInfo.Local
+    });
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -445,13 +543,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles(); // Serves wwwroot
 
-// Optional: Add directory browsing (for testing only)
-app.UseDirectoryBrowser(new DirectoryBrowserOptions
-{
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads")),
-    RequestPath = "/uploads"
-});
+// SECURITY FIX: Directory browsing removed - prevents enumeration of uploaded files
+// Files are still accessible via direct URL, but directory listing is disabled
 
 var cultureInfo = new CultureInfo("en-GB"); // or "en-CA"
 cultureInfo.DateTimeFormat.ShortDatePattern = "yyyy-MM-dd";
@@ -479,14 +572,25 @@ app.Use(async (context, next) =>
     context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
 
     // Content Security Policy (CSP)
-    context.Response.Headers.Add("Content-Security-Policy",
-        "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +  // Note: Remove unsafe-* in production
-        "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data: https:; " +
-        "font-src 'self' data:; " +
-        "connect-src 'self' ws: wss:; " +  // Allow WebSocket for SignalR
-        "frame-ancestors 'none'");
+    // SECURITY FIX: Removed unsafe-inline and unsafe-eval to prevent XSS attacks
+    // If you need inline scripts, use nonce-based CSP or move scripts to external files
+    var cspPolicy = app.Environment.IsDevelopment()
+        ? "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +  // Dev: Allow inline for HMR/Vite
+          "style-src 'self' 'unsafe-inline'; " +                 // Dev: Allow inline styles
+          "img-src 'self' data: https:; " +
+          "font-src 'self' data:; " +
+          "connect-src 'self' ws: wss: http://localhost:* https://localhost:*; " +  // Dev: Allow Vite HMR
+          "frame-ancestors 'none'"
+        : "default-src 'self'; " +
+          "script-src 'self'; " +                               // Prod: No inline scripts
+          "style-src 'self'; " +                                // Prod: No inline styles
+          "img-src 'self' data: https:; " +
+          "font-src 'self' data:; " +
+          "connect-src 'self' wss:; " +                         // Prod: Only secure WebSocket
+          "frame-ancestors 'none'";
+
+    context.Response.Headers.Add("Content-Security-Policy", cspPolicy);
 
     // Strict Transport Security (HSTS) - Force HTTPS
     if (!app.Environment.IsDevelopment())
@@ -514,6 +618,11 @@ app.Use(async (context, next) =>
 
 // SECURITY: Enable rate limiting middleware
 app.UseRateLimiter();
+
+app.UseRouting();
+
+// Only one correct UseCors line here 👇
+app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
 
@@ -563,13 +672,14 @@ public static class ServiceCollectionExtensions
         // RabbitMQ Connection
         services.AddSingleton<IConnection>(sp =>
         {
+            var settings = sp.GetRequiredService<ISystemSettingsProvider>();
             var factory = new ConnectionFactory
             {
-                HostName = configuration["RabbitMQ:Host"],
-                Port = int.Parse(configuration["RabbitMQ:Port"]),
-                UserName = configuration["RabbitMQ:Username"],
-                Password = configuration["RabbitMQ:Password"],
-                VirtualHost = configuration["RabbitMQ:VirtualHost"] ?? "/",
+                HostName = settings.GetString("RABBITMQ.HOSTNAME", "localhost"),
+                Port = settings.GetInt("RABBITMQ.PORT", 5672),
+                UserName = settings.GetString("RABBITMQ.USERNAME", "guest"),
+                Password = settings.GetString("RABBITMQ.PASSWORD", "guest"),
+                VirtualHost = "/",
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(10),
                 RequestedHeartbeat = TimeSpan.FromSeconds(60)

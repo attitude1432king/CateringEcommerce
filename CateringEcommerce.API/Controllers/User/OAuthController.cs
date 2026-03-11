@@ -1,6 +1,7 @@
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Security;
 using CateringEcommerce.Domain.Models.Security;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -10,6 +11,7 @@ namespace CateringEcommerce.API.Controllers.User
 {
     [Route("api/oauth")]
     [ApiController]
+    [UserAuthorize]
     public class OAuthController : ControllerBase
     {
         private readonly IOAuthRepository _oauthRepo;
@@ -182,7 +184,6 @@ namespace CateringEcommerce.API.Controllers.User
         /// <param name="request">Link account request</param>
         /// <returns>Success status</returns>
         [HttpPost("link-account")]
-        [Authorize]
         public async Task<IActionResult> LinkOAuthAccount([FromBody] LinkOAuthAccountRequest request)
         {
             try
@@ -236,7 +237,6 @@ namespace CateringEcommerce.API.Controllers.User
         /// <param name="oauthId">OAuth connection ID</param>
         /// <returns>Success status</returns>
         [HttpDelete("unlink-account/{oauthId}")]
-        [Authorize]
         public async Task<IActionResult> UnlinkOAuthAccount(long oauthId)
         {
             try
@@ -277,7 +277,6 @@ namespace CateringEcommerce.API.Controllers.User
         /// </summary>
         /// <returns>List of connected accounts</returns>
         [HttpGet("connected-accounts")]
-        [Authorize]
         public async Task<IActionResult> GetConnectedAccounts()
         {
             try
@@ -311,7 +310,6 @@ namespace CateringEcommerce.API.Controllers.User
         /// <param name="oauthId">OAuth connection ID to set as primary</param>
         /// <returns>Success status</returns>
         [HttpPut("set-primary/{oauthId}")]
-        [Authorize]
         public async Task<IActionResult> SetPrimaryConnection(long oauthId)
         {
             try

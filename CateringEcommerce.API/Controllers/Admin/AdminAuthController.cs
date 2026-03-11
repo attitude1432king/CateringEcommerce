@@ -1,4 +1,4 @@
-using CateringEcommerce.API.Filters;
+﻿using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Admin;
@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Cryptography;
 using System.Text;
-using BCrypt.Net;
 using CateringEcommerce.Domain.Interfaces.Admin;
+using CateringEcommerce.BAL.Helpers;
 
 namespace CateringEcommerce.API.Controllers.Admin
 {
@@ -16,7 +16,6 @@ namespace CateringEcommerce.API.Controllers.Admin
     [ApiController]
     public class AdminAuthController : ControllerBase
     {
-        private readonly IDatabaseHelper _dbHelper;
         private readonly IAdminAuthRepository _adminAuthRepository;
         private readonly IRBACRepository _rbacRepository;
         private readonly ITokenService _tokenService;
@@ -25,13 +24,11 @@ namespace CateringEcommerce.API.Controllers.Admin
         private const int LOCK_DURATION_MINUTES = 30;
 
         public AdminAuthController(
-            IDatabaseHelper dbHelper,
             IAdminAuthRepository adminAuthRepository,
             IRBACRepository rbacRepository,
             ITokenService tokenService,
             ILogger<AdminAuthController> logger)
         {
-            _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
             _adminAuthRepository = adminAuthRepository ?? throw new ArgumentNullException(nameof(adminAuthRepository));
             _rbacRepository = rbacRepository ?? throw new ArgumentNullException(nameof(rbacRepository));
             _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
@@ -72,7 +69,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 }
 
                 // Verify password - support both BCrypt (new) and SHA256 (legacy)
-                bool isPasswordValid = VerifyPassword(request.Password, admin.PasswordHash);
+                bool isPasswordValid = HashHelper.VerifyPassword(request.Password, admin.PasswordHash);
 
                 if (!isPasswordValid)
                 {
@@ -113,23 +110,30 @@ namespace CateringEcommerce.API.Controllers.Admin
                     { "Email", admin.Email }
                 };
                 string token = _tokenService.GenerateToken(
-                    admin.Username,
+                    admin.AdminId.ToString(),
                     admin.Role,
                     additionalClaims
                 );
-                    
-                // SECURITY FIX: Set token as httpOnly cookie instead of returning in response
-                var cookieOptions = new CookieOptions
-                {
-                    HttpOnly = true,  // Prevents JavaScript access (XSS protection)
-                    Secure = true,    // HTTPS only
-                    SameSite = SameSiteMode.Strict,  // CSRF protection
-                    Expires = DateTimeOffset.UtcNow.AddDays(7),  // 7-day expiry
-                    Path = "/",
-                    IsEssential = true
-                };
+
+               //SECURITY FIX: Set token as httpOnly cookie instead of returning in response
+               var cookieOptions = new CookieOptions
+               {
+                   HttpOnly = true,  // Prevents JavaScript access (XSS protection)
+                   Secure = true,    // HTTPS only
+                   SameSite = SameSiteMode.None,  // Allow cross-origin (different ports)
+                   Expires = DateTimeOffset.UtcNow.AddDays(7),  // 7-day expiry
+                   Path = "/",
+                   IsEssential = true
+               };
+
 
                 Response.Cookies.Append("adminToken", token, cookieOptions);
+
+                Console.WriteLine("Response cookies set:");
+                foreach (var h in Response.Headers["Set-Cookie"])
+                {
+                    Console.WriteLine(h);
+                }
 
                 // SECURITY: Do NOT include token in response body
                 var response = new AdminLoginResponse
@@ -204,9 +208,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 var permissionData = new
                 {
                     roles = permissionContext.Roles,
-                    permissions = permissionContext.IsSuperAdmin
-                        ? new List<string> { "*" }  // Super admin gets wildcard permission
-                        : permissionContext.Permissions
+                    permissions = permissionContext.Permissions
                 };
 
                 return ApiResponseHelper.Success(permissionData, "Permissions retrieved successfully.");
@@ -238,7 +240,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 {
                     HttpOnly = true,
                     Secure = true,
-                    SameSite = SameSiteMode.Strict,
+                    SameSite = SameSiteMode.None,
                     Path = "/"
                 });
 
@@ -248,60 +250,6 @@ namespace CateringEcommerce.API.Controllers.Admin
             {
                 Console.WriteLine($"[ERROR] Admin Auth operation failed: {ex.Message}");
                 return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
-            }
-        }
-
-        /// <summary>
-        /// Hash password using BCrypt (secure hashing with salt)
-        /// </summary>
-        private string HashPassword(string password)
-        {
-            return BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
-        }
-
-        /// <summary>
-        /// Verify password against stored hash - supports both BCrypt (new) and SHA256 (legacy)
-        /// </summary>
-        private bool VerifyPassword(string password, string storedHash)
-        {
-            if (string.IsNullOrEmpty(password) || string.IsNullOrEmpty(storedHash))
-                return false;
-
-            try
-            {
-                // Try BCrypt verification first (new secure method)
-                if (storedHash.StartsWith("$2") || storedHash.StartsWith("$2a") || storedHash.StartsWith("$2b") || storedHash.StartsWith("$2y"))
-                {
-                    return BCrypt.Net.BCrypt.Verify(password, storedHash);
-                }
-
-                // Fall back to SHA256 for legacy support (will be phased out)
-                // This allows gradual migration from SHA256 to BCrypt
-                using (var sha256 = SHA256.Create())
-                {
-                    var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                    var sha256Hash = Convert.ToBase64String(hashedBytes);
-                    return sha256Hash == storedHash;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] Password verification failed: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Legacy SHA256 hash method - kept for migration purposes only
-        /// DO NOT USE for new passwords - use HashPassword() instead
-        /// </summary>
-        [Obsolete("This method is deprecated. Use HashPassword() with BCrypt instead.")]
-        private string HashPasswordLegacy(string password)
-        {
-            using (var sha256 = SHA256.Create())
-            {
-                var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                return Convert.ToBase64String(hashedBytes);
             }
         }
     }

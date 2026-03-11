@@ -4,6 +4,7 @@ using CateringEcommerce.BAL.Base.Admin;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums.Admin;
 using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Models.Admin;
 using CateringEcommerce.Domain.Models.Notification;
@@ -21,20 +22,17 @@ namespace CateringEcommerce.API.Controllers.Admin
     [AdminAuthorize]
     public class PartnerApprovalController : ControllerBase
     {
-        private readonly IDatabaseHelper _dbHelper;
-        private readonly string _connStr;
         private readonly ILogger<PartnerApprovalController> _logger;
+        private readonly IAdminPartnerApprovalRepository _adminPartnerApprovalRepository;
         private readonly INotificationHelper _notificationHelper;
-        private readonly IConfiguration _config;
+        private readonly ISystemSettingsProvider _settings;
 
-        public PartnerApprovalController(IDatabaseHelper dbHelper, IConfiguration config, INotificationHelper notificationHelper, ILogger<PartnerApprovalController> logger)
+        public PartnerApprovalController(IAdminPartnerApprovalRepository adminPartnerApprovalRepository, ISystemSettingsProvider settings, INotificationHelper notificationHelper, ILogger<PartnerApprovalController> logger)
         {
-            _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
-            _connStr = config.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _adminPartnerApprovalRepository = adminPartnerApprovalRepository ?? throw new ArgumentNullException(nameof(adminPartnerApprovalRepository));
             _notificationHelper = notificationHelper ?? throw new ArgumentNullException(nameof(notificationHelper));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _config = config ?? throw new ArgumentNullException(nameof(config));
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         }
 
         #region Partner Request Listing
@@ -61,8 +59,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminPartnerApprovalRepository(_dbHelper);
-                var result = repository.GetPendingPartnerRequests(filter);
+                var result = _adminPartnerApprovalRepository.GetPendingPartnerRequests(filter);
                 return ApiResponseHelper.Success(result, "Partner requests retrieved successfully");
             }
             catch (Exception ex)
@@ -95,8 +92,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminPartnerApprovalRepository(_dbHelper);
-                var detail = repository.GetPartnerRequestDetail(partnerId);
+                var detail = _adminPartnerApprovalRepository.GetPartnerRequestDetail(partnerId);
 
                 if (detail == null)
                     return NotFound(ApiResponseHelper.Failure("Partner request not found"));
@@ -141,8 +137,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!adminId.HasValue)
                     return Unauthorized(ApiResponseHelper.Failure("Admin ID not found in token"));
 
-                var repository = new AdminPartnerApprovalRepository(_dbHelper);
-                var result = repository.ApprovePartnerRequest(partnerId, adminId.Value, request.Remarks);
+                var result = _adminPartnerApprovalRepository.ApprovePartnerRequest(partnerId, adminId.Value, request.Remarks);
 
                 if (result.Success)
                 {
@@ -215,8 +210,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!adminId.HasValue)
                     return Unauthorized(ApiResponseHelper.Failure("Admin ID not found in token"));
 
-                var repository = new AdminPartnerApprovalRepository(_dbHelper);
-                var result = repository.RejectPartnerRequest(partnerId, adminId.Value, request.RejectionReason);
+                var result = _adminPartnerApprovalRepository.RejectPartnerRequest(partnerId, adminId.Value, request.RejectionReason);
 
                 if (result.Success)
                 {
@@ -288,8 +282,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!priority.HasValue)
                     return BadRequest(ApiResponseHelper.Failure("Invalid priority value"));
 
-                var repository = new AdminPartnerApprovalRepository(_dbHelper);
-                var result = repository.UpdatePriority(partnerId, priority.Value, adminId.Value);
+                var result = _adminPartnerApprovalRepository.UpdatePriority(partnerId, priority.Value, adminId.Value);
 
                 if (result)
                 {
@@ -386,8 +379,7 @@ namespace CateringEcommerce.API.Controllers.Admin
             try
             {
                 // Get partner details
-                var repository = new AdminPartnerApprovalRepository(_dbHelper);
-                var partnerDetail = repository.GetPartnerRequestDetail(partnerId);
+                var partnerDetail = _adminPartnerApprovalRepository.GetPartnerRequestDetail(partnerId);
 
                 if (partnerDetail == null)
                 {
@@ -402,14 +394,14 @@ namespace CateringEcommerce.API.Controllers.Admin
                     { "owner_name", partnerDetail.OwnerName },
                     { "catering_name", partnerDetail.BusinessName },
                     { "approval_date", partnerDetail.ApprovedDate?.ToString("dd MMM yyyy") ?? DateTime.Now.ToString("dd MMM yyyy") },
-                    { "login_url", _config["AppSettings:PartnerPortalUrl"] ?? "https://partner.enyvora.com/login" },
+                    { "login_url", _settings.GetString("APP.PARTNER_PORTAL_URL", "https://partner.enyvora.com/login") },
                     { "username", partnerDetail.Email },
                     { "temp_password", "Please use the password you set during registration" },
-                    { "partner_guide_url", _config["AppSettings:PartnerGuideUrl"] ?? "https://enyvora.com/partner-guide" },
-                    { "best_practices_url", _config["AppSettings:BestPracticesUrl"] ?? "https://enyvora.com/best-practices" },
-                    { "support_url", _config["AppSettings:SupportUrl"] ?? "https://enyvora.com/support" },
-                    { "partner_support_email", _config["AppSettings:PartnerSupportEmail"] ?? "support@enyvora.com" },
-                    { "partner_support_phone", _config["AppSettings:PartnerSupportPhone"] ?? "+91-1234567890" }
+                    { "partner_guide_url", _settings.GetString("APP.PARTNER_GUIDE_URL", "https://enyvora.com/partner-guide") },
+                    { "best_practices_url", _settings.GetString("APP.BEST_PRACTICES_URL", "https://enyvora.com/best-practices") },
+                    { "support_url", _settings.GetString("APP.SUPPORT_URL", "https://enyvora.com/support") },
+                    { "partner_support_email", _settings.GetString("APP.PARTNER_SUPPORT_EMAIL", "support@enyvora.com") },
+                    { "partner_support_phone", _settings.GetString("APP.PARTNER_SUPPORT_PHONE", "+91-1234567890") }
                 };
 
                 // Send multi-channel notification (Email + SMS)
@@ -445,8 +437,7 @@ namespace CateringEcommerce.API.Controllers.Admin
             try
             {
                 // Get partner details
-                var repository = new AdminPartnerApprovalRepository(_dbHelper);
-                var partnerDetail = repository.GetPartnerRequestDetail(partnerId);
+                var partnerDetail = _adminPartnerApprovalRepository.GetPartnerRequestDetail(partnerId);
 
                 if (partnerDetail == null)
                 {
@@ -461,9 +452,9 @@ namespace CateringEcommerce.API.Controllers.Admin
                     { "owner_name", partnerDetail.OwnerName },
                     { "catering_name", partnerDetail.BusinessName },
                     { "rejection_reason", rejectionReason },
-                    { "reapply_duration", _config["AppSettings:ReapplyDuration"] ?? "30 days" },
-                    { "partner_support_email", _config["AppSettings:PartnerSupportEmail"] ?? "support@enyvora.com" },
-                    { "partner_support_phone", _config["AppSettings:PartnerSupportPhone"] ?? "+91-1234567890" }
+                    { "reapply_duration", _settings.GetString("APP.REAPPLY_DURATION", "30 days") },
+                    { "partner_support_email", _settings.GetString("APP.PARTNER_SUPPORT_EMAIL", "support@enyvora.com") },
+                    { "partner_support_phone", _settings.GetString("APP.PARTNER_SUPPORT_PHONE", "+91-1234567890") }
                 };
 
 

@@ -1,5 +1,6 @@
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
@@ -165,6 +166,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     }
                 }
 
+                request.Password = HashHelper.HashPassword(request.Password); // Hash password before storing
                 var newAdminId = await _adminRepo.CreateAdminAsync(request, adminId);
 
                 await LogAuditAsync(adminId, adminName, "CREATE_ADMIN", "ADMIN", newAdminId, "AdminUser", new { request.Username, request.Email, request.RoleId }, "SUCCESS");
@@ -383,6 +385,9 @@ namespace CateringEcommerce.API.Controllers.Admin
                     await LogAuditAsync(adminId, adminName, "DELETE_ADMIN", "ADMIN", id, "AdminUser", null, "FORBIDDEN", "Attempted to delete last Super Admin");
                     return ApiResponseHelper.Failure("Cannot delete the last active Super Admin.");
                 }
+
+                // Delete Admin Users 
+                await _adminRepo.RemoveAdminLoginAccessAsync(id); // Remove admin user associations with admin
 
                 var success = await _adminRepo.DeleteAdminAsync(id, adminId);
 

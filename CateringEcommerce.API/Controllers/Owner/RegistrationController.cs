@@ -9,6 +9,7 @@ using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.APIModels.Owner;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -17,7 +18,7 @@ using System.IO;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
-    [Authorize]
+    [OwnerAuthorize]
     [ApiController]
     [Route("api/Auth/Owner")]
     public class RegistrationController : ControllerBase

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getOrderDetails, cancelOrder } from '../services/orderApi';
 import { canReviewOrder, getReviewByOrder } from '../services/reviewApi';
+import { usePayment } from '../contexts/PaymentContext'; // P0 FIX: Add payment context
+import { useAuth } from '../contexts/AuthContext'; // P0 FIX: Add auth context
 import PaymentTimeline from '../components/user/order/PaymentTimeline';
 import OrderTimeline from '../components/user/order/OrderTimeline';
 import LiveEventBanner from '../components/user/order/LiveEventBanner';
@@ -9,10 +11,13 @@ import PostEventPaymentSection from '../components/user/order/PostEventPaymentSe
 import { PlatformProtectedBadge } from '../components/common/badges';
 import ReviewSubmissionModal from '../components/user/review/ReviewSubmissionModal';
 import StarRating from '../components/common/StarRating';
+import toast from 'react-hot-toast'; // P2 FIX: Add toast for better UX
 
 const OrderDetailPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth(); // P0 FIX: Get user for payment
+  const { isRazorpayLoaded, openRazorpayCheckout, createRazorpayOrder } = usePayment(); // P0 FIX: Payment context
   const [order, setOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,13 +84,14 @@ const OrderDetailPage = () => {
   const handleReviewSubmitted = (reviewData) => {
     // Refresh review status after submission
     checkReviewEligibility();
-    // Show success message
-    alert('Thank you for your review!');
+    // P2 FIX: Use toast instead of alert
+    toast.success('Thank you for your review!');
   };
 
   const handleCancelOrder = async () => {
     if (!cancelReason.trim()) {
-      alert('Please provide a cancellation reason');
+      // P2 FIX: Use toast instead of alert
+      toast.error('Please provide a cancellation reason');
       return;
     }
 
@@ -95,15 +101,18 @@ const OrderDetailPage = () => {
       const response = await cancelOrder(orderId, cancelReason);
 
       if (response.result) {
-        alert('Order cancelled successfully');
+        // P2 FIX: Use toast instead of alert
+        toast.success('Order cancelled successfully');
         setShowCancelModal(false);
         fetchOrderDetails(); // Refresh order details
       } else {
-        alert(response.message || 'Failed to cancel order');
+        // P2 FIX: Use toast instead of alert
+        toast.error(response.message || 'Failed to cancel order');
       }
     } catch (error) {
       console.error('Error cancelling order:', error);
-      alert(error.message || 'An error occurred while cancelling the order');
+      // P2 FIX: Use toast instead of alert
+      toast.error(error.message || 'An error occurred while cancelling the order');
     } finally {
       setIsCancelling(false);
     }

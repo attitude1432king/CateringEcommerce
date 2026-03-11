@@ -2,12 +2,13 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CateringEcommerce.API.Controllers.User
 {
-    [Authorize]
+    [UserAuthorize]
     [ApiController]
     [Route("api/User/[controller]")]
     public class OrdersController : ControllerBase

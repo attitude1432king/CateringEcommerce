@@ -33,8 +33,8 @@ GO
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N't_sys_catering_owner') AND name = 'c_approval_status')
 BEGIN
     ALTER TABLE t_sys_catering_owner
-    ADD c_approval_status VARCHAR(50) DEFAULT 'PENDING';
-    -- Values: PENDING, UNDER_REVIEW, APPROVED, REJECTED, INFO_REQUESTED, INCOMPLETE
+    ADD c_approval_status INT DEFAULT 1;
+    -- Values: 1=PENDING, 2=UNDER_REVIEW, 3=APPROVED, 4=REJECTED, 5=INFO_REQUESTED, 6=INCOMPLETE
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N't_sys_catering_owner') AND name = 'c_reviewed_date')
@@ -103,12 +103,7 @@ CREATE TABLE t_sys_partner_request_actions (
     c_new_status VARCHAR(50),
     c_remarks NVARCHAR(1000),
     c_action_date DATETIME DEFAULT GETDATE(),
-    c_ip_address VARCHAR(50),
-
-    CONSTRAINT FK_partner_action_owner FOREIGN KEY (c_ownerid)
-        REFERENCES t_sys_catering_owner(c_ownerid),
-    CONSTRAINT FK_partner_action_admin FOREIGN KEY (c_adminid)
-        REFERENCES t_sys_admin(c_adminid)
+    c_ip_address VARCHAR(50)
 );
 
 -- Indexes for performance
@@ -134,12 +129,7 @@ CREATE TABLE t_sys_partner_request_communications (
     c_sms_sent BIT DEFAULT 0,
     c_email_status VARCHAR(50), -- SENT, FAILED, BOUNCED
     c_sms_status VARCHAR(50), -- SENT, FAILED, DELIVERED
-    c_sent_date DATETIME DEFAULT GETDATE(),
-
-    CONSTRAINT FK_partner_comm_owner FOREIGN KEY (c_ownerid)
-        REFERENCES t_sys_catering_owner(c_ownerid),
-    CONSTRAINT FK_partner_comm_admin FOREIGN KEY (c_adminid)
-        REFERENCES t_sys_admin(c_adminid)
+    c_sent_date DATETIME DEFAULT GETDATE()
 );
 
 -- Indexes for performance
@@ -163,16 +153,13 @@ CREATE TABLE t_sys_admin_notifications (
     c_link VARCHAR(500), -- Deep link to the request
     c_is_read BIT DEFAULT 0,
     c_read_date DATETIME NULL,
-    c_created_date DATETIME DEFAULT GETDATE(),
-
-    CONSTRAINT FK_notification_admin FOREIGN KEY (c_adminid)
-        REFERENCES t_sys_admin(c_adminid)
+    c_createddate DATETIME DEFAULT GETDATE()
 );
 
 -- Indexes for performance
 CREATE INDEX IX_admin_notifications_admin_id ON t_sys_admin_notifications(c_adminid);
 CREATE INDEX IX_admin_notifications_is_read ON t_sys_admin_notifications(c_is_read);
-CREATE INDEX IX_admin_notifications_created_date ON t_sys_admin_notifications(c_created_date DESC);
+CREATE INDEX IX_admin_notifications_created_date ON t_sys_admin_notifications(c_createddate DESC);
 CREATE INDEX IX_admin_notifications_type ON t_sys_admin_notifications(c_notification_type);
 
 GO

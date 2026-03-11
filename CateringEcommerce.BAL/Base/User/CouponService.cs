@@ -258,7 +258,7 @@ namespace CateringEcommerce.BAL.Base.User
             {
                 string query = $@"
                     SELECT COUNT(1)
-                    FROM t_sys_catering_discount_usage
+                    FROM {Table.SysCateringDiscountUsage}
                     WHERE c_userid = @UserId
                         AND c_discount_id = @DiscountId
                         AND c_usage_status = 1"; // 1 = Applied successfully

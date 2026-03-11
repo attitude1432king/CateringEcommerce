@@ -40,7 +40,7 @@ namespace CateringEcommerce.BAL.Common
                         c_payment_method, c_payment_status, c_order_status,
                         c_payment_split_enabled, c_prebooking_amount, c_postevent_amount, c_prebooking_status, c_postevent_status,
                         c_event_latitude, c_event_longitude, c_event_place_id, c_saved_address_id,
-                        c_created_date, c_isactive
+                        c_createddate, c_isactive
                     ) VALUES (
                         @UserId, @CateringId, @OrderNumber, @EventDate, @EventTime,
                         @EventType, @EventLocation, @GuestCount, @SpecialInstructions,
@@ -125,7 +125,7 @@ namespace CateringEcommerce.BAL.Common
                     query.Append($@"
                         INSERT INTO {Table.SysOrderItems} (
                             c_orderid, c_item_type, c_item_id, c_item_name, c_quantity,
-                            c_unit_price, c_total_price, c_package_selections, c_created_date
+                            c_unit_price, c_total_price, c_package_selections, c_createddate
                         ) VALUES (
                             @OrderId{i}, @ItemType{i}, @ItemId{i}, @ItemName{i}, @Quantity{i},
                             @UnitPrice{i}, @TotalPrice{i}, @PackageSelections{i}, GETDATE()
@@ -161,9 +161,9 @@ namespace CateringEcommerce.BAL.Common
                 StringBuilder query = new StringBuilder();
                 query.Append($@"
                     INSERT INTO {Table.SysOrderPayments} (
-                        c_orderid, c_payment_method, c_amount, c_status, c_payment_proof_path, c_payment_stage_type, c_created_date
+                        c_orderid, c_payment_method, c_amount, c_paid_amount, c_status, c_payment_proof_path, c_payment_stage_type, c_createddate
                     ) VALUES (
-                        @OrderId, @PaymentMethod, @Amount, @Status, @PaymentProofPath, @PaymentStageType, GETDATE()
+                        @OrderId, @PaymentMethod, @Amount, @Amount, @Status, @PaymentProofPath, @PaymentStageType, GETDATE()
                     );
                 ");
 
@@ -198,7 +198,7 @@ namespace CateringEcommerce.BAL.Common
                 StringBuilder query = new StringBuilder();
                 query.Append($@"
                     INSERT INTO {Table.SysOrderStatusHistory} (
-                        c_orderid, c_status, c_remarks, c_updated_by, c_updated_date
+                        c_orderid, c_status, c_remarks, c_updated_by, c_modifieddate
                     ) VALUES (
                         @OrderId, @Status, @Remarks, @UpdatedBy, GETDATE()
                     );
@@ -271,11 +271,11 @@ namespace CateringEcommerce.BAL.Common
                         o.c_order_status AS OrderStatus,
                         o.c_payment_status AS PaymentStatus,
                         o.c_payment_method AS PaymentMethod,
-                        o.c_created_date AS CreatedDate
+                        o.c_createddate AS CreatedDate
                     FROM {Table.SysOrders} o
                     LEFT JOIN {Table.SysCateringOwner} ca ON o.c_ownerid = ca.c_ownerid
                     WHERE o.c_userid = @UserId AND o.c_isactive = 1
-                    ORDER BY o.c_created_date DESC
+                    ORDER BY o.c_createddate DESC
                     OFFSET @Offset ROWS
                     FETCH NEXT @PageSize ROWS ONLY
                 ");
@@ -330,8 +330,8 @@ namespace CateringEcommerce.BAL.Common
                         o.c_payment_method AS PaymentMethod,
                         o.c_payment_status AS PaymentStatus,
                         o.c_order_status AS OrderStatus,
-                        o.c_created_date AS CreatedDate,
-                        o.c_updated_date AS UpdatedDate
+                        o.c_createddate AS CreatedDate,
+                        o.c_modifieddate AS UpdatedDate
                     FROM {Table.SysOrders} o
                     LEFT JOIN {Table.SysCateringOwner} ca ON o.c_ownerid = ca.c_ownerid
                     WHERE o.c_orderid = @OrderId AND o.c_userid = @UserId AND o.c_isactive = 1
@@ -390,7 +390,7 @@ namespace CateringEcommerce.BAL.Common
                         c_unit_price AS UnitPrice,
                         c_total_price AS TotalPrice,
                         c_package_selections AS PackageSelections,
-                        c_created_date AS CreatedDate
+                        c_createddate AS CreatedDate
                     FROM {Table.SysOrderItems}
                     WHERE c_orderid = @OrderId
                     ORDER BY c_order_item_id ASC
@@ -430,10 +430,10 @@ namespace CateringEcommerce.BAL.Common
                         c_payment_date AS PaymentDate,
                         c_verified_by AS VerifiedBy,
                         c_verified_date AS VerifiedDate,
-                        c_created_date AS CreatedDate
+                        c_createddate AS CreatedDate
                     FROM {Table.SysOrderPayments}
                     WHERE c_orderid = @OrderId
-                    ORDER BY c_created_date DESC
+                    ORDER BY c_createddate DESC
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]
@@ -467,10 +467,10 @@ namespace CateringEcommerce.BAL.Common
                         c_status AS Status,
                         c_remarks AS Remarks,
                         c_updated_by AS UpdatedBy,
-                        c_updated_date AS UpdatedDate
+                        c_modifieddate AS UpdatedDate
                     FROM {Table.SysOrderStatusHistory}
                     WHERE c_orderid = @OrderId
-                    ORDER BY c_updated_date ASC
+                    ORDER BY c_modifieddate ASC
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]
@@ -504,7 +504,7 @@ namespace CateringEcommerce.BAL.Common
                         sa.c_payment_release_requested AS PaymentReleaseRequested,
                         sa.c_payment_release_approved AS PaymentReleaseApproved,
                         sa.c_extra_charges_amount AS ExtraChargesAmount,
-                        sa.c_modified_date AS LastUpdated,
+                        sa.c_modifieddate AS LastUpdated,
                         per.c_report_id AS ReportId,
                         per.c_final_guest_count AS ActualGuestCount,
                         per.c_event_rating AS EventRating,
@@ -576,7 +576,7 @@ namespace CateringEcommerce.BAL.Common
             {
                 string query = $@"
                     UPDATE {Table.SysOrders}
-                    SET c_order_status = @Status, c_updated_date = GETDATE()
+                    SET c_order_status = @Status, c_modifieddate = GETDATE()
                     WHERE c_orderid = @OrderId
                 ";
 
@@ -608,7 +608,7 @@ namespace CateringEcommerce.BAL.Common
             {
                 // Check if order can be cancelled (Pending status and within 2 hours)
                 string checkQuery = $@"
-                    SELECT c_order_status, c_created_date
+                    SELECT c_order_status, c_createddate
                     FROM {Table.SysOrders}
                     WHERE c_orderid = @OrderId AND c_userid = @UserId AND c_isactive = 1
                 ";
@@ -624,7 +624,7 @@ namespace CateringEcommerce.BAL.Common
                     throw new InvalidOperationException("Order not found.");
 
                 string currentStatus = dt.Rows[0]["c_order_status"].ToString() ?? "";
-                DateTime createdDate = Convert.ToDateTime(dt.Rows[0]["c_created_date"]);
+                DateTime createdDate = Convert.ToDateTime(dt.Rows[0]["c_createddate"]);
                 TimeSpan timeSinceCreation = DateTime.Now - createdDate;
 
                 if (currentStatus == "InProgress")

@@ -1,3 +1,4 @@
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.BAL.Common;
@@ -15,7 +16,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 {
     [ApiController]
     [Route("api/Owner/Banners")]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class BannersController : ControllerBase
     {
         private readonly ILogger<BannersController> _logger;

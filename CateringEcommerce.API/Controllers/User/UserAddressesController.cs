@@ -2,6 +2,7 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.User;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.User;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -12,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace CateringEcommerce.API.Controllers.User
 {
-    [Authorize]
+    [UserAuthorize]
     [ApiController]
     [Route("api/User/[controller]")]
     public class UserAddressesController : ControllerBase

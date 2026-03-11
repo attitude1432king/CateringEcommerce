@@ -1,3 +1,4 @@
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 {
     [Route("api/owner/notifications")]
     [ApiController]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class NotificationsController : ControllerBase
     {
         private readonly INotificationRepository _notificationRepository;

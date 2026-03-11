@@ -2,79 +2,90 @@
 ========================================
 File: src/contexts/AuthContext.jsx (UPDATED)
 ========================================
-This file now handles user roles to differentiate between clients and owners.
+Cookie-based auth — JWT is stored in httpOnly cookie by the backend.
+No token is ever accessible to JavaScript.
 */
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { fetchApi } from '../services/apiUtils'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 // 1. Create the context
 const AuthContext = createContext(null);
 
 // 2. Create the provider component
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null); // Will hold { pkid, name, role, token }
+    const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [token, setToken] = useState(localStorage.getItem('authToken'));
 
+    // On mount, check if httpOnly cookie is still valid via /me endpoint
     useEffect(() => {
-        try {
-            const storedUser = localStorage.getItem('enyvora_user');
-            const storedToken = localStorage.getItem('authToken');
+        const checkAuth = async () => {
+            try {
+                // First try to restore from localStorage (non-sensitive profile data)
+                const storedUser = localStorage.getItem('enyvora_user');
+                if (storedUser) {
+                    setUser(JSON.parse(storedUser));
+                }
 
-            if (storedUser && storedToken) {
-                setUser(JSON.parse(storedUser));
-                setToken(storedToken);
+                // Validate session with backend (cookie sent automatically)
+                if (storedUser) {
+                    const res = await fetchApi('/User/Auth/me')
+                    if (!res.result) {
+                        // Cookie expired or invalid — clear state
+                        localStorage.removeItem('enyvora_user');
+                        setUser(null);
+                    }
+                }
+            } catch {
+                // Network error — keep stored user for offline graceful degradation
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error("Failed to parse user from localStorage", error);
-            localStorage.removeItem('enyvora_user');
-            localStorage.removeItem('authToken');
-            setUser(null);
-            setToken(null);
-        } finally {
-            setIsLoading(false);
-        }
+        };
+
+        checkAuth();
     }, []);
 
-
     const login = (userData) => {
-        localStorage.setItem('enyvora_user', JSON.stringify(userData));
-        localStorage.setItem('authToken', userData.token);
-        setUser(userData);
-        setToken(userData.token);
-        console.log("User logged in and session saved:", userData);
+        // Token is already set as httpOnly cookie by backend — only store profile data
+        const {...profileData } = userData;
+        localStorage.setItem('enyvora_user', JSON.stringify(profileData));
+        setUser(profileData);
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await fetch(`${API_BASE}/api/User/Auth/logout`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+        } catch {
+            // Proceed with local cleanup even if server call fails
+        }
         setUser(null);
-        setToken(null);
-        localStorage.removeItem('authToken');
         localStorage.removeItem('enyvora_user');
-        console.log("User logged out and session cleared.");
     };
 
     const updateUserProfileInContext = (updatedData) => {
         setUser(prevUser => {
             const newUser = { ...prevUser, ...updatedData };
             localStorage.setItem('enyvora_user', JSON.stringify(newUser));
-            console.log("User context updated:", newUser);
             return newUser;
         });
     };
 
     const value = {
         user,
-        token,
-        isAuthenticated: !!user && !!token,
+        isAuthenticated: !!user,
         isLoading,
         login,
         logout,
         updateUserProfileInContext,
     };
 
-    if (isLoading) {
-        return null;
-    }
-
+    // P1 FIX: Don't return null during loading - this causes blank flash on public pages
+    // Protected routes can check isLoading themselves if needed
     return (
         <AuthContext.Provider value={value}>
             {children}

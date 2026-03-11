@@ -9,6 +9,7 @@ namespace CateringEcommerce.Domain.Interfaces.Common
         Task<List<PaymentStageDto>> GetPaymentStagesByOrderIdAsync(long orderId);
         Task<List<PaymentStageDto>> GetPendingPaymentStagesAsync(long orderId);
         Task<bool> UpdatePaymentStageStatusAsync(long paymentStageId, string status, ProcessPaymentStageDto paymentData);
+        Task<bool> UpdatePaymentStageWithOrderStatusAsync(long paymentStageId, long orderId, string stageType, string status, ProcessPaymentStageDto paymentData, string newOrderStatus);
         Task<DataTable> GetOrdersWithPendingPostEventPaymentsAsync();
         Task<bool> UpdateReminderSentCountAsync(long paymentStageId);
     }

@@ -1,13 +1,12 @@
-﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
 
 import { fetchApi } from './apiUtils';
-const token = localStorage.getItem('authToken');
 
 export const apiService = {
 
     // Auth endpoints
-    
+
     /**
      * Send the OTP. and check the role data is exist or not.
      * @param {string} currentAction - The currentAction Mode.
@@ -20,6 +19,7 @@ export const apiService = {
     sendOtp: async (currentAction, phoneNumber, isPartnerLogin, deviceFingerprint = null) => {
         const response = await fetch(`${API_BASE_URL}/api/User/Auth/send-otp`, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ currentAction, phoneNumber, isPartnerLogin, deviceFingerprint }),
         });
@@ -42,6 +42,7 @@ export const apiService = {
     verifyOtp: async (currentAction, phoneNumber, name, otp, isPartnerLogin, deviceInfo = {}) => {
         const response = await fetch(`${API_BASE_URL}/api/User/Auth/verify-otp`, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 currentAction,
@@ -59,17 +60,15 @@ export const apiService = {
             const errorData = await response.json();
             return errorData;
         }
-        return response.json(); // Should return { token, user, deviceTrusted, trustedDeviceId }
+        return response.json();
     },
 
     // Login endpoint
-    finalVerify: async (userPKID, role, token) => {
+    finalVerify: async (userPKID, role) => {
         const response = await fetch(`${API_BASE_URL}/api/User/Auth/final-verify`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({userPKID, role}),
         });
         if (!response.ok) {
@@ -79,8 +78,6 @@ export const apiService = {
         return response.json();
     },
 
-    //finalVerify: async (userPKID, role) => fetchApi(`/User/Auth/final-verify`, 'POST', {userPKID, role}),
-    
     // Profile endpoints
     getUserProfile: () => fetchApi(`/User/ProfileSettings/GetUserProfile`),
     updateUserProfile: (profileData) => fetchApi(`/User/ProfileSettings/UpdateProfile`, 'POST', profileData),
@@ -90,10 +87,8 @@ export const apiService = {
     sendVerificationOtp: async (type, value, role) => {
         const response = await fetch(`${API_BASE_URL}/api/Common/Auth/send-otp`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type, value, role }),
         });
         if (!response.ok) {
@@ -106,10 +101,8 @@ export const apiService = {
     verifyUpdateOtp: async (type, value, otp, pkId, role) => {
         const response = await fetch(`${API_BASE_URL}/api/Common/Auth/verify-otp`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type, value, otp, pkId, role }),
         });
         if (!response.ok) {
@@ -118,7 +111,7 @@ export const apiService = {
         }
         return response.json();
     },
-    
+
     // Location endpoints
     getStates: () => fetchApi('/Common/Locations/states'),
     getCities: (stateID) => fetchApi(`/Common/Locations/cities/${stateID}`),
@@ -138,13 +131,10 @@ export const apiService = {
      * @returns {Promise<object>}
      */
     getTrustedDevices: async () => {
-        const token = localStorage.getItem('authToken');
         const response = await fetch(`${API_BASE_URL}/api/User/Auth/trusted-devices`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
         });
         if (!response.ok) {
             const errorData = await response.json();
@@ -160,13 +150,10 @@ export const apiService = {
      * @returns {Promise<object>}
      */
     revokeTrustedDevice: async (deviceId, reason = 'User revoked') => {
-        const token = localStorage.getItem('authToken');
         const response = await fetch(`${API_BASE_URL}/api/User/Auth/trusted-devices/${deviceId}`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason })
         });
         if (!response.ok) {
@@ -182,13 +169,10 @@ export const apiService = {
      * @returns {Promise<object>}
      */
     revokeAllTrustedDevices: async (reason = 'Security measure') => {
-        const token = localStorage.getItem('authToken');
         const response = await fetch(`${API_BASE_URL}/api/User/Auth/revoke-all-devices`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason })
         });
         if (!response.ok) {

@@ -20,7 +20,7 @@ BEGIN
         [c_notification_uuid] UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),
 
         -- Recipient Information
-        [c_user_id] NVARCHAR(50) NOT NULL,  -- User ID (can be numeric or string)
+        [c_userid] NVARCHAR(50) NOT NULL,  -- User ID (can be numeric or string)
         [c_user_type] NVARCHAR(20) NOT NULL DEFAULT 'USER', -- USER, OWNER, ADMIN, SUPERVISOR
 
         -- Notification Content
@@ -44,7 +44,7 @@ BEGIN
         [c_deleted_at] DATETIME NULL,
 
         -- Audit
-        [c_created_at] DATETIME NOT NULL DEFAULT GETDATE(),
+        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
         [c_expires_at] DATETIME NULL, -- Auto-delete after this date
 
         -- Indexes
@@ -53,11 +53,11 @@ BEGIN
 
     -- Indexes for performance
     CREATE NONCLUSTERED INDEX [IX_Notifications_UserId_UserType]
-        ON [dbo].[t_sys_notifications] ([c_user_id], [c_user_type], [c_is_read], [c_is_deleted])
-        INCLUDE ([c_created_at], [c_priority]);
+        ON [dbo].[t_sys_notifications] ([c_userid], [c_user_type], [c_is_read], [c_is_deleted])
+        INCLUDE ([c_createddate], [c_priority]);
 
     CREATE NONCLUSTERED INDEX [IX_Notifications_Created]
-        ON [dbo].[t_sys_notifications] ([c_created_at] DESC)
+        ON [dbo].[t_sys_notifications] ([c_createddate] DESC)
         WHERE [c_is_deleted] = 0;
 
     CREATE NONCLUSTERED INDEX [IX_Notifications_Category]
@@ -80,7 +80,7 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N't_sys_not
 BEGIN
     CREATE TABLE [dbo].[t_sys_notification_preferences] (
         [c_preference_id] BIGINT IDENTITY(1,1) PRIMARY KEY,
-        [c_user_id] NVARCHAR(50) NOT NULL,
+        [c_userid] NVARCHAR(50) NOT NULL,
         [c_user_type] NVARCHAR(20) NOT NULL DEFAULT 'USER',
 
         -- Channel Preferences
@@ -98,11 +98,11 @@ BEGIN
         [c_quiet_hours_end] TIME NULL, -- e.g., 08:00
 
         -- Audit
-        [c_created_at] DATETIME NOT NULL DEFAULT GETDATE(),
-        [c_updated_at] DATETIME NULL,
+        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
+        [c_modifieddate] DATETIME NULL,
 
         -- Unique constraint
-        CONSTRAINT [UQ_NotificationPreferences_User] UNIQUE ([c_user_id], [c_user_type])
+        CONSTRAINT [UQ_NotificationPreferences_User] UNIQUE ([c_userid], [c_user_type])
     );
 
     PRINT 'Table t_sys_notification_preferences created successfully';
@@ -146,10 +146,10 @@ BEGIN
         c_data AS Data,
         c_is_read AS IsRead,
         c_read_at AS ReadAt,
-        c_created_at AS CreatedAt,
+        c_createddate AS CreatedAt,
         c_expires_at AS ExpiresAt
     FROM t_sys_notifications
-    WHERE c_user_id = @UserId
+    WHERE c_userid = @UserId
       AND c_user_type = @UserType
       AND c_is_deleted = 0
       AND (@IncludeRead = 1 OR c_is_read = 0)
@@ -157,14 +157,14 @@ BEGIN
       AND (c_expires_at IS NULL OR c_expires_at > GETDATE())
     ORDER BY
         c_priority DESC,
-        c_created_at DESC
+        c_createddate DESC
     OFFSET @Offset ROWS
     FETCH NEXT @PageSize ROWS ONLY;
 
     -- Return total count
     SELECT COUNT(*) AS TotalCount
     FROM t_sys_notifications
-    WHERE c_user_id = @UserId
+    WHERE c_userid = @UserId
       AND c_user_type = @UserType
       AND c_is_deleted = 0
       AND (@IncludeRead = 1 OR c_is_read = 0)
@@ -174,7 +174,7 @@ BEGIN
     -- Return unread count
     SELECT COUNT(*) AS UnreadCount
     FROM t_sys_notifications
-    WHERE c_user_id = @UserId
+    WHERE c_userid = @UserId
       AND c_user_type = @UserType
       AND c_is_deleted = 0
       AND c_is_read = 0
@@ -204,7 +204,7 @@ BEGIN
     SET c_is_read = 1,
         c_read_at = GETDATE()
     WHERE c_notification_uuid = @NotificationUuid
-      AND c_user_id = @UserId
+      AND c_userid = @UserId
       AND c_is_read = 0;
 
     SELECT @@ROWCOUNT AS RowsAffected;
@@ -232,7 +232,7 @@ BEGIN
     UPDATE t_sys_notifications
     SET c_is_read = 1,
         c_read_at = GETDATE()
-    WHERE c_user_id = @UserId
+    WHERE c_userid = @UserId
       AND c_user_type = @UserType
       AND c_is_read = 0
       AND c_is_deleted = 0;
@@ -263,7 +263,7 @@ BEGIN
     SET c_is_deleted = 1,
         c_deleted_at = GETDATE()
     WHERE c_is_read = 1
-      AND c_created_at < DATEADD(DAY, -@DaysToKeep, GETDATE())
+      AND c_createddate < DATEADD(DAY, -@DaysToKeep, GETDATE())
       AND c_is_deleted = 0;
 
     SELECT @@ROWCOUNT AS DeletedCount;
@@ -285,16 +285,16 @@ GO
 -- ============================================
 
 -- Insert default preferences for existing users (if needed)
-INSERT INTO t_sys_notification_preferences (c_user_id, c_user_type, c_email_enabled, c_sms_enabled, c_inapp_enabled, c_push_enabled)
+INSERT INTO t_sys_notification_preferences (c_userid, c_user_type, c_email_enabled, c_sms_enabled, c_inapp_enabled, c_push_enabled)
 SELECT
-    CAST(c_userid AS NVARCHAR(50)),
+    CAST(u.c_userid AS NVARCHAR(50)),
     'USER',
     1, 1, 1, 1
-FROM t_mas_user
+FROM t_sys_user u
 WHERE NOT EXISTS (
     SELECT 1
     FROM t_sys_notification_preferences
-    WHERE c_user_id = CAST(t_mas_user.c_userid AS NVARCHAR(50))
+    WHERE c_userid = CAST(u.c_userid AS NVARCHAR(50))
       AND c_user_type = 'USER'
 );
 

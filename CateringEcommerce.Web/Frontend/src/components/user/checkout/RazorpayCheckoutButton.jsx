@@ -5,6 +5,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 const RazorpayCheckoutButton = ({
   amount,
   orderDetails,
+  orderId, // System order ID (required for backend)
+  stageType = 'PreBooking', // Payment stage: PreBooking, PostEvent, Full
   onSuccess,
   onFailure,
   disabled = false,
@@ -23,26 +25,37 @@ const RazorpayCheckoutButton = ({
     setIsProcessing(true);
 
     try {
-      // Step 1: Create Razorpay order on backend
-      const orderResponse = await createRazorpayOrder({
-        amount: amount,
-        currency: 'INR',
-        receipt: `order_${Date.now()}`,
-        notes: {
-          ...orderDetails,
-          userId: user?.userId,
-        },
-      });
-
-      if (!orderResponse.result) {
-        throw new Error('Failed to create payment order');
+      // Validate required parameters
+      if (!orderId) {
+        throw new Error('Order ID is required for payment');
+      }
+      if (!user?.pkid) {
+        throw new Error('User must be authenticated to make payment');
       }
 
-      // Step 2: Open Razorpay checkout
+      // Step 1: Create Razorpay order on backend with required parameters
+      const orderResponse = await createRazorpayOrder({
+        Amount: amount, // Backend expects PascalCase
+        Receipt: `order_${orderId}_${Date.now()}`,
+        OrderId: orderId, // System order ID (required by backend)
+        UserId: user.pkid, // Authenticated user ID (required by backend)
+        StageType: stageType, // Payment stage type (required by backend)
+        Notes: JSON.stringify({
+          ...orderDetails,
+          userId: user.pkid,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (!orderResponse.result || !orderResponse.data) {
+        throw new Error(orderResponse.message || 'Failed to create payment order');
+      }
+
+      // Step 2: Open Razorpay checkout with the created order ID
       openRazorpayCheckout({
         amount: amount,
         currency: 'INR',
-        orderId: orderResponse.data.razorpayOrderId,
+        orderId: orderResponse.data.id || orderResponse.data.Id, // Backend returns PascalCase 'Id'
         name: 'ENYVORA Catering',
         description: orderDetails.description || 'Catering Service',
         prefill: {
@@ -59,7 +72,8 @@ const RazorpayCheckoutButton = ({
           if (onSuccess) {
             onSuccess({
               ...paymentResponse,
-              orderId: orderResponse.data.orderId,
+              orderId: orderId, // Pass the system order ID
+              stageType: stageType, // Include stage type for verification
             });
           }
         },

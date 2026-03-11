@@ -34,12 +34,21 @@ BEGIN
         [c_discount_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
         [c_total_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
         [c_payment_method] [varchar](50) NOT NULL,
+        [c_payment_split_enabled] [bit] NOT NULL DEFAULT 0,
+        [c_prebooking_amount] [decimal](18, 2) NULL,
+        [c_postevent_amount] [decimal](18, 2) NULL,
+        [c_prebooking_status] [varchar](20) NULL,
+        [c_postevent_status] [varchar](20) NULL,
+        [c_event_latitude] [decimal](10, 7) NULL,
+        [c_event_longitude] [decimal](10, 7) NULL,
+        [c_event_place_id] [varchar](200) NULL,
+        [c_saved_address_id] [bigint] NULL,
         [c_platform_commission] DECIMAL(18,2) NOT NULL DEFAULT 0,
         [c_commission_rate] DECIMAL(5,2) NOT NULL DEFAULT 10.00,
         [c_payment_status] [varchar](20) NOT NULL DEFAULT 'Pending',
         [c_order_status] [varchar](20) NOT NULL DEFAULT 'Pending',
-        [c_created_date] [datetime] NOT NULL DEFAULT GETDATE(),
-        [c_updated_date] [datetime] NULL,
+        [c_createddate] [datetime] NOT NULL DEFAULT GETDATE(),
+        [c_modifieddate] [datetime] NULL,
         [c_isactive] [bit] NOT NULL DEFAULT 1,
         CONSTRAINT [PK_t_sys_orders] PRIMARY KEY CLUSTERED ([c_orderid] ASC),
         CONSTRAINT [UQ_t_sys_orders_order_number] UNIQUE NONCLUSTERED ([c_order_number] ASC),
@@ -71,7 +80,7 @@ BEGIN
         [c_unit_price] [decimal](18, 2) NOT NULL,
         [c_total_price] [decimal](18, 2) NOT NULL,
         [c_package_selections] [nvarchar](max) NULL,
-        [c_created_date] [datetime] NOT NULL DEFAULT GETDATE(),
+        [c_createddate] [datetime] NOT NULL DEFAULT GETDATE(),
         CONSTRAINT [PK_t_sys_order_items] PRIMARY KEY CLUSTERED ([c_order_item_id] ASC),
         CONSTRAINT [FK_t_sys_order_items_order] FOREIGN KEY([c_orderid]) REFERENCES [dbo].[t_sys_orders] ([c_orderid]) ON DELETE CASCADE
     ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
@@ -96,7 +105,7 @@ BEGIN
         [c_status] [varchar](20) NOT NULL,
         [c_remarks] [nvarchar](500) NULL,
         [c_updated_by] [bigint] NULL,
-        [c_updated_date] [datetime] NOT NULL DEFAULT GETDATE(),
+        [c_modifieddate] [datetime] NOT NULL DEFAULT GETDATE(),
         CONSTRAINT [PK_t_sys_order_status_history] PRIMARY KEY CLUSTERED ([c_history_id] ASC),
         CONSTRAINT [FK_t_sys_order_status_history_order] FOREIGN KEY([c_orderid]) REFERENCES [dbo].[t_sys_orders] ([c_orderid]) ON DELETE CASCADE
     ) ON [PRIMARY]
@@ -121,13 +130,18 @@ BEGIN
         [c_payment_method] [varchar](50) NOT NULL,
         [c_payment_gateway] [varchar](50) NULL,
         [c_transaction_id] [varchar](100) NULL,
+        [c_payment_stage_type] [varchar](20) NULL,
+        [c_razorpay_order_id] [varchar](100) NULL,
+        [c_razorpay_payment_id] [varchar](100) NULL,
+        [c_upi_id] [varchar](100) NULL,
         [c_payment_proof_path] [nvarchar](500) NULL,
         [c_amount] [decimal](18, 2) NOT NULL,
+        [c_paid_amount] [decimal](18, 2) NULL,
         [c_status] [varchar](20) NOT NULL DEFAULT 'Pending',
         [c_payment_date] [datetime] NULL,
         [c_verified_by] [bigint] NULL,
         [c_verified_date] [datetime] NULL,
-        [c_created_date] [datetime] NOT NULL DEFAULT GETDATE(),
+        [c_createddate] [datetime] NOT NULL DEFAULT GETDATE(),
         CONSTRAINT [PK_t_sys_order_payments] PRIMARY KEY CLUSTERED ([c_payment_id] ASC),
         CONSTRAINT [FK_t_sys_order_payments_order] FOREIGN KEY([c_orderid]) REFERENCES [dbo].[t_sys_orders] ([c_orderid]) ON DELETE CASCADE
     ) ON [PRIMARY]
@@ -149,7 +163,7 @@ BEGIN
     (
         [c_userid] ASC
     )
-    INCLUDE([c_order_number], [c_order_status], [c_event_date], [c_created_date])
+    INCLUDE([c_order_number], [c_order_status], [c_event_date], [c_createddate])
     PRINT 'Index IX_t_sys_orders_userid created successfully.'
 END
 GO
@@ -160,7 +174,7 @@ BEGIN
     (
         [c_ownerid] ASC
     )
-    INCLUDE([c_order_number], [c_order_status], [c_event_date], [c_created_date])
+    INCLUDE([c_order_number], [c_order_status], [c_event_date], [c_createddate])
     PRINT 'Index IX_t_sys_orders_cateringid created successfully.'
 END
 GO
@@ -170,7 +184,7 @@ BEGIN
     CREATE NONCLUSTERED INDEX [IX_t_sys_orders_status] ON [dbo].[t_sys_orders]
     (
         [c_order_status] ASC,
-        [c_created_date] DESC
+        [c_createddate] DESC
     )
     PRINT 'Index IX_t_sys_orders_status created successfully.'
 END

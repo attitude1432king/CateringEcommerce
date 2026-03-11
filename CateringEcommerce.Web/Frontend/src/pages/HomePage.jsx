@@ -16,7 +16,7 @@ import { useDefaultCity } from '../hooks/useDefaultCity';
 export default function HomePage() {
     const cityData = useDefaultCity();
     const navigate = useNavigate();
-    console.log(cityData);
+    // P2 FIX: Removed console.log exposing city data
 
     /**
      * Handle search from HeroBanner

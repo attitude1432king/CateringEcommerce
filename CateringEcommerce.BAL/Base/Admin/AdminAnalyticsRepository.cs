@@ -36,7 +36,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetDashboardMetrics", parameters.ToArray());
 
-            if (dt.Rows.Count > 0)
+            if (dt != null && dt.Rows.Count > 0)
             {
                 var row = dt.Rows[0];
                 return new DashboardMetrics
@@ -80,6 +80,17 @@ namespace CateringEcommerce.BAL.Base.Admin
             decimal totalRevenue = 0;
             decimal totalCommission = 0;
             int totalOrders = 0;
+
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                return new RevenueChartResponse
+                {
+                    DataPoints = dataPoints,
+                    TotalRevenue = totalRevenue,
+                    TotalCommission = totalCommission,
+                    TotalOrders = totalOrders
+                };
+            }
 
             foreach (DataRow row in dt.Rows)
             {
@@ -126,6 +137,19 @@ namespace CateringEcommerce.BAL.Base.Admin
             int completedOrders = 0;
             int pendingOrders = 0;
             int cancelledOrders = 0;
+
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                return new OrderAnalyticsResponse
+                {
+                    StatusDistribution = statusDistribution,
+                    TotalOrders = totalOrders,
+                    CompletedOrders = completedOrders,
+                    PendingOrders = pendingOrders,
+                    CancelledOrders = cancelledOrders,
+                    AverageOrderValue = 0
+                };
+            }
 
             foreach (DataRow row in dt.Rows)
             {
@@ -177,6 +201,16 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var topPartners = new List<TopPerformingPartner>();
 
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                return new PartnerAnalyticsResponse
+                {
+                    TopPartners = topPartners,
+                    TotalActivePartners = 0,
+                    NewPartnersInPeriod = 0
+                };
+            }
+
             foreach (DataRow row in dt.Rows)
             {
                 topPartners.Add(new TopPerformingPartner
@@ -215,6 +249,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var orders = new List<RecentOrderItem>();
 
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                return orders;
+            }
+
             foreach (DataRow row in dt.Rows)
             {
                 orders.Add(new RecentOrderItem
@@ -252,6 +291,15 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var categories = new List<PopularCategory>();
 
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                return new CategoryAnalyticsResponse
+                {
+                    PopularCategories = categories,
+                    TotalCategories = 0
+                };
+            }
+
             foreach (DataRow row in dt.Rows)
             {
                 categories.Add(new PopularCategory
@@ -288,6 +336,16 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var dataPoints = new List<UserGrowthDataPoint>();
             int totalNewUsers = 0;
+
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                return new UserGrowthResponse
+                {
+                    DataPoints = dataPoints,
+                    TotalNewUsers = 0,
+                    TotalUsers = 0
+                };
+            }
 
             foreach (DataRow row in dt.Rows)
             {
@@ -327,6 +385,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetRevenueByCity", parameters.ToArray());
 
             var cityRevenues = new List<CityRevenue>();
+
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                return new CityAnalyticsResponse
+                {
+                    CityRevenues = cityRevenues,
+                    TotalActiveCities = 0
+                };
+            }
 
             foreach (DataRow row in dt.Rows)
             {

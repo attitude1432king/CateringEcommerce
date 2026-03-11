@@ -20,12 +20,12 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT
-                    ISNULL(SUM(CASE WHEN c_status = 'Completed' THEN c_platform_commission ELSE 0 END), 0) AS TotalCommission,
-                    ISNULL(SUM(CASE WHEN c_status = 'Completed' THEN c_total_amount ELSE 0 END), 0) AS TotalOrderValue,
-                    COUNT(CASE WHEN c_status = 'Completed' THEN 1 END) AS CompletedOrders,
+                    ISNULL(SUM(CASE WHEN c_order_status = 'Completed' THEN c_platform_commission ELSE 0 END), 0) AS TotalCommission,
+                    ISNULL(SUM(CASE WHEN c_order_status = 'Completed' THEN c_total_amount ELSE 0 END), 0) AS TotalOrderValue,
+                    COUNT(CASE WHEN c_order_status = 'Completed' THEN 1 END) AS CompletedOrders,
                     COUNT(*) AS TotalOrders,
-                    ISNULL(SUM(CASE WHEN c_status = 'Completed' AND MONTH(c_order_date) = MONTH(GETDATE()) AND YEAR(c_order_date) = YEAR(GETDATE()) THEN c_platform_commission ELSE 0 END), 0) AS ThisMonthEarnings,
-                    ISNULL(SUM(CASE WHEN c_status = 'Completed' AND MONTH(c_order_date) = MONTH(DATEADD(MONTH, -1, GETDATE())) AND YEAR(c_order_date) = YEAR(DATEADD(MONTH, -1, GETDATE())) THEN c_platform_commission ELSE 0 END), 0) AS LastMonthEarnings
+                    ISNULL(SUM(CASE WHEN c_order_status = 'Completed' AND MONTH(c_createddate) = MONTH(GETDATE()) AND YEAR(c_createddate) = YEAR(GETDATE()) THEN c_platform_commission ELSE 0 END), 0) AS ThisMonthEarnings,
+                    ISNULL(SUM(CASE WHEN c_order_status = 'Completed' AND MONTH(c_createddate) = MONTH(DATEADD(MONTH, -1, GETDATE())) AND YEAR(c_createddate) = YEAR(DATEADD(MONTH, -1, GETDATE())) THEN c_platform_commission ELSE 0 END), 0) AS LastMonthEarnings
                 FROM {Table.SysOrders}";
 
             var dt = _dbHelper.Execute(query);
@@ -66,26 +66,26 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string dateFormat = request.GroupBy switch
             {
-                "Week" => "DATEPART(YEAR, c_order_date), DATEPART(WEEK, c_order_date)",
-                "Month" => "DATEPART(YEAR, c_order_date), DATEPART(MONTH, c_order_date)",
-                "Year" => "DATEPART(YEAR, c_order_date)",
-                _ => "CAST(c_order_date AS DATE)"
+                "Week" => "DATEPART(YEAR, c_createddate), DATEPART(WEEK, c_createddate)",
+                "Month" => "DATEPART(YEAR, c_createddate), DATEPART(MONTH, c_createddate)",
+                "Year" => "DATEPART(YEAR, c_createddate)",
+                _ => "CAST(c_createddate AS DATE)"
             };
 
             string periodStart = request.GroupBy switch
             {
-                "Week" => "DATEADD(WEEK, DATEDIFF(WEEK, 0, c_order_date), 0)",
-                "Month" => "DATEADD(MONTH, DATEDIFF(MONTH, 0, c_order_date), 0)",
-                "Year" => "DATEADD(YEAR, DATEDIFF(YEAR, 0, c_order_date), 0)",
-                _ => "CAST(c_order_date AS DATE)"
+                "Week" => "DATEADD(WEEK, DATEDIFF(WEEK, 0, c_createddate), 0)",
+                "Month" => "DATEADD(MONTH, DATEDIFF(MONTH, 0, c_createddate), 0)",
+                "Year" => "DATEADD(YEAR, DATEDIFF(YEAR, 0, c_createddate), 0)",
+                _ => "CAST(c_createddate AS DATE)"
             };
 
             string periodEnd = request.GroupBy switch
             {
-                "Week" => "DATEADD(DAY, 6, DATEADD(WEEK, DATEDIFF(WEEK, 0, c_order_date), 0))",
-                "Month" => "EOMONTH(c_order_date)",
-                "Year" => "DATEADD(YEAR, 1, DATEADD(YEAR, DATEDIFF(YEAR, 0, c_order_date), 0)) - 1",
-                _ => "CAST(c_order_date AS DATE)"
+                "Week" => "DATEADD(DAY, 6, DATEADD(WEEK, DATEDIFF(WEEK, 0, c_createddate), 0))",
+                "Month" => "EOMONTH(c_createddate)",
+                "Year" => "DATEADD(YEAR, 1, DATEADD(YEAR, DATEDIFF(YEAR, 0, c_createddate), 0)) - 1",
+                _ => "CAST(c_createddate AS DATE)"
             };
 
             var query = $@"
@@ -96,19 +96,19 @@ namespace CateringEcommerce.BAL.Base.Admin
                     ISNULL(SUM(c_platform_commission), 0) AS PlatformCommission,
                     COUNT(*) AS OrderCount
                 FROM {Table.SysOrders}
-                WHERE c_status = 'Completed'";
+                WHERE c_order_status = 'Completed'";
 
             var parameters = new List<SqlParameter>();
 
             if (request.StartDate.HasValue)
             {
-                query += " AND c_order_date >= @StartDate";
+                query += " AND c_createddate >= @StartDate";
                 parameters.Add(new SqlParameter("@StartDate", request.StartDate.Value));
             }
 
             if (request.EndDate.HasValue)
             {
-                query += " AND c_order_date <= @EndDate";
+                query += " AND c_createddate <= @EndDate";
                 parameters.Add(new SqlParameter("@EndDate", request.EndDate.Value));
             }
 
@@ -148,39 +148,45 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var query = $@"
                 SELECT
-                    co.c_catering_ownerid AS CateringId,
-                    co.c_business_name AS BusinessName,
-                    c.c_cityname AS City,
+                    co.c_ownerid AS CateringId,
+                    co.c_catering_name AS BusinessName,
+                    ISNULL(loc.c_cityname, '') AS City,
                     ISNULL(SUM(o.c_total_amount), 0) AS TotalOrderValue,
                     ISNULL(SUM(o.c_platform_commission), 0) AS PlatformCommission,
                     ISNULL(AVG(o.c_commission_rate), 0) AS CommissionRate,
                     COUNT(o.c_orderid) AS TotalOrders,
-                    COUNT(CASE WHEN o.c_status = 'Completed' THEN 1 END) AS CompletedOrders,
+                    COUNT(CASE WHEN o.c_order_status = 'Completed' THEN 1 END) AS CompletedOrders,
                     CASE WHEN COUNT(o.c_orderid) > 0 THEN ISNULL(SUM(o.c_total_amount), 0) / COUNT(o.c_orderid) ELSE 0 END AS AvgOrderValue
                 FROM {Table.SysCateringOwner} co
-                LEFT JOIN {Table.SysOrders} o ON co.c_catering_ownerid = o.c_catering_ownerid AND o.c_status = 'Completed'
-                LEFT JOIN {Table.City} c ON co.c_cityid = c.c_cityid
+                LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'
+                OUTER APPLY (
+                    SELECT TOP 1 c.c_cityname
+                    FROM {Table.SysCateringOwnerAddress} coa
+                    LEFT JOIN {Table.City} c ON coa.c_cityid = c.c_cityid
+                    WHERE coa.c_ownerid = co.c_ownerid
+                    ORDER BY coa.c_addressid DESC
+                ) loc
                 WHERE 1=1";
 
             var parameters = new List<SqlParameter>();
 
             if (request.StartDate.HasValue)
             {
-                query += " AND o.c_order_date >= @StartDate";
+                query += " AND o.c_createddate >= @StartDate";
                 parameters.Add(new SqlParameter("@StartDate", request.StartDate.Value));
             }
 
             if (request.EndDate.HasValue)
             {
-                query += " AND o.c_order_date <= @EndDate";
+                query += " AND o.c_createddate <= @EndDate";
                 parameters.Add(new SqlParameter("@EndDate", request.EndDate.Value));
             }
 
-            query += " GROUP BY co.c_catering_ownerid, co.c_business_name, c.c_cityname";
+            query += " GROUP BY co.c_ownerid, co.c_catering_name, loc.c_cityname";
 
             string sortColumn = request.SortBy switch
             {
-                "BusinessName" => "co.c_business_name",
+                "BusinessName" => "co.c_catering_name",
                 "TotalOrders" => "TotalOrders",
                 _ => "PlatformCommission"
             };
@@ -188,9 +194,9 @@ namespace CateringEcommerce.BAL.Base.Admin
             query += $" ORDER BY {sortColumn} {request.SortOrder}";
 
             string countQuery = $@"
-                SELECT COUNT(DISTINCT co.c_catering_ownerid)
+                SELECT COUNT(DISTINCT co.c_ownerid)
                 FROM {Table.SysCateringOwner} co
-                LEFT JOIN {Table.SysOrders} o ON co.c_catering_ownerid = o.c_catering_ownerid AND o.c_status = 'Completed'";
+                LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'";
 
             int totalRecords = Convert.ToInt32(_dbHelper.ExecuteScalar(countQuery));
 
@@ -236,17 +242,17 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT
-                    YEAR(o.c_order_date) AS Year,
-                    MONTH(o.c_order_date) AS Month,
-                    DATENAME(MONTH, o.c_order_date) AS MonthName,
+                    YEAR(o.c_createddate) AS Year,
+                    MONTH(o.c_createddate) AS Month,
+                    DATENAME(MONTH, o.c_createddate) AS MonthName,
                     ISNULL(SUM(o.c_total_amount), 0) AS TotalOrderValue,
                     ISNULL(SUM(o.c_platform_commission), 0) AS PlatformCommission,
                     COUNT(o.c_orderid) AS OrderCount,
-                    (SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE YEAR(c_created_date) = YEAR(o.c_order_date) AND MONTH(c_created_date) = MONTH(o.c_order_date)) AS NewCaterings,
-                    (SELECT COUNT(*) FROM {Table.SysUser} WHERE YEAR(c_created_date) = YEAR(o.c_order_date) AND MONTH(c_created_date) = MONTH(o.c_order_date)) AS NewUsers
+                    (SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE YEAR(c_createddate) = YEAR(o.c_createddate) AND MONTH(c_createddate) = MONTH(o.c_createddate)) AS NewCaterings,
+                    (SELECT COUNT(*) FROM {Table.SysUser} WHERE YEAR(c_createddate) = YEAR(o.c_createddate) AND MONTH(c_createddate) = MONTH(o.c_createddate)) AS NewUsers
                 FROM {Table.SysOrders} o
-                WHERE YEAR(o.c_order_date) = @Year AND o.c_status = 'Completed'
-                GROUP BY YEAR(o.c_order_date), MONTH(o.c_order_date), DATENAME(MONTH, o.c_order_date)
+                WHERE YEAR(o.c_createddate) = @Year AND o.c_order_status = 'Completed'
+                GROUP BY YEAR(o.c_createddate), MONTH(o.c_createddate), DATENAME(MONTH, o.c_createddate)
                 ORDER BY Month";
 
             SqlParameter[] parameters = { new SqlParameter("@Year", year) };

@@ -18,6 +18,7 @@ namespace CateringEcommerce.BAL.Helpers
     {
         private readonly ILogger<NotificationHelper> _logger;
         private readonly IDatabaseHelper _dbHelper;
+        private readonly ISystemSettingsProvider _settings;
         private readonly HttpClient _httpClient;
         private readonly string _apiBaseUrl;
         private readonly RabbitMQPublisher? _rabbitMQPublisher;
@@ -25,13 +26,14 @@ namespace CateringEcommerce.BAL.Helpers
         public NotificationHelper(
             ILogger<NotificationHelper> logger,
             IDatabaseHelper dbHelper,
-            string apiBaseUrl = "https://localhost:44368",
+            ISystemSettingsProvider settings,
             RabbitMQPublisher? rabbitMQPublisher = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _httpClient = new HttpClient();
-            _apiBaseUrl = apiBaseUrl;
+            _apiBaseUrl = settings.GetString("SYSTEM.API_BASE_URL", "https://localhost:44368");
             _rabbitMQPublisher = rabbitMQPublisher;
         }
 
@@ -141,7 +143,7 @@ namespace CateringEcommerce.BAL.Helpers
         /// <param name="link">Optional link to related page</param>
         /// <param name="adminId">Specific admin ID (null = broadcast to all admins)</param>
         /// <returns>Success status</returns>
-        public bool SendAdminNotification(
+        public async Task<bool> SendAdminNotification(
             string notificationType,
             string title,
             string message,
@@ -153,7 +155,7 @@ namespace CateringEcommerce.BAL.Helpers
             try
             {
                 var adminNotificationRepo = new AdminNotificationRepository(_dbHelper);
-                return adminNotificationRepo.CreateNotification(
+                return await adminNotificationRepo.CreateNotification(
                     notificationType,
                     title,
                     message,
@@ -364,7 +366,7 @@ namespace CateringEcommerce.BAL.Helpers
             // Notify admin
             if (notifyAdmin && orderData.ContainsKey("order_number"))
             {
-                SendAdminNotification(
+               await SendAdminNotification(
                     $"ADMIN_{templatePrefix}",
                     $"New {templatePrefix}",
                     $"Order #{orderData["order_number"]} - {customerName}",

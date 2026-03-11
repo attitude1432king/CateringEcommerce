@@ -4,7 +4,7 @@
 -- Purpose: Business logic implementation for financial strategy
 -- =============================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '================================================';
@@ -35,7 +35,7 @@ BEGIN
     IF @LockDays IS NULL SET @LockDays = 5;
 
     -- Lock guest count for all orders that are 5 days away and not yet locked
-    UPDATE t_sys_order
+    UPDATE t_sys_orders
     SET c_guest_count_locked = 1,
         c_locked_guest_count = c_guest_count,
         c_original_guest_count = ISNULL(c_original_guest_count, c_guest_count),
@@ -85,7 +85,7 @@ BEGIN
     IF @LockDays IS NULL SET @LockDays = 3;
 
     -- Lock menu for all orders that are 3 days away and not yet locked
-    UPDATE t_sys_order
+    UPDATE t_sys_orders
     SET c_menu_locked = 1,
         c_menu_locked_date = GETDATE(),
         c_modifieddate = GETDATE()
@@ -122,7 +122,7 @@ CREATE OR ALTER PROCEDURE [dbo].[sp_CalculateCancellationRefund]
     @RefundPercentage DECIMAL(5,2) OUTPUT,
     @RefundAmount DECIMAL(18,2) OUTPUT,
     @PolicyTier VARCHAR(20) OUTPUT,
-    @VendorCompensation DECIMAL(18,2) OUTPUT
+    @PartnerCompensation DECIMAL(18,2) OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -152,7 +152,7 @@ BEGIN
     SELECT
         @EventDate = c_event_date,
         @OrderTotal = c_total_amount
-    FROM t_sys_order
+    FROM t_sys_orders
     WHERE c_orderid = @OrderId;
 
     -- Calculate time difference
@@ -172,28 +172,28 @@ BEGIN
         -- >7 days: 100% refund
         SET @PolicyTier = 'FULL_REFUND';
         SET @RefundPercentage = 100.00;
-        SET @VendorCompensation = 0;
+        SET @PartnerCompensation = 0;
     END
     ELSE IF @DaysBeforeEvent >= @PartialRefundStartDays AND @DaysBeforeEvent <= @PartialRefundEndDays
     BEGIN
         -- 3-7 days: 50% refund
         SET @PolicyTier = 'PARTIAL_REFUND';
         SET @RefundPercentage = @PartialRefundPercentage;
-        SET @VendorCompensation = @AdvancePaid * (1 - (@PartialRefundPercentage / 100.0));
+        SET @PartnerCompensation = @AdvancePaid * (1 - (@PartialRefundPercentage / 100.0));
     END
     ELSE IF @HoursBeforeEvent < @NoRefundHours
     BEGIN
         -- <48 hours: No refund
         SET @PolicyTier = 'NO_REFUND';
         SET @RefundPercentage = 0.00;
-        SET @VendorCompensation = @AdvancePaid;
+        SET @PartnerCompensation = @AdvancePaid;
     END
     ELSE
     BEGIN
         -- Default to partial
         SET @PolicyTier = 'PARTIAL_REFUND';
         SET @RefundPercentage = @PartialRefundPercentage;
-        SET @VendorCompensation = @AdvancePaid * (1 - (@PartialRefundPercentage / 100.0));
+        SET @PartnerCompensation = @AdvancePaid * (1 - (@PartialRefundPercentage / 100.0));
     END
 
     -- Calculate refund amount
@@ -210,7 +210,7 @@ BEGIN
         @AdvancePaid AS AdvancePaid,
         @RefundPercentage AS RefundPercentage,
         @RefundAmount AS RefundAmount,
-        @VendorCompensation AS VendorCompensation;
+        @PartnerCompensation AS PartnerCompensation;
 END
 GO
 
@@ -243,7 +243,7 @@ BEGIN
         DECLARE @PolicyTier VARCHAR(20);
         DECLARE @RefundPercentage DECIMAL(5,2);
         DECLARE @RefundAmount DECIMAL(18,2);
-        DECLARE @VendorCompensation DECIMAL(18,2);
+        DECLARE @PartnerCompensation DECIMAL(18,2);
         DECLARE @OrderTotal DECIMAL(18,2);
         DECLARE @AdvancePaid DECIMAL(18,2);
         DECLARE @CommissionRate DECIMAL(5,2);
@@ -251,11 +251,11 @@ BEGIN
 
         -- Get order details
         SELECT
-            @OwnerId = c_cateringownerid,
+            @OwnerId = c_ownerid,
             @EventDate = c_event_date,
             @OrderTotal = c_total_amount,
             @CommissionRate = c_commission_rate
-        FROM t_sys_order
+        FROM t_sys_orders
         WHERE c_orderid = @OrderId AND c_userid = @UserId;
 
         IF @OwnerId IS NULL
@@ -269,7 +269,7 @@ BEGIN
             @RefundPercentage = @RefundPercentage OUTPUT,
             @RefundAmount = @RefundAmount OUTPUT,
             @PolicyTier = @PolicyTier OUTPUT,
-            @VendorCompensation = @VendorCompensation OUTPUT;
+            @PartnerCompensation = @PartnerCompensation OUTPUT;
 
         SELECT @AdvancePaid = c_advanceamount
         FROM t_sys_order_payment_summary
@@ -286,7 +286,7 @@ BEGIN
             SET @PolicyTier = 'FORCE_MAJEURE';
             SET @RefundPercentage = 50.00; -- Split 50-50 for force majeure
             SET @RefundAmount = @AdvancePaid * 0.5;
-            SET @VendorCompensation = @AdvancePaid * 0.5;
+            SET @PartnerCompensation = @AdvancePaid * 0.5;
             SET @PlatformCommissionForfeited = @AdvancePaid * (@CommissionRate / 100.0);
         END
         ELSE
@@ -294,38 +294,69 @@ BEGIN
             SET @PlatformCommissionForfeited = 0; -- Platform keeps commission for normal cancellations
         END
 
-        -- Insert cancellation request
-        INSERT INTO t_sys_cancellation_requests (
-            c_orderid, c_userid, c_ownerid,
-            c_event_date, c_hours_before_event, c_days_before_event,
-            c_policy_tier, c_refund_percentage,
-            c_order_total_amount, c_advance_paid,
-            c_refund_amount, c_retention_amount,
-            c_vendor_compensation, c_platform_commission_forfeited,
-            c_cancellation_reason, c_is_force_majeure, c_force_majeure_evidence,
-            c_status
-        )
-        VALUES (
-            @OrderId, @UserId, @OwnerId,
-            @EventDate, @HoursBeforeEvent, @DaysBeforeEvent,
-            @PolicyTier, @RefundPercentage,
-            @OrderTotal, @AdvancePaid,
-            @RefundAmount, (@AdvancePaid - @RefundAmount),
-            @VendorCompensation, @PlatformCommissionForfeited,
-            @CancellationReason, @IsForceMajeure, @ForceMajeureEvidence,
-            'Pending'
-        );
+        -- Insert cancellation request (supports both old and migrated compensation column names)
+        DECLARE @CompensationColumn SYSNAME;
+        SELECT TOP 1 @CompensationColumn = c.name
+        FROM sys.columns c
+        WHERE c.object_id = OBJECT_ID('dbo.t_sys_cancellation_requests')
+          AND c.name LIKE 'c[_]%[_]compensation'
+          AND c.name NOT LIKE 'c[_]platform[_]%'
+        ORDER BY CASE WHEN c.name = 'c_partner_compensation' THEN 0 ELSE 1 END;
 
-        DECLARE @CancellationId BIGINT = SCOPE_IDENTITY();
+        DECLARE @InsertCancellationSql NVARCHAR(MAX) = N'
+            INSERT INTO t_sys_cancellation_requests (
+                c_orderid, c_userid, c_ownerid,
+                c_event_date, c_hours_before_event, c_days_before_event,
+                c_policy_tier, c_refund_percentage,
+                c_order_total_amount, c_advance_paid,
+                c_refund_amount, c_retention_amount,
+                ' + QUOTENAME(@CompensationColumn) + N', c_platform_commission_forfeited,
+                c_cancellation_reason, c_is_force_majeure, c_force_majeure_evidence,
+                c_status
+            )
+            VALUES (
+                @OrderId, @UserId, @OwnerId,
+                @EventDate, @HoursBeforeEvent, @DaysBeforeEvent,
+                @PolicyTier, @RefundPercentage,
+                @OrderTotal, @AdvancePaid,
+                @RefundAmount, (@AdvancePaid - @RefundAmount),
+                @PartnerCompensation, @PlatformCommissionForfeited,
+                @CancellationReason, @IsForceMajeure, @ForceMajeureEvidence,
+                ''Pending''
+            );
+            SET @InsertedCancellationId = SCOPE_IDENTITY();';
+
+        DECLARE @CancellationId BIGINT;
+
+        EXEC sp_executesql
+            @InsertCancellationSql,
+            N'@OrderId BIGINT, @UserId BIGINT, @OwnerId BIGINT, @EventDate DATETIME, @HoursBeforeEvent INT, @DaysBeforeEvent INT, @PolicyTier VARCHAR(20), @RefundPercentage DECIMAL(5,2), @OrderTotal DECIMAL(18,2), @AdvancePaid DECIMAL(18,2), @RefundAmount DECIMAL(18,2), @PartnerCompensation DECIMAL(18,2), @PlatformCommissionForfeited DECIMAL(18,2), @CancellationReason NVARCHAR(1000), @IsForceMajeure BIT, @ForceMajeureEvidence NVARCHAR(MAX), @InsertedCancellationId BIGINT OUTPUT',
+            @OrderId = @OrderId,
+            @UserId = @UserId,
+            @OwnerId = @OwnerId,
+            @EventDate = @EventDate,
+            @HoursBeforeEvent = @HoursBeforeEvent,
+            @DaysBeforeEvent = @DaysBeforeEvent,
+            @PolicyTier = @PolicyTier,
+            @RefundPercentage = @RefundPercentage,
+            @OrderTotal = @OrderTotal,
+            @AdvancePaid = @AdvancePaid,
+            @RefundAmount = @RefundAmount,
+            @PartnerCompensation = @PartnerCompensation,
+            @PlatformCommissionForfeited = @PlatformCommissionForfeited,
+            @CancellationReason = @CancellationReason,
+            @IsForceMajeure = @IsForceMajeure,
+            @ForceMajeureEvidence = @ForceMajeureEvidence,
+            @InsertedCancellationId = @CancellationId OUTPUT;
 
         -- Update order status
-        UPDATE t_sys_order
+        UPDATE t_sys_orders
         SET c_order_status = 'Cancellation_Requested',
             c_modifieddate = GETDATE()
         WHERE c_orderid = @OrderId;
 
         -- Add to order history
-        INSERT INTO t_sys_order_status_history (c_orderid, c_status, c_remarks, c_updated_date)
+        INSERT INTO t_sys_order_status_history (c_orderid, c_status, c_remarks, c_modifieddate)
         VALUES (@OrderId, 'Cancellation_Requested',
                 'Customer requested cancellation. Policy: ' + @PolicyTier + ', Refund: ' + CAST(@RefundPercentage AS VARCHAR) + '%',
                 GETDATE());
@@ -338,7 +369,7 @@ BEGIN
             @PolicyTier AS PolicyTier,
             @RefundPercentage AS RefundPercentage,
             @RefundAmount AS RefundAmount,
-            @VendorCompensation AS VendorCompensation,
+            @PartnerCompensation AS PartnerCompensation,
             @DaysBeforeEvent AS DaysBeforeEvent,
             'Your cancellation request has been submitted. Expected refund: ₹' + CAST(@RefundAmount AS VARCHAR) AS Message;
 
@@ -389,9 +420,9 @@ BEGIN
             @LockedGuestCount = c_locked_guest_count,
             @IsLocked = c_guest_count_locked,
             @EventDate = c_event_date,
-            @OwnerId = c_cateringownerid,
+            @OwnerId = c_ownerid,
             @PricePerGuest = c_total_amount / c_guest_count
-        FROM t_sys_order
+        FROM t_sys_orders
         WHERE c_orderid = @OrderId AND c_userid = @UserId;
 
         IF @OwnerId IS NULL
@@ -415,7 +446,7 @@ BEGIN
                 THROW 50003, 'Guest count decrease is only allowed more than 7 days before event', 1;
             END
 
-            SET @RequiresApproval = 1; -- Vendor must approve decrease
+            SET @RequiresApproval = 1; -- Partner must approve decrease
         END
 
         -- Calculate pricing multiplier based on timing
@@ -438,7 +469,7 @@ BEGIN
         IF @GuestCountChange < 0
             SET @AdditionalAmount = -@AdditionalAmount; -- Negative for decreases
 
-        -- Check if vendor approval required for increases after lock
+        -- Check if partner approval required for increases after lock
         IF @IsLocked = 1 AND @GuestCountChange > 0
         BEGIN
             IF (@NewGuestCount - @LockedGuestCount) > (@LockedGuestCount * 0.10) -- >10% increase
@@ -471,7 +502,17 @@ BEGIN
         -- If no approval required and increase, update immediately
         IF @RequiresApproval = 0 AND @GuestCountChange > 0
         BEGIN
-            UPDATE t_sys_order
+            DECLARE @ApprovedByType VARCHAR(20) = 'PARTNER';
+
+            IF EXISTS (
+                SELECT 1
+                FROM sys.check_constraints cc
+                WHERE cc.parent_object_id = OBJECT_ID('dbo.t_sys_order_modifications')
+                  AND cc.definition LIKE '%PARTNER%'
+            )
+                SET @ApprovedByType = 'PARTNER';
+
+            UPDATE t_sys_orders
             SET c_guest_count = @NewGuestCount,
                 c_total_amount = c_total_amount + @AdditionalAmount,
                 c_modifieddate = GETDATE()
@@ -480,7 +521,7 @@ BEGIN
             UPDATE t_sys_order_modifications
             SET c_status = 'Approved',
                 c_approved_by = @OwnerId,
-                c_approved_by_type = 'VENDOR',
+                c_approved_by_type = @ApprovedByType,
                 c_approval_date = GETDATE()
             WHERE c_modification_id = @ModificationId;
         END
@@ -493,9 +534,9 @@ BEGIN
             @GuestCountChange AS GuestCountChange,
             @AdditionalAmount AS AdditionalAmount,
             @PricingMultiplier AS PricingMultiplier,
-            @RequiresApproval AS RequiresVendorApproval,
+            @RequiresApproval AS RequiresPartnerApproval,
             CASE
-                WHEN @RequiresApproval = 1 THEN 'Request sent to vendor for approval'
+                WHEN @RequiresApproval = 1 THEN 'Request sent to partner for approval'
                 WHEN @GuestCountChange > 0 THEN 'Guest count updated. Additional amount: ₹' + CAST(@AdditionalAmount AS VARCHAR) + ' to be paid'
                 ELSE 'Refund amount: ₹' + CAST(ABS(@AdditionalAmount) AS VARCHAR)
             END AS Message;
@@ -541,9 +582,9 @@ BEGIN
 
         -- Get order details
         SELECT
-            @OwnerId = c_cateringownerid,
+            @OwnerId = c_ownerid,
             @TotalGuestCount = c_guest_count
-        FROM t_sys_order
+        FROM t_sys_orders
         WHERE c_orderid = @OrderId AND c_userid = @UserId;
 
         IF @OwnerId IS NULL
@@ -555,13 +596,14 @@ BEGIN
         SELECT @ComplaintHistoryCount = COUNT(*)
         FROM t_sys_order_complaints
         WHERE c_userid = @UserId
-          AND c_created_date >= DATEADD(MONTH, -12, GETDATE());
+          AND c_createddate >= DATEADD(MONTH, -12, GETDATE());
 
         IF @ComplaintHistoryCount >= 3
             SET @IsSuspicious = 1; -- Flag customers with 3+ complaints in last 12 months
 
         -- Determine severity
-        IF @ComplaintType IN ('NO_SHOW', 'VENDOR_NO_SHOW', 'FOOD_QUALITY')
+        IF @ComplaintType IN ('NO_SHOW', 'PARTNER_NO_SHOW', 'FOOD_QUALITY')
+           OR @ComplaintType LIKE '%[_]NO_SHOW'
             SET @Severity = 'CRITICAL';
         ELSE IF @ComplaintType IN ('QUANTITY_SHORT', 'LATE_ARRIVAL', 'SETUP_POOR')
             SET @Severity = 'MAJOR';
@@ -592,8 +634,8 @@ BEGIN
 
         DECLARE @ComplaintId BIGINT = SCOPE_IDENTITY();
 
-        -- Notify vendor
-        -- TODO: Send notification to vendor
+        -- Notify partner
+        -- TODO: Send notification to partner
 
         COMMIT TRANSACTION;
 
@@ -644,11 +686,12 @@ BEGIN
         @TotalItemCount = c.c_total_item_count,
         @OrderTotal = o.c_total_amount
     FROM t_sys_order_complaints c
-    INNER JOIN t_sys_order o ON c.c_orderid = o.c_orderid
+    INNER JOIN t_sys_orders o ON c.c_orderid = o.c_orderid
     WHERE c.c_complaint_id = @ComplaintId;
 
     -- Determine severity factor
-    IF @ComplaintType IN ('NO_SHOW', 'VENDOR_NO_SHOW')
+    IF @ComplaintType IN ('NO_SHOW', 'PARTNER_NO_SHOW')
+       OR @ComplaintType LIKE '%[_]NO_SHOW'
     BEGIN
         SET @RefundAmount = @OrderTotal; -- 100% refund for no-show
         RETURN;

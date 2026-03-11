@@ -4,6 +4,9 @@ import { fetchApi } from '../services/apiUtils';
 
 const AdminAuthContext = createContext(null);
 
+const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+
 export const useAdminAuth = () => {
     const context = useContext(AdminAuthContext);
     if (!context) {
@@ -17,15 +20,45 @@ export const AdminAuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // SECURITY FIX: Check for stored auth on mount
-    // Token now in httpOnly cookie, only check admin data
+    // P0 FIX: Validate session on mount by checking httpOnly cookie with backend
+    // This prevents expired/invalidated sessions from appearing as authenticated
     useEffect(() => {
-        const storedAdmin = localStorage.getItem('admin');
+        const validateSession = async () => {
+            try {
+                // First restore from localStorage (non-sensitive admin data)
+                const storedAdmin = localStorage.getItem('admin');
+                if (storedAdmin) {
+                    setAdmin(JSON.parse(storedAdmin));
+                }
 
-        if (storedAdmin) {
-            setAdmin(JSON.parse(storedAdmin));
-        }
-        setLoading(false);
+                // Validate session with backend (httpOnly cookie sent automatically)
+                if (storedAdmin) {
+                    try {
+                        const response = await fetchApi(`/admin/auth/me`);
+
+                        // If response is ok, localStorage data is still valid
+                        if (response && response.result) {
+                            // Session valid, admin data already set above
+                            return;
+                        }
+                    } catch (validationError) {
+                        // Validation failed - cookie expired or invalid
+                        console.warn('Session validation failed:', validationError);
+                    }
+
+                    // If we reach here, session is invalid
+                    localStorage.removeItem('admin');
+                    setAdmin(null);
+                }
+            } catch (error) {
+                // Network error - keep stored admin for offline graceful degradation
+                console.error('Session validation error:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        validateSession();
     }, []);
 
     const login = async (username, password) => {
@@ -33,10 +66,8 @@ export const AdminAuthProvider = ({ children }) => {
             const payload = {};
             payload.username = username;
             payload.password = password;
-            // SECURITY FIX: withCredentials allows cookies to be set/sent
-            const result = await fetchApi('/admin/auth/login', 'POST', payload, {
-                credentials: 'include'  // Important: allows httpOnly cookie
-            });
+            // SECURITY FIX: fetchApi includes credentials:'include' for httpOnly cookies
+            const result = await fetchApi('/admin/auth/login', 'POST', payload);
 
             if (result.result && result.data) {
                 // SECURITY FIX: Token no longer returned (it's in httpOnly cookie)
@@ -62,7 +93,7 @@ export const AdminAuthProvider = ({ children }) => {
     const logout = async () => {
         try {
             // SECURITY FIX: Call logout API with credentials to clear httpOnly cookie
-            await fetch('https://localhost:44368/api/admin/auth/logout', {
+            await fetch(`${API_BASE_URL}/api/admin/auth/logout`, {
                 method: 'POST',
                 credentials: 'include',  // Send httpOnly cookie with request
                 headers: {

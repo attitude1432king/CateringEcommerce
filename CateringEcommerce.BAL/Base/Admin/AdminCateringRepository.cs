@@ -21,80 +21,66 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var queryBuilder = new StringBuilder($@"
                 SELECT
-                    co.c_catering_ownerid AS CateringId,
-                    co.c_business_name AS BusinessName,
-                    co.c_name AS OwnerName,
+                    co.c_ownerid AS CateringId,
+                    co.c_catering_name AS BusinessName,
+                    co.c_owner_name AS OwnerName,
                     co.c_mobile AS Phone,
                     co.c_email AS Email,
                     c.c_cityname AS City,
                     s.c_statename AS State,
-                    co.c_status AS Status,
-                    co.c_isverified AS IsVerified,
-                    ISNULL(AVG(CAST(cr.c_rating AS DECIMAL(3,2))), 0) AS Rating,
+                    co.c_approval_status AS Status,
+                    ISNULL(co.c_verified_by_admin, 0) AS IsVerified,
+                    ISNULL(co.c_isactive, 0) AS IsActive,
+                    ISNULL(co.c_isblocked, 0) AS IsBlocked,
+                    ISNULL(co.c_isdeleted, 0) AS IsDeleted,
+                    ISNULL(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
                     COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
                     ISNULL(SUM(o.c_total_amount), 0) AS TotalEarnings,
-                    co.c_created_date AS CreatedDate,
+                    co.c_createddate AS CreatedDate,
                     co.c_approved_date AS ApprovedDate
                 FROM {Table.SysCateringOwner} co
-                LEFT JOIN {Table.City} c ON co.c_cityid = c.c_cityid
-                LEFT JOIN {Table.State} s ON co.c_stateid = s.c_stateid
-                LEFT JOIN {Table.SysCateringReview} cr ON co.c_catering_ownerid = cr.c_catering_ownerid
-                LEFT JOIN {Table.SysOrders} o ON co.c_catering_ownerid = o.c_catering_ownerid AND o.c_status = 'Completed'
+                LEFT JOIN {Table.SysCateringOwnerAddress} cd ON cd.c_ownerid = co.c_ownerid
+                LEFT JOIN {Table.City} c ON cd.c_cityid = c.c_cityid
+                LEFT JOIN {Table.State} s ON cd.c_stateid = s.c_stateid
+                LEFT JOIN {Table.SysCateringReview} cr ON co.c_ownerid = cr.c_ownerid
+                LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'
                 WHERE 1=1");
 
             var parameters = new List<SqlParameter>();
-
-            // Apply filters
-            if (!string.IsNullOrEmpty(request.SearchTerm))
-            {
-                queryBuilder.Append(" AND (co.c_business_name LIKE @SearchTerm OR co.c_name LIKE @SearchTerm OR co.c_mobile LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
-            }
-
-            if (request.CityId.HasValue)
-            {
-                queryBuilder.Append(" AND co.c_cityid = @CityId");
-                parameters.Add(new SqlParameter("@CityId", request.CityId.Value));
-            }
-
-            if (!string.IsNullOrEmpty(request.Status))
-            {
-                queryBuilder.Append(" AND co.c_status = @Status");
-                parameters.Add(new SqlParameter("@Status", request.Status));
-            }
-
-            if (!string.IsNullOrEmpty(request.VerificationStatus))
-            {
-                bool isVerified = request.VerificationStatus.Equals("Verified", StringComparison.OrdinalIgnoreCase);
-                queryBuilder.Append(" AND co.c_isverified = @IsVerified");
-                parameters.Add(new SqlParameter("@IsVerified", isVerified));
-            }
+            AppendFilters(queryBuilder, parameters, request);
 
             queryBuilder.Append(@"
-                GROUP BY co.c_catering_ownerid, co.c_business_name, co.c_name, co.c_mobile,
-                         co.c_email, c.c_cityname, s.c_statename, co.c_status, co.c_isverified,
-                         co.c_created_date, co.c_approved_date");
+                GROUP BY co.c_ownerid, co.c_catering_name, co.c_owner_name, co.c_mobile,
+                         co.c_email, c.c_cityname, s.c_statename, co.c_approval_status, co.c_verified_by_admin,
+                         co.c_isactive, co.c_isblocked, co.c_isdeleted,
+                         co.c_createddate, co.c_approved_date");
 
-            // Add sorting
+            // Sorting
             string sortColumn = request.SortBy switch
             {
-                "BusinessName" => "co.c_business_name",
+                "BusinessName" => "co.c_catering_name",
                 "Rating" => "Rating",
-                _ => "co.c_created_date"
+                "TotalOrders" => "TotalOrders",
+                "TotalEarnings" => "TotalEarnings",
+                _ => "co.c_createddate"
             };
+            queryBuilder.Append($" ORDER BY {sortColumn} {(request.SortOrder == "ASC" ? "ASC" : "DESC")}");
 
-            queryBuilder.Append($" ORDER BY {sortColumn} {request.SortOrder}");
-
-            // Get total count
-            string countQuery = $@"
-                SELECT COUNT(DISTINCT co.c_catering_ownerid)
+            // Count query
+            var countBuilder = new StringBuilder($@"
+                SELECT COUNT(DISTINCT co.c_ownerid)
                 FROM {Table.SysCateringOwner} co
-                WHERE 1=1" + (parameters.Count > 0 ? GetWhereClauseForCount(request) : "");
+                LEFT JOIN {Table.SysCateringOwnerAddress} cd ON cd.c_ownerid = co.c_ownerid
+                LEFT JOIN {Table.City} c ON cd.c_cityid = c.c_cityid
+                LEFT JOIN {Table.State} s ON cd.c_stateid = s.c_stateid
+                WHERE 1=1");
+            var countParams = new List<SqlParameter>();
+            AppendFilters(countBuilder, countParams, request);
 
-            int totalRecords = Convert.ToInt32(_dbHelper.ExecuteScalar(countQuery, parameters.ToArray()));
+            int totalRecords = Convert.ToInt32(_dbHelper.ExecuteScalar(countBuilder.ToString(), countParams.ToArray()));
 
-            // Add pagination
+            // Pagination
             int offset = (request.PageNumber - 1) * request.PageSize;
             queryBuilder.Append($" OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY");
 
@@ -103,24 +89,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             var caterings = new List<AdminCateringListItem>();
             foreach (DataRow row in dt.Rows)
             {
-                caterings.Add(new AdminCateringListItem
-                {
-                    CateringId = Convert.ToInt64(row["CateringId"]),
-                    BusinessName = row["BusinessName"]?.ToString() ?? string.Empty,
-                    OwnerName = row["OwnerName"]?.ToString() ?? string.Empty,
-                    Phone = row["Phone"]?.ToString() ?? string.Empty,
-                    Email = row["Email"]?.ToString() ?? string.Empty,
-                    City = row["City"]?.ToString() ?? string.Empty,
-                    State = row["State"]?.ToString() ?? string.Empty,
-                    Status = row["Status"]?.ToString() ?? string.Empty,
-                    IsVerified = Convert.ToBoolean(row["IsVerified"]),
-                    Rating = row["Rating"] != DBNull.Value ? Convert.ToDecimal(row["Rating"]) : null,
-                    TotalReviews = Convert.ToInt32(row["TotalReviews"]),
-                    TotalOrders = Convert.ToInt32(row["TotalOrders"]),
-                    TotalEarnings = Convert.ToDecimal(row["TotalEarnings"]),
-                    CreatedDate = Convert.ToDateTime(row["CreatedDate"]),
-                    ApprovedDate = row["ApprovedDate"] != DBNull.Value ? Convert.ToDateTime(row["ApprovedDate"]) : null
-                });
+                caterings.Add(MapListItem(row));
             }
 
             return new AdminCateringListResponse
@@ -137,18 +106,20 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT
-                    co.c_catering_ownerid, co.c_business_name, co.c_name, co.c_mobile, co.c_email,
+                    co.c_ownerid, co.c_catering_name, co.c_owner_name, co.c_mobile, co.c_email,
                     co.c_catering_number, co.c_gst_number, co.c_fssai_license, co.c_pan_number,
                     addr.c_address_line1, addr.c_address_line2, c.c_cityname, s.c_statename, addr.c_pincode,
-                    co.c_status, co.c_isverified, co.c_isactive, co.c_isblocked, co.c_block_reason,
+                    co.c_approval_status, ISNULL(co.c_verified_by_admin, 0) AS c_verified_by_admin,
+                    ISNULL(co.c_isactive, 0) AS c_isactive, ISNULL(co.c_isblocked, 0) AS c_isblocked,
+                    co.c_block_reason,
                     bank.c_bank_name, bank.c_account_number, bank.c_ifsc_code, bank.c_account_holder_name,
-                    co.c_created_date, co.c_approved_date, co.c_modifieddate
+                    co.c_createddate, co.c_approved_date, co.c_modifieddate
                 FROM {Table.SysCateringOwner} co
-                LEFT JOIN {Table.SysCateringOwnerAddress} addr ON co.c_catering_ownerid = addr.c_catering_ownerid
+                LEFT JOIN {Table.SysCateringOwnerAddress} addr ON co.c_ownerid = addr.c_ownerid
                 LEFT JOIN {Table.City} c ON addr.c_cityid = c.c_cityid
                 LEFT JOIN {Table.State} s ON addr.c_stateid = s.c_stateid
-                LEFT JOIN {Table.SysCateringOwnerBankDetails} bank ON co.c_catering_ownerid = bank.c_catering_ownerid
-                WHERE co.c_catering_ownerid = @CateringId";
+                LEFT JOIN {Table.SysCateringOwnerBankDetails} bank ON co.c_ownerid = bank.c_ownerid
+                WHERE co.c_ownerid = @CateringId";
 
             SqlParameter[] parameters = { new SqlParameter("@CateringId", cateringId) };
             var dt = _dbHelper.Execute(query, parameters);
@@ -156,18 +127,14 @@ namespace CateringEcommerce.BAL.Base.Admin
             if (dt.Rows.Count == 0) return null;
 
             var row = dt.Rows[0];
-
-            // Get stats
             var stats = GetCateringStats(cateringId);
-
-            // Get images
             var images = GetCateringImages(cateringId);
 
             return new AdminCateringDetail
             {
-                CateringId = Convert.ToInt64(row["c_catering_ownerid"]),
-                BusinessName = row["c_business_name"]?.ToString() ?? string.Empty,
-                OwnerName = row["c_name"]?.ToString() ?? string.Empty,
+                CateringId = Convert.ToInt64(row["c_ownerid"]),
+                BusinessName = row["c_catering_name"]?.ToString() ?? string.Empty,
+                OwnerName = row["c_owner_name"]?.ToString() ?? string.Empty,
                 Phone = row["c_mobile"]?.ToString() ?? string.Empty,
                 Email = row["c_email"]?.ToString() ?? string.Empty,
                 AlternatePhone = row["c_catering_number"]?.ToString(),
@@ -179,10 +146,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                 City = row["c_cityname"]?.ToString() ?? string.Empty,
                 State = row["c_statename"]?.ToString() ?? string.Empty,
                 Pincode = row["c_pincode"]?.ToString() ?? string.Empty,
-                Status = row["c_status"]?.ToString() ?? string.Empty,
-                IsVerified = row["c_isverified"] != DBNull.Value && Convert.ToBoolean(row["c_isverified"]),
-                IsActive = row["c_isactive"] != DBNull.Value && Convert.ToBoolean(row["c_isactive"]),
-                IsBlocked = row["c_isblocked"] != DBNull.Value && Convert.ToBoolean(row["c_isblocked"]),
+                Status = row["c_approval_status"] != DBNull.Value ? Convert.ToInt32(row["c_approval_status"]) : 1,
+                IsVerified = Convert.ToBoolean(row["c_verified_by_admin"]),
+                IsActive = Convert.ToBoolean(row["c_isactive"]),
+                IsBlocked = Convert.ToBoolean(row["c_isblocked"]),
                 BlockReason = row["c_block_reason"]?.ToString(),
                 AverageRating = stats.AverageRating,
                 TotalReviews = stats.TotalReviews,
@@ -194,7 +161,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 IfscCode = row["c_ifsc_code"]?.ToString(),
                 AccountHolderName = row["c_account_holder_name"]?.ToString(),
                 Images = images,
-                CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                CreatedDate = Convert.ToDateTime(row["c_createddate"]),
                 ApprovedDate = row["c_approved_date"] != DBNull.Value ? Convert.ToDateTime(row["c_approved_date"]) : null,
                 LastModified = row["c_modifieddate"] != DBNull.Value ? Convert.ToDateTime(row["c_modifieddate"]) : null
             };
@@ -202,15 +169,16 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public bool UpdateCateringStatus(AdminCateringStatusUpdate request)
         {
+            // Status enum: 1=Pending, 2=Approved, 3=Rejected, 4=UnderReview, 5=InfoRequested
             string query = $@"
                 UPDATE {Table.SysCateringOwner}
-                SET c_status = @Status,
-                    c_isactive = CASE WHEN @Status = 'Approved' THEN 1 ELSE c_isactive END,
-                    c_isblocked = CASE WHEN @Status = 'Blocked' THEN 1 ELSE 0 END,
+                SET c_approval_status = @Status,
+                    c_isactive = CASE WHEN @Status = 2 THEN 1 ELSE c_isactive END,
+                    c_isblocked = CASE WHEN @Status = 3 THEN 1 ELSE 0 END,
                     c_block_reason = @Reason,
-                    c_approved_date = CASE WHEN @Status = 'Approved' AND c_approved_date IS NULL THEN GETDATE() ELSE c_approved_date END,
+                    c_approved_date = CASE WHEN @Status = 2 AND c_approved_date IS NULL THEN GETDATE() ELSE c_approved_date END,
                     c_modifieddate = GETDATE()
-                WHERE c_catering_ownerid = @CateringId";
+                WHERE c_ownerid = @CateringId";
 
             SqlParameter[] parameters = {
                 new SqlParameter("@CateringId", request.CateringId),
@@ -227,9 +195,10 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 UPDATE {Table.SysCateringOwner}
                 SET c_isdeleted = 1,
+                    c_isactive = 0,
                     c_deleted_by = @DeletedBy,
                     c_deleted_date = GETDATE()
-                WHERE c_catering_ownerid = @CateringId";
+                WHERE c_ownerid = @CateringId";
 
             SqlParameter[] parameters = {
                 new SqlParameter("@CateringId", cateringId),
@@ -240,19 +209,187 @@ namespace CateringEcommerce.BAL.Base.Admin
             return rowsAffected > 0;
         }
 
+        public bool RestoreCatering(long cateringId, long restoredBy)
+        {
+            string query = $@"
+                UPDATE {Table.SysCateringOwner}
+                SET c_isdeleted = 0,
+                    c_isactive = 1,
+                    c_deleted_by = NULL,
+                    c_deleted_date = NULL,
+                    c_modifieddate = GETDATE()
+                WHERE c_ownerid = @CateringId AND c_isdeleted = 1";
+
+            SqlParameter[] parameters = {
+                new SqlParameter("@CateringId", cateringId)
+            };
+
+            int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
+            return rowsAffected > 0;
+        }
+
+        public List<AdminCateringExportItem> GetCateringsForExport(AdminCateringListRequest request)
+        {
+            var queryBuilder = new StringBuilder($@"
+                SELECT
+                    co.c_ownerid AS CateringId,
+                    co.c_catering_name AS BusinessName,
+                    co.c_owner_name AS OwnerName,
+                    co.c_mobile AS Phone,
+                    co.c_email AS Email,
+                    c.c_cityname AS City,
+                    s.c_statename AS State,
+                    co.c_approval_status AS Status,
+                    ISNULL(co.c_verified_by_admin, 0) AS IsVerified,
+                    ISNULL(co.c_isactive, 0) AS IsActive,
+                    ISNULL(co.c_isblocked, 0) AS IsBlocked,
+                    ISNULL(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
+                    COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
+                    COUNT(DISTINCT o.c_orderid) AS TotalOrders,
+                    ISNULL(SUM(o.c_total_amount), 0) AS TotalEarnings,
+                    co.c_createddate AS CreatedDate
+                FROM {Table.SysCateringOwner} co
+                LEFT JOIN {Table.SysCateringOwnerAddress} cd ON cd.c_ownerid = co.c_ownerid
+                LEFT JOIN {Table.City} c ON cd.c_cityid = c.c_cityid
+                LEFT JOIN {Table.State} s ON cd.c_stateid = s.c_stateid
+                LEFT JOIN {Table.SysCateringReview} cr ON co.c_ownerid = cr.c_ownerid
+                LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'
+                WHERE 1=1");
+
+            var parameters = new List<SqlParameter>();
+            AppendFilters(queryBuilder, parameters, request);
+
+            queryBuilder.Append(@"
+                GROUP BY co.c_ownerid, co.c_catering_name, co.c_owner_name, co.c_mobile,
+                         co.c_email, c.c_cityname, s.c_statename, co.c_approval_status, co.c_verified_by_admin,
+                         co.c_isactive, co.c_isblocked,
+                         co.c_createddate
+                ORDER BY co.c_createddate DESC");
+
+            var dt = _dbHelper.Execute(queryBuilder.ToString(), parameters.ToArray());
+
+            var items = new List<AdminCateringExportItem>();
+            foreach (DataRow row in dt.Rows)
+            {
+                items.Add(new AdminCateringExportItem
+                {
+                    CateringId = Convert.ToInt64(row["CateringId"]),
+                    BusinessName = row["BusinessName"]?.ToString() ?? string.Empty,
+                    OwnerName = row["OwnerName"]?.ToString() ?? string.Empty,
+                    Phone = row["Phone"]?.ToString() ?? string.Empty,
+                    Email = row["Email"]?.ToString() ?? string.Empty,
+                    City = row["City"]?.ToString() ?? string.Empty,
+                    State = row["State"]?.ToString() ?? string.Empty,
+                    Status = row["Status"] != DBNull.Value ? Convert.ToInt32(row["Status"]) : 1,
+                    IsVerified = Convert.ToBoolean(row["IsVerified"]),
+                    IsActive = Convert.ToBoolean(row["IsActive"]),
+                    IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
+                    Rating = row["Rating"] != DBNull.Value ? Convert.ToDecimal(row["Rating"]) : null,
+                    TotalReviews = Convert.ToInt32(row["TotalReviews"]),
+                    TotalOrders = Convert.ToInt32(row["TotalOrders"]),
+                    TotalEarnings = Convert.ToDecimal(row["TotalEarnings"]),
+                    CreatedDate = Convert.ToDateTime(row["CreatedDate"])
+                });
+            }
+
+            return items;
+        }
+
+        #region Private Helpers
+
+        private void AppendFilters(StringBuilder queryBuilder, List<SqlParameter> parameters, AdminCateringListRequest request)
+        {
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                queryBuilder.Append(" AND (co.c_catering_name LIKE @SearchTerm OR co.c_owner_name LIKE @SearchTerm OR co.c_mobile LIKE @SearchTerm OR co.c_email LIKE @SearchTerm)");
+                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+            }
+
+            if (request.StateId.HasValue)
+            {
+                queryBuilder.Append(" AND cd.c_stateid = @StateId");
+                parameters.Add(new SqlParameter("@StateId", request.StateId.Value));
+            }
+
+            if (request.CityId.HasValue)
+            {
+                queryBuilder.Append(" AND cd.c_cityid = @CityId");
+                parameters.Add(new SqlParameter("@CityId", request.CityId.Value));
+            }
+
+            if (request.Status.HasValue)
+            {
+                queryBuilder.Append(" AND co.c_approval_status = @Status");
+                parameters.Add(new SqlParameter("@Status", request.Status.Value));
+            }
+
+            if (request.IsBlocked.HasValue)
+            {
+                queryBuilder.Append(" AND ISNULL(co.c_isblocked, 0) = @IsBlocked");
+                parameters.Add(new SqlParameter("@IsBlocked", request.IsBlocked.Value ? 1 : 0));
+            }
+
+            if (request.IsActive.HasValue)
+            {
+                queryBuilder.Append(" AND ISNULL(co.c_isactive, 0) = @IsActive");
+                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value ? 1 : 0));
+            }
+
+            if (request.IsDeleted.HasValue && request.IsDeleted.Value)
+            {
+                queryBuilder.Append(" AND ISNULL(co.c_isdeleted, 0) = 1");
+            }
+            else
+            {
+                queryBuilder.Append(" AND ISNULL(co.c_isdeleted, 0) = 0");
+            }
+
+            if (!string.IsNullOrEmpty(request.VerificationStatus))
+            {
+                bool isVerified = request.VerificationStatus.Equals("Verified", StringComparison.OrdinalIgnoreCase);
+                queryBuilder.Append(" AND ISNULL(co.c_verified_by_admin, 0) = @IsVerified");
+                parameters.Add(new SqlParameter("@IsVerified", isVerified ? 1 : 0));
+            }
+        }
+
+        private AdminCateringListItem MapListItem(DataRow row)
+        {
+            return new AdminCateringListItem
+            {
+                CateringId = Convert.ToInt64(row["CateringId"]),
+                BusinessName = row["BusinessName"]?.ToString() ?? string.Empty,
+                OwnerName = row["OwnerName"]?.ToString() ?? string.Empty,
+                Phone = row["Phone"]?.ToString() ?? string.Empty,
+                Email = row["Email"]?.ToString() ?? string.Empty,
+                City = row["City"]?.ToString() ?? string.Empty,
+                State = row["State"]?.ToString() ?? string.Empty,
+                Status = row["Status"] != DBNull.Value ? Convert.ToInt32(row["Status"]) : 1,
+                IsVerified = Convert.ToBoolean(row["IsVerified"]),
+                IsActive = Convert.ToBoolean(row["IsActive"]),
+                IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
+                IsDeleted = Convert.ToBoolean(row["IsDeleted"]),
+                Rating = row["Rating"] != DBNull.Value ? Convert.ToDecimal(row["Rating"]) : null,
+                TotalReviews = Convert.ToInt32(row["TotalReviews"]),
+                TotalOrders = Convert.ToInt32(row["TotalOrders"]),
+                TotalEarnings = Convert.ToDecimal(row["TotalEarnings"]),
+                CreatedDate = Convert.ToDateTime(row["CreatedDate"]),
+                ApprovedDate = row["ApprovedDate"] != DBNull.Value ? Convert.ToDateTime(row["ApprovedDate"]) : null
+            };
+        }
+
         private (decimal? AverageRating, int TotalReviews, int TotalOrders, decimal TotalEarnings, decimal PlatformCommission) GetCateringStats(long cateringId)
         {
             string query = $@"
                 SELECT
-                    ISNULL(AVG(CAST(cr.c_rating AS DECIMAL(3,2))), 0) AS AvgRating,
+                    ISNULL(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS AvgRating,
                     COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
                     ISNULL(SUM(o.c_total_amount), 0) AS TotalEarnings,
                     ISNULL(SUM(o.c_platform_commission), 0) AS Commission
                 FROM {Table.SysCateringOwner} co
-                LEFT JOIN {Table.SysCateringReview} cr ON co.c_catering_ownerid = cr.c_catering_ownerid
-                LEFT JOIN {Table.SysOrders} o ON co.c_catering_ownerid = o.c_catering_ownerid AND o.c_status = 'Completed'
-                WHERE co.c_catering_ownerid = @CateringId";
+                LEFT JOIN {Table.SysCateringReview} cr ON co.c_ownerid = cr.c_ownerid
+                LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'
+                WHERE co.c_ownerid = @CateringId";
 
             SqlParameter[] parameters = { new SqlParameter("@CateringId", cateringId) };
             var dt = _dbHelper.Execute(query, parameters);
@@ -277,8 +414,8 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT c_image_url
                 FROM {Table.SysCateringOwnerImages}
-                WHERE c_catering_ownerid = @CateringId
-                ORDER BY c_created_date DESC";
+                WHERE c_ownerid = @CateringId
+                ORDER BY c_createddate DESC";
 
             SqlParameter[] parameters = { new SqlParameter("@CateringId", cateringId) };
             var dt = _dbHelper.Execute(query, parameters);
@@ -292,26 +429,6 @@ namespace CateringEcommerce.BAL.Base.Admin
             return images;
         }
 
-        private string GetWhereClauseForCount(AdminCateringListRequest request)
-        {
-            var whereBuilder = new StringBuilder();
-
-            if (!string.IsNullOrEmpty(request.SearchTerm))
-                whereBuilder.Append(" AND (co.c_business_name LIKE @SearchTerm OR co.c_name LIKE @SearchTerm OR co.c_mobile LIKE @SearchTerm)");
-
-            if (request.CityId.HasValue)
-                whereBuilder.Append(" AND co.c_cityid = @CityId");
-
-            if (!string.IsNullOrEmpty(request.Status))
-                whereBuilder.Append(" AND co.c_status = @Status");
-
-            if (!string.IsNullOrEmpty(request.VerificationStatus))
-            {
-                bool isVerified = request.VerificationStatus.Equals("Verified", StringComparison.OrdinalIgnoreCase);
-                whereBuilder.Append(" AND co.c_isverified = " + (isVerified ? "1" : "0"));
-            }
-
-            return whereBuilder.ToString();
-        }
+        #endregion
     }
 }

@@ -1,3 +1,4 @@
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Models.Order;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 {
     [Route("api/admin/complaint")]
     [ApiController]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [AdminAuthorize]
     public class AdminComplaintController : ControllerBase
     {
         private readonly IComplaintRepository _complaintRepo;

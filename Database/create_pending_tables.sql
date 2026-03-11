@@ -62,7 +62,7 @@ BEGIN
         c_ownerid BIGINT NOT NULL,
         c_total_amount DECIMAL(10,2) NOT NULL,
         c_statusid BIGINT NOT NULL, -- Pending, Accepted, Preparing, Delivered, Cancelled
-        c_created_at DATETIME DEFAULT GETDATE()
+        c_createddate DATETIME DEFAULT GETDATE()
     );
     PRINT 'Created table: t_sys_order';
 END
@@ -136,7 +136,7 @@ BEGIN
         c_userid BIGINT NOT NULL,
         c_rating INT CHECK (c_rating BETWEEN 1 AND 5),
         c_comment NVARCHAR(MAX),
-        c_created_at DATETIME DEFAULT GETDATE()
+        c_createddate DATETIME DEFAULT GETDATE()
     );
     PRINT 'Created table: t_sys_feedback';
 END

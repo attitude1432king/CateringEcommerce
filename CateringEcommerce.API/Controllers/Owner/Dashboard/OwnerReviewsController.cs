@@ -2,9 +2,9 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner.Dashboard;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Owner;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
@@ -15,24 +15,23 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
     /// Owner Reviews Controller
     /// Provides review management functionality for partner owners
     /// </summary>
-    [Authorize]
+    [OwnerAuthorize]
     [ApiController]
     [Route("api/Owner/[controller]")]
     public class OwnerReviewsController : ControllerBase
     {
         private readonly ILogger<OwnerReviewsController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly string _connStr;
+        private readonly OwnerReviewRepository _reviewRepository;
 
         public OwnerReviewsController(
             ILogger<OwnerReviewsController> logger,
             ICurrentUserService currentUser,
-            IConfiguration configuration)
+            OwnerReviewRepository reviewRepository)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _reviewRepository = reviewRepository ?? throw new ArgumentNullException(nameof(reviewRepository));
         }
 
         /// <summary>
@@ -51,8 +50,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting reviews list for owner {ownerId}, page: {filter.Page}");
 
-                var repository = new OwnerReviewRepository(_connStr);
-                var reviews = await repository.GetReviews(ownerId, filter);
+                var reviews = await _reviewRepository.GetReviews(ownerId, filter);
 
                 return ApiResponseHelper.Success(reviews, "Reviews retrieved successfully.");
             }
@@ -79,8 +77,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting review stats for owner {ownerId}");
 
-                var repository = new OwnerReviewRepository(_connStr);
-                var stats = await repository.GetReviewStats(ownerId);
+                var stats = await _reviewRepository.GetReviewStats(ownerId);
 
                 return ApiResponseHelper.Success(stats, "Review statistics retrieved successfully.");
             }
@@ -112,8 +109,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Owner {ownerId} submitting reply to review {reviewId}");
 
-                var repository = new OwnerReviewRepository(_connStr);
-                var success = await repository.SubmitReply(ownerId, reviewId, reply.ReplyText);
+                var success = await _reviewRepository.SubmitReply(ownerId, reviewId, reply.ReplyText);
 
                 if (success)
                 {

@@ -399,7 +399,7 @@ CREATE TABLE t_sys_catering_media_uploads (
     c_document_type_id INT,
 	c_is_deleted BIT DEFAULT 0,
     c_uploaded_at DATETIME NULL,
-	c_updated_at DATETIME NULL,	
+	c_modifieddate DATETIME NULL,	
 );
 
 CREATE TABLE t_sys_catering_document_types (
@@ -579,8 +579,8 @@ CREATE TABLE t_sys_catering_packages (
   c_price DECIMAL(10, 2) NULL, 
   c_is_active BIT NULL, 
   c_is_deleted BIT DEFAULT 0,
-  c_created_date GETDATE(), 
-  c_modified_date DATETIME NULL, 
+  c_createddate GETDATE(), 
+  c_modifieddate DATETIME NULL, 
 );
 
 CREATE TABLE t_sys_catering_package_items (
@@ -588,8 +588,8 @@ CREATE TABLE t_sys_catering_package_items (
   c_packageid BIGINT NOT NULL, 
   c_categoryid INT NOT NULL, 
   c_quantity INT NULL, 
-  c_created_date GETDATE(), 
-  c_modified_date DATETIME NULL
+  c_createddate GETDATE(), 
+  c_modifieddate DATETIME NULL
 );
 
 
@@ -719,11 +719,17 @@ CREATE TABLE t_sys_catering_review (
     -- Review Content
     c_review_title NVARCHAR(200) NULL,
     c_review_comment NVARCHAR(2000) NULL,
+    c_owner_reply NVARCHAR(2000) NULL,          -- Owner response to review
+    c_owner_reply_date DATETIME NULL,           -- When owner replied
 
     -- Review Status & Moderation
     c_is_verified BIT DEFAULT 1,                -- Verified order-based review
     c_is_visible BIT DEFAULT 1,                 -- Visible to customers
     c_is_reported BIT DEFAULT 0,                -- Reported by vendor/user
+    c_ishidden BIT NOT NULL DEFAULT 0,          -- Admin hidden flag
+    c_hidden_reason NVARCHAR(500) NULL,         -- Why review was hidden
+    c_hidden_by BIGINT NULL,                    -- Admin who hid review
+    c_hidden_date DATETIME NULL,                -- When review was hidden
     c_admin_status NVARCHAR(20) DEFAULT 'Approved', 
         -- Approved / Pending / Rejected
 
@@ -867,7 +873,7 @@ CREATE TABLE t_sys_order (
     c_ownerid BIGINT NOT NULL,
     c_total_amount DECIMAL(10,2) NOT NULL,
     c_statusid BIGINT NOT NULL, -- Pending, Accepted, Preparing, Delivered, Cancelled
-    c_created_at DATETIME NULL 
+    c_createddate DATETIME NULL 
 );
 
 -- Order Items Table – stores which items are in an order
@@ -905,7 +911,7 @@ CREATE TABLE t_sys_feedback (
     c_userid BIGINT NOT NULL,
     c_rating INT CHECK (c_rating BETWEEN 1 AND 5),
     c_comment NVARCHAR(MAX),
-    c_created_at DATETIME NULL
+    c_createddate DATETIME NULL
 );
 
 --optional: Coupon Table – discounts & promotions
@@ -989,9 +995,9 @@ CREATE TABLE t_notification_templates (
 
     -- Audit
     c_created_by VARCHAR(100),
-    c_created_date DATETIME DEFAULT GETDATE(),
+    c_createddate DATETIME DEFAULT GETDATE(),
     c_updated_by VARCHAR(100),
-    c_updated_date DATETIME DEFAULT GETDATE(),
+    c_modifieddate DATETIME DEFAULT GETDATE(),
     c_last_used_date DATETIME NULL,
     c_usage_count INT DEFAULT 0,
 
@@ -1027,7 +1033,7 @@ CREATE INDEX IX_template_versions ON t_notification_template_versions(c_template
 -- In-App Notifications Table
 CREATE TABLE t_inapp_notifications (
     c_notification_id VARCHAR(50) PRIMARY KEY,
-    c_user_id VARCHAR(50) NOT NULL,
+    c_userid VARCHAR(50) NOT NULL,
     c_user_type VARCHAR(20) NOT NULL, -- ADMIN, PARTNER, USER
 
     c_title NVARCHAR(200) NOT NULL,
@@ -1042,11 +1048,11 @@ CREATE TABLE t_inapp_notifications (
     c_is_read BIT DEFAULT 0,
     c_read_at DATETIME NULL,
 
-    c_created_at DATETIME DEFAULT GETDATE(),
+    c_createddate DATETIME DEFAULT GETDATE(),
     c_expires_at DATETIME NULL,
 
-    INDEX IX_inapp_user_unread (c_user_id, c_user_type, c_is_read),
-    INDEX IX_inapp_created (c_created_at DESC)
+    INDEX IX_inapp_user_unread (c_userid, c_user_type, c_is_read),
+    INDEX IX_inapp_created (c_createddate DESC)
 );
 
 -- Notification Delivery Log
@@ -1070,11 +1076,11 @@ CREATE TABLE t_notification_delivery_log (
     c_retry_count INT DEFAULT 0,
     c_cost DECIMAL(10, 4) DEFAULT 0,
 
-    c_created_at DATETIME DEFAULT GETDATE(),
+    c_createddate DATETIME DEFAULT GETDATE(),
 
     INDEX IX_delivery_notification (c_notification_id),
     INDEX IX_delivery_status (c_channel, c_status),
-    INDEX IX_delivery_created (c_created_at DESC)
+    INDEX IX_delivery_created (c_createddate DESC)
 );
 
 -- Notification Queue (for debugging/retry)

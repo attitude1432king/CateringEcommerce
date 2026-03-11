@@ -3,7 +3,7 @@
 -- Two-Portal Strategy: Careers Portal + Registration Portal
 -- =============================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '================================================';
@@ -34,10 +34,9 @@ BEGIN
         c_gender VARCHAR(10) NULL,
 
         -- Address
-        c_address_line1 NVARCHAR(200) NULL,
-        c_address_line2 NVARCHAR(200) NULL,
-        c_city NVARCHAR(50) NOT NULL,
-        c_state NVARCHAR(50) NOT NULL,
+        c_address_line1 NVARCHAR(500) NULL,
+        c_cityid INT NOT NULL,
+        c_stateid INT NOT NULL,
         c_pincode VARCHAR(10) NOT NULL,
         c_locality NVARCHAR(100) NULL, -- For assignment matching
 
@@ -45,12 +44,13 @@ BEGIN
         c_identity_type VARCHAR(20) NULL, -- AADHAAR, PAN, PASSPORT, etc.
         c_identity_number VARCHAR(50) NULL,
         c_identity_proof_url VARCHAR(500) NULL,
-        c_photo_url VARCHAR(500) NULL,
+        c_photo_url VARCHAR(500) NULL,        
+        c_address_url VARCHAR(500) NULL,
         c_resume_url VARCHAR(500) NULL, -- Careers only
 
         -- Experience Details
-        c_years_of_experience INT NULL,
-        c_previous_employer NVARCHAR(200) NULL,
+        c_has_prior_experience BIT NULL,
+        c_prior_experience_details NVARCHAR(500) NULL,
         c_specialization NVARCHAR(200) NULL, -- e.g., "Wedding Catering, Corporate Events"
         c_languages_known NVARCHAR(200) NULL, -- JSON array
 
@@ -81,7 +81,7 @@ BEGIN
         c_bank_ifsc VARCHAR(20) NULL,
         c_bank_account_holder_name NVARCHAR(100) NULL,
         c_bank_name NVARCHAR(100) NULL,
-        c_pan_number VARCHAR(20) NULL,
+        c_cancelled_cheque_url VARCHAR(500) NULL,
 
         -- Compensation (Type-Specific)
         c_compensation_type VARCHAR(20) NULL, -- 'MONTHLY_SALARY', 'PER_EVENT', 'HYBRID'
@@ -121,10 +121,10 @@ BEGIN
         c_background_check_date DATETIME NULL,
 
         -- Audit Fields
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_created_by BIGINT NULL,
-        c_modified_date DATETIME NULL,
-        c_modified_by BIGINT NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createdby BIGINT NULL,
+        c_modifieddate DATETIME NULL,
+        c_modifiedby BIGINT NULL,
         c_last_login_date DATETIME NULL,
         c_is_deleted BIT NOT NULL DEFAULT 0,
 
@@ -216,8 +216,8 @@ BEGIN
         c_employee_id VARCHAR(50) NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         FOREIGN KEY (c_supervisor_id) REFERENCES t_sys_supervisor(c_supervisor_id),
         INDEX idx_application_number (c_application_number),
@@ -301,8 +301,8 @@ BEGIN
         c_bank_verification_date DATETIME NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         FOREIGN KEY (c_supervisor_id) REFERENCES t_sys_supervisor(c_supervisor_id),
         INDEX idx_registration_number (c_registration_number),
@@ -383,10 +383,9 @@ BEGIN
         c_admin_feedback NVARCHAR(1000) NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
-        FOREIGN KEY (c_order_id) REFERENCES t_sys_order(c_orderid),
         FOREIGN KEY (c_supervisor_id) REFERENCES t_sys_supervisor(c_supervisor_id),
         INDEX idx_order (c_order_id),
         INDEX idx_supervisor (c_supervisor_id),
@@ -437,14 +436,14 @@ BEGIN
         c_device_info VARCHAR(200) NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
 
         FOREIGN KEY (c_supervisor_id) REFERENCES t_sys_supervisor(c_supervisor_id),
         FOREIGN KEY (c_assignment_id) REFERENCES t_sys_supervisor_assignment(c_assignment_id),
         INDEX idx_supervisor (c_supervisor_id),
         INDEX idx_assignment (c_assignment_id),
         INDEX idx_action_type (c_action_type),
-        INDEX idx_created_date (c_created_date)
+        INDEX idx_created_date (c_createddate)
     );
     PRINT '✓ Created table: t_sys_supervisor_action_log';
 END
@@ -470,8 +469,8 @@ BEGIN
         c_video_url VARCHAR(500) NULL,
         c_passing_score DECIMAL(5,2) NULL DEFAULT 70.00,
         c_is_active BIT NOT NULL DEFAULT 1,
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL
     );
     PRINT '✓ Created table: t_sys_supervisor_training_module';
 END
@@ -496,7 +495,7 @@ BEGIN
         c_passed BIT NOT NULL DEFAULT 0,
         c_attempts_count INT NOT NULL DEFAULT 0,
         c_last_attempt_date DATETIME NULL,
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
 
         FOREIGN KEY (c_supervisor_id) REFERENCES t_sys_supervisor(c_supervisor_id),
         FOREIGN KEY (c_module_id) REFERENCES t_sys_supervisor_training_module(c_module_id),
@@ -538,9 +537,9 @@ BEGIN
         c_is_active BIT NOT NULL DEFAULT 1,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
         c_created_by BIGINT NULL,
-        c_modified_date DATETIME NULL,
+        c_modifieddate DATETIME NULL,
         c_modified_by BIGINT NULL,
 
         INDEX idx_priority (c_priority),

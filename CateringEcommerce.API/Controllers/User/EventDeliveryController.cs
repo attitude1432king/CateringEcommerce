@@ -2,6 +2,7 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Common;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Delivery;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -15,7 +16,7 @@ namespace CateringEcommerce.API.Controllers.User
     /// Event Delivery Controller - Status-based delivery (NO GPS)
     /// User has READ-ONLY access to delivery status
     /// </summary>
-    [Authorize]
+    [UserAuthorize]
     [ApiController]
     [Route("api/User/[controller]")]
     public class EventDeliveryController : ControllerBase

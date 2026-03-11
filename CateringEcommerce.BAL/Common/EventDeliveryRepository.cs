@@ -31,7 +31,7 @@ namespace CateringEcommerce.BAL.Common
                 string query = $@"
                     INSERT INTO {Table.SysEventDelivery}
                     (c_orderid, c_ownerid, c_vehicle_number, c_driver_name, c_driver_phone,
-                     c_delivery_status, c_scheduled_dispatch_time, c_created_at)
+                     c_delivery_status, c_scheduled_dispatch_time, c_createddate)
                     VALUES
                     (@OrderId, @OwnerId, @VehicleNumber, @DriverName, @DriverPhone,
                      @DeliveryStatus, @ScheduledDispatchTime, GETDATE());
@@ -72,7 +72,7 @@ namespace CateringEcommerce.BAL.Common
                         c_vehicle_number, c_driver_name, c_driver_phone,
                         c_delivery_status, c_scheduled_dispatch_time,
                         c_actual_dispatch_time, c_arrived_time, c_completed_time,
-                        c_notes, c_created_at, c_updated_at
+                        c_notes, c_createddate, c_modifieddate
                     FROM {Table.SysEventDelivery}
                     WHERE c_event_delivery_id = @EventDeliveryId
                 ";
@@ -110,7 +110,7 @@ namespace CateringEcommerce.BAL.Common
                         c_vehicle_number, c_driver_name, c_driver_phone,
                         c_delivery_status, c_scheduled_dispatch_time,
                         c_actual_dispatch_time, c_arrived_time, c_completed_time,
-                        c_notes, c_created_at, c_updated_at
+                        c_notes, c_createddate, c_modifieddate
                     FROM {Table.SysEventDelivery}
                     WHERE c_orderid = @OrderId
                 ";
@@ -160,7 +160,7 @@ namespace CateringEcommerce.BAL.Common
                         c_driver_name = COALESCE(@DriverName, c_driver_name),
                         c_driver_phone = COALESCE(@DriverPhone, c_driver_phone),
                         c_notes = COALESCE(@Notes, c_notes),
-                        c_updated_at = GETDATE()
+                        c_modifieddate = GETDATE()
                     WHERE c_event_delivery_id = @EventDeliveryId
                 ";
 
@@ -196,11 +196,11 @@ namespace CateringEcommerce.BAL.Common
                         c_vehicle_number, c_driver_name, c_driver_phone,
                         c_delivery_status, c_scheduled_dispatch_time,
                         c_actual_dispatch_time, c_arrived_time, c_completed_time,
-                        c_notes, c_created_at, c_updated_at
+                        c_notes, c_createddate, c_modifieddate
                     FROM {Table.SysEventDelivery}
                     WHERE c_ownerid = @OwnerId
                       AND c_delivery_status < @CompletedStatus
-                    ORDER BY c_scheduled_dispatch_time ASC, c_created_at ASC
+                    ORDER BY c_scheduled_dispatch_time ASC, c_createddate ASC
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]
@@ -422,8 +422,8 @@ namespace CateringEcommerce.BAL.Common
                     ? Convert.ToDateTime(row["c_completed_time"])
                     : null,
                 Notes = row["c_notes"] != DBNull.Value ? row["c_notes"].ToString() : null,
-                CreatedAt = Convert.ToDateTime(row["c_created_at"]),
-                UpdatedAt = row["c_updated_at"] != DBNull.Value ? Convert.ToDateTime(row["c_updated_at"]) : null
+                CreatedAt = Convert.ToDateTime(row["c_createddate"]),
+                UpdatedAt = row["c_modifieddate"] != DBNull.Value ? Convert.ToDateTime(row["c_modifieddate"]) : null
             };
         }
     }

@@ -102,6 +102,18 @@ namespace CateringEcommerce.API.Controllers.Common
             return Ok(ToDto(fallback, "DEFAULT"));
         }
 
+        [AllowAnonymous]
+        [HttpGet("pincode/{pincode}")]
+        public async Task<IActionResult> GetPincodeDetails(string pincode)
+        {
+            using var client = new HttpClient();
+            var response = await client.GetAsync(
+                $"https://api.postalpincode.in/pincode/{pincode}"
+            );
+
+            var content = await response.Content.ReadAsStringAsync();
+            return Content(content, "application/json");
+        }
         private void SetCityCookie(string city)
         {
             Response.Cookies.Append(

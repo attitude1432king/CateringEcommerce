@@ -4,9 +4,12 @@ using System.Data;
 using Microsoft.Data.SqlClient;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Reflection;
+using System.Dynamic;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Models.Supervisor;
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace CateringEcommerce.BAL.Base.Supervisor
 {
@@ -297,6 +300,112 @@ namespace CateringEcommerce.BAL.Base.Supervisor
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<SupervisorModel>>(
                 "sp_GetAvailableSupervisors", parameters);
+        }
+
+        public async Task<bool> EmailExistsAsync(string email)
+        {
+            var parameters = new[]
+            {
+                new SqlParameter("@Email", email)
+            };
+
+            var result = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>(
+                "sp_CheckEmailExists", parameters);
+
+            return ExtractBooleanValue(result, "Exists", false);
+        }
+
+        public async Task<bool> PhoneExistsAsync(string phone)
+        {
+            var parameters = new[]
+            {
+                new SqlParameter("@Phone", phone)
+            };
+
+            var result = await _dbHelper.ExecuteStoredProcedureAsync<dynamic>(
+                "sp_CheckPhoneExists", parameters);
+
+            return ExtractBooleanValue(result, "Exists", false);
+        }
+
+        /// <summary>
+        /// Extracts boolean value from various return types (DataTable, Dictionary, dynamic object, etc.)
+        /// </summary>
+        private static bool ExtractBooleanValue(dynamic result, string columnName, bool defaultValue = false)
+        {
+            if (result == null)
+                return defaultValue;
+
+            try
+            {
+                // Handle DataTable result
+                if (result is System.Data.DataTable dataTable && dataTable.Rows.Count > 0)
+                {
+                    var row = dataTable.Rows[0];
+                    if (dataTable.Columns.Contains(columnName))
+                    {
+                        var value = row[columnName];
+                        return value != DBNull.Value && Convert.ToBoolean(value);
+                    }
+                }
+
+                // Handle List<DataRow> or IEnumerable
+                if (result is System.Collections.IEnumerable enumerable && !(result is string))
+                {
+                    var enumerator = enumerable.GetEnumerator();
+                    if (enumerator.MoveNext())
+                    {
+                        var firstItem = enumerator.Current;
+
+                        if (firstItem is System.Data.DataRow dataRow)
+                        {
+                            if (dataRow.Table.Columns.Contains(columnName))
+                            {
+                                var value = dataRow[columnName];
+                                return value != DBNull.Value && Convert.ToBoolean(value);
+                            }
+                        }
+                    }
+                }
+
+                // Handle Dictionary result
+                if (result is IDictionary<string, object> dict)
+                {
+                    if (dict.TryGetValue(columnName, out var value))
+                        return Convert.ToBoolean(value);
+
+                    var key = dict.Keys.FirstOrDefault(k => 
+                        k.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+
+                    if (key != null && dict.TryGetValue(key, out var caseInsensitiveValue))
+                        return Convert.ToBoolean(caseInsensitiveValue);
+                }
+
+                // Handle dynamic object with properties using reflection
+                var objType = result.GetType();
+
+                // Try exact case match first
+                var property = objType.GetProperty(columnName, 
+                    System.Reflection.BindingFlags.IgnoreCase | System.Reflection.BindingFlags.Public);
+
+                if (property != null)
+                {
+                    var value = property.GetValue(result);
+                    return Convert.ToBoolean(value ?? defaultValue);
+                }
+
+                // If nothing matched, return default value
+                return defaultValue;
+            }
+            catch (RuntimeBinderException)
+            {
+                return defaultValue;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error extracting boolean from {columnName}: {ex.Message}");
+                return defaultValue;
+            }
         }
 
         // =============================================

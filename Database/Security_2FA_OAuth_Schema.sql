@@ -44,8 +44,8 @@ BEGIN
         c_last_verified DATETIME NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         CONSTRAINT FK_user_2fa_user FOREIGN KEY (c_userid)
             REFERENCES t_sys_user(c_userid) ON DELETE CASCADE,
@@ -93,8 +93,8 @@ BEGIN
         c_last_verified DATETIME NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         CONSTRAINT FK_owner_2fa_owner FOREIGN KEY (c_ownerid)
             REFERENCES t_sys_catering_owner(c_ownerid) ON DELETE CASCADE,
@@ -126,8 +126,8 @@ BEGIN
         c_scope NVARCHAR(500) NOT NULL,
 
         c_is_active BIT NOT NULL DEFAULT 1,
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         INDEX idx_provider_name (c_provider_name),
         INDEX idx_active (c_is_active)
@@ -166,8 +166,8 @@ BEGIN
         c_last_login DATETIME NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         CONSTRAINT FK_user_oauth_user FOREIGN KEY (c_userid)
             REFERENCES t_sys_user(c_userid) ON DELETE CASCADE,
@@ -197,7 +197,7 @@ BEGIN
     CREATE TABLE t_sys_2fa_attempt_log (
         c_log_id BIGINT PRIMARY KEY IDENTITY(1,1),
         c_user_type VARCHAR(20) NOT NULL, -- USER, OWNER
-        c_user_id BIGINT NOT NULL,
+        c_userid BIGINT NOT NULL,
 
         -- Attempt Details
         c_code_entered NVARCHAR(10) NULL, -- Do NOT store actual code, just length/pattern
@@ -213,7 +213,7 @@ BEGIN
         c_failure_reason NVARCHAR(255) NULL,
         c_attempt_date DATETIME NOT NULL DEFAULT GETDATE(),
 
-        INDEX idx_user_type_id (c_user_type, c_user_id),
+        INDEX idx_user_type_id (c_user_type, c_userid),
         INDEX idx_attempt_date (c_attempt_date),
         INDEX idx_successful (c_is_successful)
     );
@@ -232,7 +232,7 @@ BEGIN
     CREATE TABLE t_sys_trusted_device (
         c_device_id BIGINT PRIMARY KEY IDENTITY(1,1),
         c_user_type VARCHAR(20) NOT NULL, -- USER, OWNER
-        c_user_id BIGINT NOT NULL,
+        c_userid BIGINT NOT NULL,
 
         -- Device Identification
         c_device_token NVARCHAR(100) NOT NULL UNIQUE, -- Random token to identify device
@@ -255,7 +255,7 @@ BEGIN
         c_revoked_date DATETIME NULL,
         c_revoked_reason NVARCHAR(255) NULL,
 
-        INDEX idx_user_type_id (c_user_type, c_user_id),
+        INDEX idx_user_type_id (c_user_type, c_userid),
         INDEX idx_device_token (c_device_token),
         INDEX idx_active (c_is_active),
         INDEX idx_expires (c_expires_at)
@@ -286,7 +286,7 @@ BEGIN
         c_user_agent NVARCHAR(500) NULL,
 
         -- Expiry
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
         c_expires_at DATETIME NOT NULL, -- 10 minutes from creation
         c_used BIT NOT NULL DEFAULT 0,
         c_used_date DATETIME NULL,

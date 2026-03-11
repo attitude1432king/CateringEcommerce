@@ -42,8 +42,8 @@ BEGIN
         c_platform_service_fee,
         c_net_settlement_amount,
         c_status,
-        c_created_at,
-        c_updated_at
+        c_createddate,
+        c_modifieddate
     )
     VALUES (
         @p_owner_id,
@@ -77,7 +77,7 @@ BEGIN
     SET c_status = 'ESCROWED',
         c_escrowed_at = GETDATE(),
         c_transaction_reference = @p_transaction_reference,
-        c_updated_at = GETDATE()
+        c_modifieddate = GETDATE()
     WHERE c_owner_payment_id = @p_owner_payment_id
       AND c_status = 'PENDING';
 
@@ -119,7 +119,7 @@ BEGIN
     SET c_status = 'RELEASED',
         c_released_at = GETDATE(),
         c_payment_method = @p_payment_method,
-        c_updated_at = GETDATE()
+        c_modifieddate = GETDATE()
     WHERE c_owner_payment_id = @p_owner_payment_id;
 
     -- Create payout schedule entry
@@ -211,8 +211,8 @@ BEGIN
         c_deadline,
         c_response_time_hours,
         c_status,
-        c_created_at,
-        c_updated_at
+        c_createddate,
+        c_modifieddate
     )
     VALUES (
         @p_owner_id,
@@ -252,7 +252,7 @@ BEGIN
         c_approved_at = GETDATE(),
         c_approved_by_owner_id = @p_approved_by_owner_id,
         c_partner_notes = @p_partner_notes,
-        c_updated_at = GETDATE()
+        c_modifieddate = GETDATE()
     WHERE c_approval_id = @p_approval_id
       AND c_status = 'PENDING'
       AND c_deadline > GETDATE();
@@ -280,7 +280,7 @@ BEGIN
     SET c_status = 'REJECTED',
         c_rejected_at = GETDATE(),
         c_rejection_reason = @p_rejection_reason,
-        c_updated_at = GETDATE()
+        c_modifieddate = GETDATE()
     WHERE c_approval_id = @p_approval_id
       AND c_owner_id = @p_owner_id
       AND c_status = 'PENDING';
@@ -303,7 +303,7 @@ BEGIN
 
     UPDATE t_partner_approval_request
     SET c_status = 'EXPIRED',
-        c_updated_at = GETDATE()
+        c_modifieddate = GETDATE()
     WHERE c_status = 'PENDING'
       AND c_deadline < GETDATE();
 
@@ -336,7 +336,7 @@ BEGIN
         DATEDIFF(MINUTE, GETDATE(), pa.c_deadline) AS MinutesRemaining
     FROM t_partner_approval_request pa
     INNER JOIN t_order o ON pa.c_order_id = o.c_order_id
-    INNER JOIN t_sys_user u ON pa.c_requested_by_user_id = u.c_user_id
+    INNER JOIN t_sys_user u ON pa.c_requested_by_user_id = u.c_userid
     WHERE pa.c_owner_id = @p_owner_id
       AND pa.c_status = 'PENDING'
       AND pa.c_deadline > GETDATE()
@@ -369,14 +369,14 @@ BEGIN
         op.c_transaction_reference AS TransactionReference,
         op.c_escrowed_at AS EscrowedAt,
         op.c_released_at AS ReleasedAt,
-        op.c_created_at AS CreatedAt
+        op.c_createddate AS CreatedAt
     FROM t_owner_payment op
     INNER JOIN t_order o ON op.c_order_id = o.c_order_id
     WHERE op.c_owner_id = @p_owner_id
       AND (@p_status IS NULL OR op.c_status = @p_status)
-      AND (@p_from_date IS NULL OR op.c_created_at >= @p_from_date)
-      AND (@p_to_date IS NULL OR op.c_created_at <= @p_to_date)
-    ORDER BY op.c_created_at DESC;
+      AND (@p_from_date IS NULL OR op.c_createddate >= @p_from_date)
+      AND (@p_to_date IS NULL OR op.c_createddate <= @p_to_date)
+    ORDER BY op.c_createddate DESC;
 END
 GO
 
@@ -402,7 +402,7 @@ BEGIN
         SUM(CASE WHEN c_status = 'PENDING' THEN c_net_settlement_amount ELSE 0 END) AS PendingAmount
     FROM t_owner_payment
     WHERE c_owner_id = @p_owner_id
-      AND c_created_at BETWEEN @p_period_start AND @p_period_end;
+      AND c_createddate BETWEEN @p_period_start AND @p_period_end;
 END
 GO
 

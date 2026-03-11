@@ -5,11 +5,13 @@ using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CateringEcommerce.API.Controllers.User
 {
+    [UserAuthorize]
     [ApiController]
     [Route("api/User/ProfileSettings")]
     public class ProfileSettingsController : ControllerBase
@@ -31,7 +33,6 @@ namespace CateringEcommerce.API.Controllers.User
             _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         }
 
-        [Authorize]
         [HttpGet("GetUserProfile")]
         public IActionResult GetUserProfile()
         {
@@ -48,7 +49,6 @@ namespace CateringEcommerce.API.Controllers.User
             }
         }
 
-        [Authorize]
         [HttpPost("UpdateProfile")]
         public async Task<IActionResult> UpdateProfileDetails([FromBody] UserModel request)
         {
@@ -83,7 +83,6 @@ namespace CateringEcommerce.API.Controllers.User
             }
         }
 
-        [Authorize]
         [HttpPost("UploadProfilePhoto")]
         public async Task<IActionResult> UploadProfilePhoto([FromBody] string profilePhoto)
         {

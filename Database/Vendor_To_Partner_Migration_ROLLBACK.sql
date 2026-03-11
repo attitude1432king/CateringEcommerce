@@ -10,7 +10,7 @@
 -- Only use if you need to rollback the changes
 -- =====================================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '========================================';

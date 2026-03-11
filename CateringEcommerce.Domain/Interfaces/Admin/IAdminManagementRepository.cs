@@ -98,5 +98,7 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
         /// Check if admin can be deactivated (prevents deactivating last Super Admin)
         /// </summary>
         Task<bool> CanDeactivateAdminAsync(long adminId);
+
+        Task<bool> RemoveAdminLoginAccessAsync(long adminId);
     }
 }

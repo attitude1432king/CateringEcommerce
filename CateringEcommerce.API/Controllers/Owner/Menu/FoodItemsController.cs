@@ -1,4 +1,5 @@
-﻿using CateringEcommerce.API.Helpers;
+﻿using CateringEcommerce.API.Filters;
+using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner.Menu;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Helpers;
@@ -15,7 +16,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
 {
     [ApiController]
     [Route("api/Owner/Menu/FoodItem")]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class FoodItemsController : ControllerBase
     {
         private readonly ILogger<FoodItemsController> _logger;

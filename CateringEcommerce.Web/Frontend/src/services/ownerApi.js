@@ -1,6 +1,6 @@
 ﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
-import { fetchExternalApi,fetchApi, fileToBase64Dto } from './apiUtils';
+import { fetchApi, fileToBase64Dto } from './apiUtils';
 
 export const ownerApiService = {
     /**
@@ -18,7 +18,7 @@ export const ownerApiService = {
     uploadOwnerFiles: async (ownerId, uploadedFiles) => fetchApi(`/Auth/Owner/UploadMedia?ownerId=${ownerId}`, 'POST', uploadedFiles),
 
     // Get the Pincode details from the external API
-    getPincodeDetails: async (pincodeUrl) => fetchExternalApi(pincodeUrl),
+    getPincodeDetails: async (pincode) => fetchApi(`/Common/Locations/pincode/${pincode}`),
 
 
     // CORRECTED FUNCTION to get all options for Step 3 in one call
@@ -512,10 +512,8 @@ export const ownerApiService = {
         exportReport: async (reportType, format = 'csv', filters = {}) => {
             const response = await fetch(`${API_BASE_URL}/api/Owner/OwnerReports/export?type=${reportType}&format=${format}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                },
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(filters)
             });
 

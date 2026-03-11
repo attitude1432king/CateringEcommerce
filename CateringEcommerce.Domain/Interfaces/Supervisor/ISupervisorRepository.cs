@@ -17,6 +17,8 @@ namespace CateringEcommerce.Domain.Interfaces.Supervisor
         Task<SupervisorModel> GetSupervisorByIdAsync(long supervisorId);
         Task<SupervisorModel> GetSupervisorByEmailAsync(string email);
         Task<SupervisorModel> GetSupervisorByPhoneAsync(string phone);
+        Task<bool> EmailExistsAsync(string email);
+        Task<bool> PhoneExistsAsync(string phone);
         Task<List<SupervisorModel>> GetAllSupervisorsAsync(SupervisorType? type = null, string status = null);
         Task<bool> UpdateSupervisorAsync(long supervisorId, UpdateSupervisorDto updates);
         Task<bool> DeleteSupervisorAsync(long supervisorId);

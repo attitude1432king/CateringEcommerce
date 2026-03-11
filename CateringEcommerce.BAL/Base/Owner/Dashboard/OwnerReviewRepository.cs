@@ -1,4 +1,6 @@
 using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
 using System;
@@ -10,11 +12,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 {
     public class OwnerReviewRepository
     {
-        private readonly string _connStr;
+        private readonly IDatabaseHelper _dbHelper;
 
-        public OwnerReviewRepository(string connStr)
+        public OwnerReviewRepository(IDatabaseHelper dbHelper)
         {
-            _connStr = connStr ?? throw new ArgumentNullException(nameof(connStr));
+            _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
         }
 
         /// <summary>
@@ -28,9 +30,6 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 PageSize = filter.PageSize
             };
 
-            using var conn = new SqlConnection(_connStr);
-            await conn.OpenAsync();
-
             // Count query
             var countSql = $@"
                 SELECT COUNT(*)
@@ -38,8 +37,16 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 WHERE r.c_ownerid = @OwnerId
                   AND r.c_is_visible = 1";
 
+            var countParams = new List<SqlParameter>
+            {
+                new SqlParameter("@OwnerId", ownerId)
+            };
+
             if (filter.Rating.HasValue)
+            {
                 countSql += " AND FLOOR(r.c_overall_rating) = @Rating";
+                countParams.Add(new SqlParameter("@Rating", filter.Rating.Value));
+            }
 
             if (filter.HasReply.HasValue)
             {
@@ -48,16 +55,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     : " AND r.c_owner_reply IS NULL";
             }
 
-            using (var countCmd = new SqlCommand(countSql, conn))
-            {
-                countCmd.Parameters.AddWithValue("@OwnerId", ownerId);
-                if (filter.Rating.HasValue)
-                    countCmd.Parameters.AddWithValue("@Rating", filter.Rating.Value);
+            var countResult = await _dbHelper.ExecuteScalarAsync(countSql, countParams.ToArray());
+            result.TotalCount = countResult == null || countResult == DBNull.Value ? 0 : Convert.ToInt32(countResult);
 
-                result.TotalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
-            }
-
-            result.TotalPages = (int)Math.Ceiling((double)result.TotalCount / filter.PageSize);
+            result.TotalPages = filter.PageSize > 0
+                ? (int)Math.Ceiling((double)result.TotalCount / filter.PageSize)
+                : 0;
 
             // Data query
             var allowedSorts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ReviewDate", "Rating" };
@@ -72,7 +75,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     r.c_orderid AS OrderId,
                     ISNULL(o.c_order_number, '') AS OrderNumber,
                     r.c_userid AS UserId,
-                    ISNULL(u.c_fullname, 'Customer') AS CustomerName,
+                    ISNULL(u.c_name, 'Customer') AS CustomerName,
                     r.c_overall_rating AS OverallRating,
                     r.c_food_quality_rating AS FoodQualityRating,
                     r.c_hygiene_rating AS HygieneRating,
@@ -106,41 +109,43 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             dataSql += $" ORDER BY {sortExpression} {sortDir}";
             dataSql += " OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-            using (var dataCmd = new SqlCommand(dataSql, conn))
+            var dataParams = new List<SqlParameter>
             {
-                dataCmd.Parameters.AddWithValue("@OwnerId", ownerId);
-                dataCmd.Parameters.AddWithValue("@Offset", (filter.Page - 1) * filter.PageSize);
-                dataCmd.Parameters.AddWithValue("@PageSize", filter.PageSize);
+                new SqlParameter("@OwnerId", ownerId),
+                new SqlParameter("@Offset", (filter.Page - 1) * filter.PageSize),
+                new SqlParameter("@PageSize", filter.PageSize)
+            };
 
-                if (filter.Rating.HasValue)
-                    dataCmd.Parameters.AddWithValue("@Rating", filter.Rating.Value);
+            if (filter.Rating.HasValue)
+            {
+                dataParams.Add(new SqlParameter("@Rating", filter.Rating.Value));
+            }
 
-                using var reader = await dataCmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+            var dataTable = await _dbHelper.ExecuteAsync(dataSql, dataParams.ToArray());
+            foreach (DataRow row in dataTable.Rows)
+            {
+                result.Reviews.Add(new OwnerReviewItemDto
                 {
-                    result.Reviews.Add(new OwnerReviewItemDto
-                    {
-                        ReviewId = reader.GetInt64(reader.GetOrdinal("ReviewId")),
-                        OrderId = reader.GetInt64(reader.GetOrdinal("OrderId")),
-                        OrderNumber = reader.GetString(reader.GetOrdinal("OrderNumber")),
-                        UserId = reader.GetInt64(reader.GetOrdinal("UserId")),
-                        CustomerName = reader.GetString(reader.GetOrdinal("CustomerName")),
-                        OverallRating = reader.GetDecimal(reader.GetOrdinal("OverallRating")),
-                        FoodQualityRating = reader.IsDBNull(reader.GetOrdinal("FoodQualityRating")) ? null : reader.GetDecimal(reader.GetOrdinal("FoodQualityRating")),
-                        HygieneRating = reader.IsDBNull(reader.GetOrdinal("HygieneRating")) ? null : reader.GetDecimal(reader.GetOrdinal("HygieneRating")),
-                        StaffBehaviorRating = reader.IsDBNull(reader.GetOrdinal("StaffBehaviorRating")) ? null : reader.GetDecimal(reader.GetOrdinal("StaffBehaviorRating")),
-                        DecorationRating = reader.IsDBNull(reader.GetOrdinal("DecorationRating")) ? null : reader.GetDecimal(reader.GetOrdinal("DecorationRating")),
-                        PunctualityRating = reader.IsDBNull(reader.GetOrdinal("PunctualityRating")) ? null : reader.GetDecimal(reader.GetOrdinal("PunctualityRating")),
-                        ReviewTitle = reader.IsDBNull(reader.GetOrdinal("ReviewTitle")) ? null : reader.GetString(reader.GetOrdinal("ReviewTitle")),
-                        ReviewComment = reader.IsDBNull(reader.GetOrdinal("ReviewComment")) ? null : reader.GetString(reader.GetOrdinal("ReviewComment")),
-                        EventType = reader.GetString(reader.GetOrdinal("EventType")),
-                        OwnerReply = reader.IsDBNull(reader.GetOrdinal("OwnerReply")) ? null : reader.GetString(reader.GetOrdinal("OwnerReply")),
-                        OwnerReplyDate = reader.IsDBNull(reader.GetOrdinal("OwnerReplyDate")) ? null : reader.GetDateTime(reader.GetOrdinal("OwnerReplyDate")),
-                        ReviewDate = reader.GetDateTime(reader.GetOrdinal("ReviewDate")),
-                        IsVerified = reader.GetBoolean(reader.GetOrdinal("IsVerified")),
-                        IsVisible = reader.GetBoolean(reader.GetOrdinal("IsVisible"))
-                    });
-                }
+                    ReviewId = row.GetValue<long>("ReviewId"),
+                    OrderId = row.GetValue<long>("OrderId"),
+                    OrderNumber = row.GetValue<string>("OrderNumber", string.Empty),
+                    UserId = row.GetValue<long>("UserId"),
+                    CustomerName = row.GetValue<string>("CustomerName", string.Empty),
+                    OverallRating = row.GetValue<decimal>("OverallRating"),
+                    FoodQualityRating = row.GetValue<decimal?>("FoodQualityRating"),
+                    HygieneRating = row.GetValue<decimal?>("HygieneRating"),
+                    StaffBehaviorRating = row.GetValue<decimal?>("StaffBehaviorRating"),
+                    DecorationRating = row.GetValue<decimal?>("DecorationRating"),
+                    PunctualityRating = row.GetValue<decimal?>("PunctualityRating"),
+                    ReviewTitle = row.GetValue<string?>("ReviewTitle"),
+                    ReviewComment = row.GetValue<string?>("ReviewComment"),
+                    EventType = row.GetValue<string?>("EventType"),
+                    OwnerReply = row.GetValue<string?>("OwnerReply"),
+                    OwnerReplyDate = row.GetValue<DateTime?>("OwnerReplyDate"),
+                    ReviewDate = row.GetValue<DateTime>("ReviewDate"),
+                    IsVerified = row.GetValue<bool>("IsVerified"),
+                    IsVisible = row.GetValue<bool>("IsVisible")
+                });
             }
 
             return result;
@@ -171,27 +176,23 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 WHERE c_ownerid = @OwnerId
                   AND c_is_visible = 1";
 
-            using var conn = new SqlConnection(_connStr);
-            await conn.OpenAsync();
-
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@OwnerId", ownerId);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var dataTable = await _dbHelper.ExecuteAsync(sql, parameters);
+            if (dataTable.Rows.Count > 0)
             {
-                stats.AverageRating = reader.IsDBNull(reader.GetOrdinal("AverageRating")) ? 0 : reader.GetDecimal(reader.GetOrdinal("AverageRating"));
-                stats.TotalReviews = reader.GetInt32(reader.GetOrdinal("TotalReviews"));
-                stats.FiveStarCount = reader.GetInt32(reader.GetOrdinal("FiveStarCount"));
-                stats.FourStarCount = reader.GetInt32(reader.GetOrdinal("FourStarCount"));
-                stats.ThreeStarCount = reader.GetInt32(reader.GetOrdinal("ThreeStarCount"));
-                stats.TwoStarCount = reader.GetInt32(reader.GetOrdinal("TwoStarCount"));
-                stats.OneStarCount = reader.GetInt32(reader.GetOrdinal("OneStarCount"));
-                stats.UnrepliedCount = reader.GetInt32(reader.GetOrdinal("UnrepliedCount"));
-                stats.AvgFoodQuality = reader.IsDBNull(reader.GetOrdinal("AvgFoodQuality")) ? null : reader.GetDecimal(reader.GetOrdinal("AvgFoodQuality"));
-                stats.AvgHygiene = reader.IsDBNull(reader.GetOrdinal("AvgHygiene")) ? null : reader.GetDecimal(reader.GetOrdinal("AvgHygiene"));
-                stats.AvgStaffBehavior = reader.IsDBNull(reader.GetOrdinal("AvgStaffBehavior")) ? null : reader.GetDecimal(reader.GetOrdinal("AvgStaffBehavior"));
-                stats.AvgPunctuality = reader.IsDBNull(reader.GetOrdinal("AvgPunctuality")) ? null : reader.GetDecimal(reader.GetOrdinal("AvgPunctuality"));
+                var row = dataTable.Rows[0];
+                stats.AverageRating = row.GetValue<decimal>("AverageRating");
+                stats.TotalReviews = row.GetValue<int>("TotalReviews");
+                stats.FiveStarCount = row.GetValue<int>("FiveStarCount");
+                stats.FourStarCount = row.GetValue<int>("FourStarCount");
+                stats.ThreeStarCount = row.GetValue<int>("ThreeStarCount");
+                stats.TwoStarCount = row.GetValue<int>("TwoStarCount");
+                stats.OneStarCount = row.GetValue<int>("OneStarCount");
+                stats.UnrepliedCount = row.GetValue<int>("UnrepliedCount");
+                stats.AvgFoodQuality = row.GetValue<decimal?>("AvgFoodQuality");
+                stats.AvgHygiene = row.GetValue<decimal?>("AvgHygiene");
+                stats.AvgStaffBehavior = row.GetValue<decimal?>("AvgStaffBehavior");
+                stats.AvgPunctuality = row.GetValue<decimal?>("AvgPunctuality");
             }
 
             return stats;
@@ -210,15 +211,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 WHERE c_reviewid = @ReviewId
                   AND c_ownerid = @OwnerId";
 
-            using var conn = new SqlConnection(_connStr);
-            await conn.OpenAsync();
+            var parameters = new[]
+            {
+                new SqlParameter("@ReplyText", replyText),
+                new SqlParameter("@ReviewId", reviewId),
+                new SqlParameter("@OwnerId", ownerId)
+            };
 
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@ReplyText", replyText);
-            cmd.Parameters.AddWithValue("@ReviewId", reviewId);
-            cmd.Parameters.AddWithValue("@OwnerId", ownerId);
-
-            var rowsAffected = await cmd.ExecuteNonQueryAsync();
+            var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(sql, parameters);
             return rowsAffected > 0;
         }
     }

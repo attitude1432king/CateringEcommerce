@@ -1,4 +1,5 @@
 ﻿using CateringEcommerce.API.Controllers.Owner.Menu;
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.Domain.Interfaces.Common;
@@ -13,7 +14,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 {
     [Route("api/Owner/Availability")]
     [ApiController]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class AvailabilityController : ControllerBase
     {
         private readonly ILogger<AvailabilityController> _logger;

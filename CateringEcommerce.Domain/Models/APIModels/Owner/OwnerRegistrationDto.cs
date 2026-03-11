@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using CateringEcommerce.Domain.Models.Common;
+using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Models.APIModels.Owner
 {
@@ -78,12 +79,5 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         [Required]
         public bool AgreementAccepted { get; set; }
         public string? Signature { get; set; } // Base64 PNG signature
-    }
-
-    public class FileUploadDto
-    {
-        public string? Base64 { get; set; }
-        public string? Name { get; set; }
-        //public string? Type { get; set; }
     }
 }

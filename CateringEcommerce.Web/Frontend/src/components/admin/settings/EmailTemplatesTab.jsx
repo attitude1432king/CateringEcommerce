@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, RefreshCw, Edit2, Mail } from 'lucide-react';
+import { Search, Filter, RefreshCw, Edit2, Mail, Plus, BarChart3 } from 'lucide-react';
 import EmailTemplateEditor from './EmailTemplateEditor';
 import { emailTemplateApi } from '../../../services/settingsApi';
 import { toast } from 'react-hot-toast';
 
-/**
- * Email Templates Tab Component
- * View and edit email templates
- */
+const CHANNEL_BADGES = {
+    EMAIL: 'bg-blue-100 text-blue-800',
+    SMS: 'bg-purple-100 text-purple-800',
+    INAPP: 'bg-orange-100 text-orange-800',
+};
+
 const EmailTemplatesTab = () => {
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [showEditor, setShowEditor] = useState(false);
+    const [editorMode, setEditorMode] = useState('edit');
     const [saving, setSaving] = useState(false);
 
-    // Filters
     const [filters, setFilters] = useState({
         category: '',
         searchTerm: '',
@@ -26,7 +28,10 @@ const EmailTemplatesTab = () => {
         sortOrder: 'ASC',
     });
 
-    const categories = ['All', 'USER', 'OWNER', 'ADMIN'];
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
+    const categories = ['All', 'USER', 'OWNER', 'ADMIN', 'SUPERVISOR'];
 
     useEffect(() => {
         fetchTemplates();
@@ -44,6 +49,8 @@ const EmailTemplatesTab = () => {
 
             if (response.result) {
                 setTemplates(response.data.templates || []);
+                setTotalCount(response.data.totalCount || 0);
+                setTotalPages(response.data.totalPages || 0);
             } else {
                 toast.error('Failed to load email templates');
             }
@@ -55,57 +62,27 @@ const EmailTemplatesTab = () => {
         }
     };
 
-    const handleEdit = (template) => {
-        setSelectedTemplate(template);
+    const handleAdd = () => {
+        setSelectedTemplate(null);
+        setEditorMode('add');
         setShowEditor(true);
     };
 
-    const handleSave = async (templateId, subject, body, changeReason) => {
-        setSaving(true);
-        try {
-            const response = await emailTemplateApi.updateEmailTemplate(
-                templateId,
-                subject,
-                body,
-                changeReason
-            );
-
-            if (response.result) {
-                toast.success('Email template updated successfully');
-                setShowEditor(false);
-                fetchTemplates();
-            } else {
-                toast.error(response.message || 'Failed to update email template');
-            }
-        } catch (error) {
-            console.error('Error updating template:', error);
-            toast.error('Failed to update email template');
-        } finally {
-            setSaving(false);
-        }
+    const handleEdit = (template) => {
+        setSelectedTemplate(template);
+        setEditorMode('edit');
+        setShowEditor(true);
     };
 
-    const handlePreview = async (templateId, subject, body) => {
-        try {
-            const response = await emailTemplateApi.previewTemplate(
-                templateId,
-                null,
-                subject,
-                body,
-                {}
-            );
+    const handleEditorSaved = () => {
+        setShowEditor(false);
+        setSelectedTemplate(null);
+        fetchTemplates();
+    };
 
-            if (response.result) {
-                toast.success('Preview generated');
-                // You could show preview in a modal here
-                console.log('Preview:', response.data);
-            } else {
-                toast.error('Failed to generate preview');
-            }
-        } catch (error) {
-            console.error('Error generating preview:', error);
-            toast.error('Failed to generate preview');
-        }
+    const handleEditorClose = () => {
+        setShowEditor(false);
+        setSelectedTemplate(null);
     };
 
     const handleTestSend = async (templateId) => {
@@ -140,6 +117,7 @@ const EmailTemplatesTab = () => {
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return '-';
         const date = new Date(dateString);
         return date.toLocaleString('en-US', {
             year: 'numeric',
@@ -184,6 +162,13 @@ const EmailTemplatesTab = () => {
                             <RefreshCw className="w-4 h-4" />
                             <span>Refresh</span>
                         </button>
+                        <button
+                            onClick={handleAdd}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Add Template</span>
+                        </button>
                     </div>
                 </div>
 
@@ -207,6 +192,9 @@ const EmailTemplatesTab = () => {
                             </button>
                         ))}
                     </div>
+                    <span className="ml-auto text-sm text-gray-500">
+                        {totalCount} template{totalCount !== 1 ? 's' : ''}
+                    </span>
                 </div>
             </div>
 
@@ -215,6 +203,13 @@ const EmailTemplatesTab = () => {
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                     <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500">No email templates found</p>
+                    <button
+                        onClick={handleAdd}
+                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Create your first template
+                    </button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -225,8 +220,8 @@ const EmailTemplatesTab = () => {
                         >
                             {/* Template Header */}
                             <div className="flex items-start justify-between mb-4">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
                                         {template.templateName}
                                     </h3>
                                     <code className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
@@ -234,7 +229,7 @@ const EmailTemplatesTab = () => {
                                     </code>
                                 </div>
                                 <span
-                                    className={`px-2 py-1 text-xs font-medium rounded ${
+                                    className={`ml-2 flex-shrink-0 px-2 py-1 text-xs font-medium rounded ${
                                         template.isActive
                                             ? 'bg-green-100 text-green-800'
                                             : 'bg-gray-100 text-gray-800'
@@ -246,18 +241,25 @@ const EmailTemplatesTab = () => {
 
                             {/* Template Info */}
                             <div className="space-y-3 mb-4">
-                                <div>
-                                    <p className="text-xs text-gray-500 mb-1">Category</p>
-                                    <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                <div className="flex items-center gap-2">
+                                    <span className={`px-2 py-0.5 text-xs font-medium rounded ${CHANNEL_BADGES[template.channel] || 'bg-gray-100 text-gray-800'}`}>
+                                        {template.channel}
+                                    </span>
+                                    <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
                                         {template.category}
                                     </span>
+                                    <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded uppercase">
+                                        {template.language}
+                                    </span>
                                 </div>
-                                <div>
-                                    <p className="text-xs text-gray-500 mb-1">Subject</p>
-                                    <p className="text-sm text-gray-900 line-clamp-2">
-                                        {template.subject}
-                                    </p>
-                                </div>
+                                {template.subject && (
+                                    <div>
+                                        <p className="text-xs text-gray-500 mb-1">Subject</p>
+                                        <p className="text-sm text-gray-900 line-clamp-2">
+                                            {template.subject}
+                                        </p>
+                                    </div>
+                                )}
                                 {template.description && (
                                     <div>
                                         <p className="text-xs text-gray-500 mb-1">Description</p>
@@ -271,18 +273,26 @@ const EmailTemplatesTab = () => {
                             {/* Template Metadata */}
                             <div className="border-t border-gray-200 pt-3 mb-4">
                                 <div className="flex items-center justify-between text-xs text-gray-500">
-                                    <span>Version {template.version}</span>
-                                    {template.modifiedDate && (
+                                    <span>v{template.version}</span>
+                                    <div className="flex items-center gap-1">
+                                        <BarChart3 className="w-3 h-3" />
+                                        <span>{template.usageCount ?? 0} uses</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                                    {template.modifiedDate ? (
                                         <span title={formatDate(template.modifiedDate)}>
                                             Updated {new Date(template.modifiedDate).toLocaleDateString()}
                                         </span>
+                                    ) : (
+                                        <span title={formatDate(template.createdDate)}>
+                                            Created {new Date(template.createdDate).toLocaleDateString()}
+                                        </span>
+                                    )}
+                                    {template.modifiedByName && (
+                                        <span>by {template.modifiedByName}</span>
                                     )}
                                 </div>
-                                {template.modifiedByName && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        by {template.modifiedByName}
-                                    </p>
-                                )}
                             </div>
 
                             {/* Actions */}
@@ -307,15 +317,38 @@ const EmailTemplatesTab = () => {
                 </div>
             )}
 
-            {/* Template Editor */}
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-8">
+                    <button
+                        onClick={() => setFilters((prev) => ({ ...prev, pageNumber: prev.pageNumber - 1 }))}
+                        disabled={filters.pageNumber <= 1}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                        Previous
+                    </button>
+                    <span className="text-sm text-gray-600">
+                        Page {filters.pageNumber} of {totalPages}
+                    </span>
+                    <button
+                        onClick={() => setFilters((prev) => ({ ...prev, pageNumber: prev.pageNumber + 1 }))}
+                        disabled={filters.pageNumber >= totalPages}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
+
+            {/* Template Editor Modal */}
             <EmailTemplateEditor
                 template={selectedTemplate}
                 isOpen={showEditor}
-                onClose={() => setShowEditor(false)}
-                onSave={handleSave}
-                onPreview={handlePreview}
-                onTestSend={handleTestSend}
+                onClose={handleEditorClose}
+                onSaved={handleEditorSaved}
                 saving={saving}
+                setSaving={setSaving}
+                mode={editorMode}
             />
         </div>
     );

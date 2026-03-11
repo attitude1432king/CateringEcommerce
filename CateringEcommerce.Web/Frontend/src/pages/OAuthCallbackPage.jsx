@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+
 const OAuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -36,20 +38,20 @@ const OAuthCallbackPage = () => {
     try {
       // Call backend OAuth callback endpoint
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || '/api'}/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
+        `${API_BASE_URL}/api/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
         {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
-          }
+          },
+          credentials: 'include' // CRITICAL: Required to set httpOnly cookie
         }
       );
 
       const data = await response.json();
 
       if (data.success && data.data) {
-        // Store token and user info
-        localStorage.setItem('authToken', data.data.token);
+        // Token is set as httpOnly cookie by backend — only store profile data
         localStorage.setItem('user', JSON.stringify({
           userId: data.data.userId,
           email: data.data.email,

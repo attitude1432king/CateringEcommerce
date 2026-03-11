@@ -3,7 +3,7 @@
 -- Business Logic for Both Portals
 -- =============================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '================================================';
@@ -128,7 +128,7 @@ BEGIN
         UPDATE t_sys_supervisor
         SET c_current_status = @NewStatus,
             c_status_reason = @Notes,
-            c_modified_date = GETDATE(),
+            c_modifieddate = GETDATE(),
             c_modified_by = @AdminId
         WHERE c_supervisor_id = @SupervisorId;
 
@@ -523,7 +523,7 @@ BEGIN
         SET c_status = 'CHECKED_IN',
             c_check_in_time = GETDATE(),
             c_check_in_location = @CheckInLocation,
-            c_modified_date = GETDATE()
+            c_modifieddate = GETDATE()
         WHERE c_assignment_id = @AssignmentId;
 
         -- Log action

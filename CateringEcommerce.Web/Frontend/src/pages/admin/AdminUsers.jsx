@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Search, RefreshCw, Filter, Download, Shield, ShieldCheck, Key, Edit, Trash2, Power } from 'lucide-react';
+import { UserPlus, Search, RefreshCw, Filter, Download, Shield, ShieldCheck, Key, Edit, Trash2, Power, UserCog } from 'lucide-react';
 import AdminLayout from '../../components/admin/layout/AdminLayout';
 import { ProtectedRoute } from '../../components/admin/auth/ProtectedRoute';
 import { PermissionButton } from '../../components/admin/ui/PermissionButton';
@@ -8,6 +8,8 @@ import { adminManagementApi, roleManagementApi } from '../../services/adminApi';
 import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import AdminUserForm from '../../components/admin/user-management/AdminUserForm';
+import RoleAssignmentModal from '../../components/admin/users/RoleAssignmentModal';
+import { useConfirmation } from '../../contexts/ConfirmationContext'; // P1 FIX: Replace window.confirm
 
 /**
  * Admin Users Management Page
@@ -24,11 +26,13 @@ import AdminUserForm from '../../components/admin/user-management/AdminUserForm'
  * - Super Admin protection (cannot delete last Super Admin)
  */
 const AdminUsers = () => {
+    const confirm = useConfirmation(); // P1 FIX: Use confirmation hook
     const [admins, setAdmins] = useState([]);
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedAdmin, setSelectedAdmin] = useState(null);
     const [showUserForm, setShowUserForm] = useState(false);
+    const [showRoleModal, setShowRoleModal] = useState(false);
     const [formMode, setFormMode] = useState('create'); // 'create' or 'edit'
     const [stats, setStats] = useState({
         total: 0,
@@ -40,8 +44,8 @@ const AdminUsers = () => {
     // Filters state
     const [filters, setFilters] = useState({
         searchTerm: '',
-        roleId: null,
-        isActive: null,
+        roleId: '',
+        isActive: '',
         pageNumber: 1,
         pageSize: 10,
         sortBy: 'CreatedDate',
@@ -69,7 +73,7 @@ const AdminUsers = () => {
         try {
             const result = await adminManagementApi.getAdmins(filters);
 
-            if (result.success && result.data) {
+            if (result.result && result.data) {
                 setAdmins(result.data.admins || []);
                 setPagination({
                     totalCount: result.data.totalCount || 0,
@@ -101,8 +105,8 @@ const AdminUsers = () => {
     const fetchRoles = async () => {
         try {
             const result = await roleManagementApi.getRoles();
-            if (result.success && result.data) {
-                setRoles(result.data);
+            if (result.result && result.data) {
+                setRoles(result.data); 
             }
         } catch (error) {
             console.error('Error fetching roles:', error);
@@ -118,7 +122,7 @@ const AdminUsers = () => {
     const handleEditAdmin = async (adminId) => {
         try {
             const result = await adminManagementApi.getAdminById(adminId);
-            if (result.success && result.data) {
+            if (result.result && result.data) {
                 setSelectedAdmin(result.data);
                 setFormMode('edit');
                 setShowUserForm(true);
@@ -135,14 +139,23 @@ const AdminUsers = () => {
         const newStatus = !admin.isActive;
         const action = newStatus ? 'activate' : 'deactivate';
 
-        if (!window.confirm(`Are you sure you want to ${action} ${admin.fullName}?`)) {
+        // P1 FIX: Replace window.confirm with confirmation context
+        const confirmed = await confirm({
+            title: `${action.charAt(0).toUpperCase() + action.slice(1)} Admin User`,
+            message: `Are you sure you want to ${action} ${admin.fullName}?`,
+            type: newStatus ? 'warning' : 'delete',
+            confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+            cancelText: 'Cancel'
+        });
+
+        if (!confirmed) {
             return;
         }
 
         try {
             const result = await adminManagementApi.updateAdminStatus(admin.adminId, newStatus);
 
-            if (result.success) {
+            if (result.result) {
                 toast.success(`Admin user ${action}d successfully`);
                 fetchAdminUsers(); // Refresh list
             } else {
@@ -155,20 +168,27 @@ const AdminUsers = () => {
     };
 
     const handleResetPassword = async (admin) => {
-        if (!window.confirm(`Are you sure you want to reset the password for ${admin.fullName}?`)) {
+        // P1 FIX: Replace window.confirm with confirmation context
+        const confirmed = await confirm({
+            title: 'Reset Password',
+            message: `Are you sure you want to reset the password for ${admin.fullName}? A temporary password will be generated.`,
+            type: 'warning',
+            confirmText: 'Reset Password',
+            cancelText: 'Cancel'
+        });
+
+        if (!confirmed) {
             return;
         }
 
         try {
-            // Generate a temporary password (in production, this should be done server-side)
-            const tempPassword = Math.random().toString(36).slice(-10);
-            const passwordHash = btoa(tempPassword); // Simple encoding for demo; use proper SHA256 in production
+            // P0 FIX: Password generation and hashing is handled securely on the server-side
+            // Backend will generate a cryptographically secure password, hash it properly,
+            // and send it to the admin's email address
+            const result = await adminManagementApi.resetPassword(admin.adminId);
 
-            const result = await adminManagementApi.resetPassword(admin.adminId, passwordHash, true);
-
-            if (result.success) {
-                toast.success(`Password reset successfully. Temporary password: ${tempPassword}`);
-                // In production, send this via email instead
+            if (result.result) {
+                toast.success('Password reset successfully. A temporary password has been sent to the admin\'s email address.');
             } else {
                 toast.error(result.message || 'Failed to reset password');
             }
@@ -179,14 +199,23 @@ const AdminUsers = () => {
     };
 
     const handleDeleteAdmin = async (admin) => {
-        if (!window.confirm(`Are you sure you want to delete ${admin.fullName}? This action cannot be undone.`)) {
+        // P1 FIX: Replace window.confirm with confirmation context
+        const confirmed = await confirm({
+            title: 'Delete Admin User',
+            message: `Are you sure you want to delete ${admin.fullName}? This action cannot be undone.`,
+            type: 'delete',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+
+        if (!confirmed) {
             return;
         }
 
         try {
             const result = await adminManagementApi.deleteAdmin(admin.adminId);
 
-            if (result.success) {
+            if (result.result) {
                 toast.success('Admin user deleted successfully');
                 fetchAdminUsers(); // Refresh list
             } else {
@@ -200,6 +229,27 @@ const AdminUsers = () => {
 
     const handleFormSuccess = () => {
         setShowUserForm(false);
+        setSelectedAdmin(null);
+        fetchAdminUsers(); // Refresh list
+    };
+
+    const handleAssignRole = async (adminId) => {
+        try {
+            const result = await adminManagementApi.getAdminById(adminId);
+            if (result.result && result.data) {
+                setSelectedAdmin(result.data);
+                setShowRoleModal(true);
+            } else {
+                toast.error('Failed to load admin details');
+            }
+        } catch (error) {
+            console.error('Error fetching admin details:', error);
+            toast.error('Network error. Please try again.');
+        }
+    };
+
+    const handleRoleAssignmentSuccess = () => {
+        setShowRoleModal(false);
         setSelectedAdmin(null);
         fetchAdminUsers(); // Refresh list
     };
@@ -225,7 +275,7 @@ const AdminUsers = () => {
     };
 
     return (
-        <ProtectedRoute requiredPermissions={['ADMIN_VIEW']}>
+        <ProtectedRoute requireSuperAdmin={true}>
             <AdminLayout>
                 <div className="p-6">
                     {/* Header */}
@@ -249,7 +299,7 @@ const AdminUsers = () => {
                                     Refresh
                                 </button>
                                 <PermissionButton
-                                    requiredPermissions={['ADMIN_CREATE']}
+                                    requireSuperAdmin={true}
                                     onClick={handleCreateAdmin}
                                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                                 >
@@ -307,7 +357,7 @@ const AdminUsers = () => {
                                 </label>
                                 <select
                                     value={filters.roleId || ''}
-                                    onChange={(e) => handleFilterChange('roleId', e.target.value ? parseInt(e.target.value) : null)}
+                                    onChange={(e) => handleFilterChange('roleId', e.target.value ? parseInt(e.target.value) : '')}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     <option value="">All Roles</option>
@@ -416,7 +466,7 @@ const AdminUsers = () => {
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <PermissionButton
-                                                            requiredPermissions={['ADMIN_EDIT']}
+                                                            requireSuperAdmin={true}
                                                             onClick={() => handleEditAdmin(admin.adminId)}
                                                             className="text-blue-600 hover:text-blue-900"
                                                             title="Edit"
@@ -424,7 +474,15 @@ const AdminUsers = () => {
                                                             <Edit className="w-4 h-4" />
                                                         </PermissionButton>
                                                         <PermissionButton
-                                                            requiredPermissions={['ADMIN_EDIT']}
+                                                            requireSuperAdmin={true}
+                                                            onClick={() => handleAssignRole(admin.adminId)}
+                                                            className="text-indigo-600 hover:text-indigo-900"
+                                                            title="Assign Role"
+                                                        >
+                                                            <UserCog className="w-4 h-4" />
+                                                        </PermissionButton>
+                                                        <PermissionButton
+                                                            requireSuperAdmin={true}
                                                             onClick={() => handleToggleStatus(admin)}
                                                             className={admin.isActive ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'}
                                                             title={admin.isActive ? 'Deactivate' : 'Activate'}
@@ -440,7 +498,7 @@ const AdminUsers = () => {
                                                             <Key className="w-4 h-4" />
                                                         </PermissionButton>
                                                         <PermissionButton
-                                                            requiredPermissions={['ADMIN_DELETE']}
+                                                            requireSuperAdmin={true}
                                                             onClick={() => handleDeleteAdmin(admin)}
                                                             className="text-red-600 hover:text-red-900"
                                                             title="Delete"
@@ -498,7 +556,8 @@ const AdminUsers = () => {
                                             >
                                                 Previous
                                             </button>
-                                            {[...Array(pagination.totalPages)].map((_, index) => (
+                                            {/* P1 FIX: Limit pagination buttons to max 5 to prevent UI overflow */}
+                                            {[...Array(Math.min(5, pagination.totalPages))].map((_, index) => (
                                                 <button
                                                     key={index + 1}
                                                     onClick={() => handlePageChange(index + 1)}
@@ -535,6 +594,19 @@ const AdminUsers = () => {
                         onSuccess={handleFormSuccess}
                         onCancel={() => {
                             setShowUserForm(false);
+                            setSelectedAdmin(null);
+                        }}
+                    />
+                )}
+
+                {/* Role Assignment Modal */}
+                {showRoleModal && selectedAdmin && (
+                    <RoleAssignmentModal
+                        admin={selectedAdmin}
+                        roles={roles}
+                        onSuccess={handleRoleAssignmentSuccess}
+                        onCancel={() => {
+                            setShowRoleModal(false);
                             setSelectedAdmin(null);
                         }}
                     />

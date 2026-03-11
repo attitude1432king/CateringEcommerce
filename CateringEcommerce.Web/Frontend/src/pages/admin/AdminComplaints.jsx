@@ -16,8 +16,12 @@ import {
   ComplaintDetailDrawer,
   ComplaintResolutionModal
 } from '../../components/admin/complaints';
+import { useConfirmation } from '../../contexts/ConfirmationContext'; // P1 FIX: Replace window.confirm
+import { toast } from 'react-hot-toast'; // P1 FIX: Use toast instead of local state
+import AdminLayout from '../../components/admin/layout/AdminLayout'; // P1 FIX: Add AdminLayout wrapper
 
 const AdminComplaints = () => {
+  const confirm = useConfirmation(); // P1 FIX: Use confirmation hook
   const [complaints, setComplaints] = useState([]);
   const [filteredComplaints, setFilteredComplaints] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,7 +116,16 @@ const AdminComplaints = () => {
   };
 
   const handleEscalate = async (complaint) => {
-    if (!window.confirm('Are you sure you want to escalate this complaint?')) {
+    // P1 FIX: Replace window.confirm with confirmation context
+    const confirmed = await confirm({
+      title: 'Escalate Complaint',
+      message: 'Are you sure you want to escalate this complaint? It will be forwarded to senior management.',
+      type: 'warning',
+      confirmText: 'Escalate',
+      cancelText: 'Cancel'
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -120,11 +133,11 @@ const AdminComplaints = () => {
       const response = await escalateComplaint(complaint.complaintId);
 
       if (response.success) {
-        setSuccessMessage('Complaint escalated successfully');
+        toast.success('Complaint escalated successfully'); // P1 FIX: Use toast
         setIsDetailDrawerOpen(false);
         fetchComplaints(); // Refresh list
       } else {
-        setError(response.message || 'Failed to escalate complaint');
+        toast.error(response.message || 'Failed to escalate complaint'); // P1 FIX: Use toast
       }
     } catch (error) {
       console.error('Error escalating complaint:', error);
@@ -164,7 +177,7 @@ const AdminComplaints = () => {
   const stats = getStats();
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <AdminLayout>
       <div className="max-w-7xl mx-auto">
         {/* Page Header */}
         <div className="mb-6">
@@ -305,7 +318,7 @@ const AdminComplaints = () => {
           onSubmitResolution={handleSubmitResolution}
         />
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

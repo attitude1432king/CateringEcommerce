@@ -3,7 +3,7 @@
 -- Purpose: Generate test data for testing all financial strategy features
 -- =============================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '================================================';

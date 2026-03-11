@@ -1,11 +1,17 @@
 using CateringEcommerce.API.Helpers;
+using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Models.Supervisor;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -23,13 +29,19 @@ namespace CateringEcommerce.API.Controllers.Supervisor
     {
         private readonly ILogger<SupervisorRegistrationController> _logger;
         private readonly IRegistrationRepository _registrationRepo;
+        private readonly ISupervisorRepository _supervisorRepository;
+        private readonly IFileStorageService _fileStorageService;
 
         public SupervisorRegistrationController(
             ILogger<SupervisorRegistrationController> logger,
-            IRegistrationRepository registrationRepo)
+            IRegistrationRepository registrationRepo,
+            ISupervisorRepository supervisorRepository,
+            IFileStorageService fileStorageService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _registrationRepo = registrationRepo ?? throw new ArgumentNullException(nameof(registrationRepo));
+            _supervisorRepository = supervisorRepository;
+            _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
         }
 
         #region Helper Methods
@@ -42,7 +54,7 @@ namespace CateringEcommerce.API.Controllers.Supervisor
             if (long.TryParse(userIdClaim, out long userId))
             {
                 return userId;
-            }
+            } 
             return 0;
         }
 
@@ -63,6 +75,7 @@ namespace CateringEcommerce.API.Controllers.Supervisor
         {
             try
             {
+                // Validate required fields
                 if (string.IsNullOrWhiteSpace(registration.FirstName) || string.IsNullOrWhiteSpace(registration.LastName))
                 {
                     return ApiResponseHelper.Failure("First name and last name are required.");
@@ -78,24 +91,67 @@ namespace CateringEcommerce.API.Controllers.Supervisor
                     return ApiResponseHelper.Failure("Phone number is required.");
                 }
 
-                if (string.IsNullOrWhiteSpace(registration.IDProofNumber))
+                // ========================================
+                // EMAIL VALIDATION & EXISTENCE CHECK
+                // ========================================
+
+                // Normalize email
+                var normalizedEmail = ValidationHelper.NormalizeEmail(registration.Email);
+
+                // Validate email format with regex
+                if (!ValidationHelper.IsValidEmail(normalizedEmail))
                 {
-                    return ApiResponseHelper.Failure("Identity proof number is required.");
+                    return ApiResponseHelper.Failure("Invalid email format. Please provide a valid email address.");
                 }
 
-                _logger.LogInformation("New supervisor registration submitted: {Name}, {Email}", registration.FirstName + " " + registration.LastName, registration.Email);
+                // Check if email already exists in registrations
+                bool emailExistsInRegistrations = await _supervisorRepository.EmailExistsAsync(normalizedEmail);
+                if (emailExistsInRegistrations)
+                {
+                    return ApiResponseHelper.Failure("This email is already registered. Please use a different email address.");
+                }
+
+                // ========================================
+                // PHONE VALIDATION & EXISTENCE CHECK
+                // ========================================
+
+                // Normalize phone
+                var normalizedPhone = ValidationHelper.NormalizePhone(registration.Phone);
+
+                // Validate phone format with regex
+                if (!ValidationHelper.IsValidPhone(normalizedPhone))
+                {
+                    return ApiResponseHelper.Failure("Invalid phone number format. Please provide a valid 10-digit phone number (or with country code).");
+                }
+
+                // Check if phone already exists in registrations
+                bool phoneExistsInRegistrations = await _supervisorRepository.PhoneExistsAsync(normalizedPhone);
+                if (phoneExistsInRegistrations)
+                {
+                    return ApiResponseHelper.Failure("This phone number is already registered. Please use a different phone number.");
+                }
+
+                // Update registration with normalized values
+                registration.Email = normalizedEmail;
+                registration.Phone = normalizedPhone;
+
+                _logger.LogInformation("New supervisor registration submitted: {Name}, {Email}", 
+                    registration.FirstName + " " + registration.LastName, registration.Email);
 
                 var registrationId = await _registrationRepo.SubmitRegistrationAsync(registration);
 
                 if (registrationId > 0)
                 {
+                    var savedRegistration = await _registrationRepo.GetRegistrationByIdAsync(registrationId);
+                    var supervisorId = savedRegistration?.SupervisorId ?? 0;
+
                     _logger.LogInformation("Registration submitted successfully. ID: {RegistrationId}", registrationId);
                     return ApiResponseHelper.Success(
-                        new { registrationId },
-                        "Registration submitted successfully. You will be notified once your documents are verified.");
+                        new { registrationId, supervisorId },
+                        "Registration submitted successfully. You can now upload registration documents.");
                 }
 
-                return ApiResponseHelper.Failure("Failed to submit registration. Email or phone may already be registered.");
+                return ApiResponseHelper.Failure("Failed to submit registration. Please try again.");
             }
             catch (InvalidOperationException ex)
             {
@@ -168,6 +224,125 @@ namespace CateringEcommerce.API.Controllers.Supervisor
         // =============================================
 
         /// <summary>
+        /// POST: api/Supervisor/SupervisorRegistration/upload-document
+        /// Upload document (multipart/form-data) for a registration
+        /// Document types: IDProof, AddressProof, Photo, CancelledCheque
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("upload-document")]
+        public async Task<IActionResult> UploadDocument([FromForm] DocumentUploadRequest request)
+        {
+            try
+            {
+                long supervisorId = GetUserId();
+                if (supervisorId <= 0)
+                {
+                    supervisorId = request.SupervisorId ?? 0;
+                }
+
+                if (supervisorId <= 0)
+                {
+                    return ApiResponseHelper.Failure("SupervisorId is required for document upload.");
+                }
+
+                if (request.File == null || request.File.Length == 0)
+                {
+                    return ApiResponseHelper.Failure("Document file is required.");
+                }
+
+                if (string.IsNullOrWhiteSpace(request.DocumentType))
+                {
+                    return ApiResponseHelper.Failure("Document type is required.");
+                }
+
+                // Valid document types
+                var validDocumentTypes = new[] { "IDProof", "AddressProof", "Photo", "CancelledCheque" };
+                if (!validDocumentTypes.Contains(request.DocumentType))
+                {
+                    return ApiResponseHelper.Failure($"Invalid document type. Allowed types: {string.Join(", ", validDocumentTypes)}");
+                }
+
+                _logger.LogInformation("Supervisor {SupervisorId} uploading document of type {DocumentType}", supervisorId, request.DocumentType);
+
+                try
+                {
+                    string originalName = Path.GetFileNameWithoutExtension(request.File.FileName);
+                    string fileName = $"{request.DocumentType}_{DateTime.UtcNow.Ticks}_{originalName}";
+                    var documentUrl = await _fileStorageService.SaveRoleBaseFormFileAsync(
+                        request.File,
+                        supervisorId,
+                        Role.Supervisor.GetDisplayName(),
+                        true,
+                        request.DocumentType);
+
+                    if (string.IsNullOrWhiteSpace(documentUrl))
+                    {
+                        return ApiResponseHelper.Failure("Failed to save document. Please try again.");
+                    }
+
+                    var registration = await _registrationRepo.GetRegistrationBySupervisorIdAsync(supervisorId);
+                    var registrationId = registration?.RegistrationId ?? 0;
+
+                    if (registrationId <= 0)
+                    {
+                        return ApiResponseHelper.Failure("Registration not found for document linking.");
+                    }
+
+                    string idProofUrl = null;
+                    string addressProofUrl = null;
+                    string photoUrl = null;
+                    string cancelledChequeUrl = null;
+                    bool updateIdentityDocs = false;
+
+                    switch (request.DocumentType)
+                    {
+                        case "IDProof":
+                            idProofUrl = documentUrl;
+                            updateIdentityDocs = true;
+                            break;
+                        case "AddressProof":
+                            addressProofUrl = documentUrl;
+                            updateIdentityDocs = true;
+                            break;
+                        case "Photo":
+                            photoUrl = documentUrl;
+                            updateIdentityDocs = true;
+                            break;
+                        case "CancelledCheque":
+                            cancelledChequeUrl = documentUrl;
+                            updateIdentityDocs = true;
+                            break;
+                    }
+
+                    if (updateIdentityDocs)
+                    {
+                        await _registrationRepo.SubmitIdentityProofDocumentsAsync(
+                            registrationId,
+                            idProofUrl,
+                            addressProofUrl,
+                            photoUrl,
+                            cancelledChequeUrl);
+                    }
+
+                    _logger.LogInformation("Document uploaded and linked successfully for registration {RegistrationId}, type {DocumentType}", registrationId, request.DocumentType);
+                    return ApiResponseHelper.Success(
+                        new { documentUrl, supervisorId },
+                        $"{request.DocumentType} document uploaded successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error saving document file");
+                    return ApiResponseHelper.Failure("Failed to process document upload.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading document");
+                return StatusCode(500, ApiResponseHelper.Failure("An error occurred while uploading document."));
+            }
+        }
+
+        /// <summary>
         /// GET: api/Supervisor/SupervisorRegistration/my-registration
         /// Get the logged-in supervisor's registration details
         /// </summary>
@@ -203,7 +378,7 @@ namespace CateringEcommerce.API.Controllers.Supervisor
         /// POST: api/Supervisor/SupervisorRegistration/banking-details
         /// Submit banking details (post-activation)
         /// </summary>
-        [Authorize]
+        [AllowAnonymous]
         [HttpPost("banking-details")]
         public async Task<IActionResult> SubmitBankingDetails([FromBody] BankingDetailsDto bankingDetails)
         {
@@ -212,7 +387,12 @@ namespace CateringEcommerce.API.Controllers.Supervisor
                 long supervisorId = GetUserId();
                 if (supervisorId <= 0)
                 {
-                    return ApiResponseHelper.Failure("Supervisor not authenticated.");
+                    supervisorId = bankingDetails.SupervisorId;
+                }
+
+                if (supervisorId <= 0)
+                {
+                    return ApiResponseHelper.Failure("Supervisor information is required.");
                 }
 
                 bankingDetails.SupervisorId = supervisorId;
@@ -951,6 +1131,13 @@ namespace CateringEcommerce.API.Controllers.Supervisor
     }
 
     #region Registration Request Models
+
+    public class DocumentUploadRequest
+    {
+        public long? SupervisorId { get; set; }
+        public string DocumentType { get; set; } // IDProof, AddressProof, Photo, CancelledCheque
+        public IFormFile File { get; set; }
+    }
 
     public class AssignTrainingRequest
     {

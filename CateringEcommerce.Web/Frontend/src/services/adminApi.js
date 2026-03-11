@@ -1,42 +1,17 @@
 /**
  * Admin API Service
  * Centralized API calls for admin module
+ * 
+ * SECURITY NOTE: 
+ * - Authentication token is stored in httpOnly cookie (not accessible to JavaScript)
+ * - Browser automatically sends httpOnly cookies with credentials: 'include'
+ * - Server extracts token from cookie and validates it
+ * - No Authorization header needed for admin endpoints
  */
 
+import { apiCall } from './apiUtils'; // P3 FIX: Use consolidated apiUtils
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
-
-// Helper function to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-    };
-};
-
-// Generic API call handler
-const apiCall = async (endpoint, options = {}) => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
-            ...options,
-            headers: {
-                ...getAuthHeaders(),
-                ...options.headers,
-            },
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'API request failed');
-        }
-
-        return data;
-    } catch (error) {
-        console.error('API Error:', error);
-        throw error;
-    }
-};
 
 // ============================================
 // Authentication APIs
@@ -67,41 +42,52 @@ export const dashboardApi = {
 // Catering Management APIs
 // ============================================
 export const cateringApi = {
-    getAll: (params) => {
-        const queryString = new URLSearchParams(params).toString();
-        return apiCall(`/caterings?${queryString}`);
-    },
+    getAll: (params) => apiCall('/admin/caterings', 'GET', null, params),
 
-    getById: (id) => apiCall(`/caterings/${id}`),
+    getById: (id) => apiCall(`/admin/caterings/${id}`),
 
     updateStatus: (id, status, reason) =>
-        apiCall(`/caterings/${id}/status`, {
-            method: 'PUT',
-            body: JSON.stringify({ status, reason }),
-        }),
+        apiCall(`/admin/caterings/${id}/status`, 'PUT', { status, reason }),
 
-    delete: (id) =>
-        apiCall(`/caterings/${id}`, {
-            method: 'DELETE',
-        }),
+    delete: (id) => apiCall(`/admin/caterings/${id}`, 'DELETE'),
+
+    restore: (id) => apiCall(`/admin/caterings/${id}/restore`, 'POST'),
+
+    exportCaterings: (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        const url = `${API_BASE_URL}/api/admin/caterings/export?${queryString}`;
+        return fetch(url, { credentials: 'include' });
+    },
 };
 
 // ============================================
-// User Management APIs
+// Customer User Management APIs
 // ============================================
 export const userApi = {
-    getAll: (params) => {
-        const queryString = new URLSearchParams(params).toString();
-        return apiCall(`/users?${queryString}`);
-    },
+    getAll: (params) => apiCall('/admin/users', 'GET', null, params),
 
-    getById: (id) => apiCall(`/users/${id}`),
+    getById: (id) => apiCall(`/admin/users/${id}`),
 
     updateStatus: (id, isBlocked, reason) =>
-        apiCall(`/users/${id}/status`, {
-            method: 'PUT',
-            body: JSON.stringify({ isBlocked, reason }),
-        }),
+        apiCall(`/admin/users/${id}/status`, 'PUT', { isBlocked, reason }),
+
+    deleteUser: (id) => apiCall(`/admin/users/${id}`, 'DELETE'),
+
+    restoreUser: (id) => apiCall(`/admin/users/${id}/restore`, 'POST'),
+
+    exportUsers: (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        const url = `${API_BASE_URL}/api/admin/users/export?${queryString}`;
+        return fetch(url, { credentials: 'include' });
+    },
+};
+
+// ============================================
+// Location APIs (for filters)
+// ============================================
+export const locationApi = {
+    getStates: () => apiCall('/Common/Locations/states'),
+    getCities: (stateId) => apiCall(`/Common/Locations/cities/${stateId}`),
 };
 
 // ============================================
@@ -154,65 +140,48 @@ export const adminManagementApi = {
     // Get all admins with pagination and filters
     getAdmins: (params) => {
         const queryString = new URLSearchParams(params).toString();
-        return apiCall(`/admins?${queryString}`);
+        return apiCall(`/admin/admins?${queryString}`);
     },
 
     // Get admin by ID
-    getAdminById: (id) => apiCall(`/admins/${id}`),
+    getAdminById: (id) => apiCall(`/admin/admins/${id}`),
+
 
     // Create new admin
-    createAdmin: (data) =>
-        apiCall('/admins', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        }),
+    createAdmin: (data) => apiCall('/admin/admins', 'POST', data),
+
 
     // Update admin information
-    updateAdmin: (id, data) =>
-        apiCall(`/admins/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        }),
+    updateAdmin: (id, data) => apiCall(`/admin/admins/${id}`, 'PUT', data),
+
 
     // Update admin status (activate/deactivate)
-    updateAdminStatus: (id, isActive) =>
-        apiCall(`/admins/${id}/status`, {
-            method: 'PUT',
-            body: JSON.stringify({ adminId: id, isActive }),
-        }),
+    updateAdminStatus: (id, isActive) => apiCall(`/admin/admins/${id}/status`, 'PUT', { adminId: id, isActive }),
+
 
     // Assign role to admin
-    assignRole: (id, roleId) =>
-        apiCall(`/admins/${id}/role`, {
-            method: 'PUT',
-            body: JSON.stringify({ adminId: id, roleId }),
-        }),
+    assignRole: (id, data) => apiCall(`/admin/admins/${id}/role`, 'PUT', data),
+
 
     // Reset admin password
-    resetPassword: (id, newPasswordHash, forcePasswordReset = true) =>
-        apiCall(`/admins/${id}/reset-password`, {
-            method: 'POST',
-            body: JSON.stringify({ adminId: id, newPasswordHash, forcePasswordReset }),
-        }),
+    resetPassword: (id, newPasswordHash, forcePasswordReset = true) => apiCall(`/admin/admins/${id}/reset-password`, 'POST',{ adminId: id, newPasswordHash, forcePasswordReset }),
+
 
     // Delete admin (soft delete)
-    deleteAdmin: (id) =>
-        apiCall(`/admins/${id}`, {
-            method: 'DELETE',
-        }),
+    deleteAdmin: (id) => apiCall(`/admin/admins/${id}`, 'DELETE'),
 
     // Check if username exists
     checkUsername: (username, excludeAdminId = null) => {
         const params = new URLSearchParams({ username });
         if (excludeAdminId) params.append('excludeAdminId', excludeAdminId);
-        return apiCall(`/admins/check-username?${params.toString()}`);
+        return apiCall(`/admin/admins/check-username?${params.toString()}`);
     },
 
     // Check if email exists
     checkEmail: (email, excludeAdminId = null) => {
         const params = new URLSearchParams({ email });
         if (excludeAdminId) params.append('excludeAdminId', excludeAdminId);
-        return apiCall(`/admins/check-email?${params.toString()}`);
+        return apiCall(`/admin/admins/check-email?${params.toString()}`);
     },
 };
 
@@ -221,33 +190,22 @@ export const adminManagementApi = {
 // ============================================
 export const roleManagementApi = {
     // Get all roles
-    getRoles: () => apiCall('/roles'),
+    getRoles: () => apiCall('/admin/roles'),
 
     // Get role by ID with permissions
-    getRoleById: (id) => apiCall(`/roles/${id}`),
+    getRoleById: (id) => apiCall(`/admin/roles/${id}`),
 
     // Create new role
-    createRole: (data) =>
-        apiCall('/roles', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        }),
+    createRole: (data) => apiCall('/admin/roles', 'POST', data),
 
     // Update role
-    updateRole: (id, data) =>
-        apiCall(`/roles/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        }),
+    updateRole: (id, data) => apiCall(`/admin/roles/${id}`, 'PUT', data),
 
     // Delete role
-    deleteRole: (id) =>
-        apiCall(`/roles/${id}`, {
-            method: 'DELETE',
-        }),
+    deleteRole: (id) => (`/admin/roles/${id}`, 'DELETE'),
 
     // Get all permissions grouped by module
-    getPermissions: () => apiCall('/permissions'),
+    getPermissions: () => apiCall('/admin/permissions'),
 };
 
 // ============================================
@@ -294,6 +252,36 @@ export const partnerApprovalApi = {
         apiCall('/admin/partners/enums/priorities'),
 };
 
+// ============================================
+// Supervisor Management APIs
+// ============================================
+export const supervisorManagementApi = {
+    // Tab 1: Pending Supervisor Requests
+    getRegistrations: (params) => apiCall('/admin/supervisors/registrations', 'GET', null, params),
+
+    updateStatus: (id, status, reason) =>
+        apiCall(`/admin/supervisors/${id}/status`, 'PUT', { status, reason }),
+
+    // Tab 2: Approved Supervisors
+    getActiveSupervisors: (params) => apiCall('/admin/supervisors/active', 'GET', null, params),
+
+    blockSupervisor: (id, reason) =>
+        apiCall(`/admin/supervisors/${id}/block`, 'PUT', { reason }),
+
+    unblockSupervisor: (id) =>
+        apiCall(`/admin/supervisors/${id}/unblock`, 'PUT'),
+
+    deleteSupervisor: (id) => apiCall(`/admin/supervisors/${id}`, 'DELETE'),
+
+    restoreSupervisor: (id) => apiCall(`/admin/supervisors/${id}/restore`, 'POST'),
+
+    exportSupervisors: (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        const url = `${API_BASE_URL}/api/admin/supervisors/export?${queryString}`;
+        return fetch(url, { credentials: 'include' });
+    },
+};
+
 // Export all APIs
 export default {
     auth: authApi,
@@ -305,4 +293,6 @@ export default {
     adminManagement: adminManagementApi,
     roleManagement: roleManagementApi,
     partnerApproval: partnerApprovalApi,
+    locations: locationApi,
+    supervisorManagement: supervisorManagementApi,
 };

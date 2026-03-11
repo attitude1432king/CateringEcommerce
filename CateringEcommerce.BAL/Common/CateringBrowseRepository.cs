@@ -124,17 +124,17 @@ namespace CateringEcommerce.BAL.Common
                         '' AS Description,
                         ISNULL(r.AverageRating, 0) AS AverageRating,
                         ISNULL(r.ReviewCount, 0) AS TotalReviews
-                    FROM t_sys_catering_owner o
-                    LEFT JOIN t_sys_catering_owner_addresses ad ON ad.c_ownerid = o.c_ownerid
-                    LEFT JOIN t_sys_catering_owner_operations op ON op.c_ownerid = o.c_ownerid
-                    LEFT JOIN t_catering_availability_global ag ON ag.c_ownerid = o.c_ownerid
-                    LEFT JOIN t_sys_city ct ON ad.c_cityid = ct.c_cityid
-                    LEFT JOIN t_sys_state st ON ad.c_stateid = st.c_stateid
+                    FROM {Table.SysCateringOwner} o
+                    LEFT JOIN {Table.SysCateringOwnerAddress} ad ON ad.c_ownerid = o.c_ownerid
+                    LEFT JOIN {Table.SysCateringOwnerService} op ON op.c_ownerid = o.c_ownerid
+                    LEFT JOIN {Table.SysCateringAvailabilityGlobal} ag ON ag.c_ownerid = o.c_ownerid
+                    LEFT JOIN {Table.City} ct ON ad.c_cityid = ct.c_cityid
+                    LEFT JOIN {Table.State} st ON ad.c_stateid = st.c_stateid
                     LEFT JOIN (
                         SELECT c_ownerid, 
                                CAST(ISNULL(AVG(CAST(c_overall_rating AS FLOAT)), 0) AS DECIMAL(3,2)) AS AverageRating,
                                COUNT(*) AS ReviewCount
-                        FROM t_sys_catering_review
+                        FROM {Table.SysCateringReview}
                         WHERE c_is_verified = 1
                         GROUP BY c_ownerid
                     ) r ON o.c_ownerid = r.c_ownerid
@@ -633,7 +633,7 @@ namespace CateringEcommerce.BAL.Common
                         d.c_packageids AS IncludedInPackageIds,
                         d.c_status AS IsAvailable
                     FROM {Table.SysCateringDecorations} d
-                    LEFT JOIN {Table.SysDecorationThemes} t ON t.c_theme_id = d.c_theme_id
+                    LEFT JOIN {Table.SysCateringThemeTypes} t ON t.c_theme_id = d.c_theme_id
                     WHERE d.c_ownerid = @CateringId
                         AND d.c_status = 1
                         AND d.c_is_deleted = 0

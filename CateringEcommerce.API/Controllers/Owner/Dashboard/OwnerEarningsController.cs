@@ -1,12 +1,13 @@
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 {
-    [Authorize]
+    [OwnerAuthorize]
     [Route("api/Owner/Earnings")]
     [ApiController]
     public class OwnerEarningsController : ControllerBase

@@ -23,6 +23,13 @@ const WishlistPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 12;
 
+  // Confirmation modal state
+  const [removeConfirmation, setRemoveConfirmation] = useState({
+    isOpen: false,
+    cateringId: null,
+    cateringName: ''
+  });
+
   // Fetch favorites on mount and page change
   useEffect(() => {
     if (!user) {
@@ -58,14 +65,23 @@ const WishlistPage = () => {
   };
 
   /**
-   * Remove a catering from favorites
+   * Show remove confirmation modal
    */
-  const handleRemoveFavorite = async (cateringId, cateringName) => {
-    if (!window.confirm(`Remove "${cateringName}" from your wishlist?`)) {
-      return;
-    }
+  const handleRemoveFavorite = (cateringId, cateringName) => {
+    setRemoveConfirmation({
+      isOpen: true,
+      cateringId,
+      cateringName
+    });
+  };
 
+  /**
+   * Confirm and remove a catering from favorites
+   */
+  const confirmRemoveFavorite = async () => {
+    const { cateringId } = removeConfirmation;
     setRemovingId(cateringId);
+    setRemoveConfirmation({ isOpen: false, cateringId: null, cateringName: '' });
 
     try {
       const response = await removeFromFavorites(cateringId);
@@ -324,6 +340,38 @@ const WishlistPage = () => {
           </div>
         )}
       </div>
+
+      {/* Remove Confirmation Modal */}
+      {removeConfirmation.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-fade-in">
+            <div className="text-center mb-6">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-rose-100 mb-4">
+                <Heart className="h-6 w-6 text-rose-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Remove from Wishlist?</h3>
+              <p className="text-sm text-gray-600">
+                Remove "{removeConfirmation.cateringName}" from your wishlist?
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRemoveConfirmation({ isOpen: false, cateringId: null, cateringName: '' })}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRemoveFavorite}
+                className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors font-medium"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

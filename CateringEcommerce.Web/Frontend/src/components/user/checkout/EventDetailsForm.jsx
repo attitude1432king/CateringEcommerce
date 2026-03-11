@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { validateEventDetails } from '../../../utils/checkoutValidator';
+import { useAppSettings } from '../../../contexts/AppSettingsContext';
 import EventLocationMapPicker from './EventLocationMapPicker';
 
 const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
+  const { getInt } = useAppSettings();
   const [errors, setErrors] = useState({});
   const [eventDate, setEventDate] = useState(formData.eventDate || '');
   const [eventTime, setEventTime] = useState(formData.eventTime || '');
@@ -17,10 +19,11 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
     return tomorrow.toISOString().split('T')[0];
   };
 
-  // Calculate max date (90 days from now)
+  // Calculate max date from settings
   const getMaxDate = () => {
+    const maxDays = getInt('BUSINESS.MAX_ADVANCE_BOOKING_DAYS', 90);
     const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 90);
+    maxDate.setDate(maxDate.getDate() + maxDays);
     return maxDate.toISOString().split('T')[0];
   };
 
@@ -62,7 +65,10 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
       specialInstructions
     };
 
-    const validation = validateEventDetails(dataToValidate);
+    const validation = validateEventDetails(dataToValidate, {
+      minAdvanceBookingHours: getInt('BUSINESS.MIN_ADVANCE_BOOKING_HOURS', 24),
+      maxAdvanceBookingDays: getInt('BUSINESS.MAX_ADVANCE_BOOKING_DAYS', 90),
+    });
 
     if (!validation.isValid) {
       setErrors(validation.errors);

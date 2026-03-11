@@ -2,9 +2,9 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner.Dashboard;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Owner;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
@@ -15,24 +15,23 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
     /// Owner Support Controller
     /// Provides support ticket management for partner owners
     /// </summary>
-    [Authorize]
+    [OwnerAuthorize]
     [ApiController]
     [Route("api/Owner/[controller]")]
     public class OwnerSupportController : ControllerBase
     {
         private readonly ILogger<OwnerSupportController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly string _connStr;
+        private readonly OwnerSupportRepository _supportRepository;
 
         public OwnerSupportController(
             ILogger<OwnerSupportController> logger,
             ICurrentUserService currentUser,
-            IConfiguration configuration)
+            OwnerSupportRepository supportRepository)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _supportRepository = supportRepository ?? throw new ArgumentNullException(nameof(supportRepository));
         }
 
         /// <summary>
@@ -55,8 +54,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Owner {ownerId} creating support ticket: {dto.Subject}");
 
-                var repository = new OwnerSupportRepository(_connStr);
-                var ticket = await repository.CreateTicket(ownerId, dto);
+                var ticket = await _supportRepository.CreateTicket(ownerId, dto);
 
                 return ApiResponseHelper.Success(ticket, "Support ticket created successfully.");
             }
@@ -81,8 +79,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting support tickets for owner {ownerId}, page: {filter.Page}");
 
-                var repository = new OwnerSupportRepository(_connStr);
-                var tickets = await repository.GetTickets(ownerId, filter);
+                var tickets = await _supportRepository.GetTickets(ownerId, filter);
 
                 return ApiResponseHelper.Success(tickets, "Support tickets retrieved successfully.");
             }
@@ -107,8 +104,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting ticket detail for owner {ownerId}, ticket: {ticketId}");
 
-                var repository = new OwnerSupportRepository(_connStr);
-                var detail = await repository.GetTicketDetail(ownerId, ticketId);
+                var detail = await _supportRepository.GetTicketDetail(ownerId, ticketId);
 
                 if (detail == null)
                     return ApiResponseHelper.Failure("Ticket not found or does not belong to this owner.");
@@ -139,8 +135,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Owner {ownerId} sending message on ticket {ticketId}");
 
-                var repository = new OwnerSupportRepository(_connStr);
-                var message = await repository.SendMessage(ownerId, ticketId, dto.MessageText);
+                var message = await _supportRepository.SendMessage(ownerId, ticketId, dto.MessageText);
 
                 if (message == null)
                     return ApiResponseHelper.Failure("Ticket not found or does not belong to this owner.");
@@ -170,8 +165,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                 if (ownerId <= 0)
                     return ApiResponseHelper.Failure("Owner not authenticated.");
 
-                var repository = new OwnerSupportRepository(_connStr);
-                var stats = await repository.GetTicketStats(ownerId);
+                var stats = await _supportRepository.GetTicketStats(ownerId);
 
                 return ApiResponseHelper.Success(stats, "Ticket statistics retrieved successfully.");
             }

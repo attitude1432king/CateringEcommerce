@@ -88,7 +88,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                         cd.c_packageids AS PackageIds,
                         STRING_AGG(CONCAT(p.c_packageid, ':', p.c_packagename), ',') AS PackageData
                     FROM {Table.SysCateringDecorations} cd
-                    LEFT JOIN {Table.SysDecorationThemes} tt 
+                    LEFT JOIN {Table.SysCateringThemeTypes} tt 
                         ON tt.c_theme_id = cd.c_theme_id
                     OUTER APPLY (
                         SELECT value 
@@ -285,7 +285,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 string query = $@"SELECT c_theme_id AS ThemeId, c_theme_name AS ThemeName
-                                 FROM {Table.SysDecorationThemes}
+                                 FROM {Table.SysCateringThemeTypes}
                                  WHERE c_isactive = 1 ORDER BY c_theme_name";
                 var dt = await _dbHelper.ExecuteAsync(query);
                 List<DecorationThemeModel> themes = new List<DecorationThemeModel>();

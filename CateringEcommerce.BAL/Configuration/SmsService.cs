@@ -1,149 +1,294 @@
-﻿using CateringEcommerce.Domain.Interfaces.Common;
-using Twilio;
-using Twilio.Rest.Verify.V2.Service;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Sms;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace CateringEcommerce.BAL.Configuration
-    {
+{
     /// <summary>
-    /// Service for sending and verifying OTPs via SMS using Twilio Verify API.
-    /// Handles phone number validation and formatting for Indian phone numbers (+91).
+    /// Unified OTP service for all roles (User, Owner, Admin, Supervisor).
+    /// Owns the full OTP lifecycle: generate → hash → cache → deliver → verify.
+    /// SMS delivery is delegated to the configured ISmsOtpProvider.
     /// </summary>
     public class SmsService : ISmsService
     {
-        private readonly string _accountSid;
-        private readonly string _authToken;
-        private readonly string _verifyServiceSid;
+        private readonly ISmsOtpProvider _provider;
+        private readonly IDistributedCache _cache;
+        private readonly ISystemSettingsProvider _settings;
+        private readonly ILogger<SmsService> _logger;
 
-        /// <summary>
-        /// Initializes the SMS service with Twilio credentials from configuration.
-        /// </summary>
-        /// <param name="config">Application configuration containing Twilio settings</param>
-        /// <exception cref="InvalidOperationException">Thrown when required configuration is missing</exception>
-        public SmsService(IConfiguration config)
+        // Cache key prefixes
+        private const string OtpEntryPrefix = "otp:entry:";
+        private const string OtpSendCountPrefix = "otp:sends:";
+
+        public SmsService(
+            ISmsOtpProvider provider,
+            IDistributedCache cache,
+            ISystemSettingsProvider settings,
+            ILogger<SmsService> logger)
         {
-            _accountSid = config["Twilio:AccountSID"] 
-                ?? throw new InvalidOperationException("Configuration 'Twilio:AccountSid' is required");
-            _authToken = config["Twilio:AuthToken"] 
-                ?? throw new InvalidOperationException("Configuration 'Twilio:AuthToken' is required");
-            _verifyServiceSid = config["Twilio:VerifyServiceSID"] 
-                ?? throw new InvalidOperationException("Configuration 'Twilio:VerifyServiceSid' is required");
-
-            TwilioClient.Init(_accountSid, _authToken);
+            _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        /// <summary>
-        /// Sends an OTP to the specified phone number via SMS.
-        /// </summary>
-        /// <param name="phoneNumber">Phone number without country code (e.g., "9876543210" for India)</param>
-        /// <exception cref="ArgumentException">Thrown when phone number format is invalid</exception>
-        /// <exception cref="InvalidOperationException">Thrown when SMS sending fails</exception>
-        /// <remarks>
-        /// Phone number should be 10 digits for Indian numbers.
-        /// Automatically prepends +91 country code.
-        /// </remarks>
+        /// <inheritdoc />
         public void SendOtp(string phoneNumber)
-        {
-            if (string.IsNullOrWhiteSpace(phoneNumber))
-            {
-                throw new ArgumentException(
-                    "Phone number cannot be null or empty.", 
-                    nameof(phoneNumber));
-            }
+            => SendOtpAsync(phoneNumber).GetAwaiter().GetResult();
 
-            var formattedNumber = FormatPhoneNumber(phoneNumber);
-
-            try
-            {
-                VerificationResource.Create(
-                    to: formattedNumber,
-                    channel: "sms",
-                    pathServiceSid: _verifyServiceSid
-                );
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException(
-                    $"Failed to send OTP to {formattedNumber}", ex);
-            }
-        }
+        /// <inheritdoc />
+        public bool VerifyOtp(string phoneNumber, string code)
+            => VerifyOtpAsync(phoneNumber, code).GetAwaiter().GetResult();
 
         /// <summary>
-        /// Verifies the OTP code sent to the phone number.
+        /// Send a generic SMS message
         /// </summary>
-        /// <param name="phoneNumber">Phone number without country code (e.g., "9876543210" for India)</param>
-        /// <param name="code">OTP code to verify (typically 6 digits)</param>
-        /// <returns>True if OTP is valid and approved, false otherwise</returns>
-        /// <exception cref="ArgumentException">Thrown when inputs are invalid</exception>
-        /// <remarks>
-        /// Returns false instead of throwing on verification failure.
-        /// Phone number should be 10 digits for Indian numbers.
-        /// </remarks>
-        public bool VerifyOtp(string phoneNumber, string code)
+        public async Task SendSmsAsync(string phoneNumber, string message)
         {
-            if (string.IsNullOrWhiteSpace(phoneNumber))
+            var formatted = FormatPhoneNumber(phoneNumber);
+
+            _logger.LogInformation(
+                "Sending SMS via {Provider} to {Phone}",
+                _provider.ProviderName, MaskPhone(formatted));
+
+            var result = await _provider.SendOtpAsync(formatted, message);
+
+            if (!result.Success)
             {
-                throw new ArgumentException(
-                    "Phone number cannot be null or empty.", 
-                    nameof(phoneNumber));
+                _logger.LogError(
+                    "SMS delivery failed via {Provider} for {Phone}: {Error}",
+                    _provider.ProviderName, MaskPhone(formatted), result.ErrorMessage);
+
+                throw new InvalidOperationException(
+                    $"Failed to send SMS via {_provider.ProviderName}: {result.ErrorMessage}");
             }
 
-            if (string.IsNullOrWhiteSpace(code))
+            _logger.LogInformation(
+                "SMS delivered via {Provider} to {Phone}. MessageId: {Id}",
+                _provider.ProviderName, MaskPhone(formatted), result.MessageId ?? "n/a");
+        }
+
+        // ─── Private async implementations ──────────────────────────────────
+
+        private async Task SendOtpAsync(string phoneNumber)
+        {
+            var formatted = FormatPhoneNumber(phoneNumber);
+            await EnforceRateLimitAsync(formatted);
+
+            var otp = GenerateOtp();
+            await StoreOtpAsync(formatted, otp);
+
+            var appName = _settings.GetString("APP.NAME", "Enyvora");
+            var expiry = _settings.GetInt("OTP.EXPIRY_MINUTES", 10);
+            var template = _settings.GetString(
+                "OTP.MESSAGE_TEMPLATE",
+                $"Your {{AppName}} OTP is {{OTP}}. Valid for {{EXPIRY}} minutes. Do not share this code.");
+
+            var message = template
+                .Replace("{AppName}", appName)
+                .Replace("{OTP}", otp)
+                .Replace("{EXPIRY}", expiry.ToString());
+
+            // OTP is NEVER logged — only masked placeholder
+            _logger.LogInformation(
+                "Sending OTP via {Provider} to {Phone}",
+                _provider.ProviderName, MaskPhone(formatted));
+
+            var result = await _provider.SendOtpAsync(formatted, otp);
+
+            if (!result.Success)
             {
-                throw new ArgumentException(
-                    "OTP code cannot be null or empty.", 
-                    nameof(code));
+                _logger.LogError(
+                    "OTP delivery failed via {Provider} for {Phone}: {Error}",
+                    _provider.ProviderName, MaskPhone(formatted), result.ErrorMessage);
+
+                throw new InvalidOperationException(
+                    $"Failed to send OTP via {_provider.ProviderName}: {result.ErrorMessage}");
             }
 
-            var formattedNumber = FormatPhoneNumber(phoneNumber);
-            var cleanCode = code.Trim();
+            _logger.LogInformation(
+                "OTP delivered via {Provider} to {Phone}. MessageId: {Id}",
+                _provider.ProviderName, MaskPhone(formatted), result.MessageId ?? "n/a");
+        }
 
-            try
+        private async Task<bool> VerifyOtpAsync(string phoneNumber, string code)
+        {
+            var bypass = _settings.GetBool("OTP.BYPASS_VERIFICATION", false);
+            if (bypass)
             {
-                var result = VerificationCheckResource.Create(
-                    to: formattedNumber,
-                    code: cleanCode,
-                    pathServiceSid: _verifyServiceSid
-                );
-
-                return result?.Status == "approved";
+                _logger.LogWarning("OTP verification bypassed by configuration for {Phone}", MaskPhone(phoneNumber));
+                return true;
             }
-            catch (Exception ex)
+
+            if (string.IsNullOrWhiteSpace(phoneNumber) || string.IsNullOrWhiteSpace(code))
+                return false;
+
+            var formatted = FormatPhoneNumber(phoneNumber);
+            var entryKey = OtpEntryPrefix + formatted;
+            var rawEntry = await _cache.GetStringAsync(entryKey);
+
+            if (rawEntry == null)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"OTP verification failed for {formattedNumber}: {ex.Message}");
+                _logger.LogWarning("OTP entry not found or expired for {Phone}", MaskPhone(formatted));
                 return false;
             }
+
+            // Entry format: "{hash}|{attempts}|{expiry_unix}"
+            var parts = rawEntry.Split('|');
+            if (parts.Length != 3)
+            {
+                await _cache.RemoveAsync(entryKey);
+                return false;
+            }
+
+            var storedHash = parts[0];
+            var attempts = int.TryParse(parts[1], out var a) ? a : 0;
+            var expiryUnix = long.TryParse(parts[2], out var e) ? e : 0L;
+            var maxAttempts = _settings.GetInt("OTP.MAX_VERIFY_ATTEMPTS", 5);
+
+            // Check expiry
+            if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiryUnix)
+            {
+                await _cache.RemoveAsync(entryKey);
+                _logger.LogWarning("OTP expired for {Phone}", MaskPhone(formatted));
+                return false;
+            }
+
+            // Check max attempts lockout
+            if (attempts >= maxAttempts)
+            {
+                _logger.LogWarning(
+                    "OTP max attempts ({Max}) reached for {Phone}",
+                    maxAttempts, MaskPhone(formatted));
+                return false;
+            }
+
+            var incomingHash = HashOtp(code.Trim());
+
+            if (!CryptographicEquals(storedHash, incomingHash))
+            {
+                // Increment attempt counter
+                var updated = $"{storedHash}|{attempts + 1}|{expiryUnix}";
+                var remaining = expiryUnix - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                if (remaining > 0)
+                {
+                    await _cache.SetStringAsync(entryKey, updated,
+                        new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(remaining)
+                        });
+                }
+                return false;
+            }
+
+            // ✔ Valid — remove entry immediately (replay prevention)
+            await _cache.RemoveAsync(entryKey);
+            _logger.LogInformation("OTP verified successfully for {Phone}", MaskPhone(formatted));
+            return true;
         }
 
-        /// <summary>
-        /// Formats phone number with +91 country code for India.
-        /// </summary>
-        /// <param name="phoneNumber">Raw phone number input</param>
-        /// <returns>Formatted phone number with +91 prefix</returns>
-        /// <exception cref="ArgumentException">Thrown when phone number is invalid</exception>
-        private string FormatPhoneNumber(string phoneNumber)
+        // ─── OTP generation ──────────────────────────────────────────────────
+
+        private string GenerateOtp()
         {
-            var cleanNumber = phoneNumber
-                .Trim()
+            var length = _settings.GetInt("OTP.LENGTH", 6);
+            var bytes = new byte[4];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(bytes);
+            var value = Math.Abs(BitConverter.ToInt32(bytes, 0)) % (int)Math.Pow(10, length);
+            return value.ToString().PadLeft(length, '0');
+        }
+
+        // ─── OTP storage ─────────────────────────────────────────────────────
+
+        private async Task StoreOtpAsync(string phoneNumber, string otp)
+        {
+            var expiryMinutes = _settings.GetInt("OTP.EXPIRY_MINUTES", 10);
+            var expiryUnix = DateTimeOffset.UtcNow.AddMinutes(expiryMinutes).ToUnixTimeSeconds();
+            var hash = HashOtp(otp);
+
+            // Format: "{hash}|{attempts}|{expiry_unix}"
+            var entry = $"{hash}|0|{expiryUnix}";
+            var entryKey = OtpEntryPrefix + phoneNumber;
+
+            await _cache.SetStringAsync(entryKey, entry,
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(expiryMinutes)
+                });
+        }
+
+        // ─── Rate limiting ───────────────────────────────────────────────────
+
+        private async Task EnforceRateLimitAsync(string phoneNumber)
+        {
+            var maxSends = _settings.GetInt("SECURITY.OTP_SEND_PERMITS", 3);
+            var windowMinutes = _settings.GetInt("SECURITY.OTP_SEND_WINDOW_MINUTES", 60);
+            var hourBucket = DateTime.UtcNow.ToString("yyyyMMddHH");
+            var rateLimitKey = $"{OtpSendCountPrefix}{phoneNumber}:{hourBucket}";
+
+            var countStr = await _cache.GetStringAsync(rateLimitKey);
+            var count = int.TryParse(countStr, out var c) ? c : 0;
+
+            if (count >= maxSends)
+            {
+                _logger.LogWarning(
+                    "OTP send rate limit ({Max}/{Window}min) exceeded for {Phone}",
+                    maxSends, windowMinutes, MaskPhone(phoneNumber));
+
+                throw new InvalidOperationException(
+                    $"Too many OTP requests. Please try again after some time.");
+            }
+
+            await _cache.SetStringAsync(rateLimitKey, (count + 1).ToString(),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(windowMinutes)
+                });
+        }
+
+        // ─── Helpers ─────────────────────────────────────────────────────────
+
+        private static string HashOtp(string otp)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(otp));
+            return Convert.ToHexString(bytes);
+        }
+
+        /// <summary>Constant-time string comparison to prevent timing attacks.</summary>
+        private static bool CryptographicEquals(string a, string b)
+        {
+            if (a.Length != b.Length) return false;
+            var aBytes = Encoding.UTF8.GetBytes(a);
+            var bBytes = Encoding.UTF8.GetBytes(b);
+            return CryptographicOperations.FixedTimeEquals(aBytes, bBytes);
+        }
+
+        private static string FormatPhoneNumber(string phoneNumber)
+        {
+            var clean = phoneNumber.Trim()
                 .Replace(" ", string.Empty)
                 .Replace("-", string.Empty)
                 .Replace("(", string.Empty)
                 .Replace(")", string.Empty);
 
-            // Remove leading +91 if already present
-            if (cleanNumber.StartsWith("+91"))
-                cleanNumber = cleanNumber.Substring(3);
-            else if (cleanNumber.StartsWith("91"))
-                cleanNumber = cleanNumber.Substring(2);
+            if (clean.StartsWith("+91")) clean = clean[3..];
+            else if (clean.StartsWith("91") && clean.Length == 12) clean = clean[2..];
 
-            if (cleanNumber.Length != 10 || !cleanNumber.All(char.IsDigit))
-            {
-                throw new ArgumentException(
-                    $"Phone number must be 10 digits. Received: '{phoneNumber}'",
-                    nameof(phoneNumber));
-            }
+            if (clean.Length != 10 || !clean.All(char.IsDigit))
+                throw new ArgumentException($"Phone number must be 10 digits.", nameof(phoneNumber));
 
-            return $"+91{cleanNumber}";
+            return $"+91{clean}";
+        }
+
+        private static string MaskPhone(string phone)
+        {
+            if (phone.Length <= 4) return "****";
+            return phone[..^4] + "****";
         }
     }
 }

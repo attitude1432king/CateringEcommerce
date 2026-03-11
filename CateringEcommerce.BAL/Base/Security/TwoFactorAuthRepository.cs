@@ -1,3 +1,4 @@
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Security;
 using CateringEcommerce.Domain.Models.Security;
@@ -48,7 +49,7 @@ namespace CateringEcommerce.BAL.Base.Security
             var hashedBackupCodes = backupCodes.Select(HashBackupCode).ToList();
 
             // Store in database (but not enabled yet)
-            var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+            var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
             var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
             var query = $@"
@@ -62,7 +63,7 @@ namespace CateringEcommerce.BAL.Base.Security
                         c_backup_codes_used = 0,
                         c_setup_completed = 0,
                         c_is_enabled = 0,
-                        c_modified_date = GETDATE()
+                        c_modifieddate = GETDATE()
                 WHEN NOT MATCHED THEN
                     INSERT ({userIdColumn}, c_secret_key, c_backup_codes, c_is_enabled, c_setup_completed)
                     VALUES (@UserId, @SecretKey, @BackupCodes, 0, 0);";
@@ -103,7 +104,7 @@ namespace CateringEcommerce.BAL.Base.Security
             }
 
             // Enable 2FA
-            var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+            var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
             var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
             var query = $@"
@@ -116,7 +117,7 @@ namespace CateringEcommerce.BAL.Base.Security
                     c_recovery_phone = @RecoveryPhone,
                     c_failed_attempts = 0,
                     c_locked_until = NULL,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
@@ -147,13 +148,13 @@ namespace CateringEcommerce.BAL.Base.Security
             }
 
             // Disable 2FA
-            var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+            var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
             var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
             var query = $@"
                 UPDATE {tableName}
                 SET c_is_enabled = 0,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
@@ -174,7 +175,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<TwoFactorAuthModel> GetTwoFactorConfigAsync(long userId, string userType)
         {
-            var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+            var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
             var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
             var query = $@"
@@ -311,11 +312,11 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             if (string.IsNullOrWhiteSpace(deviceToken)) return false;
 
-            var query = @"
+            var query = $@"
                 SELECT COUNT(*)
-                FROM t_sys_trusted_device
+                FROM {Table.SysTrustedDevice}
                 WHERE c_user_type = @UserType
-                  AND c_user_id = @UserId
+                  AND c_userid = @UserId
                   AND c_device_token = @DeviceToken
                   AND c_is_active = 1
                   AND c_expires_at > GETDATE()";
@@ -386,15 +387,15 @@ namespace CateringEcommerce.BAL.Base.Security
                 hashedCodes.RemoveAt(codeIndex);
 
                 // Update database
-                var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+                var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
                 var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
                 var query = $@"
-                    UPDATE {tableName}
-                    SET c_backup_codes = @BackupCodes,
-                        c_backup_codes_used = c_backup_codes_used + 1,
-                        c_modified_date = GETDATE()
-                    WHERE {userIdColumn} = @UserId";
+                    UPDATE {Table.SysUser2FA}
+                        SET c_backup_codes = @BackupCodes,
+                            c_backup_codes_used = c_backup_codes_used + 1,
+                            c_modifieddate = GETDATE()
+                        WHERE {userIdColumn} = @UserId";
 
                 var parameters = new[]
                 {
@@ -452,14 +453,14 @@ namespace CateringEcommerce.BAL.Base.Security
             var hashedCodes = newCodes.Select(HashBackupCode).ToList();
 
             // Update database
-            var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+            var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
             var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
             var query = $@"
                 UPDATE {tableName}
                 SET c_backup_codes = @BackupCodes,
                     c_backup_codes_used = 0,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
@@ -498,9 +499,9 @@ namespace CateringEcommerce.BAL.Base.Security
             var browser = ParseBrowser(userAgent);
             var os = ParseOS(userAgent);
 
-            var query = @"
-                INSERT INTO t_sys_trusted_device (
-                    c_user_type, c_user_id, c_device_token, c_device_name,
+            var query = $@"
+                INSERT INTO {Table.SysTrustedDevice} (
+                    c_user_type, c_userid, c_device_token, c_device_name,
                     c_ip_address, c_user_agent, c_browser, c_os, c_expires_at
                 )
                 VALUES (
@@ -527,7 +528,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<List<TrustedDeviceDto>> GetTrustedDevicesAsync(long userId, string userType)
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     c_device_id AS DeviceId,
                     c_device_token AS DeviceToken,
@@ -539,9 +540,9 @@ namespace CateringEcommerce.BAL.Base.Security
                     c_expires_at AS ExpiresAt,
                     c_last_used AS LastUsed,
                     c_is_active AS IsActive
-                FROM t_sys_trusted_device
+                FROM {Table.SysTrustedDevice}
                 WHERE c_user_type = @UserType
-                  AND c_user_id = @UserId
+                  AND c_userid = @UserId
                   AND c_is_active = 1
                 ORDER BY c_trusted_date DESC";
 
@@ -556,8 +557,8 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<bool> RevokeTrustedDeviceAsync(long deviceId, RevokeTrustedDeviceDto request)
         {
-            var query = @"
-                UPDATE t_sys_trusted_device
+            var query = $@"
+                UPDATE {Table.SysTrustedDevice}
                 SET c_is_active = 0,
                     c_revoked_date = GETDATE(),
                     c_revoked_reason = @Reason
@@ -575,13 +576,13 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<bool> RevokeAllTrustedDevicesAsync(long userId, string userType)
         {
-            var query = @"
-                UPDATE t_sys_trusted_device
+            var query = $@"
+                UPDATE {Table.SysTrustedDevice}
                 SET c_is_active = 0,
                     c_revoked_date = GETDATE(),
                     c_revoked_reason = 'All devices revoked by user'
                 WHERE c_user_type = @UserType
-                  AND c_user_id = @UserId
+                  AND c_userid = @UserId
                   AND c_is_active = 1";
 
             var parameters = new[]
@@ -660,9 +661,9 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task LogVerificationAttemptAsync(long userId, string userType, string method, bool isSuccessful,
             string ipAddress, string userAgent, string failureReason = null)
         {
-            var query = @"
-                INSERT INTO t_sys_2fa_attempt_log (
-                    c_user_type, c_user_id, c_method_used, c_is_successful,
+            var query = $@"
+                INSERT INTO {Table.Sys2FAAttemptLog} (
+                    c_user_type, c_userid, c_method_used, c_is_successful,
                     c_ip_address, c_user_agent, c_failure_reason
                 )
                 VALUES (
@@ -686,20 +687,20 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<List<TwoFactorAttemptLog>> GetRecentAttemptsAsync(long userId, string userType, int limit = 10)
         {
-            var query = @"
+            var query = $@"
                 SELECT TOP (@Limit)
                     c_log_id AS LogId,
                     c_user_type AS UserType,
-                    c_user_id AS UserId,
+                    c_userid AS UserId,
                     c_method_used AS MethodUsed,
                     c_is_successful AS IsSuccessful,
                     c_ip_address AS IpAddress,
                     c_user_agent AS UserAgent,
                     c_failure_reason AS FailureReason,
                     c_attempt_date AS AttemptDate
-                FROM t_sys_2fa_attempt_log
+                FROM {Table.Sys2FAAttemptLog}
                 WHERE c_user_type = @UserType
-                  AND c_user_id = @UserId
+                  AND c_userid = @UserId
                 ORDER BY c_attempt_date DESC";
 
             var parameters = new[]
@@ -726,7 +727,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<bool> ResetFailedAttemptsAsync(long userId, string userType)
         {
-            var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+            var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
             var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
             var query = $@"
@@ -734,7 +735,7 @@ namespace CateringEcommerce.BAL.Base.Security
                 SET c_failed_attempts = 0,
                     c_locked_until = NULL,
                     c_last_verified = GETDATE(),
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
@@ -853,13 +854,13 @@ namespace CateringEcommerce.BAL.Base.Security
 
         private async Task<bool> IncrementFailedAttemptsAsync(long userId, string userType)
         {
-            var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+            var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
             var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
             var query = $@"
                 UPDATE {tableName}
                 SET c_failed_attempts = c_failed_attempts + 1,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
@@ -873,13 +874,13 @@ namespace CateringEcommerce.BAL.Base.Security
 
         private async Task<bool> LockAccountAsync(long userId, string userType, int minutes)
         {
-            var tableName = userType == "USER" ? "t_sys_user_2fa" : "t_sys_owner_2fa";
+            var tableName = userType == "USER" ? Table.SysUser2FA : Table.SysOwner2FA;
             var userIdColumn = userType == "USER" ? "c_userid" : "c_ownerid";
 
             var query = $@"
                 UPDATE {tableName}
                 SET c_locked_until = DATEADD(MINUTE, @Minutes, GETDATE()),
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]

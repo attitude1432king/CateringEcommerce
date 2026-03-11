@@ -7,6 +7,7 @@ Fixed spacing, layout, and back button styling.
 */
 import React, { useState } from 'react';
 import UserProfileSettings from '../components/user/UserProfileSettings';
+import MyAddresses from '../components/user/MyAddresses';
 import { useNavigate } from 'react-router-dom';
 
 // Placeholder components (kept for completeness)
@@ -14,7 +15,6 @@ const Activity = () => <div className="p-6 bg-white rounded-lg shadow-md min-h-[
 const Reviews = () => <div className="p-6 bg-white rounded-lg shadow-md min-h-[400px]">Reviews Content Coming Soon...</div>;
 const PaymentMethods = () => <div className="p-6 bg-white rounded-lg shadow-md min-h-[400px]">Payment Methods Content Coming Soon...</div>;
 const ManageCards = () => <div className="p-6 bg-white rounded-lg shadow-md min-h-[400px]">Manage Cards Content Coming Soon...</div>;
-const MyAddresses = () => <div className="p-6 bg-white rounded-lg shadow-md min-h-[400px]">My Addresses Content Coming Soon...</div>;
 const BookingHistory = () => <div className="p-6 bg-white rounded-lg shadow-md min-h-[400px]">Booking History Content Coming Soon...</div>;
 
 export default function MyProfilePage() {
@@ -23,11 +23,11 @@ export default function MyProfilePage() {
 
     const tabs = {
         profile: { label: 'Profile', component: <UserProfileSettings /> },
+        addresses: { label: 'My Addresses', component: <MyAddresses /> },
         activity: { label: 'Activity', component: <Activity /> },
         reviews: { label: 'Reviews', component: <Reviews /> },
         payments: { label: 'Payment Methods', component: <PaymentMethods /> },
         cards: { label: 'Manage Cards', component: <ManageCards /> },
-        addresses: { label: 'My Addresses', component: <MyAddresses /> },
         history: { label: 'Booking History', component: <BookingHistory /> },
     };
 

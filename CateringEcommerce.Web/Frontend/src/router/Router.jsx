@@ -19,9 +19,13 @@ import PartnerLoginPage from '../pages/PartnerLoginPage';
 import CateringListPage from '../pages/CateringListPage';
 import CateringDetailPage from '../pages/CateringDetailPage';
 import CartPage from '../pages/CartPage';
-import EnhancedCheckoutPage from '../pages/EnhancedCheckoutPage';
+import ModernCheckoutPage from '../pages/ModernCheckoutPage'; // P1 FIX: Use modern 4-step checkout
 import MyOrdersPage from '../pages/MyOrdersPage';
 import OrderDetailPage from '../pages/OrderDetailPage';
+import OrderModificationPage from '../pages/OrderModificationPage'; // P1 FIX: Order modification page
+import InvoicesPage from '../pages/InvoicesPage'; // P1 FIX: Invoices page
+import SampleDeliveryTrackingPage from '../pages/SampleDeliveryTrackingPage'; // P1 FIX: Sample delivery tracking
+import WishlistPage from '../pages/WishlistPage'; // P0 FIX: Add wishlist page import
 import FileComplaintPage from '../pages/FileComplaintPage';
 import MyComplaintsPage from '../pages/MyComplaintsPage';
 import ComplaintDetailPage from '../pages/ComplaintDetailPage';
@@ -58,9 +62,13 @@ export default function Router() {
 
                     <Route element={<ClientProtectedRoute />}>
                         <Route path="profile" element={<MyProfilePage />} />
-                        <Route path="checkout" element={<EnhancedCheckoutPage />} />
+                        <Route path="checkout" element={<ModernCheckoutPage />} /> {/* P1 FIX: Use modern 4-step checkout */}
                         <Route path="my-orders" element={<MyOrdersPage />} />
                         <Route path="orders/:orderId" element={<OrderDetailPage />} />
+                        <Route path="orders/:orderId/modifications" element={<OrderModificationPage />} /> {/* P1 FIX: Order modifications */}
+                        <Route path="orders/:orderId/sample-delivery" element={<SampleDeliveryTrackingPage />} /> {/* P1 FIX: Sample delivery */}
+                        <Route path="invoices" element={<InvoicesPage />} /> {/* P1 FIX: Invoices page */}
+                        <Route path="wishlist" element={<WishlistPage />} /> {/* P0 FIX: Add wishlist route */}
                         <Route path="complaints" element={<MyComplaintsPage />} />
                         <Route path="complaints/file/:orderId" element={<FileComplaintPage />} />
                         <Route path="complaints/:complaintId" element={<ComplaintDetailPage />} />

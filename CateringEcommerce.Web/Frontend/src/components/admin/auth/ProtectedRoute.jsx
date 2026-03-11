@@ -36,38 +36,44 @@ import LoadingSkeleton from '../ui/LoadingSkeleton';
  * />
  */
 export const ProtectedRoute = ({
-  permission,
-  anyOf,
-  allOf,
-  children
+    permission,
+    anyOf,
+    allOf,
+    requiredPermissions,
+    requireSuperAdmin = false,
+    children
 }) => {
-  const { hasPermission, hasAnyPermission, hasAllPermissions, loading } = usePermissions();
+    const { hasPermission, hasAnyPermission, hasAllPermissions, isSuperAdmin, loading } = usePermissions();
 
-  // Show loading state while checking permissions
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSkeleton type="page" />
-      </div>
-    );
-  }
+    // Show loading state while checking permissions
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <LoadingSkeleton type="page" />
+            </div>
+        );
+    }
 
-  let hasAccess = false;
+    let hasAccess = false;
 
-  // Check permission based on provided props
-  if (permission) {
-    hasAccess = hasPermission(permission);
-  } else if (anyOf && Array.isArray(anyOf)) {
-    hasAccess = hasAnyPermission(anyOf);
-  } else if (allOf && Array.isArray(allOf)) {
-    hasAccess = hasAllPermissions(allOf);
-  } else {
-    // If no permission specified, deny access by default
-    console.warn('ProtectedRoute: No permission criteria specified');
-    hasAccess = false;
-  }
+    // Check permission based on provided props
+    if (requireSuperAdmin) {
+        hasAccess = isSuperAdmin;
+    } else if (requiredPermissions && Array.isArray(requiredPermissions)) {
+        hasAccess = hasAllPermissions(requiredPermissions);
+    } else if (permission) {
+        hasAccess = hasPermission(permission);
+    } else if (anyOf && Array.isArray(anyOf)) {
+        hasAccess = hasAnyPermission(anyOf);
+    } else if (allOf && Array.isArray(allOf)) {
+        hasAccess = hasAllPermissions(allOf);
+    } else {
+        // If no permission specified, deny access by default
+        console.warn('ProtectedRoute: No permission criteria specified');
+        hasAccess = false;
+    }
 
-  return hasAccess ? children : <Navigate to="/admin/403" replace />;
+    return hasAccess ? children : <Navigate to="/admin/403" replace />;
 };
 
 export default ProtectedRoute;

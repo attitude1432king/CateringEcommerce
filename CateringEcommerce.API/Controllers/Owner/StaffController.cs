@@ -1,4 +1,5 @@
 using CateringEcommerce.API.Controllers.Owner.Menu;
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
@@ -13,7 +14,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 {
     [ApiController]
     [Route("api/Owner/Staff")]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class StaffController : ControllerBase
     {
         private readonly ILogger<StaffController> _logger;

@@ -41,8 +41,11 @@ export const CartProvider = ({ children }) => {
     /**
      * Add caterer to cart with package and event details
      * Only one caterer allowed per cart - will replace existing cart if different caterer
+     * @param {Object} cateringData - The catering data to add
+     * @param {boolean} force - Force add even if different caterer exists
+     * @returns {Object} - { success: boolean, needsConfirmation?: boolean, message?: string }
      */
-    const addToCart = (cateringData) => {
+    const addToCart = (cateringData, force = false) => {
         const {
             cateringId,
             cateringName,
@@ -61,14 +64,15 @@ export const CartProvider = ({ children }) => {
         } = cateringData;
 
         // Check if trying to add different caterer
-        if (cart && cart.cateringId !== cateringId) {
-            // Different caterer - warn user
-            const confirmReplace = window.confirm(
-                `You already have ${cart.cateringName} in your cart. Do you want to replace it with ${cateringName}?`
-            );
-            if (!confirmReplace) {
-                return false;
-            }
+        if (cart && cart.cateringId !== cateringId && !force) {
+            // Different caterer - return confirmation needed
+            return {
+                success: false,
+                needsConfirmation: true,
+                message: `You already have ${cart.cateringName} in your cart. Do you want to replace it with ${cateringName}?`,
+                currentCaterer: cart.cateringName,
+                newCaterer: cateringName
+            };
         }
 
         // Calculate amounts
@@ -107,7 +111,7 @@ export const CartProvider = ({ children }) => {
 
         setCart(newCart);
         setIsCartOpen(true);
-        return true;
+        return { success: true };
     };
 
     /**

@@ -10,8 +10,8 @@ namespace CateringEcommerce.Domain.Interfaces.Common
         
         // User file uploads
         Task<string> SaveUserFileAsync(string base64Data, long userPkid, string documentType, string fileName = null);
-        Task<string> SaveUserFormFileAsync(IFormFile file, long userPkid, string documentType, string fileName = null);
-        
+        Task<string> SaveRoleBaseFormFileAsync(IFormFile file, long userPkid, string role, bool isSecure, string documentType, string fileName = null);
+
         // File deletion
         void DeleteFilePath(string relativePath);
     }

@@ -1,6 +1,7 @@
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Admin;
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
@@ -225,7 +226,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 var mdRepo = new MasterDataRepository(_dbHelper);
 
-                var usage = await mdRepo.CheckUsageAsync("t_sys_city", "c_cityid", id);
+                var usage = await mdRepo.CheckUsageAsync(Table.City, "c_cityid", id);
 
                 return ApiResponseHelper.Success(usage, "Usage check completed.");
             }
@@ -398,7 +399,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 var mdRepo = new MasterDataRepository(_dbHelper);
 
-                var usage = await mdRepo.CheckUsageAsync("t_sys_food_category", "c_category_id", id);
+                var usage = await mdRepo.CheckUsageAsync(Table.SysFoodCategory, "c_category_id", id);
 
                 return ApiResponseHelper.Success(usage, "Usage check completed.");
             }
@@ -601,7 +602,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 var mdRepo = new MasterDataRepository(_dbHelper);
 
-                var usage = await mdRepo.CheckUsageAsync("t_sys_catering_type_master", "c_type_id", id);
+                var usage = await mdRepo.CheckUsageAsync(Table.SysCateringTypeMaster, "c_type_id", id);
 
                 return ApiResponseHelper.Success(usage, "Usage check completed.");
             }
@@ -774,7 +775,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 var mdRepo = new MasterDataRepository(_dbHelper);
 
-                var usage = await mdRepo.CheckUsageAsync("t_sys_guest_category", "c_guest_category_id", id);
+                var usage = await mdRepo.CheckUsageAsync(Table.SysGuestCategory, "c_guest_category_id", id);
 
                 return ApiResponseHelper.Success(usage, "Usage check completed.");
             }
@@ -947,7 +948,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 var mdRepo = new MasterDataRepository(_dbHelper);
 
-                var usage = await mdRepo.CheckUsageAsync("t_sys_catering_theme_types", "c_theme_id", id);
+                var usage = await mdRepo.CheckUsageAsync(Table.SysCateringThemeTypes, "c_theme_id", id);
 
                 return ApiResponseHelper.Success(usage, "Usage check completed.");
             }

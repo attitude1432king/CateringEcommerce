@@ -8,5 +8,15 @@ namespace CateringEcommerce.Domain.Interfaces
         bool IsExistEmail(string email, string role = "User");
         bool IsExistNumber(string phoneNumber, string role);
         bool IsExistRoleBaseNumber(string phoneNumber, string type, string role);
+        
+        /// <summary>
+        /// Get approval status for partner/owner by phone number
+        /// </summary>
+        int? GetOwnerApprovalStatus(string phoneNumber);
+        
+        /// <summary>
+        /// Check if owner exists and get their details along with approval status
+        /// </summary>
+        (bool exists, int? approvalStatus) CheckOwnerWithApprovalStatus(string phoneNumber);
     }
 }

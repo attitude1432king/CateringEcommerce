@@ -1,4 +1,5 @@
 ﻿using CateringEcommerce.Domain.Models.APIModels.Owner;
+using CateringEcommerce.Domain.Models.Common;
 using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Models.Owner

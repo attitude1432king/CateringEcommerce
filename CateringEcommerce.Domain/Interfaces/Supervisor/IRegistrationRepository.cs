@@ -32,6 +32,12 @@ namespace CateringEcommerce.Domain.Interfaces.Supervisor
         Task<SupervisorRegistrationModel> GetRegistrationBySupervisorIdAsync(long supervisorId);
 
         // =============================================
+        // DOCUMENT MANAGEMENT
+        // =============================================
+
+        Task<bool> SubmitIdentityProofDocumentsAsync(long registrationId, string idProofUrl, string addressProofUrl, string photoUrl, string cancelledChequeUrl);
+
+        // =============================================
         // STAGE PROGRESSION
         // =============================================
 
@@ -116,15 +122,17 @@ namespace CateringEcommerce.Domain.Interfaces.Supervisor
         public string Email { get; set; }
         public string Phone { get; set; }
         public string Address { get; set; }
+        public string Pincode { get; set; }
+        public int StateID { get; set; }
+        public int CityID { get; set; }
         public DateTime DateOfBirth { get; set; }
         public string IDProofType { get; set; }
         public string IDProofNumber { get; set; }
         public string IDProofUrl { get; set; }
         public string AddressProofUrl { get; set; }
         public string PhotoUrl { get; set; }
-        public long? PreferredZoneId { get; set; }
         public bool HasPriorExperience { get; set; }
-        public string PriorExperienceDetails { get; set; }
+        public string? PriorExperienceDetails { get; set; }
     }
 
     public class DocumentVerificationDto

@@ -8,10 +8,6 @@ namespace CateringEcommerce.Domain.Models.Owner
     {
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public string EventType { get; set; }
-        public string ReportType { get; set; } // Sales, Revenue, Customer, MenuPerformance
-        public string GroupBy { get; set; } = "Month"; // Day, Week, Month, Quarter, Year
-        public bool IncludeCharts { get; set; } = true;
     }
 
     // Sales Report DTO

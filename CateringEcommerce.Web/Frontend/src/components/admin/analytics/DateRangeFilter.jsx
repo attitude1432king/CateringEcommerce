@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import { Calendar, X } from 'lucide-react';
 
+const INDIA_TIME_ZONE = 'Asia/Kolkata';
+
+const getIndiaNow = () =>
+    new Date(new Date().toLocaleString('en-US', { timeZone: INDIA_TIME_ZONE }));
+
+const formatDateInIndia = (date) =>
+    new Intl.DateTimeFormat('en-CA', {
+        timeZone: INDIA_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
+
 /**
  * Date Range Filter Component
  * Allows selecting date range with preset options
@@ -26,7 +39,7 @@ const DateRangeFilter = ({ onDateChange, defaultRange = 'last30days' }) => {
     ];
 
     const calculateDateRange = (range) => {
-        const today = new Date();
+        const today = getIndiaNow();
         const year = today.getFullYear();
         const month = today.getMonth();
         const date = today.getDate();
@@ -34,43 +47,43 @@ const DateRangeFilter = ({ onDateChange, defaultRange = 'last30days' }) => {
         switch (range) {
             case 'today':
                 return {
-                    from: new Date(year, month, date).toISOString().split('T')[0],
-                    to: new Date(year, month, date).toISOString().split('T')[0],
+                    from: formatDateInIndia(new Date(year, month, date)),
+                    to: formatDateInIndia(new Date(year, month, date)),
                 };
             case 'yesterday':
                 return {
-                    from: new Date(year, month, date - 1).toISOString().split('T')[0],
-                    to: new Date(year, month, date - 1).toISOString().split('T')[0],
+                    from: formatDateInIndia(new Date(year, month, date - 1)),
+                    to: formatDateInIndia(new Date(year, month, date - 1)),
                 };
             case 'last7days':
                 return {
-                    from: new Date(year, month, date - 7).toISOString().split('T')[0],
-                    to: new Date(year, month, date).toISOString().split('T')[0],
+                    from: formatDateInIndia(new Date(year, month, date - 7)),
+                    to: formatDateInIndia(new Date(year, month, date)),
                 };
             case 'last30days':
                 return {
-                    from: new Date(year, month, date - 30).toISOString().split('T')[0],
-                    to: new Date(year, month, date).toISOString().split('T')[0],
+                    from: formatDateInIndia(new Date(year, month, date - 30)),
+                    to: formatDateInIndia(new Date(year, month, date)),
                 };
             case 'thisMonth':
                 return {
-                    from: new Date(year, month, 1).toISOString().split('T')[0],
-                    to: new Date(year, month, date).toISOString().split('T')[0],
+                    from: formatDateInIndia(new Date(year, month, 1)),
+                    to: formatDateInIndia(new Date(year, month, date)),
                 };
             case 'lastMonth':
                 return {
-                    from: new Date(year, month - 1, 1).toISOString().split('T')[0],
-                    to: new Date(year, month, 0).toISOString().split('T')[0],
+                    from: formatDateInIndia(new Date(year, month - 1, 1)),
+                    to: formatDateInIndia(new Date(year, month, 0)),
                 };
             case 'last3months':
                 return {
-                    from: new Date(year, month - 3, date).toISOString().split('T')[0],
-                    to: new Date(year, month, date).toISOString().split('T')[0],
+                    from: formatDateInIndia(new Date(year, month - 3, date)),
+                    to: formatDateInIndia(new Date(year, month, date)),
                 };
             case 'thisYear':
                 return {
-                    from: new Date(year, 0, 1).toISOString().split('T')[0],
-                    to: new Date(year, month, date).toISOString().split('T')[0],
+                    from: formatDateInIndia(new Date(year, 0, 1)),
+                    to: formatDateInIndia(new Date(year, month, date)),
                 };
             default:
                 return null;

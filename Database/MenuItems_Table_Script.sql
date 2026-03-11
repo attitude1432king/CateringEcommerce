@@ -57,9 +57,9 @@ BEGIN
         [c_display_priority] INT NULL,
         
         -- Audit Columns
-        [c_created_date] DATETIME NOT NULL DEFAULT GETDATE(),
+        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
         [c_created_by] BIGINT NULL,
-        [c_modified_date] DATETIME NULL,
+        [c_modifieddate] DATETIME NULL,
         [c_modified_by] BIGINT NULL,
         [c_is_deleted] BIT NOT NULL DEFAULT 0,
         [c_deleted_date] DATETIME NULL,
@@ -86,7 +86,7 @@ BEGIN
         ON [dbo].[SysMenuItems] ([c_is_vegetarian], [c_is_active]);
     
     CREATE NONCLUSTERED INDEX [IX_SysMenuItems_CreatedDate] 
-        ON [dbo].[SysMenuItems] ([c_created_date] DESC);
+        ON [dbo].[SysMenuItems] ([c_createddate] DESC);
     
     CREATE NONCLUSTERED INDEX [IX_SysMenuItems_Price] 
         ON [dbo].[SysMenuItems] ([c_price])

@@ -1,3 +1,4 @@
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -76,10 +77,10 @@ namespace CateringEcommerce.BAL.Services
                 _logger.LogInformation("Starting SendCommissionTransitionNotices job...");
 
                 // Get vendors whose lock-in expires in 60 days
-                var query = @"
+                var query = $@"
                     SELECT vpt.*, co.c_catering_name, co.c_email
-                    FROM t_sys_vendor_partnership_tiers vpt
-                    INNER JOIN t_sys_catering_owner co ON vpt.c_ownerid = co.c_ownerid
+                    FROM {Table.SysOwnerPartnershipTiers} vpt
+                    INNER JOIN {Table.SysCateringOwner} co ON vpt.c_ownerid = co.c_ownerid
                     WHERE vpt.c_is_lock_period_active = 1
                       AND DATEDIFF(DAY, GETDATE(), vpt.c_tier_lock_end_date) = 60
                       AND vpt.c_transition_notice_sent = 0";
@@ -92,8 +93,8 @@ namespace CateringEcommerce.BAL.Services
                     _logger.LogInformation($"Sending commission transition notice to vendor {vendor.c_ownerid}");
 
                     // Mark as sent
-                    var updateQuery = @"
-                        UPDATE t_sys_vendor_partnership_tiers
+                    var updateQuery = $@"
+                        UPDATE {Table.SysOwnerPartnershipTiers}
                         SET c_transition_notice_sent = 1,
                             c_transition_notice_sent_date = GETDATE()
                         WHERE c_tier_id = @TierId";
@@ -123,12 +124,12 @@ namespace CateringEcommerce.BAL.Services
             {
                 _logger.LogInformation("Starting EscalateStaleComplaints job...");
 
-                var query = @"
-                    UPDATE t_sys_order_complaints
+                var query = $@"
+                    UPDATE {Table.SysOrderComplaints}
                     SET c_status = 'Escalated',
-                        c_modified_date = GETDATE()
+                        c_modifieddate = GETDATE()
                     WHERE c_status = 'Open'
-                      AND DATEDIFF(HOUR, c_created_date, GETDATE()) > 12
+                      AND DATEDIFF(HOUR, c_createddate, GETDATE()) > 12
                       AND c_severity IN ('CRITICAL', 'MAJOR')";
 
                 var escalatedCount = await _dbHelper.ExecuteNonQueryAsync(query);

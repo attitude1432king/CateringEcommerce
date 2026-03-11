@@ -35,50 +35,50 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         SUM(CASE WHEN c_order_status = 'Completed' THEN 1 ELSE 0 END) AS CompletedOrders,
                         SUM(CASE WHEN c_order_status = 'Pending' OR c_order_status = 'Confirmed' THEN 1 ELSE 0 END) AS PendingOrders,
                         SUM(CASE WHEN c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS CancelledOrders,
-                        ISNULL(SUM(c_final_amount), 0) AS TotalRevenue,
-                        ISNULL(AVG(c_final_amount), 0) AS AverageOrderValue,
+                        ISNULL(SUM(c_total_amount), 0) AS TotalRevenue,
+                        ISNULL(AVG(c_total_amount), 0) AS AverageOrderValue,
                         SUM(c_guest_count) AS TotalGuestsServed
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @StartDate
-                        AND c_created_date <= @EndDate;
+                        AND c_createddate >= @StartDate
+                        AND c_createddate <= @EndDate;
 
                     -- Event Type Breakdown
                     SELECT
                         c_event_type AS EventType,
                         COUNT(*) AS OrderCount,
-                        SUM(c_final_amount) AS TotalRevenue,
-                        AVG(c_final_amount) AS AverageOrderValue
+                        SUM(c_total_amount) AS TotalRevenue,
+                        AVG(c_total_amount) AS AverageOrderValue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @StartDate
-                        AND c_created_date <= @EndDate
+                        AND c_createddate >= @StartDate
+                        AND c_createddate <= @EndDate
                     GROUP BY c_event_type;
 
                     -- Time Series Data
                     SELECT
-                        FORMAT(c_created_date, 'MMM yyyy') AS Period,
+                        FORMAT(c_createddate, 'MMM yyyy') AS Period,
                         COUNT(*) AS OrderCount,
-                        SUM(c_final_amount) AS Revenue,
+                        SUM(c_total_amount) AS Revenue,
                         SUM(c_guest_count) AS GuestsServed
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @StartDate
-                        AND c_created_date <= @EndDate
-                    GROUP BY YEAR(c_created_date), MONTH(c_created_date), FORMAT(c_created_date, 'MMM yyyy')
-                    ORDER BY YEAR(c_created_date), MONTH(c_created_date);
+                        AND c_createddate >= @StartDate
+                        AND c_createddate <= @EndDate
+                    GROUP BY YEAR(c_createddate), MONTH(c_createddate), FORMAT(c_createddate, 'MMM yyyy')
+                    ORDER BY YEAR(c_createddate), MONTH(c_createddate);
 
                     -- Comparison with previous period
                     DECLARE @PreviousStartDate DATE = DATEADD(DAY, -DATEDIFF(DAY, @StartDate, @EndDate), @StartDate);
                     DECLARE @PreviousEndDate DATE = @StartDate;
 
                     SELECT
-                        ISNULL(SUM(c_final_amount), 0) AS PreviousRevenue,
+                        ISNULL(SUM(c_total_amount), 0) AS PreviousRevenue,
                         COUNT(*) AS PreviousOrders
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @PreviousStartDate
-                        AND c_created_date < @PreviousEndDate;";
+                        AND c_createddate >= @PreviousStartDate
+                        AND c_createddate < @PreviousEndDate;";
 
                 var parameters = new[]
                 {
@@ -170,64 +170,70 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var query = $@"
                     -- Revenue Summary
                     SELECT
-                        SUM(c_final_amount) AS GrossRevenue,
-                        SUM(c_final_amount - c_tax_amount) AS NetRevenue,
-                        SUM(c_tax_amount) AS TotalTax,
-                        SUM(c_discount_amount) AS TotalDiscounts,
-                        SUM(c_delivery_charges) AS DeliveryCharges,
-                        SUM(CASE WHEN c_payment_status != 'Completed' THEN c_final_amount - ISNULL(c_paid_amount, 0) ELSE 0 END) AS PendingPayments
-                    FROM {Table.SysOrders}
-                    WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @StartDate
-                        AND c_created_date <= @EndDate;
+                        SUM(o.c_total_amount) AS GrossRevenue,
+                        SUM(o.c_total_amount - o.c_tax_amount) AS NetRevenue,
+                        SUM(o.c_tax_amount) AS TotalTax,
+                        SUM(o.c_discount_amount) AS TotalDiscounts,
+                        SUM(o.c_delivery_charges) AS DeliveryCharges,
+                        SUM(CASE WHEN o.c_payment_status != 'Completed' THEN o.c_total_amount - ISNULL(pay.PaidAmount, 0) ELSE 0 END) AS PendingPayments
+                    FROM {Table.SysOrders} o
+                    OUTER APPLY (
+                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                        FROM {Table.SysOrderPayments} p
+                        WHERE p.c_orderid = o.c_orderid
+                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay
+                    WHERE o.c_ownerid = @OwnerId
+                        AND o.c_createddate >= @StartDate
+                        AND o.c_createddate <= @EndDate;
 
                     -- Payment Method Breakdown
                     SELECT
                         c_payment_method AS PaymentMethod,
-                        SUM(c_paid_amount) AS Amount
+                        SUM(ISNULL(c_paid_amount, c_amount)) AS Amount
                     FROM {Table.SysOrderPayments}
                     WHERE c_orderid IN (
                         SELECT c_orderid FROM {Table.SysOrders}
                         WHERE c_ownerid = @OwnerId
-                            AND c_created_date >= @StartDate
-                            AND c_created_date <= @EndDate
+                            AND c_createddate >= @StartDate
+                            AND c_createddate <= @EndDate
                     )
                     GROUP BY c_payment_method;
 
                     -- Payment Status Breakdown
                     SELECT
                         c_payment_status AS PaymentStatus,
-                        SUM(c_final_amount) AS Amount
+                        SUM(c_total_amount) AS Amount
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @StartDate
-                        AND c_created_date <= @EndDate
+                        AND c_createddate >= @StartDate
+                        AND c_createddate <= @EndDate
                     GROUP BY c_payment_status;
 
                     -- Monthly Revenue
                     SELECT
-                        FORMAT(c_created_date, 'MMM yyyy') AS Month,
-                        YEAR(c_created_date) AS Year,
-                        SUM(c_final_amount) AS GrossRevenue,
-                        SUM(c_final_amount - c_tax_amount) AS NetRevenue,
+                        FORMAT(c_createddate, 'MMM yyyy') AS Month,
+                        YEAR(c_createddate) AS Year,
+                        SUM(c_total_amount) AS GrossRevenue,
+                        SUM(c_total_amount - c_tax_amount) AS NetRevenue,
                         SUM(c_tax_amount) AS TaxAmount,
                         SUM(c_discount_amount) AS DiscountAmount,
                         COUNT(*) AS OrderCount
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @StartDate
-                        AND c_created_date <= @EndDate
-                    GROUP BY YEAR(c_created_date), MONTH(c_created_date), FORMAT(c_created_date, 'MMM yyyy')
-                    ORDER BY YEAR(c_created_date), MONTH(c_created_date);
+                        AND c_createddate >= @StartDate
+                        AND c_createddate <= @EndDate
+                    GROUP BY YEAR(c_createddate), MONTH(c_createddate), FORMAT(c_createddate, 'MMM yyyy')
+                    ORDER BY YEAR(c_createddate), MONTH(c_createddate);
 
                     -- Revenue by Event Type
                     SELECT
                         c_event_type AS EventType,
-                        SUM(c_final_amount) AS Revenue
+                        SUM(c_total_amount) AS Revenue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @StartDate
-                        AND c_created_date <= @EndDate
+                        AND c_createddate >= @StartDate
+                        AND c_createddate <= @EndDate
                     GROUP BY c_event_type;";
 
                 var parameters = new[]
@@ -324,32 +330,32 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- Customer Summary
                     SELECT
                         COUNT(DISTINCT o.c_userid) AS TotalCustomers,
-                        COUNT(DISTINCT CASE WHEN u.c_created_date >= @StartDate THEN o.c_userid END) AS NewCustomers,
+                        COUNT(DISTINCT CASE WHEN u.c_createddate >= @StartDate THEN o.c_userid END) AS NewCustomers,
                         COUNT(DISTINCT CASE WHEN EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_created_date < @StartDate
+                            AND o2.c_createddate < @StartDate
                         ) THEN o.c_userid END) AS ReturningCustomers,
                         ISNULL(AVG(CustomerLifetime.LifetimeValue), 0) AS AverageLifetimeValue
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
                     LEFT JOIN (
-                        SELECT c_userid, SUM(c_final_amount) AS LifetimeValue
+                        SELECT c_userid, SUM(c_total_amount) AS LifetimeValue
                         FROM {Table.SysOrders}
                         WHERE c_ownerid = @OwnerId
                         GROUP BY c_userid
                     ) CustomerLifetime ON o.c_userid = CustomerLifetime.c_userid
                     WHERE o.c_ownerid = @OwnerId
-                        AND o.c_created_date >= @StartDate
-                        AND o.c_created_date <= @EndDate;
+                        AND o.c_createddate >= @StartDate
+                        AND o.c_createddate <= @EndDate;
 
                     -- Customer Satisfaction
-                    SELECT ISNULL(AVG(CAST(c_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfactionScore
+                    SELECT ISNULL(AVG(CAST(c_overall_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfactionScore
                     FROM {Table.SysCateringReview} r
                     INNER JOIN {Table.SysOrders} o ON r.c_orderid = o.c_orderid
                     WHERE o.c_ownerid = @OwnerId
-                        AND o.c_created_date >= @StartDate
-                        AND o.c_created_date <= @EndDate;
+                        AND o.c_createddate >= @StartDate
+                        AND o.c_createddate <= @EndDate;
 
                     -- Top Customers
                     SELECT TOP 10
@@ -358,35 +364,35 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         u.c_email AS Email,
                         u.c_mobilenumber AS Phone,
                         COUNT(o.c_orderid) AS TotalOrders,
-                        SUM(o.c_final_amount) AS LifetimeValue,
-                        MAX(o.c_created_date) AS LastOrderDate
+                        SUM(o.c_total_amount) AS LifetimeValue,
+                        MAX(o.c_createddate) AS LastOrderDate
                     FROM {Table.SysUser} u
                     INNER JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                     WHERE o.c_ownerid = @OwnerId
-                        AND o.c_created_date >= @StartDate
-                        AND o.c_created_date <= @EndDate
+                        AND o.c_createddate >= @StartDate
+                        AND o.c_createddate <= @EndDate
                     GROUP BY u.c_userid, u.c_firstname, u.c_lastname, u.c_email, u.c_mobilenumber
                     ORDER BY LifetimeValue DESC;
 
                     -- Customer Acquisition by Month
                     SELECT
-                        FORMAT(o.c_created_date, 'MMM yyyy') AS Month,
+                        FORMAT(o.c_createddate, 'MMM yyyy') AS Month,
                         COUNT(DISTINCT CASE WHEN NOT EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_created_date < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_created_date), 0)
+                            AND o2.c_createddate < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_createddate), 0)
                         ) THEN o.c_userid END) AS NewCustomers,
                         COUNT(DISTINCT CASE WHEN EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_created_date < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_created_date), 0)
+                            AND o2.c_createddate < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_createddate), 0)
                         ) THEN o.c_userid END) AS ReturningCustomers
                     FROM {Table.SysOrders} o
                     WHERE o.c_ownerid = @OwnerId
-                        AND o.c_created_date >= @StartDate
-                        AND o.c_created_date <= @EndDate
-                    GROUP BY YEAR(o.c_created_date), MONTH(o.c_created_date), FORMAT(o.c_created_date, 'MMM yyyy')
-                    ORDER BY YEAR(o.c_created_date), MONTH(o.c_created_date);";
+                        AND o.c_createddate >= @StartDate
+                        AND o.c_createddate <= @EndDate
+                    GROUP BY YEAR(o.c_createddate), MONTH(o.c_createddate), FORMAT(o.c_createddate, 'MMM yyyy')
+                    ORDER BY YEAR(o.c_createddate), MONTH(o.c_createddate);";
 
                 var parameters = new[]
                 {
@@ -487,7 +493,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         COUNT(DISTINCT oi.c_orderid) AS OrderCount,
                         SUM(oi.c_quantity) AS TotalQuantitySold,
                         SUM(oi.c_item_total) AS TotalRevenue,
-                        ISNULL(AVG(CAST(r.c_rating AS DECIMAL(10,2))), 0) AS AverageRating,
+                        ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(10,2))), 0) AS AverageRating,
                         f.c_price AS Price,
                         CASE
                             WHEN f.c_ispackage_item = 1 THEN 'Package'
@@ -505,7 +511,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     LEFT JOIN {Table.SysCateringReview} r ON o.c_orderid = r.c_orderid
                     WHERE f.c_ownerid = @OwnerId
                         AND f.c_is_deleted = 0
-                        AND (o.c_orderid IS NULL OR (o.c_created_date >= @StartDate AND o.c_created_date <= @EndDate))
+                        AND (o.c_orderid IS NULL OR (o.c_createddate >= @StartDate AND o.c_createddate <= @EndDate))
                     GROUP BY f.c_foodid, ISNULL(f.c_foodname, p.c_packagename),
                              ISNULL(fc.c_categoryname, 'Package'), f.c_price, f.c_ispackage_item;
 
@@ -515,7 +521,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         COUNT(DISTINCT f.c_foodid) AS ItemCount,
                         COUNT(DISTINCT oi.c_orderid) AS TotalOrders,
                         SUM(oi.c_item_total) AS TotalRevenue,
-                        ISNULL(AVG(CAST(r.c_rating AS DECIMAL(10,2))), 0) AS AverageRating
+                        ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(10,2))), 0) AS AverageRating
                     FROM {Table.SysFoodItems} f
                     LEFT JOIN {Table.SysFoodCategory} fc ON f.c_categoryid = fc.c_categoryid
                     LEFT JOIN {Table.SysOrderItems} oi ON f.c_foodid = oi.c_foodid
@@ -523,7 +529,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     LEFT JOIN {Table.SysCateringReview} r ON o.c_orderid = r.c_orderid
                     WHERE f.c_ownerid = @OwnerId
                         AND f.c_is_deleted = 0
-                        AND (o.c_orderid IS NULL OR (o.c_created_date >= @StartDate AND o.c_created_date <= @EndDate))
+                        AND (o.c_orderid IS NULL OR (o.c_createddate >= @StartDate AND o.c_createddate <= @EndDate))
                     GROUP BY ISNULL(fc.c_categoryname, 'Package');
 
                     -- Total Active Items (Food Items + Packages)
@@ -646,15 +652,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var query = $@"
                     -- Income Summary
                     SELECT
-                        SUM(c_final_amount) AS TotalIncome,
+                        SUM(c_total_amount) AS TotalIncome,
                         SUM(c_subtotal) AS FoodRevenue,
                         0 AS DecorationRevenue,
                         0 AS StaffRevenue,
                         SUM(c_delivery_charges) AS OtherRevenue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @StartDate
-                        AND c_created_date <= @EndDate;
+                        AND c_createddate >= @StartDate
+                        AND c_createddate <= @EndDate;
 
                     -- Outstanding Payments
                     SELECT
@@ -662,15 +668,21 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         o.c_order_number AS OrderNumber,
                         CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
                         o.c_event_date AS EventDate,
-                        o.c_final_amount AS TotalAmount,
-                        ISNULL(o.c_paid_amount, 0) AS PaidAmount,
-                        (o.c_final_amount - ISNULL(o.c_paid_amount, 0)) AS BalanceAmount,
+                        o.c_total_amount AS TotalAmount,
+                        ISNULL(pay.PaidAmount, 0) AS PaidAmount,
+                        (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) AS BalanceAmount,
                         DATEDIFF(DAY, o.c_event_date, GETDATE()) AS DaysOverdue
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
+                    OUTER APPLY (
+                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                        FROM {Table.SysOrderPayments} p
+                        WHERE p.c_orderid = o.c_orderid
+                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay
                     WHERE o.c_ownerid = @OwnerId
                         AND o.c_payment_status != 'Completed'
-                        AND (o.c_final_amount - ISNULL(o.c_paid_amount, 0)) > 0
+                        AND (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) > 0
                     ORDER BY DaysOverdue DESC;";
 
                 var parameters = new[]

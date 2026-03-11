@@ -22,12 +22,11 @@ export const validateGuestTotals = (guestCategories, totalGuests) => {
 /**
  * Validates minimum guest count for event catering
  */
-export const validateMinimumGuests = (totalGuests) => {
-    const MIN_GUESTS = 50;
+export const validateMinimumGuests = (totalGuests, minGuests = 50) => {
     return {
-        isValid: totalGuests >= MIN_GUESTS,
-        minRequired: MIN_GUESTS,
-        message: totalGuests < MIN_GUESTS ? `Minimum ${MIN_GUESTS} guests required for event catering` : null
+        isValid: totalGuests >= minGuests,
+        minRequired: minGuests,
+        message: totalGuests < minGuests ? `Minimum ${minGuests} guests required for event catering` : null
     };
 };
 
@@ -162,7 +161,8 @@ export const calculatePackagePrice = (packageData, guestCategories) => {
 /**
  * Validates entire event setup before allowing package selection
  */
-export const validateEventSetup = (eventData) => {
+export const validateEventSetup = (eventData, config = {}) => {
+    const minGuests = config.minGuests ?? 50;
     const errors = [];
 
     // Validate event date
@@ -172,7 +172,7 @@ export const validateEventSetup = (eventData) => {
     }
 
     // Validate minimum guests
-    const minGuestsValidation = validateMinimumGuests(eventData.totalGuests);
+    const minGuestsValidation = validateMinimumGuests(eventData.totalGuests, minGuests);
     if (!minGuestsValidation.isValid) {
         errors.push(minGuestsValidation.message);
     }

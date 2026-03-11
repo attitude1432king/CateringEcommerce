@@ -1,5 +1,6 @@
 ﻿using CateringEcommerce.API.Attributes;
 using CateringEcommerce.API.Controllers.Owner.Menu;
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.BAL.Configuration;
@@ -16,7 +17,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 {
     [Route("api/Owner/Discounts")]
     [ApiController]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class DiscountsController : ControllerBase
     {
         private readonly ILogger<DiscountsController> _logger;

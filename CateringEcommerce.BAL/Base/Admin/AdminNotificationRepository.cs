@@ -5,6 +5,7 @@ using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Threading.Tasks;
 
 namespace CateringEcommerce.BAL.Base.Admin
 {
@@ -16,7 +17,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             _dbHelper = dbHelper;
         }
 
-        public AdminNotificationListResponse GetNotifications(AdminNotificationListRequest request, long? adminId = null)
+        public async Task<AdminNotificationListResponse> GetNotifications(AdminNotificationListRequest request, long? adminId = null)
         {
             var response = new AdminNotificationListResponse();
 
@@ -56,10 +57,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_link AS Link,
                     c_is_read AS IsRead,
                     c_read_date AS ReadDate,
-                    c_created_date AS CreatedAt
+                    c_createddate AS CreatedAt
                 FROM {Table.SysAdminNotifications}
                 {whereClause}
-                ORDER BY c_created_date DESC
+                ORDER BY c_createddate DESC
                 OFFSET {(request.PageNumber - 1) * request.PageSize} ROWS
                 FETCH NEXT {request.PageSize} ROWS ONLY";
 
@@ -91,12 +92,12 @@ namespace CateringEcommerce.BAL.Base.Admin
             response.TotalCount = responseResult != null ? Convert.ToInt32(responseResult) : 0;
 
             // Get unread count
-            response.UnreadCount = GetUnreadCount(adminId);
+            response.UnreadCount = await GetUnreadCount(adminId);
 
             return response;
         }
 
-        public int GetUnreadCount(long? adminId = null)
+        public async Task<int> GetUnreadCount(long? adminId = null)
         {
             var whereClause = "WHERE c_is_read = 0";
             var parameters = new List<SqlParameter>();
@@ -112,10 +113,11 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdminNotifications}
                 {whereClause}";
 
-            return Convert.ToInt16(_dbHelper.ExecuteScalar(query, parameters.ToArray()));
+            var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
+            return result != null ? Convert.ToInt16(result) : 0;
         }
 
-        public bool MarkAsRead(long notificationId, long adminId)
+        public async Task<bool> MarkAsRead(long notificationId, long adminId)
         {
             try
             {
@@ -132,7 +134,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     new SqlParameter("@AdminId", adminId)
                 };
 
-                _dbHelper.ExecuteNonQuery(query, parameters);
+                await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return true;
             }
             catch
@@ -141,7 +143,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             }
         }
 
-        public bool MarkAllAsRead(long adminId)
+        public async Task<bool> MarkAllAsRead(long adminId)
         {
             try
             {
@@ -157,7 +159,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     new SqlParameter("@AdminId", adminId)
                 };
 
-                _dbHelper.ExecuteNonQuery(query, parameters);
+                await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return true;
             }
             catch
@@ -166,13 +168,13 @@ namespace CateringEcommerce.BAL.Base.Admin
             }
         }
 
-        public bool CreateNotification(string notificationType, string title, string? message, long? entityId, string? entityType, string? link, long? adminId = null)
+        public async Task<bool> CreateNotification(string notificationType, string title, string? message, long? entityId, string? entityType, string? link, long? adminId = null)
         {
             try
             {
                 var query = $@"
                     INSERT INTO {Table.SysAdminNotifications}
-                    (c_adminid, c_notification_type, c_title, c_message, c_entity_id, c_entity_type, c_link, c_is_read, c_created_date)
+                    (c_adminid, c_notification_type, c_title, c_message, c_entity_id, c_entity_type, c_link, c_is_read, c_createddate)
                     VALUES
                     (@AdminId, @NotificationType, @Title, @Message, @EntityId, @EntityType, @Link, 0, GETDATE())";
 
@@ -187,7 +189,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     new SqlParameter("@Link", (object?)link ?? DBNull.Value)
                 };
 
-                _dbHelper.ExecuteNonQuery(query, parameters);
+                await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return true;
             }
             catch
@@ -196,14 +198,14 @@ namespace CateringEcommerce.BAL.Base.Admin
             }
         }
 
-        public bool DeleteNotification(long notificationId)
+        public async Task<bool> DeleteNotification(long notificationId)
         {
             try
             {
                 var query = $"DELETE FROM {Table.SysAdminNotifications} WHERE c_notification_id = @NotificationId";
                 var parameters = new[] { new SqlParameter("@NotificationId", notificationId) };
 
-                _dbHelper.ExecuteNonQuery(query, parameters);
+                await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return true;
             }
             catch

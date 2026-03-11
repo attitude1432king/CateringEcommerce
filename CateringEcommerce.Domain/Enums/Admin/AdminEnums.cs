@@ -21,6 +21,20 @@ namespace CateringEcommerce.Domain.Enums.Admin
         Info_Requested = 5
     }
 
+    public enum SupervisorApprovalStatus
+    {
+        [Display(Name = "Pending")]
+        Pending = 0,
+        [Display(Name = "Approved")]
+        Approved = 1,
+        [Display(Name = "Rejected")]
+        Rejected = 2,
+        [Display(Name = "Under Review")]
+        UnderReview = 3,
+        [Display(Name = "Info Requested")]
+        InfoRequested = 4
+    }
+
     public enum PriorityStatus
     {
         [Display(Name = "Low")]

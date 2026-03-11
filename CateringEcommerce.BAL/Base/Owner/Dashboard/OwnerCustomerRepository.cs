@@ -36,11 +36,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                             CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
                             u.c_email AS Email,
                             u.c_mobilenumber AS Phone,
-                            u.c_created_date AS RegisteredDate,
+                            u.c_createddate AS RegisteredDate,
                             COUNT(o.c_orderid) AS TotalOrders,
-                            ISNULL(SUM(o.c_final_amount), 0) AS LifetimeValue,
-                            MAX(o.c_created_date) AS LastOrderDate,
-                            ISNULL(AVG(o.c_final_amount), 0) AS AverageOrderValue,
+                            ISNULL(SUM(o.c_total_amount), 0) AS LifetimeValue,
+                            MAX(o.c_createddate) AS LastOrderDate,
+                            ISNULL(AVG(o.c_total_amount), 0) AS AverageOrderValue,
                             (SELECT TOP 1 c_event_type
                              FROM {Table.SysOrders}
                              WHERE c_userid = u.c_userid AND c_ownerid = @OwnerId
@@ -48,14 +48,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                              ORDER BY COUNT(*) DESC) AS PreferredEventType,
                             CASE
                                 WHEN COUNT(o.c_orderid) = 1 THEN 'New'
-                                WHEN COUNT(o.c_orderid) >= 5 OR SUM(o.c_final_amount) >= 50000 THEN 'VIP'
+                                WHEN COUNT(o.c_orderid) >= 5 OR SUM(o.c_total_amount) >= 50000 THEN 'VIP'
                                 ELSE 'Regular'
                             END AS CustomerType
                         FROM {Table.SysUser} u
                         INNER JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                         WHERE o.c_ownerid = @OwnerId
                         GROUP BY u.c_userid, u.c_firstname, u.c_lastname, u.c_email,
-                                 u.c_mobilenumber, u.c_created_date
+                                 u.c_mobilenumber, u.c_createddate
                     )";
 
                 var parameters = new List<SqlParameter>
@@ -191,7 +191,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
                         u.c_email AS Email,
                         u.c_mobilenumber AS Phone,
-                        u.c_created_date AS RegisteredDate,
+                        u.c_createddate AS RegisteredDate,
                         u.c_address AS Address,
                         u.c_city AS City,
                         u.c_state AS State,
@@ -202,23 +202,29 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- Order Statistics
                     SELECT
                         COUNT(*) AS TotalOrders,
-                        SUM(CASE WHEN c_order_status = 'Completed' THEN 1 ELSE 0 END) AS CompletedOrders,
-                        SUM(CASE WHEN c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS CancelledOrders,
-                        ISNULL(SUM(c_final_amount), 0) AS LifetimeValue,
-                        ISNULL(AVG(c_final_amount), 0) AS AverageOrderValue,
-                        ISNULL(SUM(c_final_amount), 0) AS TotalSpent,
-                        ISNULL(SUM(c_final_amount - c_paid_amount), 0) AS OutstandingBalance,
-                        MAX(c_created_date) AS LastOrderDate,
+                        SUM(CASE WHEN o.c_order_status = 'Completed' THEN 1 ELSE 0 END) AS CompletedOrders,
+                        SUM(CASE WHEN o.c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS CancelledOrders,
+                        ISNULL(SUM(o.c_total_amount), 0) AS LifetimeValue,
+                        ISNULL(AVG(o.c_total_amount), 0) AS AverageOrderValue,
+                        ISNULL(SUM(o.c_total_amount), 0) AS TotalSpent,
+                        ISNULL(SUM(o.c_total_amount - ISNULL(pay.PaidAmount, 0)), 0) AS OutstandingBalance,
+                        MAX(o.c_createddate) AS LastOrderDate,
                         (SELECT TOP 1 c_order_status FROM {Table.SysOrders}
                          WHERE c_userid = @CustomerId AND c_ownerid = @OwnerId
-                         ORDER BY c_created_date DESC) AS LastOrderStatus,
+                         ORDER BY c_createddate DESC) AS LastOrderStatus,
                         (SELECT TOP 1 c_event_type FROM {Table.SysOrders}
                          WHERE c_userid = @CustomerId AND c_ownerid = @OwnerId
                          GROUP BY c_event_type ORDER BY COUNT(*) DESC) AS PreferredEventType,
-                        ISNULL(AVG(c_guest_count), 0) AS AverageGuestCount,
-                        MIN(CASE WHEN c_event_date >= GETDATE() THEN c_event_date END) AS NextEventDate
-                    FROM {Table.SysOrders}
-                    WHERE c_userid = @CustomerId AND c_ownerid = @OwnerId;
+                        ISNULL(AVG(o.c_guest_count), 0) AS AverageGuestCount,
+                        MIN(CASE WHEN o.c_event_date >= GETDATE() THEN o.c_event_date END) AS NextEventDate
+                    FROM {Table.SysOrders} o
+                    OUTER APPLY (
+                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                        FROM {Table.SysOrderPayments} p
+                        WHERE p.c_orderid = o.c_orderid
+                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay
+                    WHERE o.c_userid = @CustomerId AND o.c_ownerid = @OwnerId;
 
                     -- Favorite Menu Items (Packages and Individual Items)
                     SELECT TOP 3
@@ -335,22 +341,22 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         o.c_order_number AS OrderNumber,
                         o.c_event_type AS EventType,
                         o.c_event_date AS EventDate,
-                        o.c_created_date AS OrderDate,
+                        o.c_createddate AS OrderDate,
                         o.c_guest_count AS GuestCount,
-                        o.c_final_amount AS TotalAmount,
+                        o.c_total_amount AS TotalAmount,
                         o.c_order_status AS OrderStatus,
                         o.c_payment_status AS PaymentStatus,
-                        ISNULL(r.c_rating, 0) AS Rating,
+                        ISNULL(r.c_overall_rating, 0) AS Rating,
                         r.c_review_text AS ReviewText
                     FROM {Table.SysOrders} o
                     LEFT JOIN {Table.SysCateringReview} r ON o.c_orderid = r.c_orderid
                     WHERE o.c_userid = @CustomerId AND o.c_ownerid = @OwnerId
-                    ORDER BY o.c_created_date DESC;
+                    ORDER BY o.c_createddate DESC;
 
                     -- Summary
                     SELECT
                         COUNT(*) AS TotalOrders,
-                        ISNULL(SUM(c_final_amount), 0) AS TotalSpent
+                        ISNULL(SUM(c_total_amount), 0) AS TotalSpent
                     FROM {Table.SysOrders}
                     WHERE c_userid = @CustomerId AND c_ownerid = @OwnerId;";
 
@@ -418,19 +424,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- Customer Summary
                     SELECT
                         COUNT(DISTINCT o.c_userid) AS TotalCustomers,
-                        COUNT(DISTINCT CASE WHEN u.c_created_date >= @CurrentMonth THEN o.c_userid END) AS NewCustomersThisMonth,
+                        COUNT(DISTINCT CASE WHEN u.c_createddate >= @CurrentMonth THEN o.c_userid END) AS NewCustomersThisMonth,
                         COUNT(DISTINCT CASE WHEN EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
                             AND o2.c_orderid != o.c_orderid
                         ) THEN o.c_userid END) AS ReturningCustomers,
-                        ISNULL(AVG(o.c_final_amount), 0) AS AverageLifetimeValue
+                        ISNULL(AVG(o.c_total_amount), 0) AS AverageLifetimeValue
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
                     WHERE o.c_ownerid = @OwnerId;
 
                     -- Customer Satisfaction
-                    SELECT ISNULL(AVG(CAST(c_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfactionScore
+                    SELECT ISNULL(AVG(CAST(c_overall_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfactionScore
                     FROM {Table.SysCateringReview}
                     WHERE c_ownerid = @OwnerId;
 
@@ -441,8 +447,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         u.c_email AS Email,
                         u.c_mobilenumber AS Phone,
                         COUNT(o.c_orderid) AS TotalOrders,
-                        SUM(o.c_final_amount) AS LifetimeValue,
-                        MAX(o.c_created_date) AS LastOrderDate
+                        SUM(o.c_total_amount) AS LifetimeValue,
+                        MAX(o.c_createddate) AS LastOrderDate
                     FROM {Table.SysUser} u
                     INNER JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                     WHERE o.c_ownerid = @OwnerId
@@ -451,23 +457,23 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                     -- Monthly Trends (Last 6 months)
                     SELECT
-                        FORMAT(o.c_created_date, 'MMM yyyy') AS Month,
+                        FORMAT(o.c_createddate, 'MMM yyyy') AS Month,
                         COUNT(DISTINCT CASE WHEN NOT EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_created_date < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_created_date), 0)
+                            AND o2.c_createddate < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_createddate), 0)
                         ) THEN o.c_userid END) AS NewCustomers,
                         COUNT(DISTINCT CASE WHEN EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_created_date < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_created_date), 0)
+                            AND o2.c_createddate < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_createddate), 0)
                         ) THEN o.c_userid END) AS ReturningCustomers,
-                        SUM(o.c_final_amount) AS TotalRevenue
+                        SUM(o.c_total_amount) AS TotalRevenue
                     FROM {Table.SysOrders} o
                     WHERE o.c_ownerid = @OwnerId
-                        AND o.c_created_date >= DATEADD(MONTH, -6, GETDATE())
-                    GROUP BY YEAR(o.c_created_date), MONTH(o.c_created_date), FORMAT(o.c_created_date, 'MMM yyyy')
-                    ORDER BY YEAR(o.c_created_date), MONTH(o.c_created_date);";
+                        AND o.c_createddate >= DATEADD(MONTH, -6, GETDATE())
+                    GROUP BY YEAR(o.c_createddate), MONTH(o.c_createddate), FORMAT(o.c_createddate, 'MMM yyyy')
+                    ORDER BY YEAR(o.c_createddate), MONTH(o.c_createddate);";
 
                 var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -556,8 +562,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         u.c_email AS Email,
                         u.c_mobilenumber AS Phone,
                         COUNT(o.c_orderid) AS TotalOrders,
-                        SUM(o.c_final_amount) AS LifetimeValue,
-                        MAX(o.c_created_date) AS LastOrderDate
+                        SUM(o.c_total_amount) AS LifetimeValue,
+                        MAX(o.c_createddate) AS LastOrderDate
                     FROM {Table.SysUser} u
                     INNER JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                     WHERE o.c_ownerid = @OwnerId

@@ -1,3 +1,4 @@
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Models.Order;
@@ -27,7 +28,7 @@ namespace CateringEcommerce.BAL.Base.Order
                 new SqlParameter("@RefundPercentage", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
                 new SqlParameter("@RefundAmount", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
                 new SqlParameter("@PolicyTier", SqlDbType.VarChar, 20) { Direction = ParameterDirection.Output },
-                new SqlParameter("@VendorCompensation", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 }
+                new SqlParameter("@PartnerCompensation", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 }
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<CancellationPolicyResponse>(
@@ -65,8 +66,8 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<CancellationRequestModel> GetCancellationRequestAsync(long cancellationId)
         {
-            var query = @"
-                SELECT * FROM t_sys_cancellation_requests
+            var query = $@"
+                SELECT * FROM {Table.SysCancellationRequests}
                 WHERE c_cancellation_id = @CancellationId";
 
             var parameters = new[]
@@ -80,10 +81,10 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<CancellationRequestModel> GetCancellationRequestByOrderAsync(long orderId)
         {
-            var query = @"
-                SELECT * FROM t_sys_cancellation_requests
+            var query = $@"
+                SELECT * FROM {Table.SysCancellationRequests}
                 WHERE c_orderid = @OrderId
-                ORDER BY c_created_date DESC";
+                ORDER BY c_createddate DESC";
 
             var parameters = new[]
             {
@@ -96,10 +97,10 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<List<CancellationRequestModel>> GetUserCancellationRequestsAsync(long userId)
         {
-            var query = @"
-                SELECT * FROM t_sys_cancellation_requests
+            var query = $@"
+                SELECT * FROM {Table.SysCancellationRequests}
                 WHERE c_userid = @UserId
-                ORDER BY c_created_date DESC";
+                ORDER BY c_createddate DESC";
 
             var parameters = new[]
             {
@@ -111,91 +112,88 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<bool> ApproveCancellationRequestAsync(long cancellationId, long adminId, string adminNotes)
         {
-            var query = @"
-                UPDATE t_sys_cancellation_requests
-                SET c_status = 'Approved',
-                    c_admin_approved_by = @AdminId,
-                    c_admin_approval_date = GETDATE(),
-                    c_admin_notes = @AdminNotes,
-                    c_modified_date = GETDATE()
-                WHERE c_cancellation_id = @CancellationId";
-
+            // CRITICAL FIX: Use transactional stored procedure
             var parameters = new[]
             {
                 new SqlParameter("@CancellationId", cancellationId),
                 new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@AdminNotes", (object)adminNotes ?? DBNull.Value)
+                new SqlParameter("@AdminNotes", (object)adminNotes ?? DBNull.Value),
+                new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
+                new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
             };
 
-            var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
-            return rowsAffected > 0;
+            await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_ApproveCancellationTransaction", parameters);
+
+            var success = parameters[3].Value != null && (bool)parameters[3].Value;
+            var errorMessage = parameters[4].Value as string;
+
+            if (!success && !string.IsNullOrEmpty(errorMessage))
+            {
+                throw new InvalidOperationException($"Cancellation approval failed: {errorMessage}");
+            }
+
+            return success;
         }
 
         public async Task<bool> RejectCancellationRequestAsync(long cancellationId, long adminId, string rejectionReason)
         {
-            var query = @"
-                UPDATE t_sys_cancellation_requests
-                SET c_status = 'Rejected',
-                    c_admin_approved_by = @AdminId,
-                    c_admin_approval_date = GETDATE(),
-                    c_admin_notes = @RejectionReason,
-                    c_modified_date = GETDATE()
-                WHERE c_cancellation_id = @CancellationId";
-
+            // CRITICAL FIX: Use transactional stored procedure
             var parameters = new[]
             {
                 new SqlParameter("@CancellationId", cancellationId),
                 new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@RejectionReason", rejectionReason)
+                new SqlParameter("@RejectionReason", rejectionReason),
+                new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
+                new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
             };
 
-            var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
-            return rowsAffected > 0;
+            await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_RejectCancellationTransaction", parameters);
+
+            var success = parameters[3].Value != null && (bool)parameters[3].Value;
+            var errorMessage = parameters[4].Value as string;
+
+            if (!success && !string.IsNullOrEmpty(errorMessage))
+            {
+                throw new InvalidOperationException($"Cancellation rejection failed: {errorMessage}");
+            }
+
+            return success;
         }
 
         public async Task<bool> ProcessRefundAsync(long cancellationId, string refundTransactionId, string refundMethod)
         {
-            var query = @"
-                UPDATE t_sys_cancellation_requests
-                SET c_status = 'Refunded',
-                    c_refund_initiated_date = GETDATE(),
-                    c_refund_completed_date = GETDATE(),
-                    c_refund_transaction_id = @RefundTransactionId,
-                    c_refund_method = @RefundMethod,
-                    c_modified_date = GETDATE()
-                WHERE c_cancellation_id = @CancellationId
-                  AND c_status = 'Approved'";
+            // CRITICAL FIX: Use stored procedure with transaction to prevent data corruption
+            // Previous implementation had separate queries that could fail independently
+            // causing refund to be marked complete while order remained active (revenue leakage)
 
             var parameters = new[]
             {
                 new SqlParameter("@CancellationId", cancellationId),
                 new SqlParameter("@RefundTransactionId", refundTransactionId),
-                new SqlParameter("@RefundMethod", refundMethod)
+                new SqlParameter("@RefundMethod", refundMethod),
+                new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
+                new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
             };
 
-            var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
+            await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_ProcessRefundTransaction", parameters);
 
-            if (rowsAffected > 0)
+            var success = parameters[3].Value != null && (bool)parameters[3].Value;
+            var errorMessage = parameters[4].Value as string;
+
+            if (!success && !string.IsNullOrEmpty(errorMessage))
             {
-                // Update order status
-                var updateOrderQuery = @"
-                    UPDATE t_sys_order
-                    SET c_order_status = 'Cancelled',
-                        c_modifieddate = GETDATE()
-                    WHERE c_orderid = (SELECT c_orderid FROM t_sys_cancellation_requests WHERE c_cancellation_id = @CancellationId)";
-
-                await _dbHelper.ExecuteNonQueryAsync(updateOrderQuery, new[] { new SqlParameter("@CancellationId", cancellationId) });
+                throw new InvalidOperationException($"Refund processing failed: {errorMessage}");
             }
 
-            return rowsAffected > 0;
+            return success;
         }
 
         public async Task<List<CancellationRequestModel>> GetPendingCancellationRequestsAsync()
         {
-            var query = @"
-                SELECT * FROM t_sys_cancellation_requests
+            var query = $@"
+                SELECT * FROM {Table.SysCancellationRequests}
                 WHERE c_status = 'Pending'
-                ORDER BY c_created_date ASC";
+                ORDER BY c_createddate ASC";
 
             return await _dbHelper.ExecuteQueryAsync<CancellationRequestModel>(query);
         }

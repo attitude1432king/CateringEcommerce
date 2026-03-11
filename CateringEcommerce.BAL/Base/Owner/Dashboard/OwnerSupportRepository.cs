@@ -1,4 +1,6 @@
 using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
 using System;
@@ -11,11 +13,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 {
     public class OwnerSupportRepository
     {
-        private readonly string _connStr;
+        private readonly IDatabaseHelper _dbHelper;
 
-        public OwnerSupportRepository(string connStr)
+        public OwnerSupportRepository(IDatabaseHelper dbHelper)
         {
-            _connStr = connStr ?? throw new ArgumentNullException(nameof(connStr));
+            _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
         }
 
         /// <summary>
@@ -23,43 +25,37 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         /// </summary>
         public async Task<SupportTicketItemDto> CreateTicket(long ownerId, CreateSupportTicketDto dto)
         {
-            using var conn = new SqlConnection(_connStr);
-            await conn.OpenAsync();
-
             // Generate ticket number: TKT-YYYYMMDD-NNN
             var dateStr = DateTime.Now.ToString("yyyyMMdd");
             var countSql = $@"
                 SELECT COUNT(*) + 1 FROM {Table.SysSupportTickets}
-                WHERE CAST(c_created_date AS DATE) = CAST(GETDATE() AS DATE)";
+                WHERE CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE)";
 
-            int seqNum;
-            using (var countCmd = new SqlCommand(countSql, conn))
-            {
-                seqNum = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
-            }
+            var seqObj = await _dbHelper.ExecuteScalarAsync(countSql);
+            var seqNum = seqObj == null || seqObj == DBNull.Value ? 1 : Convert.ToInt32(seqObj);
 
             var ticketNumber = $"TKT-{dateStr}-{seqNum:D3}";
 
             var insertSql = $@"
                 INSERT INTO {Table.SysSupportTickets}
-                    (c_ticket_number, c_ownerid, c_subject, c_description, c_category, c_priority, c_status, c_related_order_id, c_created_date)
+                    (c_ticket_number, c_ownerid, c_subject, c_description, c_category, c_priority, c_status, c_related_order_id, c_createddate)
                 VALUES
                     (@TicketNumber, @OwnerId, @Subject, @Description, @Category, @Priority, 'Open', @RelatedOrderId, GETDATE());
                 SELECT SCOPE_IDENTITY();";
 
-            long ticketId;
-            using (var insertCmd = new SqlCommand(insertSql, conn))
+            var insertParams = new[]
             {
-                insertCmd.Parameters.AddWithValue("@TicketNumber", ticketNumber);
-                insertCmd.Parameters.AddWithValue("@OwnerId", ownerId);
-                insertCmd.Parameters.AddWithValue("@Subject", dto.Subject);
-                insertCmd.Parameters.AddWithValue("@Description", dto.Description);
-                insertCmd.Parameters.AddWithValue("@Category", dto.Category);
-                insertCmd.Parameters.AddWithValue("@Priority", dto.Priority ?? "Medium");
-                insertCmd.Parameters.AddWithValue("@RelatedOrderId", (object?)dto.RelatedOrderId ?? DBNull.Value);
+                new SqlParameter("@TicketNumber", ticketNumber),
+                new SqlParameter("@OwnerId", ownerId),
+                new SqlParameter("@Subject", dto.Subject),
+                new SqlParameter("@Description", dto.Description),
+                new SqlParameter("@Category", dto.Category),
+                new SqlParameter("@Priority", dto.Priority ?? "Medium"),
+                new SqlParameter("@RelatedOrderId", (object?)dto.RelatedOrderId ?? DBNull.Value)
+            };
 
-                ticketId = Convert.ToInt64(await insertCmd.ExecuteScalarAsync());
-            }
+            var ticketIdObj = await _dbHelper.ExecuteScalarAsync(insertSql, insertParams);
+            var ticketId = ticketIdObj == null || ticketIdObj == DBNull.Value ? 0L : Convert.ToInt64(ticketIdObj);
 
             return new SupportTicketItemDto
             {
@@ -87,9 +83,6 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 PageSize = filter.PageSize
             };
 
-            using var conn = new SqlConnection(_connStr);
-            await conn.OpenAsync();
-
             // Build WHERE clause
             var where = new StringBuilder($"WHERE t.c_ownerid = @OwnerId");
             if (!string.IsNullOrEmpty(filter.Status))
@@ -99,18 +92,21 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
             // Count
             var countSql = $"SELECT COUNT(*) FROM {Table.SysSupportTickets} t {where}";
-            using (var countCmd = new SqlCommand(countSql, conn))
+            var countParams = new List<SqlParameter>
             {
-                countCmd.Parameters.AddWithValue("@OwnerId", ownerId);
-                if (!string.IsNullOrEmpty(filter.Status))
-                    countCmd.Parameters.AddWithValue("@Status", filter.Status);
-                if (!string.IsNullOrEmpty(filter.Category))
-                    countCmd.Parameters.AddWithValue("@Category", filter.Category);
+                new SqlParameter("@OwnerId", ownerId)
+            };
+            if (!string.IsNullOrEmpty(filter.Status))
+                countParams.Add(new SqlParameter("@Status", filter.Status));
+            if (!string.IsNullOrEmpty(filter.Category))
+                countParams.Add(new SqlParameter("@Category", filter.Category));
 
-                result.TotalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
-            }
+            var totalObj = await _dbHelper.ExecuteScalarAsync(countSql, countParams.ToArray());
+            result.TotalCount = totalObj == null || totalObj == DBNull.Value ? 0 : Convert.ToInt32(totalObj);
 
-            result.TotalPages = (int)Math.Ceiling((double)result.TotalCount / filter.PageSize);
+            result.TotalPages = filter.PageSize > 0
+                ? (int)Math.Ceiling((double)result.TotalCount / filter.PageSize)
+                : 0;
 
             // Sort
             var allowedSorts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "CreatedDate", "Priority" };
@@ -119,7 +115,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
             var sortExpression = sortCol == "Priority"
                 ? "CASE t.c_priority WHEN 'Urgent' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 WHEN 'Low' THEN 4 ELSE 5 END"
-                : "t.c_created_date";
+                : "t.c_createddate";
 
             var dataSql = $@"
                 SELECT
@@ -131,7 +127,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     t.c_priority AS Priority,
                     t.c_status AS Status,
                     t.c_related_order_id AS RelatedOrderId,
-                    t.c_created_date AS CreatedDate,
+                    t.c_createddate AS CreatedDate,
                     t.c_resolved_date AS ResolvedDate,
                     (SELECT COUNT(*) FROM {Table.SysSupportTicketMessages} m WHERE m.c_ticket_id = t.c_ticket_id) AS MessageCount
                 FROM {Table.SysSupportTickets} t
@@ -139,34 +135,34 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 ORDER BY {sortExpression} {sortDir}
                 OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-            using (var dataCmd = new SqlCommand(dataSql, conn))
+            var dataParams = new List<SqlParameter>
             {
-                dataCmd.Parameters.AddWithValue("@OwnerId", ownerId);
-                dataCmd.Parameters.AddWithValue("@Offset", (filter.Page - 1) * filter.PageSize);
-                dataCmd.Parameters.AddWithValue("@PageSize", filter.PageSize);
-                if (!string.IsNullOrEmpty(filter.Status))
-                    dataCmd.Parameters.AddWithValue("@Status", filter.Status);
-                if (!string.IsNullOrEmpty(filter.Category))
-                    dataCmd.Parameters.AddWithValue("@Category", filter.Category);
+                new SqlParameter("@OwnerId", ownerId),
+                new SqlParameter("@Offset", (filter.Page - 1) * filter.PageSize),
+                new SqlParameter("@PageSize", filter.PageSize)
+            };
+            if (!string.IsNullOrEmpty(filter.Status))
+                dataParams.Add(new SqlParameter("@Status", filter.Status));
+            if (!string.IsNullOrEmpty(filter.Category))
+                dataParams.Add(new SqlParameter("@Category", filter.Category));
 
-                using var reader = await dataCmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+            var dataTable = await _dbHelper.ExecuteAsync(dataSql, dataParams.ToArray());
+            foreach (DataRow row in dataTable.Rows)
+            {
+                result.Tickets.Add(new SupportTicketItemDto
                 {
-                    result.Tickets.Add(new SupportTicketItemDto
-                    {
-                        TicketId = reader.GetInt64(reader.GetOrdinal("TicketId")),
-                        TicketNumber = reader.GetString(reader.GetOrdinal("TicketNumber")),
-                        Subject = reader.GetString(reader.GetOrdinal("Subject")),
-                        Description = reader.GetString(reader.GetOrdinal("Description")),
-                        Category = reader.GetString(reader.GetOrdinal("Category")),
-                        Priority = reader.GetString(reader.GetOrdinal("Priority")),
-                        Status = reader.GetString(reader.GetOrdinal("Status")),
-                        RelatedOrderId = reader.IsDBNull(reader.GetOrdinal("RelatedOrderId")) ? null : reader.GetInt64(reader.GetOrdinal("RelatedOrderId")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        ResolvedDate = reader.IsDBNull(reader.GetOrdinal("ResolvedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ResolvedDate")),
-                        MessageCount = reader.GetInt32(reader.GetOrdinal("MessageCount"))
-                    });
-                }
+                    TicketId = row.GetValue<long>("TicketId"),
+                    TicketNumber = row.GetValue<string>("TicketNumber", string.Empty),
+                    Subject = row.GetValue<string>("Subject", string.Empty),
+                    Description = row.GetValue<string>("Description", string.Empty),
+                    Category = row.GetValue<string>("Category", string.Empty),
+                    Priority = row.GetValue<string>("Priority", string.Empty),
+                    Status = row.GetValue<string>("Status", string.Empty),
+                    RelatedOrderId = row.GetValue<long?>("RelatedOrderId"),
+                    CreatedDate = row.GetValue<DateTime>("CreatedDate"),
+                    ResolvedDate = row.GetValue<DateTime?>("ResolvedDate"),
+                    MessageCount = row.GetValue<int>("MessageCount")
+                });
             }
 
             return result;
@@ -177,69 +173,62 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         /// </summary>
         public async Task<SupportTicketDetailDto?> GetTicketDetail(long ownerId, long ticketId)
         {
-            using var conn = new SqlConnection(_connStr);
-            await conn.OpenAsync();
-
             // Get ticket
             var ticketSql = $@"
                 SELECT
                     c_ticket_id, c_ticket_number, c_subject, c_description,
                     c_category, c_priority, c_status, c_related_order_id,
-                    c_resolution_notes, c_resolved_date, c_created_date
+                    c_resolution_notes, c_resolved_date, c_createddate
                 FROM {Table.SysSupportTickets}
                 WHERE c_ticket_id = @TicketId AND c_ownerid = @OwnerId";
 
             SupportTicketDetailDto? detail = null;
-
-            using (var ticketCmd = new SqlCommand(ticketSql, conn))
+            var ticketParams = new[]
             {
-                ticketCmd.Parameters.AddWithValue("@TicketId", ticketId);
-                ticketCmd.Parameters.AddWithValue("@OwnerId", ownerId);
+                new SqlParameter("@TicketId", ticketId),
+                new SqlParameter("@OwnerId", ownerId)
+            };
+            var ticketTable = await _dbHelper.ExecuteAsync(ticketSql, ticketParams);
 
-                using var reader = await ticketCmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
+            if (ticketTable.Rows.Count > 0)
+            {
+                var row = ticketTable.Rows[0];
+                detail = new SupportTicketDetailDto
                 {
-                    detail = new SupportTicketDetailDto
-                    {
-                        TicketId = reader.GetInt64(0),
-                        TicketNumber = reader.GetString(1),
-                        Subject = reader.GetString(2),
-                        Description = reader.GetString(3),
-                        Category = reader.GetString(4),
-                        Priority = reader.GetString(5),
-                        Status = reader.GetString(6),
-                        RelatedOrderId = reader.IsDBNull(7) ? null : reader.GetInt64(7),
-                        ResolutionNotes = reader.IsDBNull(8) ? null : reader.GetString(8),
-                        ResolvedDate = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
-                        CreatedDate = reader.GetDateTime(10)
-                    };
-                }
+                    TicketId = row.GetValue<long>("c_ticket_id"),
+                    TicketNumber = row.GetValue<string>("c_ticket_number", string.Empty),
+                    Subject = row.GetValue<string>("c_subject", string.Empty),
+                    Description = row.GetValue<string>("c_description", string.Empty),
+                    Category = row.GetValue<string>("c_category", string.Empty),
+                    Priority = row.GetValue<string>("c_priority", string.Empty),
+                    Status = row.GetValue<string>("c_status", string.Empty),
+                    RelatedOrderId = row.GetValue<long?>("c_related_order_id"),
+                    ResolutionNotes = row.GetValue<string?>("c_resolution_notes"),
+                    ResolvedDate = row.GetValue<DateTime?>("c_resolved_date"),
+                    CreatedDate = row.GetValue<DateTime>("c_createddate")
+                };
             }
 
             if (detail == null) return null;
 
             // Get messages
             var msgSql = $@"
-                SELECT c_message_id, c_sender_type, c_message_text, c_created_date
+                SELECT c_message_id, c_sender_type, c_message_text, c_createddate
                 FROM {Table.SysSupportTicketMessages}
                 WHERE c_ticket_id = @TicketId
-                ORDER BY c_created_date ASC";
+                ORDER BY c_createddate ASC";
 
-            using (var msgCmd = new SqlCommand(msgSql, conn))
+            var msgParams = new[] { new SqlParameter("@TicketId", ticketId) };
+            var msgTable = await _dbHelper.ExecuteAsync(msgSql, msgParams);
+            foreach (DataRow row in msgTable.Rows)
             {
-                msgCmd.Parameters.AddWithValue("@TicketId", ticketId);
-
-                using var reader = await msgCmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                detail.Messages.Add(new TicketMessageDto
                 {
-                    detail.Messages.Add(new TicketMessageDto
-                    {
-                        MessageId = reader.GetInt64(0),
-                        SenderType = reader.GetString(1),
-                        MessageText = reader.GetString(2),
-                        CreatedDate = reader.GetDateTime(3)
-                    });
-                }
+                    MessageId = row.GetValue<long>("c_message_id"),
+                    SenderType = row.GetValue<string>("c_sender_type", string.Empty),
+                    MessageText = row.GetValue<string>("c_message_text", string.Empty),
+                    CreatedDate = row.GetValue<DateTime>("c_createddate")
+                });
             }
 
             return detail;
@@ -250,18 +239,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         /// </summary>
         public async Task<TicketMessageDto?> SendMessage(long ownerId, long ticketId, string messageText)
         {
-            using var conn = new SqlConnection(_connStr);
-            await conn.OpenAsync();
-
             // Verify ownership
             var verifySql = $"SELECT c_status FROM {Table.SysSupportTickets} WHERE c_ticket_id = @TicketId AND c_ownerid = @OwnerId";
-            string? status;
-            using (var verifyCmd = new SqlCommand(verifySql, conn))
+            var verifyParams = new[]
             {
-                verifyCmd.Parameters.AddWithValue("@TicketId", ticketId);
-                verifyCmd.Parameters.AddWithValue("@OwnerId", ownerId);
-                status = (await verifyCmd.ExecuteScalarAsync())?.ToString();
-            }
+                new SqlParameter("@TicketId", ticketId),
+                new SqlParameter("@OwnerId", ownerId)
+            };
+            var statusObj = await _dbHelper.ExecuteScalarAsync(verifySql, verifyParams);
+            var status = statusObj?.ToString();
 
             if (status == null) return null;
             if (status == "Closed" || status == "Resolved")
@@ -269,19 +255,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
             var insertSql = $@"
                 INSERT INTO {Table.SysSupportTicketMessages}
-                    (c_ticket_id, c_sender_type, c_sender_id, c_message_text, c_created_date)
+                    (c_ticket_id, c_sender_type, c_sender_id, c_message_text, c_createddate)
                 VALUES
                     (@TicketId, 'Owner', @OwnerId, @MessageText, GETDATE());
                 SELECT SCOPE_IDENTITY();";
 
-            long messageId;
-            using (var insertCmd = new SqlCommand(insertSql, conn))
+            var insertParams = new[]
             {
-                insertCmd.Parameters.AddWithValue("@TicketId", ticketId);
-                insertCmd.Parameters.AddWithValue("@OwnerId", ownerId);
-                insertCmd.Parameters.AddWithValue("@MessageText", messageText);
-                messageId = Convert.ToInt64(await insertCmd.ExecuteScalarAsync());
-            }
+                new SqlParameter("@TicketId", ticketId),
+                new SqlParameter("@OwnerId", ownerId),
+                new SqlParameter("@MessageText", messageText)
+            };
+            var messageIdObj = await _dbHelper.ExecuteScalarAsync(insertSql, insertParams);
+            var messageId = messageIdObj == null || messageIdObj == DBNull.Value ? 0L : Convert.ToInt64(messageIdObj);
 
             return new TicketMessageDto
             {
@@ -307,22 +293,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 FROM {Table.SysSupportTickets}
                 WHERE c_ownerid = @OwnerId";
 
-            using var conn = new SqlConnection(_connStr);
-            await conn.OpenAsync();
-
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@OwnerId", ownerId);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var dataTable = await _dbHelper.ExecuteAsync(sql, parameters);
+            if (dataTable.Rows.Count > 0)
             {
+                var row = dataTable.Rows[0];
                 return new SupportTicketStatsDto
                 {
-                    TotalTickets = reader.GetInt32(0),
-                    OpenTickets = reader.GetInt32(1),
-                    InProgressTickets = reader.GetInt32(2),
-                    ResolvedTickets = reader.GetInt32(3),
-                    ClosedTickets = reader.GetInt32(4)
+                    TotalTickets = row.GetValue<int>("TotalTickets"),
+                    OpenTickets = row.GetValue<int>("OpenTickets"),
+                    InProgressTickets = row.GetValue<int>("InProgressTickets"),
+                    ResolvedTickets = row.GetValue<int>("ResolvedTickets"),
+                    ClosedTickets = row.GetValue<int>("ClosedTickets")
                 };
             }
 

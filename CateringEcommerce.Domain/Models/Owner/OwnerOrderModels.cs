@@ -8,32 +8,32 @@ namespace CateringEcommerce.Domain.Models.Owner
     {
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
-        public string OrderStatus { get; set; } // null = all
+        public string? OrderStatus { get; set; } // null = all
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public string EventType { get; set; }
+        public string? EventType { get; set; }
         public decimal? MinAmount { get; set; }
         public decimal? MaxAmount { get; set; }
-        public string SearchTerm { get; set; } // Order number or customer name
-        public string SortBy { get; set; } = "OrderDate"; // OrderDate, EventDate, Amount
-        public string SortOrder { get; set; } = "DESC"; // ASC, DESC
+        public string? SearchTerm { get; set; } // Order number or customer name
+        public string? SortBy { get; set; } = "OrderDate"; // OrderDate, EventDate, Amount
+        public string? SortOrder { get; set; } = "DESC"; // ASC, DESC
     }
 
     // Order List Item DTO
     public class OrderListItemDto
     {
         public long OrderId { get; set; }
-        public string OrderNumber { get; set; }
-        public string CustomerName { get; set; }
-        public string CustomerPhone { get; set; }
-        public string EventType { get; set; }
+        public string? OrderNumber { get; set; }
+        public string? CustomerName { get; set; }
+        public string? CustomerPhone { get; set; }
+        public string? EventType { get; set; }
         public DateTime EventDate { get; set; }
         public DateTime OrderDate { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal PaidAmount { get; set; }
         public decimal BalanceAmount { get; set; }
-        public string OrderStatus { get; set; }
-        public string PaymentStatus { get; set; }
+        public string? OrderStatus { get; set; }
+        public string? PaymentStatus { get; set; }
         public int GuestCount { get; set; }
         public int DaysUntilEvent { get; set; }
     }
@@ -42,29 +42,29 @@ namespace CateringEcommerce.Domain.Models.Owner
     public class OrderDetailDto
     {
         public long OrderId { get; set; }
-        public string OrderNumber { get; set; }
+        public string? OrderNumber { get; set; }
 
         // Customer Info
         public long CustomerId { get; set; }
-        public string CustomerName { get; set; }
-        public string CustomerEmail { get; set; }
-        public string CustomerPhone { get; set; }
+        public string? CustomerName { get; set; }
+        public string? CustomerEmail { get; set; }
+        public string? CustomerPhone { get; set; }
 
         // Event Info
-        public string EventType { get; set; }
+        public string? EventType { get; set; }
         public DateTime EventDate { get; set; }
-        public string EventTime { get; set; }
+        public string? EventTime { get; set; }
         public int GuestCount { get; set; }
-        public string VenueAddress { get; set; }
-        public string VenueCity { get; set; }
-        public string VenueState { get; set; }
-        public string VenuePincode { get; set; }
+        public string? VenueAddress { get; set; }
+        public string? VenueCity { get; set; }
+        public string? VenueState { get; set; }
+        public string? VenuePincode { get; set; }
 
         // Order Info
         public DateTime OrderDate { get; set; }
-        public string OrderStatus { get; set; }
-        public string PaymentStatus { get; set; }
-        public string SpecialInstructions { get; set; }
+        public string? OrderStatus { get; set; }
+        public string? PaymentStatus { get; set; }
+        public string? SpecialInstructions { get; set; }
 
         // Financial Info
         public decimal SubTotal { get; set; }
@@ -84,8 +84,8 @@ namespace CateringEcommerce.Domain.Models.Owner
         // Additional Services
         public bool HasDecorations { get; set; }
         public bool HasStaff { get; set; }
-        public string DecorationsDetails { get; set; }
-        public string StaffDetails { get; set; }
+        public string? DecorationsDetails { get; set; }
+        public string? StaffDetails { get; set; }
     }
 
     // Order Item Detail DTO
@@ -93,20 +93,20 @@ namespace CateringEcommerce.Domain.Models.Owner
     {
         public long OrderItemId { get; set; }
         public long MenuItemId { get; set; }
-        public string MenuItemName { get; set; }
-        public string Category { get; set; }
+        public string? MenuItemName { get; set; }
+        public string? Category { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
-        public string ImageUrl { get; set; }
-        public string SpecialRequest { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? SpecialRequest { get; set; }
     }
 
     // Order Status Update DTO
     public class OrderStatusUpdateDto
     {
-        public string NewStatus { get; set; }
-        public string Comments { get; set; }
+        public string? NewStatus { get; set; }
+        public string? Comments { get; set; }
         public DateTime? EstimatedDeliveryTime { get; set; }
     }
 
@@ -114,10 +114,10 @@ namespace CateringEcommerce.Domain.Models.Owner
     public class OrderStatusHistoryDto
     {
         public long StatusId { get; set; }
-        public string Status { get; set; }
+        public string? Status { get; set; }
         public DateTime ChangedDate { get; set; }
-        public string ChangedBy { get; set; }
-        public string Comments { get; set; }
+        public string? ChangedBy { get; set; }
+        public string? Comments { get; set; }
     }
 
     // Paginated Orders Response DTO

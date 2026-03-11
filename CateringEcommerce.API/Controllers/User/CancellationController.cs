@@ -1,5 +1,6 @@
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Models.Order;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -9,7 +10,7 @@ namespace CateringEcommerce.API.Controllers.User
 {
     [Route("api/user/cancellation")]
     [ApiController]
-    [Authorize] // Require authentication
+    [UserAuthorize]
     public class CancellationController : ControllerBase
     {
         private readonly ICancellationRepository _cancellationRepo;

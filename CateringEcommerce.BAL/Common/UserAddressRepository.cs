@@ -30,10 +30,10 @@ namespace CateringEcommerce.BAL.Common
                     SELECT
                         c_address_id, c_userid, c_address_label, c_full_address, c_landmark,
                         c_city, c_state, c_pincode, c_contact_person, c_contact_phone,
-                        c_is_default, c_created_date, c_isactive
+                        c_is_default, c_createddate, c_isactive
                     FROM {Table.SysUserAddresses}
                     WHERE c_userid = @UserId AND c_isactive = 1
-                    ORDER BY c_is_default DESC, c_created_date DESC
+                    ORDER BY c_is_default DESC, c_createddate DESC
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]
@@ -61,7 +61,7 @@ namespace CateringEcommerce.BAL.Common
                             ContactPerson = row["c_contact_person"].ToString() ?? string.Empty,
                             ContactPhone = row["c_contact_phone"].ToString() ?? string.Empty,
                             IsDefault = Convert.ToBoolean(row["c_is_default"]),
-                            CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                            CreatedDate = Convert.ToDateTime(row["c_createddate"]),
                             IsActive = Convert.ToBoolean(row["c_isactive"])
                         });
                     }
@@ -86,7 +86,7 @@ namespace CateringEcommerce.BAL.Common
                     SELECT
                         c_address_id, c_userid, c_address_label, c_full_address, c_landmark,
                         c_city, c_state, c_pincode, c_contact_person, c_contact_phone,
-                        c_is_default, c_created_date, c_isactive
+                        c_is_default, c_createddate, c_isactive
                     FROM {Table.SysUserAddresses}
                     WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = 1
                 ";
@@ -115,7 +115,7 @@ namespace CateringEcommerce.BAL.Common
                         ContactPerson = row["c_contact_person"].ToString() ?? string.Empty,
                         ContactPhone = row["c_contact_phone"].ToString() ?? string.Empty,
                         IsDefault = Convert.ToBoolean(row["c_is_default"]),
-                        CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                        CreatedDate = Convert.ToDateTime(row["c_createddate"]),
                         IsActive = Convert.ToBoolean(row["c_isactive"])
                     };
                 }
@@ -171,7 +171,7 @@ namespace CateringEcommerce.BAL.Common
                 query.Append($@"
                     INSERT INTO {Table.SysUserAddresses} (
                         c_userid, c_address_label, c_full_address, c_landmark, c_city, c_state,
-                        c_pincode, c_contact_person, c_contact_phone, c_is_default, c_created_date, c_isactive
+                        c_pincode, c_contact_person, c_contact_phone, c_is_default, c_createddate, c_isactive
                     ) VALUES (
                         @UserId, @AddressLabel, @FullAddress, @Landmark, @City, @State,
                         @Pincode, @ContactPerson, @ContactPhone, @IsDefault, GETDATE(), 1

@@ -27,7 +27,7 @@ namespace CateringEcommerce.Domain.Interfaces.Notification
         /// <summary>
         /// Sends notification to admin panel (in-app notification)
         /// </summary>
-        bool SendAdminNotification(
+        Task<bool> SendAdminNotification(
             string notificationType,
             string title,
             string message,

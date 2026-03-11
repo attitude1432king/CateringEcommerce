@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Configuration;
 using CateringEcommerce.Domain.Models.Security;
+using CateringEcommerce.BAL.Configuration;
 
 namespace CateringEcommerce.BAL.Base.Security
 {
@@ -154,11 +155,11 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var query = @"
+                var query = $@"
                     SELECT TOP 1
                         c_device_id AS DeviceId,
                         c_user_type AS UserType,
-                        c_user_id AS UserId,
+                        c_userid AS UserId,
                         c_device_token AS DeviceToken,
                         c_device_name AS DeviceName,
                         c_device_fingerprint AS DeviceFingerprint,
@@ -170,9 +171,9 @@ namespace CateringEcommerce.BAL.Base.Security
                         c_trusted_date AS TrustedDate,
                         c_expires_at AS ExpiresAt,
                         c_last_used AS LastUsed
-                    FROM t_sys_trusted_device
+                    FROM {Table.SysTrustedDevice}
                     WHERE c_user_type = @UserType
-                      AND c_user_id = @UserId
+                      AND c_userid = @UserId
                       AND c_device_fingerprint = @DeviceFingerprint
                       AND c_is_active = 1
                       AND c_expires_at > GETDATE()
@@ -203,10 +204,10 @@ namespace CateringEcommerce.BAL.Base.Security
                 var deviceToken = Guid.NewGuid().ToString("N");
                 var expiresAt = DateTime.Now.AddDays(30); // 30-day trust period for users
 
-                var query = @"
-                    INSERT INTO t_sys_trusted_device (
+                var query = $@"
+                    INSERT INTO {Table.SysTrustedDevice} (
                         c_user_type,
-                        c_user_id,
+                        c_userid,
                         c_device_token,
                         c_device_name,
                         c_device_fingerprint,
@@ -260,8 +261,8 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var query = @"
-                    UPDATE t_sys_trusted_device
+                var query = $@"
+                    UPDATE {Table.SysTrustedDevice}
                     SET c_last_used = GETDATE()
                     WHERE c_device_id = @DeviceId";
 
@@ -276,11 +277,11 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var query = @"
+                var query = $@"
                     SELECT
                         c_device_id AS DeviceId,
                         c_user_type AS UserType,
-                        c_user_id AS UserId,
+                        c_userid AS UserId,
                         c_device_token AS DeviceToken,
                         c_device_name AS DeviceName,
                         c_device_fingerprint AS DeviceFingerprint,
@@ -294,9 +295,9 @@ namespace CateringEcommerce.BAL.Base.Security
                         c_last_used AS LastUsed,
                         c_revoked_date AS RevokedDate,
                         c_revoked_reason AS RevokedReason
-                    FROM t_sys_trusted_device
+                    FROM {Table.SysTrustedDevice}
                     WHERE c_user_type = @UserType
-                      AND c_user_id = @UserId
+                      AND c_userid = @UserId
                     ORDER BY c_trusted_date DESC";
 
                 var devices = await connection.QueryAsync<TrustedDeviceModel>(query, new
@@ -316,8 +317,8 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var query = @"
-                    UPDATE t_sys_trusted_device
+                var query = $@"
+                    UPDATE {Table.SysTrustedDevice}
                     SET c_is_active = 0,
                         c_revoked_date = GETDATE(),
                         c_revoked_reason = @Reason
@@ -340,13 +341,13 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var query = @"
-                    UPDATE t_sys_trusted_device
+                var query = $@"
+                    UPDATE {Table.SysTrustedDevice}
                     SET c_is_active = 0,
                         c_revoked_date = GETDATE(),
                         c_revoked_reason = @Reason
                     WHERE c_user_type = @UserType
-                      AND c_user_id = @UserId
+                      AND c_userid = @UserId
                       AND c_is_active = 1";
 
                 var rowsAffected = await connection.ExecuteAsync(query, new
@@ -441,10 +442,10 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var query = @"
-                    INSERT INTO t_sys_2fa_attempt_log (
+                var query = $@"
+                    INSERT INTO {Table.Sys2FAAttemptLog} (
                         c_user_type,
-                        c_user_id,
+                        c_userid,
                         c_method_used,
                         c_is_successful,
                         c_ip_address,
@@ -482,11 +483,11 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var query = @"
+                var query = $@"
                     SELECT COUNT(*)
-                    FROM t_sys_2fa_attempt_log
+                    FROM {Table.Sys2FAAttemptLog}
                     WHERE c_user_type = @UserType
-                      AND c_user_id = @UserId
+                      AND c_userid = @UserId
                       AND c_is_successful = 0
                       AND c_attempt_date > DATEADD(MINUTE, -@MinutesWindow, GETDATE())";
 

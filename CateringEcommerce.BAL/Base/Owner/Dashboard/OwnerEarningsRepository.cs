@@ -173,10 +173,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         c_status AS Status,
                         c_processed_at AS ProcessedAt,
                         c_bank_reference AS BankReference,
-                        c_created_at AS CreatedAt
+                        c_createddate AS CreatedAt
                     FROM t_owner_settlement
                     WHERE {whereClause}
-                    ORDER BY c_created_at DESC
+                    ORDER BY c_createddate DESC
                     OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
                 ";
 
@@ -263,8 +263,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         c_scheduled_amount,
                         c_scheduled_date,
                         c_is_released,
-                        c_created_at,
-                        c_updated_at,
+                        c_createddate,
+                        c_modifieddate,
                         c_notes
                     )
                     OUTPUT INSERTED.c_schedule_id
@@ -357,7 +357,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         c_transaction_id AS TransactionReference,
                         c_bank_reference AS BankReference,
                         c_failure_reason AS FailureReason,
-                        c_created_at AS ProcessedAt
+                        c_createddate AS ProcessedAt
                     FROM t_owner_payout_schedule
                     WHERE {whereClause}
                     ORDER BY c_scheduled_date DESC

@@ -310,8 +310,64 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         // EVIDENCE & DOCUMENTATION
         // =============================================
 
+        /// <summary>
+        /// Validate photo upload requirements before allowing submission.
+        /// Business Rule: Minimum 3 photos per phase, GPS mandatory, timestamps validated.
+        /// </summary>
+        private bool ValidatePhotoRequirements(List<TimestampedEvidence> evidence, string phase)
+        {
+            if (evidence == null || evidence.Count == 0)
+            {
+                throw new InvalidOperationException($"No evidence provided for {phase}");
+            }
+
+            var photoCount = evidence.Count(e => e.Type == "PHOTO");
+
+            // Minimum requirements based on phase
+            int minimumPhotos = phase switch
+            {
+                "PRE_EVENT" => 3,    // Menu, raw materials, setup
+                "DURING_EVENT" => 3, // Food serving, guest crowd, ambiance
+                "POST_EVENT" => 3,   // Cleanup, leftover management, final state
+                _ => 3
+            };
+
+            if (photoCount < minimumPhotos)
+            {
+                throw new InvalidOperationException(
+                    $"{phase} requires minimum {minimumPhotos} photos. Provided: {photoCount}");
+            }
+
+            // Validate GPS location is present
+            var missingGPS = evidence.Where(e => string.IsNullOrWhiteSpace(e.GPSLocation)).ToList();
+            if (missingGPS.Any())
+            {
+                throw new InvalidOperationException(
+                    $"{missingGPS.Count} evidence item(s) missing GPS location. GPS is mandatory for all uploads.");
+            }
+
+            // Validate timestamp is within reasonable range (not future, not too old)
+            var now = DateTime.UtcNow;
+            var invalidTimestamps = evidence.Where(e =>
+                e.Timestamp > now.AddMinutes(5) ||   // Not more than 5 minutes in future (clock skew)
+                e.Timestamp < now.AddDays(-7)         // Not older than 7 days
+            ).ToList();
+
+            if (invalidTimestamps.Any())
+            {
+                throw new InvalidOperationException(
+                    $"{invalidTimestamps.Count} evidence item(s) have invalid timestamps. " +
+                    "Timestamps must be recent and not in the future.");
+            }
+
+            return true;
+        }
+
         public async Task<bool> UploadTimestampedEvidenceAsync(long assignmentId, List<TimestampedEvidence> evidence, string phase)
         {
+            // Validate photo requirements before upload
+            ValidatePhotoRequirements(evidence, phase);
+
             var parameters = new[]
             {
                 new SqlParameter("@AssignmentId", assignmentId),

@@ -8,7 +8,11 @@ namespace CateringEcommerce.Domain.Models.Admin
         public int PageSize { get; set; } = 20;
         public string? SearchTerm { get; set; }
         public int? CityId { get; set; }
-        public string? Status { get; set; } // Pending, Approved, Rejected, Blocked
+        public int? StateId { get; set; }
+        public int? Status { get; set; }  // Enum: 1=Pending, 2=Approved, 3=Rejected, 4=UnderReview, 5=InfoRequested
+        public bool? IsBlocked { get; set; }
+        public bool? IsActive { get; set; }
+        public bool? IsDeleted { get; set; }
         public string? VerificationStatus { get; set; } // Verified, Unverified
         public string? SortBy { get; set; } = "CreatedDate";
         public string? SortOrder { get; set; } = "DESC";
@@ -23,8 +27,11 @@ namespace CateringEcommerce.Domain.Models.Admin
         public string Email { get; set; } = string.Empty;
         public string City { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
+        public int Status { get; set; }
         public bool IsVerified { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsBlocked { get; set; }
+        public bool IsDeleted { get; set; }
         public decimal? Rating { get; set; }
         public int TotalReviews { get; set; }
         public int TotalOrders { get; set; }
@@ -49,7 +56,7 @@ namespace CateringEcommerce.Domain.Models.Admin
         public string City { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
         public string Pincode { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
+        public int Status { get; set; }
         public bool IsVerified { get; set; }
         public bool IsActive { get; set; }
         public bool IsBlocked { get; set; }
@@ -72,7 +79,7 @@ namespace CateringEcommerce.Domain.Models.Admin
     public class AdminCateringStatusUpdate
     {
         public long CateringId { get; set; }
-        public string Status { get; set; } = string.Empty;
+        public int Status { get; set; }  // Enum integer value
         public string? Reason { get; set; }
         public long UpdatedBy { get; set; }
     }
@@ -84,6 +91,26 @@ namespace CateringEcommerce.Domain.Models.Admin
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
         public int TotalPages { get; set; }
+    }
+
+    public class AdminCateringExportItem
+    {
+        public long CateringId { get; set; }
+        public string BusinessName { get; set; } = string.Empty;
+        public string OwnerName { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public int Status { get; set; }
+        public bool IsVerified { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsBlocked { get; set; }
+        public decimal? Rating { get; set; }
+        public int TotalReviews { get; set; }
+        public int TotalOrders { get; set; }
+        public decimal TotalEarnings { get; set; }
+        public DateTime CreatedDate { get; set; }
     }
 
     #endregion

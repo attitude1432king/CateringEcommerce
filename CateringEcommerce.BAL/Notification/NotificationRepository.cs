@@ -1,3 +1,4 @@
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Models.Notification;
@@ -33,7 +34,7 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
-                "INSERT INTO t_sys_notification_delivery " +
+                $"INSERT INTO {Table.SysNotificationDelivery} " +
                 "(c_notification_id, c_channel, c_status, c_provider, c_provider_message_id, " +
                 "c_recipient, c_sent_at, c_delivered_at, c_error_message, c_retry_count, c_cost) " +
                 "VALUES (@NotificationId, @Channel, @Status, @Provider, @ProviderMessageId, " +
@@ -50,7 +51,7 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             var dt = await _dbHelper.ExecuteAsync(
-                "SELECT * FROM t_sys_notification_delivery WHERE c_notification_id = @NotificationId",
+                $"SELECT * FROM {Table.SysNotificationDelivery} WHERE c_notification_id = @NotificationId",
                 parameters
             );
 
@@ -84,7 +85,7 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             var dt = await _dbHelper.ExecuteAsync(
-                "SELECT TOP (@Limit) * FROM t_sys_notification_delivery " +
+                $"SELECT TOP (@Limit) * FROM {Table.SysNotificationDelivery} " +
                 "WHERE c_recipient = @Recipient " +
                 "ORDER BY c_sent_at DESC",
                 parameters
@@ -124,7 +125,7 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
-                "UPDATE t_sys_notification_delivery " +
+                $"UPDATE {Table.SysNotificationDelivery} " +
                 "SET c_status = @Status, c_error_message = @ErrorMessage " +
                 "WHERE c_notification_id = @NotificationId",
                 parameters
@@ -144,9 +145,9 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             var result = await _dbHelper.ExecuteScalarAsync(
-                @"SELECT COUNT(*)
-                  FROM t_sys_notifications
-                  WHERE c_user_id = @UserId
+                $@"SELECT COUNT(*)
+                  FROM {Table.SysNotifications}
+                  WHERE c_userid = @UserId
                     AND c_user_type = @UserType
                     AND c_is_read = 0
                     AND c_is_deleted = 0
@@ -166,10 +167,10 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
-                @"UPDATE t_sys_notifications
+                $@"UPDATE {Table.SysNotifications}
                   SET c_is_read = 1, c_read_at = GETDATE()
                   WHERE c_notification_uuid = @NotificationId
-                    AND c_user_id = @UserId
+                    AND c_userid = @UserId
                     AND c_is_read = 0",
                 parameters
             );
@@ -188,7 +189,7 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             var dt = await _dbHelper.ExecuteAsync(
-                @"SELECT
+                $@"SELECT
                     c_notification_uuid AS NotificationId,
                     c_title AS Title,
                     c_message AS Message,
@@ -197,13 +198,13 @@ namespace CateringEcommerce.BAL.Notification
                     c_action_url AS ActionUrl,
                     c_icon_url AS IconUrl,
                     c_is_read AS IsRead,
-                    c_created_at AS CreatedAt
-                  FROM t_sys_notifications
-                  WHERE c_user_id = @UserId
+                    c_createddate AS CreatedAt
+                  FROM {Table.SysNotifications}
+                  WHERE c_userid = @UserId
                     AND c_user_type = @UserType
                     AND c_is_deleted = 0
                     AND (c_expires_at IS NULL OR c_expires_at > GETDATE())
-                  ORDER BY c_priority DESC, c_created_at DESC
+                  ORDER BY c_priority DESC, c_createddate DESC
                   OFFSET @Offset ROWS
                   FETCH NEXT @PageSize ROWS ONLY",
                 parameters
@@ -247,9 +248,9 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
-                @"INSERT INTO t_sys_notifications
-                  (c_user_id, c_user_type, c_title, c_message, c_category,
-                   c_priority, c_action_url, c_icon_url, c_data, c_expires_at, c_created_at)
+                $@"INSERT INTO {Table.SysNotifications}
+                  (c_userid, c_user_type, c_title, c_message, c_category,
+                   c_priority, c_action_url, c_icon_url, c_data, c_expires_at, c_createddate)
                   VALUES
                   (@UserId, @UserType, @Title, @Message, @Category,
                    @Priority, @ActionUrl, @IconUrl, @Data, @ExpiresAt, GETDATE())",
@@ -269,9 +270,9 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
-                @"UPDATE t_sys_notifications
+                $@"UPDATE {Table.SysNotifications}
                   SET c_is_read = 1, c_read_at = GETDATE()
-                  WHERE c_user_id = @UserId
+                  WHERE c_userid = @UserId
                     AND c_user_type = @UserType
                     AND c_is_read = 0
                     AND c_is_deleted = 0",
@@ -291,10 +292,10 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
-                @"UPDATE t_sys_notifications
+                $@"UPDATE {Table.SysNotifications}
                   SET c_is_deleted = 1, c_deleted_at = GETDATE()
                   WHERE c_notification_uuid = @NotificationId
-                    AND c_user_id = @UserId",
+                    AND c_userid = @UserId",
                 parameters
             );
         }

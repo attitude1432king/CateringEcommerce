@@ -12,6 +12,7 @@ using Dapper;
 using CateringEcommerce.Domain.Interfaces.Security;
 using CateringEcommerce.Domain.Models.Security;
 using Microsoft.Extensions.Configuration;
+using CateringEcommerce.BAL.Configuration;
 
 namespace CateringEcommerce.BAL.Base.Security
 {
@@ -39,14 +40,14 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<OAuthProviderModel> GetProviderAsync(string providerName)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = @"
+            var sql = $@"
                 SELECT c_provider_id AS ProviderId, c_provider_name AS ProviderName,
                        c_client_id AS ClientId, c_client_secret AS ClientSecret,
                        c_redirect_uri AS RedirectUri, c_authorization_endpoint AS AuthorizationEndpoint,
                        c_token_endpoint AS TokenEndpoint, c_user_info_endpoint AS UserInfoEndpoint,
                        c_scope AS Scope, c_is_active AS IsActive,
-                       c_created_date AS CreatedDate, c_modified_date AS ModifiedDate
-                FROM t_sys_oauth_provider
+                       c_createddate AS CreatedDate, c_modifieddate AS ModifiedDate
+                FROM {Table.SysOAuthProvider}
                 WHERE c_provider_name = @ProviderName AND c_is_active = 1";
 
             return await connection.QueryFirstOrDefaultAsync<OAuthProviderModel>(sql, new { ProviderName = providerName.ToUpper() });
@@ -55,14 +56,14 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<List<OAuthProviderModel>> GetActiveProvidersAsync()
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = @"
+            var sql = $@"
                 SELECT c_provider_id AS ProviderId, c_provider_name AS ProviderName,
                        c_client_id AS ClientId, c_redirect_uri AS RedirectUri,
                        c_authorization_endpoint AS AuthorizationEndpoint,
                        c_token_endpoint AS TokenEndpoint, c_user_info_endpoint AS UserInfoEndpoint,
                        c_scope AS Scope, c_is_active AS IsActive,
-                       c_created_date AS CreatedDate, c_modified_date AS ModifiedDate
-                FROM t_sys_oauth_provider
+                       c_createddate AS CreatedDate, c_modifieddate AS ModifiedDate
+                FROM {Table.SysOAuthProvider}
                 WHERE c_is_active = 1
                 ORDER BY c_provider_name";
 
@@ -73,8 +74,8 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<bool> UpdateProviderConfigAsync(OAuthProviderModel provider)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = @"
-                UPDATE t_sys_oauth_provider
+            var sql = $@"
+                UPDATE {Table.SysOAuthProvider}
                 SET c_client_id = @ClientId,
                     c_client_secret = @ClientSecret,
                     c_redirect_uri = @RedirectUri,
@@ -83,7 +84,7 @@ namespace CateringEcommerce.BAL.Base.Security
                     c_user_info_endpoint = @UserInfoEndpoint,
                     c_scope = @Scope,
                     c_is_active = @IsActive,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_provider_id = @ProviderId";
 
             var rowsAffected = await connection.ExecuteAsync(sql, provider);
@@ -142,10 +143,10 @@ namespace CateringEcommerce.BAL.Base.Security
                 .Replace("/", "_")
                 .Replace("=", "");
 
-            var sql = @"
-                INSERT INTO t_sys_oauth_state
+            var sql = $@"
+                INSERT INTO {Table.SysOAuthState}
                 (c_state_token, c_provider_name, c_redirect_url, c_additional_data,
-                 c_ip_address, c_user_agent, c_created_date, c_expires_at, c_used, c_used_date)
+                 c_ip_address, c_user_agent, c_createddate, c_expires_at, c_used, c_used_date)
                 VALUES
                 (@StateToken, @ProviderName, @RedirectUrl, @AdditionalData,
                  @IpAddress, @UserAgent, GETDATE(), DATEADD(MINUTE, 10, GETDATE()), 0, NULL)";
@@ -166,13 +167,13 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<OAuthStateModel> ValidateStateTokenAsync(string stateToken)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = @"
+            var sql = $@"
                 SELECT c_state_id AS StateId, c_state_token AS StateToken,
                        c_provider_name AS ProviderName, c_redirect_url AS RedirectUrl,
                        c_additional_data AS AdditionalData, c_ip_address AS IpAddress,
-                       c_user_agent AS UserAgent, c_created_date AS CreatedDate,
+                       c_user_agent AS UserAgent, c_createddate AS CreatedDate,
                        c_expires_at AS ExpiresAt, c_used AS Used, c_used_date AS UsedDate
-                FROM t_sys_oauth_state
+                FROM {Table.SysOAuthState}
                 WHERE c_state_token = @StateToken
                   AND c_used = 0
                   AND c_expires_at > GETDATE()";
@@ -183,8 +184,8 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<bool> MarkStateTokenUsedAsync(string stateToken)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = @"
-                UPDATE t_sys_oauth_state
+            var sql = $@"
+                UPDATE {Table.SysOAuthState}
                 SET c_used = 1, c_used_date = GETDATE()
                 WHERE c_state_token = @StateToken";
 
@@ -297,17 +298,17 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<UserOAuthModel> GetOAuthConnectionAsync(string providerName, string providerUserId)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = @"
+            var sql = $@"
                 SELECT o.c_oauth_id AS OAuthId, o.c_userid AS UserId, o.c_provider_id AS ProviderId,
                        o.c_provider_user_id AS ProviderUserId, o.c_provider_email AS ProviderEmail,
                        o.c_provider_name AS ProviderName, o.c_provider_picture AS ProviderPicture,
                        o.c_access_token AS AccessToken, o.c_refresh_token AS RefreshToken,
                        o.c_token_expires_at AS TokenExpiresAt, o.c_is_primary AS IsPrimary,
                        o.c_linked_date AS LinkedDate, o.c_last_login AS LastLogin,
-                       o.c_created_date AS CreatedDate, o.c_modified_date AS ModifiedDate,
+                       o.c_createddate AS CreatedDate, o.c_modifieddate AS ModifiedDate,
                        p.c_provider_name as ProviderDisplayName
-                FROM t_sys_user_oauth o
-                INNER JOIN t_sys_oauth_provider p ON o.c_provider_id = p.c_provider_id
+                FROM {Table.SysUserOAuth} o
+                INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
                 WHERE p.c_provider_name = @ProviderName
                   AND o.c_provider_user_id = @ProviderUserId";
 
@@ -321,7 +322,7 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<long?> FindUserByEmailAsync(string email)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = "SELECT c_userid FROM t_sys_user WHERE c_email = @Email AND c_isactive = 1";
+            var sql = $"SELECT c_userid FROM {Table.SysUser} WHERE c_email = @Email AND c_isactive = 1";
             return await connection.QueryFirstOrDefaultAsync<long?>(sql, new { Email = email });
         }
 
@@ -332,8 +333,8 @@ namespace CateringEcommerce.BAL.Base.Security
             // Generate a random password (user won't use it, but database might require it)
             var randomPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
-            var sql = @"
-                INSERT INTO t_sys_user (c_email, c_password_hash, c_name, c_mobile,
+            var sql = $@"
+                INSERT INTO {Table.SysUser} (c_email, c_password_hash, c_name, c_mobile,
                                        c_isemailverified, c_isactive, c_createddate, c_modifieddate, c_picture)
                 OUTPUT INSERTED.c_userid
                 VALUES (@Email, @PasswordHash, @Name, '',
@@ -365,10 +366,10 @@ namespace CateringEcommerce.BAL.Base.Security
                 throw new InvalidOperationException("This OAuth account is already linked to another user");
 
             // Check if user already has this provider linked
-            var sql = @"
+            var sql = $@"
                 SELECT COUNT(*)
-                FROM t_sys_user_oauth o
-                INNER JOIN t_sys_oauth_provider p ON o.c_provider_id = p.c_provider_id
+                FROM {Table.SysUserOAuth} o
+                INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
                 WHERE o.c_userid = @UserId AND p.c_provider_name = @ProviderName";
 
             var hasProvider = await connection.QuerySingleAsync<int>(sql, new
@@ -381,11 +382,11 @@ namespace CateringEcommerce.BAL.Base.Security
                 throw new InvalidOperationException($"User already has {providerName} linked");
 
             // Store tokens (in production, encrypt these!)
-            var insertSql = @"
-                INSERT INTO t_sys_user_oauth
+            var insertSql = $@"
+                INSERT INTO {Table.SysUserOAuth}
                 (c_userid, c_provider_id, c_provider_user_id, c_provider_email, c_provider_name, c_provider_picture,
                  c_access_token, c_refresh_token, c_token_expires_at, c_is_primary, c_linked_date, c_last_login,
-                 c_created_date, c_modified_date)
+                 c_createddate, c_modifieddate)
                 VALUES
                 (@UserId, @ProviderId, @ProviderUserId, @ProviderEmail, @ProviderName, @ProviderPicture,
                  @AccessToken, @RefreshToken, @TokenExpiresAt, @IsPrimary, GETDATE(), GETDATE(),
@@ -416,7 +417,7 @@ namespace CateringEcommerce.BAL.Base.Security
                 throw new InvalidOperationException("Cannot unlink - this is your only login method. Set a password first.");
 
             using var connection = new SqlConnection(_connectionString);
-            var sql = "DELETE FROM t_sys_user_oauth WHERE c_oauth_id = @OAuthId AND c_userid = @UserId";
+            var sql = $"DELETE FROM {Table.SysUserOAuth} WHERE c_oauth_id = @OAuthId AND c_userid = @UserId";
             var rowsAffected = await connection.ExecuteAsync(sql, new { OAuthId = oauthId, UserId = userId });
             return rowsAffected > 0;
         }
@@ -425,12 +426,12 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using var connection = new SqlConnection(_connectionString);
 
-            var sql = @"
-                UPDATE t_sys_user_oauth
+            var sql = $@"
+                UPDATE {Table.SysUserOAuth}
                 SET c_access_token = @AccessToken,
                     c_refresh_token = COALESCE(@RefreshToken, c_refresh_token),
                     c_token_expires_at = @TokenExpiresAt,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_oauth_id = @OAuthId";
 
             var rowsAffected = await connection.ExecuteAsync(sql, new
@@ -447,7 +448,7 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<bool> UpdateLastLoginAsync(long oauthId)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = "UPDATE t_sys_user_oauth SET c_last_login = GETDATE(), c_modified_date = GETDATE() WHERE c_oauth_id = @OAuthId";
+            var sql = $"UPDATE {Table.SysUserOAuth} SET c_last_login = GETDATE(), c_modifieddate = GETDATE() WHERE c_oauth_id = @OAuthId";
             var rowsAffected = await connection.ExecuteAsync(sql, new { OAuthId = oauthId });
             return rowsAffected > 0;
         }
@@ -459,12 +460,12 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<List<ConnectedOAuthAccountDto>> GetUserOAuthConnectionsAsync(long userId)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = @"
+            var sql = $@"
                 SELECT o.c_oauth_id AS OAuthId, p.c_provider_name AS Provider, o.c_provider_email AS ProviderEmail,
                        o.c_provider_name AS ProviderName, o.c_provider_picture AS ProviderPicture,
                        o.c_is_primary AS IsPrimary, o.c_linked_date AS LinkedDate, o.c_last_login AS LastLogin
-                FROM t_sys_user_oauth o
-                INNER JOIN t_sys_oauth_provider p ON o.c_provider_id = p.c_provider_id
+                FROM {Table.SysUserOAuth} o
+                INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
                 WHERE o.c_userid = @UserId
                 ORDER BY o.c_is_primary DESC, o.c_linked_date DESC";
 
@@ -482,7 +483,7 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<bool> HasOAuthConnectionsAsync(long userId)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = "SELECT COUNT(*) FROM t_sys_user_oauth WHERE c_userid = @UserId";
+            var sql = $"SELECT COUNT(*) FROM {Table.SysUserOAuth} WHERE c_userid = @UserId";
             var count = await connection.QuerySingleAsync<int>(sql, new { UserId = userId });
             return count > 0;
         }
@@ -492,16 +493,16 @@ namespace CateringEcommerce.BAL.Base.Security
             using var connection = new SqlConnection(_connectionString);
 
             // Check if user has a password
-            var hasPasswordSql = @"
+            var hasPasswordSql = $@"
                 SELECT CASE WHEN c_password_hash IS NOT NULL AND c_password_hash <> '' THEN 1 ELSE 0 END
-                FROM t_sys_user WHERE c_userid = @UserId";
+                FROM {Table.SysUser} WHERE c_userid = @UserId";
             var hasPassword = await connection.QuerySingleAsync<bool>(hasPasswordSql, new { UserId = userId });
 
             if (hasPassword)
                 return true; // Can unlink if user has password
 
             // Check if user has other OAuth connections
-            var otherConnectionsSql = "SELECT COUNT(*) FROM t_sys_user_oauth WHERE c_userid = @UserId AND c_oauth_id <> @OAuthId";
+            var otherConnectionsSql = $"SELECT COUNT(*) FROM {Table.SysUserOAuth} WHERE c_userid = @UserId AND c_oauth_id <> @OAuthId";
             var otherConnectionsCount = await connection.QuerySingleAsync<int>(otherConnectionsSql, new { UserId = userId, OAuthId = oauthId });
 
             return otherConnectionsCount > 0; // Can unlink if user has other OAuth connections
@@ -510,17 +511,17 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<UserOAuthModel> GetPrimaryOAuthConnectionAsync(long userId)
         {
             using var connection = new SqlConnection(_connectionString);
-            var sql = @"
+            var sql = $@"
                 SELECT TOP 1 o.c_oauth_id AS OAuthId, o.c_userid AS UserId, o.c_provider_id AS ProviderId,
                        o.c_provider_user_id AS ProviderUserId, o.c_provider_email AS ProviderEmail,
                        o.c_provider_name AS ProviderName, o.c_provider_picture AS ProviderPicture,
                        o.c_access_token AS AccessToken, o.c_refresh_token AS RefreshToken,
                        o.c_token_expires_at AS TokenExpiresAt, o.c_is_primary AS IsPrimary,
                        o.c_linked_date AS LinkedDate, o.c_last_login AS LastLogin,
-                       o.c_created_date AS CreatedDate, o.c_modified_date AS ModifiedDate,
+                       o.c_createddate AS CreatedDate, o.c_modifieddate AS ModifiedDate,
                        p.c_provider_name AS ProviderDisplayName
-                FROM t_sys_user_oauth o
-                INNER JOIN t_sys_oauth_provider p ON o.c_provider_id = p.c_provider_id
+                FROM {Table.SysUserOAuth} o
+                INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
                 WHERE o.c_userid = @UserId
                 ORDER BY o.c_is_primary DESC, o.c_linked_date ASC";
 
@@ -536,11 +537,11 @@ namespace CateringEcommerce.BAL.Base.Security
             try
             {
                 // Remove primary from all connections
-                var clearPrimarySql = "UPDATE t_sys_user_oauth SET c_is_primary = 0 WHERE c_userid = @UserId";
+                var clearPrimarySql = $"UPDATE {Table.SysUserOAuth} SET c_is_primary = 0 WHERE c_userid = @UserId";
                 await connection.ExecuteAsync(clearPrimarySql, new { UserId = userId }, transaction);
 
                 // Set new primary
-                var setPrimarySql = "UPDATE t_sys_user_oauth SET c_is_primary = 1 WHERE c_oauth_id = @OAuthId AND c_userid = @UserId";
+                var setPrimarySql = $"UPDATE {Table.SysUserOAuth} SET c_is_primary = 1 WHERE c_oauth_id = @OAuthId AND c_userid = @UserId";
                 var rowsAffected = await connection.ExecuteAsync(setPrimarySql, new { OAuthId = oauthId, UserId = userId }, transaction);
 
                 transaction.Commit();
@@ -562,13 +563,13 @@ namespace CateringEcommerce.BAL.Base.Security
             using var connection = new SqlConnection(_connectionString);
 
             // Delete expired state tokens (older than 1 day)
-            var deleteStatesSql = "DELETE FROM t_sys_oauth_state WHERE c_expires_at < DATEADD(DAY, -1, GETDATE())";
+            var deleteStatesSql = $"DELETE FROM {Table.SysOAuthState} WHERE c_expires_at < DATEADD(DAY, -1, GETDATE())";
             var deletedStates = await connection.ExecuteAsync(deleteStatesSql);
 
             // Delete OAuth connections for deleted users (if any)
-            var deleteConnectionsSql = @"
-                DELETE FROM t_sys_user_oauth
-                WHERE c_userid NOT IN (SELECT c_userid FROM t_sys_user WHERE c_isactive = 1)";
+            var deleteConnectionsSql = $@"
+                DELETE FROM {Table.SysUserOAuth}
+                WHERE c_userid NOT IN (SELECT c_userid FROM {Table.SysUser} WHERE c_isactive = 1)";
             var deletedConnections = await connection.ExecuteAsync(deleteConnectionsSql);
 
             return (deletedStates, deletedConnections);

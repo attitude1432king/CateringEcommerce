@@ -2,14 +2,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:443
 
 
 const apiCall = async (endpoint, options = {}) => {
-    const token = localStorage.getItem('adminToken');
     const response = await fetch(`${API_BASE_URL}/api/admin/master-data${endpoint}`, {
         ...options,
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
             ...options.headers,
         },
+        credentials: 'include',
     });
 
     if (!response.ok) {

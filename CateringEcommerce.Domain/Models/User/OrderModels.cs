@@ -1,3 +1,4 @@
+using CateringEcommerce.Domain.Models.Common;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -272,14 +273,5 @@ namespace CateringEcommerce.Domain.Models.User
         [Required]
         [MaxLength(500)]
         public string Reason { get; set; } = string.Empty;
-    }
-
-    // ===================================
-    // FILE UPLOAD DTO (For Payment Proof)
-    // ===================================
-    public class FileUploadDto
-    {
-        public string? Base64 { get; set; }
-        public string? Name { get; set; }
     }
 }

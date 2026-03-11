@@ -10,6 +10,13 @@ const ConnectedAccountsPage = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
+  // Unlink confirmation modal state
+  const [unlinkConfirmation, setUnlinkConfirmation] = useState({
+    isOpen: false,
+    oauthId: null,
+    provider: ''
+  });
+
   useEffect(() => {
     fetchConnectedAccounts();
   }, []);
@@ -31,10 +38,17 @@ const ConnectedAccountsPage = () => {
     }
   };
 
-  const handleUnlink = async (oauthId, provider) => {
-    if (!window.confirm(`Are you sure you want to unlink your ${provider} account?`)) {
-      return;
-    }
+  const handleUnlink = (oauthId, provider) => {
+    setUnlinkConfirmation({
+      isOpen: true,
+      oauthId,
+      provider
+    });
+  };
+
+  const confirmUnlink = async () => {
+    const { oauthId, provider } = unlinkConfirmation;
+    setUnlinkConfirmation({ isOpen: false, oauthId: null, provider: '' });
 
     try {
       const response = await unlinkOAuthAccount(oauthId);
@@ -263,6 +277,38 @@ const ConnectedAccountsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Unlink Confirmation Modal */}
+      {unlinkConfirmation.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
+            <div className="text-center mb-6">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-4">
+                <Unlink className="h-6 w-6 text-orange-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Unlink Account?</h3>
+              <p className="text-sm text-gray-600">
+                Are you sure you want to unlink your {unlinkConfirmation.provider} account? You will need to use another login method to access your account.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setUnlinkConfirmation({ isOpen: false, oauthId: null, provider: '' })}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmUnlink}
+                className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+              >
+                Unlink Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

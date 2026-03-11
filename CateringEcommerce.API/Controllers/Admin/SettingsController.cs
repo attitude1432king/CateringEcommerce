@@ -2,6 +2,7 @@ using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Admin;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -14,13 +15,13 @@ namespace CateringEcommerce.API.Controllers.Admin
     [AdminAuthorize]
     public class SettingsController : ControllerBase
     {
-        private readonly string _connStr;
-        private readonly IConfiguration _config;
+        private readonly ISettingsRepository _settingsRepository;
+        private readonly IRBACRepository _rbacRepository;
 
-        public SettingsController(IConfiguration config)
+        public SettingsController(ISettingsRepository settingsRepository, IRBACRepository rbacRepository)
         {
-            _config = config;
-            _connStr = config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _settingsRepository = settingsRepository;
+            _rbacRepository = rbacRepository;
         }
 
         private (long adminId, string adminName) GetCurrentAdmin()
@@ -38,17 +39,12 @@ namespace CateringEcommerce.API.Controllers.Admin
 
         private async Task<bool> CheckPermissionAsync(long adminId, string permission)
         {
-            var dbHelper = new SqlDatabaseManager(_config);
-            var rbacRepo = new RBACRepository(dbHelper);
-            return await rbacRepo.HasPermissionAsync(adminId, permission);
+            return await _rbacRepository.AdminHasPermissionAsync(adminId, permission);
         }
 
         private async Task LogAuditAsync(long adminId, string adminName, string action, string module, long? targetId, string? targetType, object? details, string status, string? errorMessage = null)
         {
-            var dbHelper = new SqlDatabaseManager(_config);
-            var rbacRepo = new RBACRepository(dbHelper);
-
-            await rbacRepo.LogAuditAsync(new AuditLogEntry
+            await _rbacRepository.LogAuditAsync(new AuditLogEntry
             {
                 AdminId = adminId,
                 AdminName = adminName,
@@ -86,10 +82,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to view settings."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var result = await settingsRepo.GetSettingsAsync(request);
+                var result = await _settingsRepository.GetSettingsAsync(request);
 
                 await LogAuditAsync(adminId, adminName, "VIEW_SETTINGS", "SETTINGS", null, null, request, "SUCCESS");
                 return ApiResponseHelper.Success(result, "Settings retrieved successfully.");
@@ -113,10 +106,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to view settings."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var setting = await settingsRepo.GetSettingByKeyAsync(settingKey);
+                var setting = await _settingsRepository.GetSettingByKeyAsync(settingKey);
 
                 if (setting == null)
                 {
@@ -151,10 +141,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return ApiResponseHelper.Failure("Setting ID mismatch.");
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var success = await settingsRepo.UpdateSettingAsync(request, adminId, adminName, GetClientIpAddress());
+                var success = await _settingsRepository.UpdateSettingAsync(request, adminId, adminName, GetClientIpAddress());
 
                 if (success)
                 {
@@ -188,10 +175,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to view setting history."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var result = await settingsRepo.GetSettingHistoryAsync(settingId, pageNumber, pageSize);
+                var result = await _settingsRepository.GetSettingHistoryAsync(settingId, pageNumber, pageSize);
 
                 await LogAuditAsync(adminId, adminName, "VIEW_SETTING_HISTORY", "SETTINGS", settingId, "Setting", null, "SUCCESS");
                 return ApiResponseHelper.Success(result, "Setting history retrieved successfully.");
@@ -215,10 +199,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to export settings."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var result = await settingsRepo.ExportSettingsAsync(request);
+                var result = await _settingsRepository.ExportSettingsAsync(request);
 
                 await LogAuditAsync(adminId, adminName, "EXPORT_SETTINGS", "SETTINGS", null, null, request, "SUCCESS");
                 return ApiResponseHelper.Success(result, "Settings exported successfully.");
@@ -242,10 +223,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to import settings."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var result = await settingsRepo.ImportSettingsAsync(request, adminId);
+                var result = await _settingsRepository.ImportSettingsAsync(request, adminId);
 
                 await LogAuditAsync(adminId, adminName, "IMPORT_SETTINGS", "SETTINGS", null, null, request, "SUCCESS");
                 return ApiResponseHelper.Success(result, "Settings imported successfully.");
@@ -273,10 +251,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to view commission configurations."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var result = await settingsRepo.GetCommissionConfigsAsync(request);
+                var result = await _settingsRepository.GetCommissionConfigsAsync(request);
 
                 await LogAuditAsync(adminId, adminName, "VIEW_COMMISSION_CONFIGS", "SETTINGS", null, null, request, "SUCCESS");
                 return ApiResponseHelper.Success(result, "Commission configurations retrieved successfully.");
@@ -300,10 +275,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to view commission configurations."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var config = await settingsRepo.GetCommissionConfigByIdAsync(configId);
+                var config = await _settingsRepository.GetCommissionConfigByIdAsync(configId);
 
                 if (config == null)
                 {
@@ -332,10 +304,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to create commission configurations."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var newId = await settingsRepo.CreateCommissionConfigAsync(request, adminId);
+                var newId = await _settingsRepository.CreateCommissionConfigAsync(request, adminId);
 
                 await LogAuditAsync(adminId, adminName, "CREATE_COMMISSION_CONFIG", "SETTINGS", newId, "CommissionConfig", request, "SUCCESS");
                 return ApiResponseHelper.Success(new { ConfigId = newId }, "Commission configuration created successfully.");
@@ -370,10 +339,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return ApiResponseHelper.Failure("Configuration ID mismatch.");
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var success = await settingsRepo.UpdateCommissionConfigAsync(request, adminId);
+                var success = await _settingsRepository.UpdateCommissionConfigAsync(request, adminId);
 
                 if (success)
                 {
@@ -407,10 +373,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to delete commission configurations."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var success = await settingsRepo.DeleteCommissionConfigAsync(configId);
+                var success = await _settingsRepository.DeleteCommissionConfigAsync(configId);
 
                 if (success)
                 {
@@ -443,10 +406,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to view email templates."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var result = await settingsRepo.GetEmailTemplatesAsync(request);
+                var result = await _settingsRepository.GetEmailTemplatesAsync(request);
 
                 await LogAuditAsync(adminId, adminName, "VIEW_EMAIL_TEMPLATES", "SETTINGS", null, null, request, "SUCCESS");
                 return ApiResponseHelper.Success(result, "Email templates retrieved successfully.");
@@ -470,10 +430,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to view email templates."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var template = await settingsRepo.GetEmailTemplateByIdAsync(templateId);
+                var template = await _settingsRepository.GetEmailTemplateByIdAsync(templateId);
 
                 if (template == null)
                 {
@@ -482,6 +439,53 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 await LogAuditAsync(adminId, adminName, "VIEW_EMAIL_TEMPLATE", "SETTINGS", templateId, "EmailTemplate", null, "SUCCESS");
                 return ApiResponseHelper.Success(template, "Email template retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+            }
+        }
+
+        [HttpPost("email-templates")]
+        public async Task<IActionResult> CreateEmailTemplate([FromBody] CreateEmailTemplateRequest request)
+        {
+            try
+            {
+                var (adminId, adminName) = GetCurrentAdmin();
+
+                if (!await CheckPermissionAsync(adminId, "SYSTEM_CONFIG"))
+                {
+                    await LogAuditAsync(adminId, adminName, "CREATE_EMAIL_TEMPLATE", "SETTINGS", null, "EmailTemplate", request, "UNAUTHORIZED");
+                    return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to create email templates."));
+                }
+
+                if (string.IsNullOrWhiteSpace(request.TemplateCode) || string.IsNullOrWhiteSpace(request.TemplateName) ||
+                    string.IsNullOrWhiteSpace(request.Category) || string.IsNullOrWhiteSpace(request.Body) ||
+                    string.IsNullOrWhiteSpace(request.Channel))
+                {
+                    return ApiResponseHelper.Failure("Template code, name, channel, category, and body are required.");
+                }
+
+                var validChannels = new[] { "EMAIL", "SMS", "INAPP" };
+                if (!validChannels.Contains(request.Channel?.ToUpper()))
+                {
+                    return ApiResponseHelper.Failure("Channel must be EMAIL, SMS, or INAPP.");
+                }
+
+                if (request.Channel?.ToUpper() == "EMAIL" && string.IsNullOrWhiteSpace(request.Subject))
+                {
+                    return ApiResponseHelper.Failure("Subject is required for EMAIL channel.");
+                }
+
+                var newId = await _settingsRepository.CreateEmailTemplateAsync(request, adminId);
+
+                await LogAuditAsync(adminId, adminName, "CREATE_EMAIL_TEMPLATE", "SETTINGS", newId, "EmailTemplate", request, "SUCCESS");
+                return ApiResponseHelper.Success(new { TemplateId = newId }, "Email template created successfully.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                await LogAuditAsync(GetCurrentAdmin().adminId, GetCurrentAdmin().adminName, "CREATE_EMAIL_TEMPLATE", "SETTINGS", null, "EmailTemplate", request, "FAILED", ex.Message);
+                return StatusCode(400, ApiResponseHelper.Failure(ex.Message));
             }
             catch (Exception ex)
             {
@@ -502,16 +506,18 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to update email templates."));
                 }
 
-                // Ensure templateId matches
                 if (request.TemplateId != templateId)
                 {
                     return ApiResponseHelper.Failure("Template ID mismatch.");
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
+                if (string.IsNullOrWhiteSpace(request.TemplateName) || string.IsNullOrWhiteSpace(request.Category) ||
+                    string.IsNullOrWhiteSpace(request.Body))
+                {
+                    return ApiResponseHelper.Failure("Template name, category, and body are required.");
+                }
 
-                var success = await settingsRepo.UpdateEmailTemplateAsync(request, adminId, adminName);
+                var success = await _settingsRepository.UpdateEmailTemplateAsync(request, adminId, adminName);
 
                 if (success)
                 {
@@ -545,10 +551,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to preview email templates."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var result = await settingsRepo.PreviewTemplateAsync(request);
+                var result = await _settingsRepository.PreviewTemplateAsync(request);
 
                 await LogAuditAsync(adminId, adminName, "PREVIEW_EMAIL_TEMPLATE", "SETTINGS", request.TemplateId, "EmailTemplate", request, "SUCCESS");
                 return ApiResponseHelper.Success(result, "Template preview generated successfully.");
@@ -576,10 +579,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You don't have permission to view template variables."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var result = await settingsRepo.GetTemplateVariablesAsync(templateCode);
+                var result = await _settingsRepository.GetTemplateVariablesAsync(templateCode);
 
                 await LogAuditAsync(adminId, adminName, "VIEW_TEMPLATE_VARIABLES", "SETTINGS", null, "TemplateVariables", templateCode, "SUCCESS");
                 return ApiResponseHelper.Success(result, "Template variables retrieved successfully.");
@@ -611,10 +611,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 var toEmail = request["toEmail"];
                 request.Remove("toEmail");
 
-                var dbHelper = new SqlDatabaseManager(_config);
-                var settingsRepo = new SettingsRepository(dbHelper, _config);
-
-                var success = await settingsRepo.SendTestEmailAsync(templateId, toEmail, request);
+                var success = await _settingsRepository.SendTestEmailAsync(templateId, toEmail, request);
 
                 if (success)
                 {

@@ -3,7 +3,7 @@
 -- Pre-Event, During-Event, Post-Event Tracking
 -- =============================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '================================================';
@@ -206,7 +206,7 @@ BEGIN
         c_vendor_signature_url VARCHAR(500) NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
 
         FOREIGN KEY (c_assignment_id) REFERENCES t_sys_supervisor_assignment(c_assignment_id),
         FOREIGN KEY (c_supervisor_id) REFERENCES t_sys_supervisor(c_supervisor_id),
@@ -353,13 +353,13 @@ BEGIN
         c_verification_notes NVARCHAR(500) NULL,
 
         -- Audit
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
         c_submitted_date DATETIME NULL,
 
         FOREIGN KEY (c_assignment_id) REFERENCES t_sys_supervisor_assignment(c_assignment_id),
         FOREIGN KEY (c_supervisor_id) REFERENCES t_sys_supervisor(c_supervisor_id),
         INDEX idx_assignment (c_assignment_id),
-        INDEX idx_created_date (c_created_date)
+        INDEX idx_created_date (c_createddate)
     );
     PRINT '✓ Created table: t_sys_post_event_report';
 END

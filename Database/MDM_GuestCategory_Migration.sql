@@ -10,9 +10,9 @@ CREATE TABLE t_sys_guest_category (
     c_description NVARCHAR(500) NULL,
     c_display_order INT NOT NULL DEFAULT 0,
     c_is_active BIT NOT NULL DEFAULT 1,
-    c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+    c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
     c_created_by BIGINT NULL,
-    c_modified_date DATETIME NULL,
+    c_modifieddate DATETIME NULL,
     c_modified_by BIGINT NULL,
     c_is_deleted BIT NOT NULL DEFAULT 0,
     CONSTRAINT UQ_GuestCategory_Name UNIQUE (c_category_name)

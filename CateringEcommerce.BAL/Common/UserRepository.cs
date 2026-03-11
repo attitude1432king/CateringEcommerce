@@ -96,6 +96,49 @@ namespace CateringEcommerce.BAL.Common
             return Convert.ToBoolean(_dbHelper.ExecuteScalar(query, parameters));
         }
 
+        /// <summary>
+        /// Get approval status for partner/owner by phone number
+        /// Returns the approval status if owner exists, otherwise returns null
+        /// </summary>
+        public int? GetOwnerApprovalStatus(string phoneNumber)
+        {
+            string query = $"SELECT c_approval_status FROM {Table.SysCateringOwner} WHERE c_catering_number = @phoneNumber OR c_mobile = @phoneNumber";
+            SqlParameter[] parameters = {
+                    new SqlParameter("@phoneNumber", phoneNumber)
+                    };
+            
+            var result = _dbHelper.ExecuteScalar(query, parameters);
+            
+            if (result != null && result != DBNull.Value)
+            {
+                return Convert.ToInt32(result);
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// Check if owner exists and get their details along with approval status
+        /// </summary>
+        public (bool exists, int? approvalStatus) CheckOwnerWithApprovalStatus(string phoneNumber)
+        {
+            string query = $"SELECT c_ownerid, c_approval_status FROM {Table.SysCateringOwner} WHERE c_catering_number = @phoneNumber OR c_mobile = @phoneNumber";
+            SqlParameter[] parameters = {
+                    new SqlParameter("@phoneNumber", phoneNumber)
+                    };
+            
+            var dt = _dbHelper.Execute(query, parameters);
+            
+            if (dt.Rows.Count > 0)
+            {
+                var row = dt.Rows[0];
+                int? approvalStatus = row["c_approval_status"] == DBNull.Value ? null : Convert.ToInt32(row["c_approval_status"]);
+                return (true, approvalStatus);
+            }
+            
+            return (false, null);
+        }
+
         private string GetUserTableName(string role)
         {
             return role switch

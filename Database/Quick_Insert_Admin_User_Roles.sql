@@ -3,7 +3,7 @@
 -- Single query to assign SUPER_ADMIN to Admin ID = 1
 -- =====================================================
 
-USE CateringEcommerce;
+USE CateringDB;
 GO
 
 -- Simple INSERT: Assign SUPER_ADMIN role to Admin ID = 1

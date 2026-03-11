@@ -1,3 +1,4 @@
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Models.Order;
@@ -63,18 +64,18 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<CustomerComplaintModel> GetComplaintAsync(long complaintId)
         {
-            var query = @"
+            var query = $@"
                 SELECT c.*,
-                       o.c_ordernumber,
+                       o.c_order_number,
                        o.c_event_date,
                        o.c_total_amount,
-                       u.c_username,
+                       u.c_name,
                        u.c_email,
                        co.c_catering_name
-                FROM t_sys_order_complaints c
-                INNER JOIN t_sys_order o ON c.c_orderid = o.c_orderid
-                INNER JOIN t_sys_user u ON c.c_userid = u.c_userid
-                INNER JOIN t_sys_catering_owner co ON o.c_cateringownerid = co.c_ownerid
+                FROM {Table.SysOrderComplaints} c
+                INNER JOIN {Table.SysOrders} o ON c.c_orderid = o.c_orderid
+                INNER JOIN {Table.SysUser} u ON c.c_userid = u.c_userid
+                INNER JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
                 WHERE c.c_complaint_id = @ComplaintId";
 
             var parameters = new[]
@@ -88,10 +89,10 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<List<CustomerComplaintModel>> GetComplaintsByOrderAsync(long orderId)
         {
-            var query = @"
-                SELECT * FROM t_sys_order_complaints
+            var query = $@"
+                SELECT * FROM {Table.SysOrderComplaints}
                 WHERE c_orderid = @OrderId
-                ORDER BY c_created_date DESC";
+                ORDER BY c_createddate DESC";
 
             var parameters = new[]
             {
@@ -103,16 +104,16 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<List<CustomerComplaintModel>> GetComplaintsByUserAsync(long userId)
         {
-            var query = @"
+            var query = $@"
                 SELECT c.*,
-                       o.c_ordernumber,
+                       o.c_order_number,
                        o.c_event_date,
                        co.c_catering_name
-                FROM t_sys_order_complaints c
-                INNER JOIN t_sys_order o ON c.c_orderid = o.c_orderid
-                INNER JOIN t_sys_catering_owner co ON o.c_cateringownerid = co.c_ownerid
+                FROM {Table.SysOrderComplaints} c
+                INNER JOIN {Table.SysOrders} o ON c.c_orderid = o.c_orderid
+                INNER JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
                 WHERE c.c_userid = @UserId
-                ORDER BY c.c_created_date DESC";
+                ORDER BY c.c_createddate DESC";
 
             var parameters = new[]
             {
@@ -124,19 +125,19 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<List<CustomerComplaintModel>> GetPendingComplaintsAsync()
         {
-            var query = @"
+            var query = $@"
                 SELECT c.*,
-                       o.c_ordernumber,
+                       o.c_order_number,
                        o.c_event_date,
                        o.c_total_amount,
-                       u.c_username,
+                       u.c_name,
                        u.c_email,
                        co.c_catering_name,
-                       DATEDIFF(HOUR, c.c_created_date, GETDATE()) AS c_hours_open
-                FROM t_sys_order_complaints c
-                INNER JOIN t_sys_order o ON c.c_orderid = o.c_orderid
-                INNER JOIN t_sys_user u ON c.c_userid = u.c_userid
-                INNER JOIN t_sys_catering_owner co ON o.c_cateringownerid = co.c_ownerid
+                       DATEDIFF(HOUR, c.c_createddate, GETDATE()) AS c_hours_open
+                FROM {Table.SysOrderComplaints} c
+                INNER JOIN {Table.SysOrders} o ON c.c_orderid = o.c_orderid
+                INNER JOIN {Table.SysUser} u ON c.c_userid = u.c_userid
+                INNER JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
                 WHERE c.c_status IN ('Open', 'Under_Investigation', 'Escalated')
                 ORDER BY
                     CASE c.c_severity
@@ -144,7 +145,7 @@ namespace CateringEcommerce.BAL.Base.Order
                         WHEN 'MAJOR' THEN 2
                         WHEN 'MINOR' THEN 3
                     END,
-                    c.c_created_date ASC";
+                    c.c_createddate ASC";
 
             return await _dbHelper.ExecuteQueryAsync<CustomerComplaintModel>(query);
         }
@@ -157,19 +158,18 @@ namespace CateringEcommerce.BAL.Base.Order
             // Determine status based on resolution
             string status = request.IsValidComplaint ? "Resolved" : "Rejected";
 
-            var query = @"
-                UPDATE t_sys_order_complaints
+            var query = $@"
+                UPDATE {Table.SysOrderComplaints}
                 SET c_status = @Status,
                     c_resolution_type = @ResolutionType,
-                    c_admin_resolved_by = @AdminId,
-                    c_resolution_date = GETDATE(),
+                    c_reviewed_by = @AdminId,
+                    c_reviewed_date = GETDATE(),
                     c_resolution_notes = @ResolutionNotes,
                     c_refund_amount = @RefundAmount,
                     c_goodwill_credit = @GoodwillCredit,
                     c_is_valid_complaint = @IsValidComplaint,
                     c_validity_reason = @ValidityReason,
-                    c_partner_penalty_amount = @PartnerPenaltyAmount,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_complaint_id = @ComplaintId";
 
             var parameters = new[]
@@ -182,8 +182,7 @@ namespace CateringEcommerce.BAL.Base.Order
                 new SqlParameter("@RefundAmount", request.RefundAmount),
                 new SqlParameter("@GoodwillCredit", request.GoodwillCredit),
                 new SqlParameter("@IsValidComplaint", request.IsValidComplaint),
-                new SqlParameter("@ValidityReason", (object)request.ValidityReason ?? DBNull.Value),
-                new SqlParameter("@PartnerPenaltyAmount", partnerPenaltyAmount)
+                new SqlParameter("@ValidityReason", (object)request.ValidityReason ?? DBNull.Value)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -205,17 +204,17 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<bool> AddPartnerResponseAsync(long complaintId, long partnerId, string response, bool admitsFault, bool offeredReplacement)
         {
-            var query = @"
-                UPDATE t_sys_order_complaints
+            var query = $@"
+                UPDATE {Table.SysOrderComplaints}
                 SET c_partner_response = @Response,
-                    c_partner_admits_fault = @AdmitsFault,
+                    c_partner_admitted_fault = @AdmitsFault,
                     c_partner_offered_replacement = @OfferedReplacement,
                     c_partner_response_date = GETDATE(),
                     c_status = CASE
                         WHEN @AdmitsFault = 1 THEN 'Under_Investigation'
                         ELSE c_status
                     END,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_complaint_id = @ComplaintId";
 
             var parameters = new[]
@@ -232,10 +231,10 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<bool> EscalateComplaintAsync(long complaintId)
         {
-            var query = @"
-                UPDATE t_sys_order_complaints
+            var query = $@"
+                UPDATE {Table.SysOrderComplaints}
                 SET c_status = 'Escalated',
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_complaint_id = @ComplaintId
                   AND c_status IN ('Open', 'Under_Investigation')";
 
@@ -250,13 +249,13 @@ namespace CateringEcommerce.BAL.Base.Order
 
         public async Task<Dictionary<string, int>> GetComplaintStatisticsAsync(DateTime? startDate = null, DateTime? endDate = null)
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     c_status AS Status,
                     COUNT(*) AS Count
-                FROM t_sys_order_complaints
-                WHERE (@StartDate IS NULL OR c_created_date >= @StartDate)
-                  AND (@EndDate IS NULL OR c_created_date <= @EndDate)
+                FROM {Table.SysOrderComplaints}
+                WHERE (@StartDate IS NULL OR c_createddate >= @StartDate)
+                  AND (@EndDate IS NULL OR c_createddate <= @EndDate)
                 GROUP BY c_status";
 
             var parameters = new[]
@@ -285,10 +284,10 @@ namespace CateringEcommerce.BAL.Base.Order
             if (complaint == null) return;
 
             // Update payment summary
-            var updatePaymentQuery = @"
-                UPDATE t_sys_payment_summary
+            var updatePaymentQuery = $@"
+                UPDATE {Table.SysPaymentSummary}
                 SET c_refund_amount = ISNULL(c_refund_amount, 0) + @RefundAmount,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_orderid = @OrderId";
 
             var parameters = new[]
@@ -300,8 +299,8 @@ namespace CateringEcommerce.BAL.Base.Order
             await _dbHelper.ExecuteNonQueryAsync(updatePaymentQuery, parameters);
 
             // Log refund transaction
-            var insertRefundQuery = @"
-                INSERT INTO t_sys_payment_transactions (
+            var insertRefundQuery = $@"
+                INSERT INTO {Table.SysPaymentTransantions} (
                     c_orderid, c_payment_type, c_amount, c_payment_status,
                     c_transaction_reference, c_payment_notes
                 )
@@ -326,8 +325,8 @@ namespace CateringEcommerce.BAL.Base.Order
             if (complaint == null) return;
 
             // Get partner ID from order
-            var getPartnerQuery = @"
-                SELECT c_cateringownerid FROM t_sys_order WHERE c_orderid = @OrderId";
+            var getPartnerQuery = $@"
+                SELECT c_ownerid FROM {Table.SysOrders} WHERE c_orderid = @OrderId";
 
             var partnerResults = await _dbHelper.ExecuteQueryAsync<dynamic>(
                 getPartnerQuery,
@@ -335,14 +334,14 @@ namespace CateringEcommerce.BAL.Base.Order
             );
 
             if (partnerResults.Count == 0) return;
-            long partnerId = partnerResults[0].c_cateringownerid;
+            long partnerId = partnerResults[0].c_ownerid;
 
             // Deduct from security deposit
-            var updateDepositQuery = @"
-                UPDATE t_sys_partner_security_deposits
+            var updateDepositQuery = $@"
+                UPDATE {Table.SysPartnerSecurityDeposits}
                 SET c_current_balance = c_current_balance - @PenaltyAmount,
                     c_available_balance = c_available_balance - @PenaltyAmount,
-                    c_modified_date = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_ownerid = @PartnerId
                   AND c_is_active = 1";
 
@@ -353,9 +352,9 @@ namespace CateringEcommerce.BAL.Base.Order
             });
 
             // Log deposit transaction
-            var getDepositIdQuery = @"
+            var getDepositIdQuery = $@"
                 SELECT c_deposit_id, c_current_balance
-                FROM t_sys_partner_security_deposits
+                FROM {Table.SysPartnerSecurityDeposits}
                 WHERE c_ownerid = @PartnerId AND c_is_active = 1";
 
             var depositResults = await _dbHelper.ExecuteQueryAsync<dynamic>(
@@ -369,8 +368,8 @@ namespace CateringEcommerce.BAL.Base.Order
                 decimal balanceBefore = depositResults[0].c_current_balance + penaltyAmount;
                 decimal balanceAfter = depositResults[0].c_current_balance;
 
-                var insertTransactionQuery = @"
-                    INSERT INTO t_sys_deposit_transactions (
+                var insertTransactionQuery = $@"
+                    INSERT INTO {Table.SysDepositTransactions} (
                         c_deposit_id, c_ownerid, c_transaction_type, c_amount,
                         c_balance_before, c_balance_after, c_reason, c_reference_type, c_reference_id
                     )

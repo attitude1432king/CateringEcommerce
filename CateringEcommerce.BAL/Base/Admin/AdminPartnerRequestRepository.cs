@@ -41,11 +41,11 @@ namespace CateringEcommerce.BAL.Base.Admin
                     ISNULL(co.c_priority, 'NORMAL') AS Priority,
                     co.c_createddate AS SubmittedDate,
                     co.c_reviewed_date AS ReviewedDate,
-                    (SELECT COUNT(*) FROM t_sys_catering_media_uploads WHERE c_ownerid = co.c_ownerid AND c_is_deleted = 0) AS DocumentCount
-                FROM t_sys_catering_owner co
-                LEFT JOIN t_sys_catering_owner_addresses addr ON co.c_ownerid = addr.c_ownerid
-                LEFT JOIN t_sys_city c ON addr.c_cityid = c.c_cityid
-                LEFT JOIN t_sys_state s ON addr.c_stateid = s.c_stateid
+                    (SELECT COUNT(*) FROM {Table.SysCateringMediaUploads} WHERE c_ownerid = co.c_ownerid AND c_is_deleted = 0) AS DocumentCount
+                FROM {Table.SysCateringOwner} co
+                LEFT JOIN {Table.SysCateringOwnerAddress} addr ON co.c_ownerid = addr.c_ownerid
+                LEFT JOIN {Table.City} c ON addr.c_cityid = c.c_cityid
+                LEFT JOIN {Table.State} s ON addr.c_stateid = s.c_stateid
                 WHERE 1=1");
 
             var parameters = new List<SqlParameter>();
@@ -141,7 +141,7 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var stats = new PartnerRequestStats();
 
-            var query = @"
+            var query = $@"
                 SELECT
                     COUNT(*) AS TotalRequests,
                     SUM(CASE WHEN ISNULL(c_approval_status, 'PENDING') = 'PENDING' THEN 1 ELSE 0 END) AS PendingCount,
@@ -149,7 +149,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     SUM(CASE WHEN c_approval_status = 'APPROVED' THEN 1 ELSE 0 END) AS ApprovedCount,
                     SUM(CASE WHEN c_approval_status = 'REJECTED' THEN 1 ELSE 0 END) AS RejectedCount,
                     SUM(CASE WHEN c_approval_status = 'INFO_REQUESTED' THEN 1 ELSE 0 END) AS InfoRequestedCount
-                FROM t_sys_catering_owner";
+                FROM {Table.SysCateringOwner}";
 
             var dataTable = _dbHelper.Execute(query);
             if (dataTable.Rows.Count > 0)
@@ -198,7 +198,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     co.c_email_verified AS EmailVerified,
                     co.c_phone_verified AS PhoneVerified,
                     co.c_verified_by_admin AS VerifiedByAdmin
-                FROM t_sys_catering_owner co
+                FROM {Table.SysCateringOwner} co
                 WHERE co.c_ownerid = @OwnerId";
 
             var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
@@ -250,7 +250,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         private PartnerAddress? GetPartnerAddress(long ownerId)
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     addr.c_addressid AS AddressId,
                     addr.c_building AS Building,
@@ -264,9 +264,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     addr.c_latitude AS Latitude,
                     addr.c_longitude AS Longitude,
                     addr.c_mapurl AS MapUrl
-                FROM t_sys_catering_owner_addresses addr
-                LEFT JOIN t_sys_state s ON addr.c_stateid = s.c_stateid
-                LEFT JOIN t_sys_city c ON addr.c_cityid = c.c_cityid
+                FROM {Table.SysCateringOwnerAddress} addr
+                LEFT JOIN {Table.State} s ON addr.c_stateid = s.c_stateid
+                LEFT JOIN {Table.City} c ON addr.c_cityid = c.c_cityid
                 WHERE addr.c_ownerid = @OwnerId";
 
             var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
@@ -295,7 +295,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         private PartnerCompliance? GetPartnerCompliance(long ownerId)
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     c_complianceid AS ComplianceId,
                     c_fssai_number AS FssaiNumber,
@@ -307,7 +307,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_pan_name AS PanName,
                     c_pan_number AS PanNumber,
                     c_pan_file_path AS PanFilePath
-                FROM t_sys_catering_owner_compliance
+                FROM {Table.SysCateringOwnerLegal}
                 WHERE c_ownerid = @OwnerId";
 
             var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
@@ -334,7 +334,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         private PartnerBankDetails? GetPartnerBankDetails(long ownerId)
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     c_bankid AS BankId,
                     c_account_number AS AccountNumber,
@@ -342,7 +342,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_ifsc_code AS IfscCode,
                     c_cheque_path AS ChequePath,
                     c_upi_id AS UpiId
-                FROM t_sys_catering_owner_bankdetails
+                FROM {Table.SysCateringOwnerBankDetails}
                 WHERE c_ownerid = @OwnerId";
 
             var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
@@ -365,7 +365,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         private PartnerOperations? GetPartnerOperations(long ownerId)
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     c_operationid AS OperationId,
                     c_cuisine_types AS CuisineTypes,
@@ -376,7 +376,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_delivery_available AS DeliveryAvailable,
                     c_delivery_radius_km AS DeliveryRadiusKm,
                     c_serving_time_slots AS ServingTimeSlots
-                FROM t_sys_catering_owner_operations
+                FROM {Table.SysCateringOwnerService}
                 WHERE c_ownerid = @OwnerId";
 
             var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
@@ -404,7 +404,7 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var documents = new List<PartnerDocument>();
 
-            var query = @"
+            var query = $@"
                 SELECT
                     m.c_media_id AS MediaId,
                     m.c_document_type_id AS DocumentTypeId,
@@ -413,8 +413,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     m.c_file_path AS FilePath,
                     m.c_extension AS Extension,
                     m.c_uploaded_at AS UploadedAt
-                FROM t_sys_catering_media_uploads m
-                LEFT JOIN t_sys_catering_document_types dt ON m.c_document_type_id = dt.c_documenttype_id
+                FROM {Table.SysCateringMediaUploads} m
+                LEFT JOIN {Table.SysCateringDocumentTypes} dt ON m.c_document_type_id = dt.c_documenttype_id
                 WHERE m.c_ownerid = @OwnerId
                 AND m.c_is_deleted = 0
                 AND m.c_document_type_id IS NOT NULL";
@@ -443,14 +443,14 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var photos = new List<PartnerPhoto>();
 
-            var query = @"
+            var query = $@"
                 SELECT
                     c_media_id AS MediaId,
                     c_file_name AS FileName,
                     c_file_path AS FilePath,
                     c_extension AS Extension,
                     c_uploaded_at AS UploadedAt
-                FROM t_sys_catering_media_uploads
+                FROM {Table.SysCateringMediaUploads}
                 WHERE c_ownerid = @OwnerId
                 AND c_is_deleted = 0
                 AND (c_document_type_id IS NULL OR c_document_type_id = 0)";
@@ -485,8 +485,8 @@ namespace CateringEcommerce.BAL.Base.Admin
             try
             {
                 // Update status to APPROVED
-                var updateQuery = @"
-                    UPDATE t_sys_catering_owner
+                var updateQuery = $@"
+                    UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = 'APPROVED',
                         c_approved_date = GETDATE(),
                         c_approved_by = @AdminId,
@@ -534,8 +534,8 @@ namespace CateringEcommerce.BAL.Base.Admin
             try
             {
                 // Update status to REJECTED
-                var updateQuery = @"
-                    UPDATE t_sys_catering_owner
+                var updateQuery = $@"
+                    UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = 'REJECTED',
                         c_approved_date = GETDATE(),
                         c_approved_by = @AdminId,
@@ -582,8 +582,8 @@ namespace CateringEcommerce.BAL.Base.Admin
             try
             {
                 // Update status to INFO_REQUESTED
-                var updateQuery = @"
-                    UPDATE t_sys_catering_owner
+                var updateQuery = $@"
+                    UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = 'INFO_REQUESTED',
                         c_reviewed_date = GETDATE(),
                         c_reviewed_by = @AdminId,
@@ -635,8 +635,8 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var updateQuery = @"
-                    UPDATE t_sys_catering_owner
+                var updateQuery = $@"
+                    UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = @NewStatus,
                         c_modifieddate = GETDATE()
                     WHERE c_ownerid = @OwnerId";
@@ -662,8 +662,8 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var updateQuery = @"
-                    UPDATE t_sys_catering_owner
+                var updateQuery = @$"
+                    UPDATE {Table.SysCateringOwner}
                     SET c_internal_notes = @Notes,
                         c_modifieddate = GETDATE()
                     WHERE c_ownerid = @OwnerId";
@@ -689,8 +689,8 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var updateQuery = @"
-                    UPDATE t_sys_catering_owner
+                var updateQuery = $@"
+                    UPDATE {Table.SysCateringOwner}
                     SET c_priority = @Priority,
                         c_modifieddate = GETDATE()
                     WHERE c_ownerid = @OwnerId";
@@ -720,7 +720,7 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var actionLog = new List<PartnerActionLog>();
 
-            var query = @"
+            var query = $@"
                 SELECT
                     a.c_action_id AS ActionId,
                     a.c_adminid AS AdminId,
@@ -731,8 +731,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     a.c_remarks AS Remarks,
                     a.c_action_date AS ActionDate,
                     a.c_ip_address AS IpAddress
-                FROM t_sys_partner_request_actions a
-                LEFT JOIN t_sys_admin ad ON a.c_adminid = ad.c_adminid
+                FROM {Table.SysPartnerRequestActions} a
+                LEFT JOIN {Table.SysAdmin} ad ON a.c_adminid = ad.c_adminid
                 WHERE a.c_ownerid = @OwnerId
                 ORDER BY a.c_action_date DESC";
 
@@ -762,8 +762,8 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var query = @"
-                    INSERT INTO t_sys_partner_request_actions
+                var query = $@"
+                    INSERT INTO {Table.SysPartnerRequestActions}
                     (c_ownerid, c_adminid, c_action_type, c_old_status, c_new_status, c_remarks, c_ip_address, c_action_date)
                     VALUES
                     (@OwnerId, @AdminId, @ActionType, @OldStatus, @NewStatus, @Remarks, @IpAddress, GETDATE())";
@@ -799,8 +799,8 @@ namespace CateringEcommerce.BAL.Base.Admin
             try
             {
                 // Log communication
-                var query = @"
-                    INSERT INTO t_sys_partner_request_communications
+                var query = $@"
+                    INSERT INTO {Table.SysPartnerRequestCommunications}
                     (c_ownerid, c_adminid, c_communication_type, c_subject, c_message, c_sent_to_email, c_sent_to_phone, c_email_sent, c_sms_sent, c_email_status, c_sms_status, c_sent_date)
                     VALUES
                     (@OwnerId, @AdminId, @CommunicationType, @Subject, @Message, @SentToEmail, @SentToPhone, @EmailSent, @SmsSent, @EmailStatus, @SmsStatus, GETDATE())";
@@ -846,7 +846,7 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var history = new List<PartnerCommunicationHistory>();
 
-            var query = @"
+            var query = $@"
                 SELECT
                     c.c_communication_id AS CommunicationId,
                     c.c_adminid AS AdminId,
@@ -861,8 +861,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_email_status AS EmailStatus,
                     c.c_sms_status AS SmsStatus,
                     c.c_sent_date AS SentDate
-                FROM t_sys_partner_request_communications c
-                LEFT JOIN t_sys_admin a ON c.c_adminid = a.c_adminid
+                FROM {Table.SysPartnerRequestCommunications} c
+                LEFT JOIN {Table.SysAdmin} a ON c.c_adminid = a.c_adminid
                 WHERE c.c_ownerid = @OwnerId
                 ORDER BY c.c_sent_date DESC";
 

@@ -35,5 +35,13 @@ namespace CateringEcommerce.Domain.Interfaces.Owner
         /// Validate if order belongs to owner
         /// </summary>
         Task<bool> ValidateOrderOwnership(long ownerId, long orderId);
+        /// <summary>
+        /// Retrieves aggregated statistics for booking requests associated with the specified owner.
+        /// </summary>
+        /// <param name="ownerId">The unique identifier of the owner whose booking request statistics are to be retrieved.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains a <see
+        /// cref="BookingRequestStatsDto"/> object with the aggregated booking request statistics for the specified
+        /// owner.</returns>
+        Task<BookingRequestStatsDto> GetBookingRequestStats(long ownerId);
     }
 }

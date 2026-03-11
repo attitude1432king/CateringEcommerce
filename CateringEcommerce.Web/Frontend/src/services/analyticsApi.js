@@ -2,41 +2,9 @@
  * Analytics API Service
  * API calls for admin and partner analytics
  */
+import { apiCall } from './apiUtils'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
-
-// Helper function to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-    };
-};
-
-// Generic API call handler
-const apiCall = async (endpoint, options = {}) => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
-            ...options,
-            headers: {
-                ...getAuthHeaders(),
-                ...options.headers,
-            },
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'API request failed');
-        }
-
-        return data;
-    } catch (error) {
-        console.error('API Error:', error);
-        throw error;
-    }
-};
 
 // ============================================
 // Admin Analytics APIs
@@ -46,48 +14,50 @@ export const adminAnalyticsApi = {
      * Get dashboard metrics with date range
      */
     getDashboardMetrics: async (fromDate = null, toDate = null) => {
-        const params = new URLSearchParams();
-        if (fromDate) params.append('fromDate', fromDate);
-        if (toDate) params.append('toDate', toDate);
+        const params = {};
 
-        const queryString = params.toString();
-        return apiCall(`/admin/dashboard/v2/metrics${queryString ? `?${queryString}` : ''}`);
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
+
+        return apiCall('/admin/dashboard/v2/metrics', 'GET', null, params);
     },
 
     /**
      * Get revenue chart data
      */
     getRevenueChart: async (fromDate = null, toDate = null, granularity = 'day') => {
-        const params = new URLSearchParams();
-        if (fromDate) params.append('fromDate', fromDate);
-        if (toDate) params.append('toDate', toDate);
-        params.append('granularity', granularity);
+        const params = {};
 
-        return apiCall(`/admin/dashboard/revenue-chart?${params.toString()}`);
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
+        params.granularity = granularity;
+
+        return apiCall('/admin/dashboard/revenue-chart', 'GET', null, params);
     },
 
     /**
      * Get order analytics
      */
     getOrderAnalytics: async (fromDate = null, toDate = null) => {
-        const params = new URLSearchParams();
-        if (fromDate) params.append('fromDate', fromDate);
-        if (toDate) params.append('toDate', toDate);
+        const params = {};
 
-        const queryString = params.toString();
-        return apiCall(`/admin/dashboard/order-analytics${queryString ? `?${queryString}` : ''}`);
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
+
+        return apiCall(`/admin/dashboard/order-analytics`, 'GET', null, params);
     },
 
     /**
      * Get top performing partners
      */
     getTopPartners: async (fromDate = null, toDate = null, limit = 10) => {
-        const params = new URLSearchParams();
-        if (fromDate) params.append('fromDate', fromDate);
-        if (toDate) params.append('toDate', toDate);
-        params.append('limit', limit);
+        const params = {};
 
-        return apiCall(`/admin/dashboard/top-partners?${params.toString()}`);
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
+        params.limit = limit;
+
+        return apiCall('/admin/dashboard/top-partners', 'GET', null, params);
     },
 
     /**
@@ -101,50 +71,50 @@ export const adminAnalyticsApi = {
      * Get popular categories
      */
     getPopularCategories: async (fromDate = null, toDate = null, limit = 10) => {
-        const params = new URLSearchParams();
-        if (fromDate) params.append('fromDate', fromDate);
-        if (toDate) params.append('toDate', toDate);
-        params.append('limit', limit);
+        const params = {};
 
-        return apiCall(`/admin/dashboard/popular-categories?${params.toString()}`);
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
+        params.limit = limit;
+
+        return apiCall('/admin/dashboard/popular-categories', 'GET', null, params);
     },
 
     /**
      * Get user growth data
      */
     getUserGrowth: async (fromDate = null, toDate = null, granularity = 'day') => {
-        const params = new URLSearchParams();
-        if (fromDate) params.append('fromDate', fromDate);
-        if (toDate) params.append('toDate', toDate);
-        params.append('granularity', granularity);
+        const params = {};
 
-        return apiCall(`/admin/dashboard/user-growth?${params.toString()}`);
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
+        params.granularity = granularity;
+
+        return apiCall('/admin/dashboard/user-growth', 'GET', null, params);
     },
 
     /**
      * Get city revenue data
      */
     getCityRevenue: async (fromDate = null, toDate = null, limit = 10) => {
-        const params = new URLSearchParams();
-        if (fromDate) params.append('fromDate', fromDate);
-        if (toDate) params.append('toDate', toDate);
-        params.append('limit', limit);
+        const params = {};
 
-        return apiCall(`/admin/dashboard/city-revenue?${params.toString()}`);
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
+        params.limit = limit;
+
+        return apiCall('/admin/dashboard/city-revenue', 'GET', null, params);
     },
 
     /**
      * Export analytics data
      */
     exportAnalytics: async (exportType, format, fromDate, toDate) => {
-        return apiCall('/admin/dashboard/export', {
-            method: 'POST',
-            body: JSON.stringify({
-                exportType,
-                format,
-                fromDate,
-                toDate,
-            }),
+        return apiCall('/admin/dashboard/export', 'POST', {
+            exportType,
+            format,
+            fromDate,
+            toDate,
         });
     },
 };

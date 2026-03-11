@@ -193,14 +193,10 @@ export default function Step2_AddressLocation({ formData, setFormData, errors })
                 setPincodeError('');
 
                 try {
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
-                        `https://api.postalpincode.in/pincode/${formData.pincode}`
-                    )}`;
-                    const details = await ownerApiService.getPincodeDetails(proxyUrl);
-                    const data = JSON.parse(details.contents);
+                    const details = await ownerApiService.getPincodeDetails(formData.pincode);
 
-                    if (data && data[0].Status === 'Success') {
-                        const postOffice = data[0].PostOffice[0];
+                    if (details && details[0].Status === 'Success') {
+                        const postOffice = details[0].PostOffice[0];
                         const area = postOffice.Name;
                         const city = postOffice.District;
 

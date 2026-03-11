@@ -4,7 +4,7 @@
 -- Purpose: Add stored procedure for validating and uploading timestamped evidence with GPS
 -- =============================================
 
-USE CateringEcommerce;
+USE CateringDB;
 GO
 
 -- =============================================
@@ -103,7 +103,7 @@ BEGIN
             UPDATE t_sys_pre_event_verification
             SET
                 c_checklist_photos = @EvidenceData,
-                c_updated_date = GETUTCDATE()
+                c_modifieddate = GETUTCDATE()
             WHERE c_assignment_id = @AssignmentId;
 
             IF @@ROWCOUNT = 0
@@ -138,7 +138,7 @@ BEGIN
                         THEN '[' + @EvidenceData + ']'
                         ELSE c_during_event_evidence
                     END,
-                    c_updated_date = GETUTCDATE()
+                    c_modifieddate = GETUTCDATE()
                 WHERE c_assignment_id = @AssignmentId;
             END
         END
@@ -148,7 +148,7 @@ BEGIN
             UPDATE t_sys_post_event_report
             SET
                 c_evidence_photos = @EvidenceData,
-                c_updated_date = GETUTCDATE()
+                c_modifieddate = GETUTCDATE()
             WHERE c_assignment_id = @AssignmentId;
 
             IF @@ROWCOUNT = 0
@@ -169,7 +169,7 @@ BEGIN
             c_action_description,
             c_action_data,
             c_action_result,
-            c_created_date
+            c_createddate
         )
         SELECT
             sa.c_supervisor_id,
@@ -204,7 +204,7 @@ BEGIN
             c_action_type,
             c_action_description,
             c_action_result,
-            c_created_date
+            c_createddate
         )
         SELECT
             sa.c_supervisor_id,

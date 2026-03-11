@@ -4,7 +4,6 @@ using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 using System.Data;
 using System.Text.RegularExpressions;
 
@@ -15,11 +14,12 @@ namespace CateringEcommerce.BAL.Base.Admin
         private readonly IDatabaseHelper _dbHelper;
         private readonly string _encryptionKey;
 
-        public SettingsRepository(IDatabaseHelper dbHelper, IConfiguration configuration)
+        public SettingsRepository(IDatabaseHelper dbHelper, ISystemSettingsProvider settings)
         {
             _dbHelper = dbHelper;
-            _encryptionKey = configuration["EncryptionSettings:CustomKey"]
-                ?? throw new InvalidOperationException("Encryption key not configured");
+            _encryptionKey = settings.GetString("SYSTEM.ENCRYPTION_KEY");
+            if (string.IsNullOrEmpty(_encryptionKey))
+                throw new InvalidOperationException("Encryption key not configured");
         }
 
         // =============================================
@@ -102,66 +102,62 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_validation_regex AS ValidationRegex,
                     s.c_default_value AS DefaultValue,
                     s.c_is_active AS IsActive,
-                    s.c_created_date AS CreatedDate,
-                    s.c_created_by AS CreatedBy,
-                    s.c_modified_date AS ModifiedDate,
-                    s.c_modified_by AS ModifiedBy
+                    s.c_createddate AS CreatedDate,
+                    s.c_createdby AS CreatedBy,
+                    s.c_modifieddate AS ModifiedDate,
+                    s.c_modifiedby AS ModifiedBy
                 FROM {Table.SysSettings} s
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
                 OFFSET @Offset ROWS
                 FETCH NEXT @PageSize ROWS ONLY";
 
+            var table = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
+
             var settings = new List<SystemSettingItem>();
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(dataQuery, dataParameters.ToArray()))
+            foreach (DataRow row in table.Rows)
             {
-                while (await reader.ReadAsync())
+                var setting = new SystemSettingItem
                 {
-                    var setting = new SystemSettingItem
-                    {
-                        SettingId = reader.GetInt64(reader.GetOrdinal("SettingId")),
-                        SettingKey = reader.GetString(reader.GetOrdinal("SettingKey")),
-                        SettingValue = reader.GetString(reader.GetOrdinal("SettingValue")),
-                        Category = reader.GetString(reader.GetOrdinal("Category")),
-                        ValueType = reader.GetString(reader.GetOrdinal("ValueType")),
-                        DisplayName = reader.GetString(reader.GetOrdinal("DisplayName")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        IsSensitive = reader.GetBoolean(reader.GetOrdinal("IsSensitive")),
-                        IsReadOnly = reader.GetBoolean(reader.GetOrdinal("IsReadOnly")),
-                        DisplayOrder = reader.GetInt32(reader.GetOrdinal("DisplayOrder")),
-                        ValidationRegex = reader.IsDBNull(reader.GetOrdinal("ValidationRegex")) ? null : reader.GetString(reader.GetOrdinal("ValidationRegex")),
-                        DefaultValue = reader.IsDBNull(reader.GetOrdinal("DefaultValue")) ? null : reader.GetString(reader.GetOrdinal("DefaultValue")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy"))
-                    };
+                    SettingId = row.Field<long>("SettingId"),
+                    SettingKey = row.Field<string>("SettingKey"),
+                    SettingValue = row.Field<string>("SettingValue"),
+                    Category = row.Field<string>("Category"),
+                    ValueType = row.Field<string>("ValueType"),
+                    DisplayName = row.Field<string>("DisplayName"),
+                    Description = row.Field<string>("Description"),
+                    IsSensitive = row.Field<bool>("IsSensitive"),
+                    IsReadOnly = row.Field<bool>("IsReadOnly"),
+                    DisplayOrder = row.Field<int>("DisplayOrder"),
+                    ValidationRegex = row.Field<string>("ValidationRegex"),
+                    DefaultValue = row.Field<string>("DefaultValue"),
+                    IsActive = row.Field<bool>("IsActive"),
+                    CreatedDate = row.Field<DateTime>("CreatedDate"),
+                    CreatedBy = row.Field<long?>("CreatedBy"),
+                    ModifiedDate = row.Field<DateTime?>("ModifiedDate"),
+                    ModifiedBy = row.Field<long?>("ModifiedBy")
+                };
 
-                    // Mask sensitive values (show *** instead of actual value)
-                    if (setting.IsSensitive)
-                    {
-                        setting.SettingValue = "***SENSITIVE***";
-                    }
-                    // Decrypt encrypted values
-                    else if (setting.ValueType == "ENCRYPTED")
-                    {
-                        try
-                        {
-                            setting.SettingValue = CryptoHelper.Decrypt(setting.SettingValue, _encryptionKey);
-                        }
-                        catch
-                        {
-                            setting.SettingValue = "***DECRYPTION_ERROR***";
-                        }
-                    }
-
-                    settings.Add(setting);
+                // Mask sensitive values
+                if (setting.IsSensitive)
+                {
+                    setting.SettingValue = "***SENSITIVE***";
                 }
-            }
+                else if (setting.ValueType == "ENCRYPTED")
+                {
+                    try
+                    {
+                        setting.SettingValue = CryptoHelper.Decrypt(setting.SettingValue, _encryptionKey);
+                    }
+                    catch
+                    {
+                        setting.SettingValue = "***DECRYPTION_ERROR***";
+                    }
+                }
 
-            var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
+                settings.Add(setting);
+            }
 
             return new SettingsListResponse
             {
@@ -169,7 +165,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 TotalCount = totalCount,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize,
-                TotalPages = totalPages
+                TotalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize)
             };
         }
 
@@ -190,10 +186,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_validation_regex AS ValidationRegex,
                     s.c_default_value AS DefaultValue,
                     s.c_is_active AS IsActive,
-                    s.c_created_date AS CreatedDate,
-                    s.c_created_by AS CreatedBy,
-                    s.c_modified_date AS ModifiedDate,
-                    s.c_modified_by AS ModifiedBy
+                    s.c_createddate AS CreatedDate,
+                    s.c_createdby AS CreatedBy,
+                    s.c_modifieddate AS ModifiedDate,
+                    s.c_modifiedby AS ModifiedBy
                 FROM {Table.SysSettings} s
                 WHERE s.c_setting_key = @SettingKey";
 
@@ -202,51 +198,52 @@ namespace CateringEcommerce.BAL.Base.Admin
                 new SqlParameter("@SettingKey", settingKey)
             };
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(query, parameters))
+            var table = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
+
+            var settings = new List<SystemSettingItem>();
+
+            foreach (DataRow row in table.Rows)
             {
-                if (await reader.ReadAsync())
+                var setting = new SystemSettingItem
                 {
-                    var setting = new SystemSettingItem
-                    {
-                        SettingId = reader.GetInt64(reader.GetOrdinal("SettingId")),
-                        SettingKey = reader.GetString(reader.GetOrdinal("SettingKey")),
-                        SettingValue = reader.GetString(reader.GetOrdinal("SettingValue")),
-                        Category = reader.GetString(reader.GetOrdinal("Category")),
-                        ValueType = reader.GetString(reader.GetOrdinal("ValueType")),
-                        DisplayName = reader.GetString(reader.GetOrdinal("DisplayName")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        IsSensitive = reader.GetBoolean(reader.GetOrdinal("IsSensitive")),
-                        IsReadOnly = reader.GetBoolean(reader.GetOrdinal("IsReadOnly")),
-                        DisplayOrder = reader.GetInt32(reader.GetOrdinal("DisplayOrder")),
-                        ValidationRegex = reader.IsDBNull(reader.GetOrdinal("ValidationRegex")) ? null : reader.GetString(reader.GetOrdinal("ValidationRegex")),
-                        DefaultValue = reader.IsDBNull(reader.GetOrdinal("DefaultValue")) ? null : reader.GetString(reader.GetOrdinal("DefaultValue")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy"))
-                    };
+                    SettingId = row.Field<long>("SettingId"),
+                    SettingKey = row.Field<string>("SettingKey"),
+                    SettingValue = row.Field<string>("SettingValue"),
+                    Category = row.Field<string>("Category"),
+                    ValueType = row.Field<string>("ValueType"),
+                    DisplayName = row.Field<string>("DisplayName"),
+                    Description = row.Field<string>("Description"),
+                    IsSensitive = row.Field<bool>("IsSensitive"),
+                    IsReadOnly = row.Field<bool>("IsReadOnly"),
+                    DisplayOrder = row.Field<int>("DisplayOrder"),
+                    ValidationRegex = row.Field<string>("ValidationRegex"),
+                    DefaultValue = row.Field<string>("DefaultValue"),
+                    IsActive = row.Field<bool>("IsActive"),
+                    CreatedDate = row.Field<DateTime>("CreatedDate"),
+                    CreatedBy = row.Field<long?>("CreatedBy"),
+                    ModifiedDate = row.Field<DateTime?>("ModifiedDate"),
+                    ModifiedBy = row.Field<long?>("ModifiedBy")
+                };
 
-                    // Decrypt encrypted values
-                    if (setting.ValueType == "ENCRYPTED" && !setting.IsSensitive)
+                // Decrypt encrypted values
+                if (setting.ValueType == "ENCRYPTED" && !setting.IsSensitive)
+                {
+                    try
                     {
-                        try
-                        {
-                            setting.SettingValue = CryptoHelper.Decrypt(setting.SettingValue, _encryptionKey);
-                        }
-                        catch
-                        {
-                            setting.SettingValue = "***DECRYPTION_ERROR***";
-                        }
+                        setting.SettingValue = CryptoHelper.Decrypt(setting.SettingValue, _encryptionKey);
                     }
-                    // Mask sensitive values
-                    else if (setting.IsSensitive)
+                    catch
                     {
-                        setting.SettingValue = "***SENSITIVE***";
+                        setting.SettingValue = "***DECRYPTION_ERROR***";
                     }
-
-                    return setting;
                 }
+                // Mask sensitive values
+                else if (setting.IsSensitive)
+                {
+                    setting.SettingValue = "***SENSITIVE***";
+                }
+
+                return setting;
             }
 
             return null;
@@ -269,10 +266,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_validation_regex AS ValidationRegex,
                     s.c_default_value AS DefaultValue,
                     s.c_is_active AS IsActive,
-                    s.c_created_date AS CreatedDate,
-                    s.c_created_by AS CreatedBy,
-                    s.c_modified_date AS ModifiedDate,
-                    s.c_modified_by AS ModifiedBy
+                    s.c_createddate AS CreatedDate,
+                    s.c_createdby AS CreatedBy,
+                    s.c_modifieddate AS ModifiedDate,
+                    s.c_modifiedby AS ModifiedBy
                 FROM {Table.SysSettings} s
                 WHERE s.c_setting_id = @SettingId";
 
@@ -281,51 +278,52 @@ namespace CateringEcommerce.BAL.Base.Admin
                 new SqlParameter("@SettingId", settingId)
             };
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(query, parameters))
+            var table = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
+
+            var settings = new List<SystemSettingItem>();
+
+            foreach (DataRow row in table.Rows)
             {
-                if (await reader.ReadAsync())
+                var setting = new SystemSettingItem
                 {
-                    var setting = new SystemSettingItem
-                    {
-                        SettingId = reader.GetInt64(reader.GetOrdinal("SettingId")),
-                        SettingKey = reader.GetString(reader.GetOrdinal("SettingKey")),
-                        SettingValue = reader.GetString(reader.GetOrdinal("SettingValue")),
-                        Category = reader.GetString(reader.GetOrdinal("Category")),
-                        ValueType = reader.GetString(reader.GetOrdinal("ValueType")),
-                        DisplayName = reader.GetString(reader.GetOrdinal("DisplayName")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        IsSensitive = reader.GetBoolean(reader.GetOrdinal("IsSensitive")),
-                        IsReadOnly = reader.GetBoolean(reader.GetOrdinal("IsReadOnly")),
-                        DisplayOrder = reader.GetInt32(reader.GetOrdinal("DisplayOrder")),
-                        ValidationRegex = reader.IsDBNull(reader.GetOrdinal("ValidationRegex")) ? null : reader.GetString(reader.GetOrdinal("ValidationRegex")),
-                        DefaultValue = reader.IsDBNull(reader.GetOrdinal("DefaultValue")) ? null : reader.GetString(reader.GetOrdinal("DefaultValue")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy"))
-                    };
+                    SettingId = row.Field<long>("SettingId"),
+                    SettingKey = row.Field<string>("SettingKey"),
+                    SettingValue = row.Field<string>("SettingValue"),
+                    Category = row.Field<string>("Category"),
+                    ValueType = row.Field<string>("ValueType"),
+                    DisplayName = row.Field<string>("DisplayName"),
+                    Description = row.Field<string>("Description"),
+                    IsSensitive = row.Field<bool>("IsSensitive"),
+                    IsReadOnly = row.Field<bool>("IsReadOnly"),
+                    DisplayOrder = row.Field<int>("DisplayOrder"),
+                    ValidationRegex = row.Field<string>("ValidationRegex"),
+                    DefaultValue = row.Field<string>("DefaultValue"),
+                    IsActive = row.Field<bool>("IsActive"),
+                    CreatedDate = row.Field<DateTime>("CreatedDate"),
+                    CreatedBy = row.Field<long?>("CreatedBy"),
+                    ModifiedDate = row.Field<DateTime?>("ModifiedDate"),
+                    ModifiedBy = row.Field<long?>("ModifiedBy")
+                };
 
-                    // Decrypt encrypted values
-                    if (setting.ValueType == "ENCRYPTED" && !setting.IsSensitive)
+                // Decrypt encrypted values
+                if (setting.ValueType == "ENCRYPTED" && !setting.IsSensitive)
+                {
+                    try
                     {
-                        try
-                        {
-                            setting.SettingValue = CryptoHelper.Decrypt(setting.SettingValue, _encryptionKey);
-                        }
-                        catch
-                        {
-                            setting.SettingValue = "***DECRYPTION_ERROR***";
-                        }
+                        setting.SettingValue = CryptoHelper.Decrypt(setting.SettingValue, _encryptionKey);
                     }
-                    // Mask sensitive values
-                    else if (setting.IsSensitive)
+                    catch
                     {
-                        setting.SettingValue = "***SENSITIVE***";
+                        setting.SettingValue = "***DECRYPTION_ERROR***";
                     }
-
-                    return setting;
                 }
+                // Mask sensitive values
+                else if (setting.IsSensitive)
+                {
+                    setting.SettingValue = "***SENSITIVE***";
+                }
+
+                return setting;
             }
 
             return null;
@@ -361,13 +359,12 @@ namespace CateringEcommerce.BAL.Base.Admin
             string currentValue = null;
             string valueType = null;
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(currentValueQuery, new[] { new SqlParameter("@SettingId", request.SettingId) }))
+            var currentValueTable = await _dbHelper.ExecuteAsync(currentValueQuery, new[] { new SqlParameter("@SettingId", request.SettingId) });
+            if (currentValueTable.Rows.Count > 0)
             {
-                if (await reader.ReadAsync())
-                {
-                    currentValue = reader.GetString(0);
-                    valueType = reader.GetString(1);
-                }
+                var row = currentValueTable.Rows[0];
+                currentValue = row.Field<string>(0);
+                valueType = row.Field<string>(1);
             }
 
             // Encrypt value if needed
@@ -382,8 +379,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 UPDATE {Table.SysSettings}
                 SET
                     c_setting_value = @SettingValue,
-                    c_modified_date = GETDATE(),
-                    c_modified_by = @ModifiedBy
+                    c_modifieddate = GETDATE(),
+                    c_modifiedby = @ModifiedBy
                 WHERE c_setting_id = @SettingId";
 
             var updateParameters = new[]
@@ -513,10 +510,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_validation_regex AS ValidationRegex,
                     s.c_default_value AS DefaultValue,
                     s.c_is_active AS IsActive,
-                    s.c_created_date AS CreatedDate,
-                    s.c_created_by AS CreatedBy,
-                    s.c_modified_date AS ModifiedDate,
-                    s.c_modified_by AS ModifiedBy
+                    s.c_createddate AS CreatedDate,
+                    s.c_createdby AS CreatedBy,
+                    s.c_modifieddate AS ModifiedDate,
+                    s.c_modifiedby AS ModifiedBy
                 FROM {Table.SysSettings} s
                 WHERE s.c_category = @Category AND s.c_is_active = 1
                 ORDER BY s.c_display_order ASC";
@@ -528,51 +525,49 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var settings = new List<SystemSettingItem>();
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(query, parameters))
+            var settingsTable = await _dbHelper.ExecuteAsync(query, parameters);
+            foreach (DataRow row in settingsTable.Rows)
             {
-                while (await reader.ReadAsync())
+                var setting = new SystemSettingItem
                 {
-                    var setting = new SystemSettingItem
-                    {
-                        SettingId = reader.GetInt64(reader.GetOrdinal("SettingId")),
-                        SettingKey = reader.GetString(reader.GetOrdinal("SettingKey")),
-                        SettingValue = reader.GetString(reader.GetOrdinal("SettingValue")),
-                        Category = reader.GetString(reader.GetOrdinal("Category")),
-                        ValueType = reader.GetString(reader.GetOrdinal("ValueType")),
-                        DisplayName = reader.GetString(reader.GetOrdinal("DisplayName")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        IsSensitive = reader.GetBoolean(reader.GetOrdinal("IsSensitive")),
-                        IsReadOnly = reader.GetBoolean(reader.GetOrdinal("IsReadOnly")),
-                        DisplayOrder = reader.GetInt32(reader.GetOrdinal("DisplayOrder")),
-                        ValidationRegex = reader.IsDBNull(reader.GetOrdinal("ValidationRegex")) ? null : reader.GetString(reader.GetOrdinal("ValidationRegex")),
-                        DefaultValue = reader.IsDBNull(reader.GetOrdinal("DefaultValue")) ? null : reader.GetString(reader.GetOrdinal("DefaultValue")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy"))
-                    };
+                    SettingId = row.Field<long>("SettingId"),
+                    SettingKey = row.Field<string>("SettingKey"),
+                    SettingValue = row.Field<string>("SettingValue"),
+                    Category = row.Field<string>("Category"),
+                    ValueType = row.Field<string>("ValueType"),
+                    DisplayName = row.Field<string>("DisplayName"),
+                    Description = row.IsNull("Description") ? null : row.Field<string>("Description"),
+                    IsSensitive = row.Field<bool>("IsSensitive"),
+                    IsReadOnly = row.Field<bool>("IsReadOnly"),
+                    DisplayOrder = row.Field<int>("DisplayOrder"),
+                    ValidationRegex = row.IsNull("ValidationRegex") ? null : row.Field<string>("ValidationRegex"),
+                    DefaultValue = row.IsNull("DefaultValue") ? null : row.Field<string>("DefaultValue"),
+                    IsActive = row.Field<bool>("IsActive"),
+                    CreatedDate = row.Field<DateTime>("CreatedDate"),
+                    CreatedBy = row.IsNull("CreatedBy") ? null : row.Field<long>("CreatedBy"),
+                    ModifiedDate = row.IsNull("ModifiedDate") ? null : row.Field<DateTime>("ModifiedDate"),
+                    ModifiedBy = row.IsNull("ModifiedBy") ? null : row.Field<long>("ModifiedBy")
+                };
 
-                    // Decrypt encrypted values
-                    if (setting.ValueType == "ENCRYPTED" && !setting.IsSensitive)
+                // Decrypt encrypted values
+                if (setting.ValueType == "ENCRYPTED" && !setting.IsSensitive)
+                {
+                    try
                     {
-                        try
-                        {
-                            setting.SettingValue = CryptoHelper.Decrypt(setting.SettingValue, _encryptionKey);
-                        }
-                        catch
-                        {
-                            setting.SettingValue = "***DECRYPTION_ERROR***";
-                        }
+                        setting.SettingValue = CryptoHelper.Decrypt(setting.SettingValue, _encryptionKey);
                     }
-                    // Mask sensitive values
-                    else if (setting.IsSensitive)
+                    catch
                     {
-                        setting.SettingValue = "***SENSITIVE***";
+                        setting.SettingValue = "***DECRYPTION_ERROR***";
                     }
-
-                    settings.Add(setting);
                 }
+                // Mask sensitive values
+                else if (setting.IsSensitive)
+                {
+                    setting.SettingValue = "***SENSITIVE***";
+                }
+
+                settings.Add(setting);
             }
 
             return settings;

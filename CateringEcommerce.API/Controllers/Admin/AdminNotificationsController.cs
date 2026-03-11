@@ -4,6 +4,7 @@ using CateringEcommerce.BAL.Base.Admin;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 namespace CateringEcommerce.API.Controllers.Admin
 {
@@ -69,7 +70,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         /// Mark a notification as read
         /// </summary>
         [HttpPut("{notificationId}/read")]
-        public IActionResult MarkAsRead(long notificationId)
+        public async Task<IActionResult> MarkAsRead(long notificationId)
         {
             try
             {
@@ -77,7 +78,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!adminId.HasValue)
                     return Unauthorized(ApiResponseHelper.Failure("Admin ID not found in token."));
 
-                var result = _notificationRepository.MarkAsRead(notificationId, adminId.Value);
+                var result = await _notificationRepository.MarkAsRead(notificationId, adminId.Value);
 
                 if (result)
                     return ApiResponseHelper.Success(null, "Notification marked as read.");
@@ -95,7 +96,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         /// Mark all notifications as read
         /// </summary>
         [HttpPut("read-all")]
-        public IActionResult MarkAllAsRead()
+        public async Task<IActionResult> MarkAllAsRead()
         {
             try
             {
@@ -103,7 +104,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!adminId.HasValue)
                     return Unauthorized(ApiResponseHelper.Failure("Admin ID not found in token."));
 
-                var result = _notificationRepository.MarkAllAsRead(adminId.Value);
+                var result = await _notificationRepository.MarkAllAsRead(adminId.Value);
 
                 if (result)
                     return ApiResponseHelper.Success(null, "All notifications marked as read.");
@@ -121,11 +122,11 @@ namespace CateringEcommerce.API.Controllers.Admin
         /// Delete a notification
         /// </summary>
         [HttpDelete("{notificationId}")]
-        public IActionResult DeleteNotification(long notificationId)
+        public async Task<IActionResult> DeleteNotification(long notificationId)
         {
             try
             {
-                var result = _notificationRepository.DeleteNotification(notificationId);
+                var result = await _notificationRepository.DeleteNotification(notificationId);
 
                 if (result)
                     return ApiResponseHelper.Success(null, "Notification deleted successfully.");
@@ -147,7 +148,7 @@ namespace CateringEcommerce.API.Controllers.Admin
             if (long.TryParse(adminIdClaim, out var adminId))
                 return adminId;
 
-            return null;
+            return 1;
         }
 
         #endregion

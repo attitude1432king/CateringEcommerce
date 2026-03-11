@@ -1,201 +1,160 @@
 /**
- * Step 1: Personal Details
+ * Step 1: Personal Details (REDESIGNED)
  * Name, Email, Phone, Date of Birth
  */
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import PropTypes from 'prop-types';
-import { User, Mail, Phone, Calendar } from 'lucide-react';
+import { User, Mail, Phone, Calendar, ArrowRight } from 'lucide-react';
 import { personalDetailsSchema } from '../../../../utils/supervisor/validationSchemas';
 
 const Step1_PersonalDetails = ({ data, onNext, onBack }) => {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(personalDetailsSchema),
-    defaultValues: data,
-  });
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({
+        resolver: zodResolver(personalDetailsSchema),
+        defaultValues: data,
+    });
 
-  const onSubmit = (formData) => {
-    onNext(formData);
-  };
+    const onSubmit = (formData) => { onNext(formData); };
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Personal Details</h2>
-        <p className="text-sm text-gray-600 mt-2">
-          Let's start with your basic information
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {/* First Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            First Name <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <User className="h-5 w-5 text-gray-400" />
+    return (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Section Header */}
+            <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+                    <User className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-neutral-800">Personal Details</h2>
+                    <p className="text-sm text-neutral-500">Let's start with your basic information</p>
+                </div>
             </div>
-            <input
-              type="text"
-              {...register('firstName')}
-              className={`
-                block w-full pl-10 pr-3 py-2 border rounded-lg
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                ${errors.firstName ? 'border-red-300 bg-red-50' : 'border-gray-300'}
-              `}
-              placeholder="Enter your first name"
-            />
-          </div>
-          {errors.firstName && (
-            <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
-          )}
-        </div>
 
-        {/* Last Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Last Name <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <User className="h-5 w-5 text-gray-400" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* First Name */}
+                <div>
+                    <label className="block text-sm font-semibold text-neutral-800 mb-2">
+                        First Name <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                        <input
+                            type="text"
+                            {...register('firstName')}
+                            className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.firstName ? 'border-red-400 bg-red-50' : 'border-neutral-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
+                            } focus:outline-none`}
+                            placeholder="Enter your first name"
+                        />
+                    </div>
+                    {errors.firstName && <p className="text-xs text-red-600 mt-1.5">{errors.firstName.message}</p>}
+                </div>
+
+                {/* Last Name */}
+                <div>
+                    <label className="block text-sm font-semibold text-neutral-800 mb-2">
+                        Last Name <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                        <input
+                            type="text"
+                            {...register('lastName')}
+                            className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.lastName ? 'border-red-400 bg-red-50' : 'border-neutral-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
+                            } focus:outline-none`}
+                            placeholder="Enter your last name"
+                        />
+                    </div>
+                    {errors.lastName && <p className="text-xs text-red-600 mt-1.5">{errors.lastName.message}</p>}
+                </div>
             </div>
-            <input
-              type="text"
-              {...register('lastName')}
-              className={`
-                block w-full pl-10 pr-3 py-2 border rounded-lg
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                ${errors.lastName ? 'border-red-300 bg-red-50' : 'border-gray-300'}
-              `}
-              placeholder="Enter your last name"
-            />
-          </div>
-          {errors.lastName && (
-            <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
-          )}
-        </div>
 
-        {/* Email */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email Address <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-gray-400" />
+            {/* Email */}
+            <div>
+                <label className="block text-sm font-semibold text-neutral-800 mb-2">
+                    Email Address <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                    <input
+                        type="email"
+                        {...register('email')}
+                        className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                            errors.email ? 'border-red-400 bg-red-50' : 'border-neutral-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
+                        } focus:outline-none`}
+                        placeholder="your.email@example.com"
+                    />
+                </div>
+                {errors.email && <p className="text-xs text-red-600 mt-1.5">{errors.email.message}</p>}
             </div>
-            <input
-              type="email"
-              {...register('email')}
-              className={`
-                block w-full pl-10 pr-3 py-2 border rounded-lg
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                ${errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'}
-              `}
-              placeholder="your.email@example.com"
-            />
-          </div>
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-          )}
-        </div>
 
-        {/* Phone */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Phone Number <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Phone className="h-5 w-5 text-gray-400" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Phone */}
+                <div>
+                    <label className="block text-sm font-semibold text-neutral-800 mb-2">
+                        Phone Number <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                        <input
+                            type="tel"
+                            {...register('phone')}
+                            className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.phone ? 'border-red-400 bg-red-50' : 'border-neutral-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
+                            } focus:outline-none`}
+                            placeholder="10-digit mobile number"
+                            maxLength={10}
+                        />
+                    </div>
+                    {errors.phone && <p className="text-xs text-red-600 mt-1.5">{errors.phone.message}</p>}
+                    <p className="text-xs text-neutral-500 mt-1">Enter 10-digit mobile number without country code</p>
+                </div>
+
+                {/* Date of Birth */}
+                <div>
+                    <label className="block text-sm font-semibold text-neutral-800 mb-2">
+                        Date of Birth <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                        <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                        <input
+                            type="date"
+                            {...register('dateOfBirth', { valueAsDate: true })}
+                            className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.dateOfBirth ? 'border-red-400 bg-red-50' : 'border-neutral-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
+                            } focus:outline-none`}
+                            max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                        />
+                    </div>
+                    {errors.dateOfBirth && <p className="text-xs text-red-600 mt-1.5">{errors.dateOfBirth.message}</p>}
+                    <p className="text-xs text-neutral-500 mt-1">You must be at least 18 years old</p>
+                </div>
             </div>
-            <input
-              type="tel"
-              {...register('phone')}
-              className={`
-                block w-full pl-10 pr-3 py-2 border rounded-lg
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                ${errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-300'}
-              `}
-              placeholder="10-digit mobile number"
-              maxLength={10}
-            />
-          </div>
-          {errors.phone && (
-            <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            Enter 10-digit mobile number without country code
-          </p>
-        </div>
 
-        {/* Date of Birth */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date of Birth <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Calendar className="h-5 w-5 text-gray-400" />
+            {/* Actions */}
+            <div className="flex gap-4 pt-4">
+                {onBack && (
+                    <button type="button" onClick={onBack} className="flex-1 px-6 py-3.5 bg-white text-neutral-700 rounded-xl font-semibold border-2 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-all duration-200">
+                        Back
+                    </button>
+                )}
+                <button type="submit" className="flex-1 px-6 py-3.5 bg-gradient-to-r from-rose-600 to-rose-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2">
+                    Next Step <ArrowRight className="w-4 h-4" />
+                </button>
             </div>
-            <input
-              type="date"
-              {...register('dateOfBirth', {
-                valueAsDate: true,
-              })}
-              className={`
-                block w-full pl-10 pr-3 py-2 border rounded-lg
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                ${errors.dateOfBirth ? 'border-red-300 bg-red-50' : 'border-gray-300'}
-              `}
-              max={new Date(new Date().setFullYear(new Date().getFullYear() - 18))
-                .toISOString()
-                .split('T')[0]}
-            />
-          </div>
-          {errors.dateOfBirth && (
-            <p className="mt-1 text-sm text-red-600">{errors.dateOfBirth.message}</p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            You must be at least 18 years old
-          </p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3 pt-4">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Back
-          </button>
-        )}
-        <button
-          type="submit"
-          className="flex-1 px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-        >
-          Next Step
-        </button>
-      </div>
-    </form>
-  );
+        </form>
+    );
 };
 
 Step1_PersonalDetails.propTypes = {
-  data: PropTypes.object,
-  onNext: PropTypes.func.isRequired,
-  onBack: PropTypes.func,
+    data: PropTypes.object,
+    onNext: PropTypes.func.isRequired,
+    onBack: PropTypes.func,
 };
 
 export default Step1_PersonalDetails;

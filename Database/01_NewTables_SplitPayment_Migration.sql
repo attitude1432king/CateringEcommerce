@@ -26,7 +26,7 @@ BEGIN
         [c_contact_person] NVARCHAR(100) NOT NULL,
         [c_contact_phone] VARCHAR(20) NOT NULL,
         [c_is_default] BIT NOT NULL DEFAULT 0,
-        [c_created_date] DATETIME NOT NULL DEFAULT GETDATE(),
+        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
         [c_isactive] BIT NOT NULL DEFAULT 1,
 
         CONSTRAINT [PK_t_sys_user_addresses] PRIMARY KEY CLUSTERED ([c_address_id] ASC),
@@ -70,7 +70,7 @@ BEGIN
         [c_due_date] DATETIME NULL, -- For post-event payments
         [c_reminder_sent_count] INT NOT NULL DEFAULT 0,
         [c_last_reminder_date] DATETIME NULL,
-        [c_created_date] DATETIME NOT NULL DEFAULT GETDATE(),
+        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
 
         CONSTRAINT [PK_t_sys_order_payment_stages] PRIMARY KEY CLUSTERED ([c_payment_stage_id] ASC),
         CONSTRAINT [FK_payment_stages_orderid] FOREIGN KEY ([c_orderid])
@@ -115,7 +115,7 @@ BEGIN
         [c_approved_by] BIGINT NULL, -- User ID who approved
         [c_status] VARCHAR(20) NOT NULL DEFAULT 'Pending', -- Pending, Approved, Rejected, Paid
         [c_payment_stage_id] BIGINT NULL, -- Links to post-event payment stage
-        [c_created_date] DATETIME NOT NULL DEFAULT GETDATE(),
+        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
         [c_approved_date] DATETIME NULL,
 
         CONSTRAINT [PK_t_sys_order_modifications] PRIMARY KEY CLUSTERED ([c_modification_id] ASC),
@@ -133,12 +133,12 @@ BEGIN
     -- Index for faster lookups by order
     CREATE NONCLUSTERED INDEX [IX_modifications_orderid]
         ON [dbo].[t_sys_order_modifications]([c_orderid])
-        INCLUDE ([c_status], [c_created_date]);
+        INCLUDE ([c_status], [c_createddate]);
 
     -- Index for finding pending modifications
     CREATE NONCLUSTERED INDEX [IX_modifications_status]
         ON [dbo].[t_sys_order_modifications]([c_status])
-        INCLUDE ([c_orderid], [c_requested_by], [c_created_date]);
+        INCLUDE ([c_orderid], [c_requested_by], [c_createddate]);
 
     PRINT 'Table [t_sys_order_modifications] created successfully.';
 END
@@ -162,7 +162,7 @@ BEGIN
         [c_latitude] DECIMAL(10,7) NOT NULL,
         [c_longitude] DECIMAL(10,7) NOT NULL,
         [c_place_id] VARCHAR(200) NULL, -- Google Place ID
-        [c_created_date] DATETIME NOT NULL DEFAULT GETDATE(),
+        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
 
         CONSTRAINT [PK_t_sys_event_locations] PRIMARY KEY CLUSTERED ([c_location_id] ASC),
         CONSTRAINT [FK_event_locations_orderid] FOREIGN KEY ([c_orderid])

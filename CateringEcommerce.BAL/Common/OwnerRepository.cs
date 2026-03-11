@@ -149,7 +149,7 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                string query = $"UPDATE {Table.SysCateringMediaUploads} SET c_is_deleted = 1, c_updated_at = GETDATE()  WHERE c_media_id = @documentPKID";
+                string query = $"UPDATE {Table.SysCateringMediaUploads} SET c_is_deleted = 1, c_modifieddate = GETDATE()  WHERE c_media_id = @documentPKID";
                 SqlParameter[] parameters = new SqlParameter[]
                 {
                     new SqlParameter("@documentPKID", documentPKID),
@@ -168,7 +168,7 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                string query = $@"SELECT c_typeid AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_is_active AS IsActive
+                string query = $@"SELECT c_typeid AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_isactive AS IsActive
                             FROM {Table.SysCateringTypeMaster} 
                             WHERE c_categoryid = @ServiceTypeId AND c_isactive = 1";
 
@@ -201,7 +201,7 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                string query = @$"UPDATE {Table.SysCateringMediaUploads} SET c_file_path = @FilePath, c_updated_at = GETDATE()  WHERE c_reference_id = @ReferenceID
+                string query = @$"UPDATE {Table.SysCateringMediaUploads} SET c_file_path = @FilePath, c_modifieddate = GETDATE()  WHERE c_reference_id = @ReferenceID
                                AND c_document_type_id = @DocumentTypeID";
                 SqlParameter[] parameters = new SqlParameter[]
                 {
@@ -222,7 +222,7 @@ namespace CateringEcommerce.BAL.Common
             try
             {
                 string query = $@"UPDATE {Table.SysCateringMediaUploads} 
-                                SET c_is_deleted = 1, c_updated_at = GETDATE()  
+                                SET c_is_deleted = 1, c_modifieddate = GETDATE()  
                                 WHERE c_reference_id = @ReferenceID 
                                 AND c_document_type_id = @DocumentTypeID";
                 

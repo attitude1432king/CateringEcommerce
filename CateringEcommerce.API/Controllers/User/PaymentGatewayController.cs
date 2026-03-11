@@ -1,8 +1,10 @@
 using CateringEcommerce.API.Helpers;
+using CateringEcommerce.BAL.Base.User;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Interfaces.Payment;
 using CateringEcommerce.Domain.Models.User;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -11,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace CateringEcommerce.API.Controllers.User
 {
-    [Authorize]
+    [UserAuthorize]
     [ApiController]
     [Route("api/User/[controller]")]
     public class PaymentGatewayController : ControllerBase
@@ -20,17 +22,23 @@ namespace CateringEcommerce.API.Controllers.User
         private readonly ICurrentUserService _currentUser;
         private readonly IRazorpayPaymentService _razorpayService;
         private readonly INotificationHelper _notificationHelper;
+        private readonly PaymentStageService _paymentStageService;
+        private readonly IOrderRepository _orderRepository;
 
         public PaymentGatewayController(
             ILogger<PaymentGatewayController> logger,
             ICurrentUserService currentUser,
             IRazorpayPaymentService razorpayService,
-            INotificationHelper notificationHelper)
+            INotificationHelper notificationHelper,
+            PaymentStageService paymentStageService,
+            IOrderRepository orderRepository)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
             _razorpayService = razorpayService ?? throw new ArgumentNullException(nameof(razorpayService));
             _notificationHelper = notificationHelper ?? throw new ArgumentNullException(nameof(notificationHelper));
+            _paymentStageService = paymentStageService ?? throw new ArgumentNullException(nameof(paymentStageService));
+            _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
         }
 
         // ===================================
@@ -67,12 +75,67 @@ namespace CateringEcommerce.API.Controllers.User
                     return ApiResponseHelper.Failure("User ID mismatch. Unauthorized access.");
                 }
 
-                _logger.LogInformation($"Creating Razorpay order for user {userId}, OrderId: {orderRequest.OrderId}, Amount: ₹{orderRequest.Amount}, Stage: {orderRequest.StageType}");
+                // SECURITY FIX: Verify order ownership before processing payment
+                var orderDetails = await _orderRepository.GetOrderByIdAsync(orderRequest.OrderId, userId);
+                if (orderDetails == null)
+                {
+                    _logger.LogWarning("Payment attempt for non-existent or unauthorized order. OrderId: {OrderId}, UserId: {UserId}",
+                        orderRequest.OrderId, userId);
+                    return ApiResponseHelper.Failure("Order not found or you do not have permission to access this order.");
+                }
 
-                // Create Razorpay order
-                RazorpayOrderResponseDto razorpayOrder = await _razorpayService.CreateOrderAsync(orderRequest);
+                // SECURITY FIX: Fetch the expected payment amount from database (NOT from client)
+                var paymentStage = await _paymentStageService.GetPaymentStageByTypeAsync(orderRequest.OrderId, orderRequest.StageType);
+                if (paymentStage == null)
+                {
+                    _logger.LogWarning("Payment stage not found. OrderId: {OrderId}, StageType: {StageType}",
+                        orderRequest.OrderId, orderRequest.StageType);
+                    return ApiResponseHelper.Failure($"Payment stage '{orderRequest.StageType}' not found for this order.");
+                }
 
-                _logger.LogInformation($"Razorpay order created successfully: {razorpayOrder.Id}");
+                // SECURITY FIX: Verify payment stage is still pending
+                if (paymentStage.Status != "Pending")
+                {
+                    _logger.LogWarning("Payment attempt for non-pending stage. OrderId: {OrderId}, StageType: {StageType}, Status: {Status}",
+                        orderRequest.OrderId, orderRequest.StageType, paymentStage.Status);
+
+                    if (paymentStage.Status == "Success")
+                    {
+                        return ApiResponseHelper.Failure("This payment has already been completed.");
+                    }
+
+                    return ApiResponseHelper.Failure($"Payment cannot be processed. Current status: {paymentStage.Status}");
+                }
+
+                // SECURITY FIX: Use the database amount (ignore client-provided amount)
+                decimal authorizedAmount = paymentStage.StageAmount;
+
+                // Optional: Validate client amount matches database (for error detection, not security)
+                if (orderRequest.Amount > 0 && Math.Abs(orderRequest.Amount - authorizedAmount) > 0.01m)
+                {
+                    _logger.LogWarning("Client-provided amount mismatch. OrderId: {OrderId}, ClientAmount: {ClientAmount}, DatabaseAmount: {DatabaseAmount}",
+                        orderRequest.OrderId, orderRequest.Amount, authorizedAmount);
+                    // Don't reject - just log and use database amount
+                }
+
+                _logger.LogInformation("Creating Razorpay order for user {UserId}, OrderId: {OrderId}, Amount: ₹{Amount} (verified from database), Stage: {StageType}",
+                    userId, orderRequest.OrderId, authorizedAmount, orderRequest.StageType);
+
+                // Create Razorpay order with VALIDATED amount from database
+                var validatedOrderRequest = new RazorpayOrderRequestDto
+                {
+                    Amount = authorizedAmount, // Use database amount, NOT client amount
+                    Receipt = orderRequest.Receipt,
+                    OrderId = orderRequest.OrderId,
+                    UserId = userId, // Use authenticated user ID
+                    StageType = orderRequest.StageType,
+                    Notes = orderRequest.Notes
+                };
+
+                RazorpayOrderResponseDto razorpayOrder = await _razorpayService.CreateOrderAsync(validatedOrderRequest);
+
+                _logger.LogInformation("Razorpay order created successfully: {RazorpayOrderId}, Amount: ₹{Amount}",
+                    razorpayOrder.Id, authorizedAmount);
 
                 return ApiResponseHelper.Success(razorpayOrder, "Payment order created successfully!");
             }
@@ -168,8 +231,63 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Payment verified successfully for OrderId: {verificationData.OrderId}");
 
-                // TODO: Update payment stage status to "Success" in database
-                // This will be handled by PaymentStageService after we create it
+                // Update payment stage status to "Success" in database
+                try
+                {
+                    var processPaymentDto = new ProcessPaymentStageDto
+                    {
+                        OrderId = verificationData.OrderId,
+                        StageType = verificationData.StageType,
+                        PaymentMethod = "Online",
+                        PaymentGateway = "Razorpay",
+                        RazorpayOrderId = verificationData.RazorpayOrderId,
+                        RazorpayPaymentId = verificationData.RazorpayPaymentId,
+                        RazorpaySignature = verificationData.RazorpaySignature,
+                        TransactionId = verificationData.RazorpayPaymentId
+                    };
+
+                    bool paymentUpdated = await _paymentStageService.ProcessPaymentStageAsync(processPaymentDto);
+
+                    if (!paymentUpdated)
+                    {
+                        _logger.LogCritical("CRITICAL: Payment verified but database update failed - OrderId: {OrderId}, PaymentId: {PaymentId}. Manual reconciliation required!",
+                            verificationData.OrderId, verificationData.RazorpayPaymentId);
+
+                        // Still return success to user since payment was actually verified
+                        // But log critical error for manual reconciliation
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Payment stage updated successfully in database - OrderId: {OrderId}, StageType: {StageType}",
+                            verificationData.OrderId, verificationData.StageType);
+
+                        // Update order status based on payment stage type
+                        if (verificationData.StageType == "PreBooking" || verificationData.StageType == "Full")
+                        {
+                            // For PreBooking or Full payment, update order status to Confirmed
+                            await _orderRepository.UpdateOrderStatusAsync(
+                                verificationData.OrderId,
+                                "Confirmed",
+                                $"Order confirmed after successful {verificationData.StageType} payment via Razorpay (Payment ID: {verificationData.RazorpayPaymentId})"
+                            );
+                            _logger.LogInformation("Order status updated to Confirmed - OrderId: {OrderId}", verificationData.OrderId);
+                        }
+                        else if (verificationData.StageType == "PostEvent")
+                        {
+                            // For PostEvent payment, order should already be in Completed status
+                            // Just log for reference
+                            _logger.LogInformation("PostEvent payment completed - OrderId: {OrderId}", verificationData.OrderId);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogCritical(ex, "CRITICAL: Exception while updating payment in database - OrderId: {OrderId}, PaymentId: {PaymentId}. Manual reconciliation required!",
+                        verificationData.OrderId, verificationData.RazorpayPaymentId);
+
+                    // Continue execution to send notification
+                    // Payment was verified, so we don't want to fail the user's request
+                }
 
                 // Send payment success notification
                 try
@@ -343,16 +461,59 @@ namespace CateringEcommerce.API.Controllers.User
                     return ApiResponseHelper.Failure("Invalid refund request.");
                 }
 
-                _logger.LogInformation($"Processing refund for user {userId}, PaymentId: {refundRequest.PaymentId}, Amount: ₹{refundRequest.Amount}");
+                // SECURITY FIX: Verify payment ownership before processing refund
+                // Step 1: Get the payment stage associated with this Razorpay payment ID
+                var paymentStage = await _paymentStageService.GetPaymentStageByRazorpayPaymentIdAsync(refundRequest.PaymentId);
+                if (paymentStage == null)
+                {
+                    _logger.LogWarning("Refund attempt for non-existent payment. PaymentId: {PaymentId}, UserId: {UserId}",
+                        refundRequest.PaymentId, userId);
+                    return ApiResponseHelper.Failure("Payment not found.");
+                }
 
-                // Process refund
+                // Step 2: Verify the associated order belongs to the authenticated user
+                var orderDetails = await _orderRepository.GetOrderByIdAsync(paymentStage.OrderId, userId);
+                if (orderDetails == null)
+                {
+                    _logger.LogWarning("SECURITY ALERT: User {UserId} attempted to refund payment {PaymentId} for order {OrderId} that does not belong to them",
+                        userId, refundRequest.PaymentId, paymentStage.OrderId);
+                    return ApiResponseHelper.Failure("Unauthorized. This payment does not belong to you.");
+                }
+
+                // Step 3: Verify payment status is eligible for refund
+                if (paymentStage.Status != "Success")
+                {
+                    _logger.LogWarning("Refund attempt for non-successful payment. PaymentId: {PaymentId}, Status: {Status}, UserId: {UserId}",
+                        refundRequest.PaymentId, paymentStage.Status, userId);
+
+                    if (paymentStage.Status == "Refunded")
+                    {
+                        return ApiResponseHelper.Failure("This payment has already been refunded.");
+                    }
+
+                    return ApiResponseHelper.Failure($"Cannot refund payment with status: {paymentStage.Status}");
+                }
+
+                // Step 4: Validate refund amount does not exceed payment amount
+                if (refundRequest.Amount > paymentStage.StageAmount)
+                {
+                    _logger.LogWarning("Refund amount exceeds payment amount. PaymentId: {PaymentId}, RequestedAmount: {RequestedAmount}, PaymentAmount: {PaymentAmount}",
+                        refundRequest.PaymentId, refundRequest.Amount, paymentStage.StageAmount);
+                    return ApiResponseHelper.Failure($"Refund amount (₹{refundRequest.Amount:N2}) cannot exceed payment amount (₹{paymentStage.StageAmount:N2})");
+                }
+
+                _logger.LogInformation("Processing refund for user {UserId}, PaymentId: {PaymentId}, Amount: ₹{Amount}, OrderId: {OrderId} (ownership verified)",
+                    userId, refundRequest.PaymentId, refundRequest.Amount, paymentStage.OrderId);
+
+                // Process refund (ownership verified)
                 var refundDetails = await _razorpayService.ProcessRefundAsync(
                     refundRequest.PaymentId,
                     refundRequest.Amount,
                     refundRequest.Reason ?? "Customer request"
                 );
 
-                _logger.LogInformation($"Refund processed successfully for PaymentId: {refundRequest.PaymentId}");
+                _logger.LogInformation("Refund processed successfully for PaymentId: {PaymentId}, OrderId: {OrderId}",
+                    refundRequest.PaymentId, paymentStage.OrderId);
 
                 // Send refund initiated notification
                 try
@@ -369,7 +530,8 @@ namespace CateringEcommerce.API.Controllers.User
                         new Dictionary<string, object>
                         {
                             { "customer_name", userName },
-                            { "order_number", "N/A" }, // Order number not available in this context
+                            { "order_number", orderDetails.OrderNumber ?? paymentStage.OrderId.ToString() },
+                            { "order_id", paymentStage.OrderId.ToString() },
                             { "amount", refundRequest.Amount.ToString("N2") },
                             { "refund_id", refundDetails != null && refundDetails.ContainsKey("Id") ? refundDetails["Id"]?.ToString() ?? "N/A" : "N/A" },
                             { "payment_id", refundRequest.PaymentId },

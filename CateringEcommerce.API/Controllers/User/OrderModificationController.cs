@@ -1,5 +1,6 @@
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Models.Order;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -9,7 +10,7 @@ namespace CateringEcommerce.API.Controllers.User
 {
     [Route("api/user/order-modification")]
     [ApiController]
-    [Authorize]
+    [UserAuthorize]
     public class OrderModificationController : ControllerBase
     {
         private readonly IOrderModificationRepository _modificationRepo;

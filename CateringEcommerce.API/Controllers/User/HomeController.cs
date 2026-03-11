@@ -1,5 +1,6 @@
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.User;
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -805,7 +806,7 @@ namespace CateringEcommerce.API.Controllers.User
                     {
                         var query = $@"
                             SELECT c_type_id
-                            FROM t_sys_catering_type_master
+                            FROM {Table.SysCateringTypeMaster}
                             WHERE c_category_id = 3
                             AND c_type_name LIKE @EventTypeName
                             AND c_is_active = 1
@@ -851,9 +852,9 @@ namespace CateringEcommerce.API.Controllers.User
                 {
                     await connection.OpenAsync();
 
-                    var query = @"
+                    var query = $@"
                         SELECT c_type_id, c_type_name
-                        FROM t_sys_catering_type_master
+                        FROM {Table.SysCateringTypeMaster}
                         WHERE c_category_id = 3
                         AND c_is_active = 1
                         AND c_is_deleted = 0

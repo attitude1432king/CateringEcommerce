@@ -31,6 +31,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var baseQuery = $@"
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
+                    OUTER APPLY (
+                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                        FROM {Table.SysOrderPayments} p
+                        WHERE p.c_orderid = o.c_orderid
+                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay
                     WHERE o.c_ownerid = @OwnerId";
 
                 var parameters = new List<SqlParameter>
@@ -47,13 +53,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 if (filter.StartDate.HasValue)
                 {
-                    baseQuery += " AND o.c_created_date >= @StartDate";
+                    baseQuery += " AND o.c_createddate >= @StartDate";
                     parameters.Add(new SqlParameter("@StartDate", filter.StartDate.Value));
                 }
 
                 if (filter.EndDate.HasValue)
                 {
-                    baseQuery += " AND o.c_created_date <= @EndDate";
+                    baseQuery += " AND o.c_createddate <= @EndDate";
                     parameters.Add(new SqlParameter("@EndDate", filter.EndDate.Value.AddDays(1).AddSeconds(-1)));
                 }
 
@@ -65,21 +71,21 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 if (filter.MinAmount.HasValue)
                 {
-                    baseQuery += " AND o.c_final_amount >= @MinAmount";
+                    baseQuery += " AND o.c_total_amount >= @MinAmount";
                     parameters.Add(new SqlParameter("@MinAmount", filter.MinAmount.Value));
                 }
 
                 if (filter.MaxAmount.HasValue)
                 {
-                    baseQuery += " AND o.c_final_amount <= @MaxAmount";
+                    baseQuery += " AND o.c_total_amount <= @MaxAmount";
                     parameters.Add(new SqlParameter("@MaxAmount", filter.MaxAmount.Value));
                 }
 
                 if (!string.IsNullOrEmpty(filter.SearchTerm))
                 {
                     baseQuery += @" AND (o.c_order_number LIKE @SearchTerm
-                                    OR CONCAT(u.c_firstname, ' ', u.c_lastname) LIKE @SearchTerm
-                                    OR u.c_mobilenumber LIKE @SearchTerm)";
+                                    OR u.c_name LIKE @SearchTerm
+                                    OR u.c_mobile LIKE @SearchTerm)";
                     parameters.Add(new SqlParameter("@SearchTerm", $"%{filter.SearchTerm}%"));
                 }
 
@@ -91,14 +97,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     SELECT
                         o.c_orderid AS OrderId,
                         o.c_order_number AS OrderNumber,
-                        CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
-                        u.c_mobilenumber AS CustomerPhone,
+                        u.c_name AS CustomerName,
+                        u.c_mobile AS CustomerPhone,
                         o.c_event_type AS EventType,
                         o.c_event_date AS EventDate,
-                        o.c_created_date AS OrderDate,
-                        o.c_final_amount AS TotalAmount,
-                        ISNULL(o.c_paid_amount, 0) AS PaidAmount,
-                        (o.c_final_amount - ISNULL(o.c_paid_amount, 0)) AS BalanceAmount,
+                        o.c_createddate AS OrderDate,
+                        o.c_total_amount AS TotalAmount,
+                        ISNULL(pay.PaidAmount, 0) AS PaidAmount,
+                        (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) AS BalanceAmount,
                         o.c_order_status AS OrderStatus,
                         o.c_payment_status AS PaymentStatus,
                         o.c_guest_count AS GuestCount,
@@ -113,11 +119,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         query.Append("o.c_event_date");
                         break;
                     case "amount":
-                        query.Append("o.c_final_amount");
+                        query.Append("o.c_total_amount");
                         break;
                     case "orderdate":
                     default:
-                        query.Append("o.c_created_date");
+                        query.Append("o.c_createddate");
                         break;
                 }
 
@@ -129,14 +135,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 // Execute count query
                 var totalCount = 0;
-                var countResult = await Task.Run(() => _dbHelper.ExecuteScalar(countQuery.ToString(), parameters.ToArray()));
+                var countResult = await Task.Run(() => _dbHelper.ExecuteScalar(countQuery.ToString(), CloneParameters(parameters)));
                 if (countResult != null)
                 {
                     totalCount = Convert.ToInt32(countResult);
                 }
 
                 // Execute data query
-                var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query.ToString(), parameters.ToArray()));
+                var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query.ToString(), CloneParameters(parameters)));
 
                 var orders = new List<OrderListItemDto>();
                 foreach (DataRow row in dataTable.Rows)
@@ -195,18 +201,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         o.c_orderid AS OrderId,
                         o.c_order_number AS OrderNumber,
                         o.c_userid AS CustomerId,
-                        CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
+                        u.c_name AS CustomerName,
                         u.c_email AS CustomerEmail,
-                        u.c_mobilenumber AS CustomerPhone,
+                        u.c_mobile AS CustomerPhone,
                         o.c_event_type AS EventType,
                         o.c_event_date AS EventDate,
                         o.c_event_time AS EventTime,
                         o.c_guest_count AS GuestCount,
-                        o.c_venue_address AS VenueAddress,
-                        o.c_venue_city AS VenueCity,
-                        o.c_venue_state AS VenueState,
-                        o.c_venue_pincode AS VenuePincode,
-                        o.c_created_date AS OrderDate,
+                        o.c_delivery_address AS VenueAddress,
+                        '' AS VenueCity,
+                        '' AS VenueState,
+                        '' AS VenuePincode,
+                        o.c_createddate AS OrderDate,
                         o.c_order_status AS OrderStatus,
                         o.c_payment_status AS PaymentStatus,
                         o.c_special_instructions AS SpecialInstructions,
@@ -214,11 +220,17 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         ISNULL(o.c_tax_amount, 0) AS TaxAmount,
                         ISNULL(o.c_discount_amount, 0) AS DiscountAmount,
                         ISNULL(o.c_delivery_charges, 0) AS DeliveryCharges,
-                        o.c_final_amount AS TotalAmount,
-                        ISNULL(o.c_paid_amount, 0) AS PaidAmount,
-                        (o.c_final_amount - ISNULL(o.c_paid_amount, 0)) AS BalanceAmount
+                        o.c_total_amount AS TotalAmount,
+                        ISNULL(pay.PaidAmount, 0) AS PaidAmount,
+                        (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) AS BalanceAmount
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
+                    OUTER APPLY (
+                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                        FROM {Table.SysOrderPayments} p
+                        WHERE p.c_orderid = o.c_orderid
+                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay
                     WHERE o.c_orderid = @OrderId;
 
                     -- Order Items (Food Items and Packages)
@@ -332,7 +344,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 query.Append($@"
                     UPDATE {Table.SysOrders}
                     SET c_order_status = @NewStatus,
-                        c_modified_date = @ModifiedDate");
+                        c_modifieddate = @ModifiedDate");
 
                 var parameters = new List<SqlParameter>
                 {
@@ -352,11 +364,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 // Insert status history (if you have a status history table)
                 query.Append($@"
                     INSERT INTO {Table.SysOrderStatusHistory}
-                    (c_orderid, c_status, c_comments, c_changed_date, c_changed_by)
-                    VALUES (@OrderId, @NewStatus, @Comments, @ModifiedDate, @ChangedBy);");
+                    (c_orderid, c_status, c_remarks, c_modifieddate)
+                    VALUES (@OrderId, @NewStatus, @Comments, @ModifiedDate);");
 
                 parameters.Add(new SqlParameter("@Comments", statusUpdate.Comments ?? ""));
-                parameters.Add(new SqlParameter("@ChangedBy", ownerId.ToString()));
 
                 var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray()));
 
@@ -374,14 +385,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             {
                 var query = $@"
                     SELECT
-                        c_status_id AS StatusId,
+                        c_history_id AS StatusId,
                         c_status AS Status,
-                        c_changed_date AS ChangedDate,
-                        c_changed_by AS ChangedBy,
-                        c_comments AS Comments
+                        c_modifieddate AS ChangedDate,
+                        '' AS ChangedBy,
+                        c_remarks AS Comments
                     FROM {Table.SysOrderStatusHistory}
                     WHERE c_orderid = @OrderId
-                    ORDER BY c_changed_date DESC";
+                    ORDER BY c_modifieddate DESC";
 
                 var parameters = new[] { new SqlParameter("@OrderId", orderId) };
                 var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, parameters));
@@ -419,8 +430,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         SUM(CASE WHEN c_order_status = 'Confirmed' THEN 1 ELSE 0 END) AS ConfirmedOrders,
                         SUM(CASE WHEN c_order_status = 'Completed' THEN 1 ELSE 0 END) AS CompletedOrders,
                         SUM(CASE WHEN c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS CancelledOrders,
-                        ISNULL(SUM(c_final_amount), 0) AS TotalRevenue,
-                        ISNULL(AVG(c_final_amount), 0) AS AverageOrderValue
+                        ISNULL(SUM(c_total_amount), 0) AS TotalRevenue,
+                        ISNULL(AVG(c_total_amount), 0) AS AverageOrderValue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId";
 
@@ -459,9 +470,9 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             {
                 var query = $@"
                     SELECT
-                        SUM(CASE WHEN CAST(c_created_date AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END) AS TodayRequests,
-                        SUM(CASE WHEN c_created_date >= DATEADD(DAY, -7, GETDATE()) THEN 1 ELSE 0 END) AS WeekRequests,
-                        SUM(CASE WHEN c_created_date >= DATEADD(DAY, -30, GETDATE()) THEN 1 ELSE 0 END) AS MonthRequests,
+                        SUM(CASE WHEN CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END) AS TodayRequests,
+                        SUM(CASE WHEN c_createddate >= DATEADD(DAY, -7, GETDATE()) THEN 1 ELSE 0 END) AS WeekRequests,
+                        SUM(CASE WHEN c_createddate >= DATEADD(DAY, -30, GETDATE()) THEN 1 ELSE 0 END) AS MonthRequests,
                         SUM(CASE WHEN c_order_status = 'Pending' THEN 1 ELSE 0 END) AS TotalPending,
                         SUM(CASE WHEN c_order_status = 'Confirmed' THEN 1 ELSE 0 END) AS TotalConfirmed,
                         SUM(CASE WHEN c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS TotalRejected
@@ -514,6 +525,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             {
                 throw new Exception($"Error validating order ownership: {ex.Message}", ex);
             }
+        }
+
+        private static SqlParameter[] CloneParameters(List<SqlParameter> parameters)
+        {
+            var cloned = new SqlParameter[parameters.Count];
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                cloned[i] = new SqlParameter(parameter.ParameterName, parameter.Value ?? DBNull.Value);
+            }
+
+            return cloned;
         }
     }
 }

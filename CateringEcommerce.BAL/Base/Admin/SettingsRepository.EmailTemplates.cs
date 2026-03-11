@@ -60,7 +60,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 "TemplateCode" => "t.c_template_code",
                 "TemplateName" => "t.c_template_name",
                 "Category" => "t.c_category",
-                "ModifiedDate" => "t.c_modified_date",
+                "ModifiedDate" => "t.c_modifieddate",
                 _ => "t.c_template_name"
             };
 
@@ -78,19 +78,22 @@ namespace CateringEcommerce.BAL.Base.Admin
                     t.c_template_id AS TemplateId,
                     t.c_template_code AS TemplateCode,
                     t.c_template_name AS TemplateName,
+                    t.c_description AS Description,
+                    t.c_language AS Language,
+                    t.c_channel AS Channel,
                     t.c_category AS Category,
                     t.c_subject AS Subject,
                     t.c_body AS Body,
-                    t.c_description AS Description,
                     t.c_version AS Version,
                     t.c_is_active AS IsActive,
-                    t.c_created_date AS CreatedDate,
-                    t.c_created_by AS CreatedBy,
-                    t.c_modified_date AS ModifiedDate,
-                    t.c_modified_by AS ModifiedBy,
+                    t.c_usage_count AS UsageCount,
+                    t.c_createddate AS CreatedDate,
+                    t.c_createdby AS CreatedBy,
+                    t.c_modifieddate AS ModifiedDate,
+                    t.c_modifiedby AS ModifiedBy,
                     a.c_fullname AS ModifiedByName
                 FROM {Table.SysNotificationTemplates} t
-                LEFT JOIN t_admin_users a ON t.c_modified_by = a.c_admin_id
+                LEFT JOIN {Table.SysAdmin} a ON t.c_modifiedby = a.c_adminid
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
                 OFFSET @Offset ROWS
@@ -98,28 +101,10 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var templates = new List<EmailTemplateItem>();
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(dataQuery, dataParameters.ToArray()))
+            var templateTable = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
+            foreach (DataRow row in templateTable.Rows)
             {
-                while (await reader.ReadAsync())
-                {
-                    templates.Add(new EmailTemplateItem
-                    {
-                        TemplateId = reader.GetInt64(reader.GetOrdinal("TemplateId")),
-                        TemplateCode = reader.GetString(reader.GetOrdinal("TemplateCode")),
-                        TemplateName = reader.GetString(reader.GetOrdinal("TemplateName")),
-                        Category = reader.GetString(reader.GetOrdinal("Category")),
-                        Subject = reader.GetString(reader.GetOrdinal("Subject")),
-                        Body = reader.GetString(reader.GetOrdinal("Body")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        Version = reader.GetInt32(reader.GetOrdinal("Version")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
-                        ModifiedByName = reader.IsDBNull(reader.GetOrdinal("ModifiedByName")) ? null : reader.GetString(reader.GetOrdinal("ModifiedByName"))
-                    });
-                }
+                templates.Add(MapEmailTemplateFromRow(row));
             }
 
             var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
@@ -141,19 +126,22 @@ namespace CateringEcommerce.BAL.Base.Admin
                     t.c_template_id AS TemplateId,
                     t.c_template_code AS TemplateCode,
                     t.c_template_name AS TemplateName,
+                    t.c_description AS Description,
+                    t.c_language AS Language,
+                    t.c_channel AS Channel,
                     t.c_category AS Category,
                     t.c_subject AS Subject,
                     t.c_body AS Body,
-                    t.c_description AS Description,
                     t.c_version AS Version,
                     t.c_is_active AS IsActive,
-                    t.c_created_date AS CreatedDate,
-                    t.c_created_by AS CreatedBy,
-                    t.c_modified_date AS ModifiedDate,
-                    t.c_modified_by AS ModifiedBy,
+                    t.c_usage_count AS UsageCount,
+                    t.c_createddate AS CreatedDate,
+                    t.c_createdby AS CreatedBy,
+                    t.c_modifieddate AS ModifiedDate,
+                    t.c_modifiedby AS ModifiedBy,
                     a.c_fullname AS ModifiedByName
                 FROM {Table.SysNotificationTemplates} t
-                LEFT JOIN t_admin_users a ON t.c_modified_by = a.c_admin_id
+                LEFT JOIN {Table.SysAdmin} a ON t.c_modifiedby = a.c_adminid
                 WHERE t.c_template_id = @TemplateId";
 
             var parameters = new[]
@@ -165,23 +153,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             {
                 if (await reader.ReadAsync())
                 {
-                    return new EmailTemplateItem
-                    {
-                        TemplateId = reader.GetInt64(reader.GetOrdinal("TemplateId")),
-                        TemplateCode = reader.GetString(reader.GetOrdinal("TemplateCode")),
-                        TemplateName = reader.GetString(reader.GetOrdinal("TemplateName")),
-                        Category = reader.GetString(reader.GetOrdinal("Category")),
-                        Subject = reader.GetString(reader.GetOrdinal("Subject")),
-                        Body = reader.GetString(reader.GetOrdinal("Body")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        Version = reader.GetInt32(reader.GetOrdinal("Version")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
-                        ModifiedByName = reader.IsDBNull(reader.GetOrdinal("ModifiedByName")) ? null : reader.GetString(reader.GetOrdinal("ModifiedByName"))
-                    };
+                    return MapEmailTemplateFromReader(reader);
                 }
             }
 
@@ -195,19 +167,22 @@ namespace CateringEcommerce.BAL.Base.Admin
                     t.c_template_id AS TemplateId,
                     t.c_template_code AS TemplateCode,
                     t.c_template_name AS TemplateName,
+                    t.c_description AS Description,
+                    t.c_language AS Language,
+                    t.c_channel AS Channel,
                     t.c_category AS Category,
                     t.c_subject AS Subject,
                     t.c_body AS Body,
-                    t.c_description AS Description,
                     t.c_version AS Version,
                     t.c_is_active AS IsActive,
-                    t.c_created_date AS CreatedDate,
-                    t.c_created_by AS CreatedBy,
-                    t.c_modified_date AS ModifiedDate,
-                    t.c_modified_by AS ModifiedBy,
+                    t.c_usage_count AS UsageCount,
+                    t.c_createddate AS CreatedDate,
+                    t.c_createdby AS CreatedBy,
+                    t.c_modifieddate AS ModifiedDate,
+                    t.c_modifiedby AS ModifiedBy,
                     a.c_fullname AS ModifiedByName
                 FROM {Table.SysNotificationTemplates} t
-                LEFT JOIN t_admin_users a ON t.c_modified_by = a.c_admin_id
+                LEFT JOIN {Table.SysAdmin} a ON t.c_modifiedby = a.c_adminid
                 WHERE t.c_template_code = @TemplateCode";
 
             var parameters = new[]
@@ -215,75 +190,84 @@ namespace CateringEcommerce.BAL.Base.Admin
                 new SqlParameter("@TemplateCode", templateCode)
             };
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(query, parameters))
+            var templateTable = await _dbHelper.ExecuteAsync(query, parameters);
+            if (templateTable.Rows.Count > 0)
             {
-                if (await reader.ReadAsync())
-                {
-                    return new EmailTemplateItem
-                    {
-                        TemplateId = reader.GetInt64(reader.GetOrdinal("TemplateId")),
-                        TemplateCode = reader.GetString(reader.GetOrdinal("TemplateCode")),
-                        TemplateName = reader.GetString(reader.GetOrdinal("TemplateName")),
-                        Category = reader.GetString(reader.GetOrdinal("Category")),
-                        Subject = reader.GetString(reader.GetOrdinal("Subject")),
-                        Body = reader.GetString(reader.GetOrdinal("Body")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        Version = reader.GetInt32(reader.GetOrdinal("Version")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
-                        ModifiedByName = reader.IsDBNull(reader.GetOrdinal("ModifiedByName")) ? null : reader.GetString(reader.GetOrdinal("ModifiedByName"))
-                    };
-                }
+                return MapEmailTemplateFromRow(templateTable.Rows[0]);
             }
 
             return null;
         }
 
+        public async Task<long> CreateEmailTemplateAsync(CreateEmailTemplateRequest request, long adminId)
+        {
+            var existingTemplate = await GetEmailTemplateByCodeAsync(request.TemplateCode);
+            if (existingTemplate != null)
+            {
+                throw new InvalidOperationException($"Template code '{request.TemplateCode}' already exists.");
+            }
+
+            var query = $@"
+                INSERT INTO {Table.SysNotificationTemplates}
+                (c_template_code, c_template_name, c_description, c_language, c_channel, c_category, c_subject, c_body, c_version, c_is_active, c_usage_count, c_createddate, c_createdby)
+                VALUES
+                (@TemplateCode, @TemplateName, @Description, @Language, @Channel, @Category, @Subject, @Body, 1, @IsActive, 0, GETDATE(), @CreatedBy);
+                SELECT SCOPE_IDENTITY();";
+
+            var parameters = new[]
+            {
+                new SqlParameter("@TemplateCode", request.TemplateCode),
+                new SqlParameter("@TemplateName", request.TemplateName),
+                new SqlParameter("@Description", (object)request.Description ?? DBNull.Value),
+                new SqlParameter("@Language", request.Language ?? "en"),
+                new SqlParameter("@Channel", request.Channel ?? "EMAIL"),
+                new SqlParameter("@Category", request.Category),
+                new SqlParameter("@Subject", (object)request.Subject ?? DBNull.Value),
+                new SqlParameter("@Body", request.Body),
+                new SqlParameter("@IsActive", request.IsActive),
+                new SqlParameter("@CreatedBy", adminId)
+            };
+
+            var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
+            return Convert.ToInt64(result);
+        }
+
         public async Task<bool> UpdateEmailTemplateAsync(UpdateEmailTemplateRequest request, long adminId, string adminName)
         {
-            // Get current template for validation and version
             var currentTemplate = await GetEmailTemplateByIdAsync(request.TemplateId);
             if (currentTemplate == null)
             {
                 throw new InvalidOperationException("Template not found");
             }
 
-            // Validate template syntax (basic check)
-            try
-            {
-                var subjectTemplate = Template.Parse(request.Subject);
-                var bodyTemplate = Template.Parse(request.Body);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Template syntax error: {ex.Message}");
-            }
-
-            // Update template (increment version)
             var query = $@"
                 UPDATE {Table.SysNotificationTemplates}
                 SET
+                    c_template_name = @TemplateName,
+                    c_description = @Description,
+                    c_category = @Category,
                     c_subject = @Subject,
                     c_body = @Body,
+                    c_is_active = @IsActive,
                     c_version = c_version + 1,
-                    c_modified_date = GETDATE(),
-                    c_modified_by = @ModifiedBy
+                    c_modifieddate = GETDATE(),
+                    c_modifiedby = @ModifiedBy
                 WHERE c_template_id = @TemplateId";
 
             var parameters = new[]
             {
-                new SqlParameter("@Subject", request.Subject),
+                new SqlParameter("@TemplateName", request.TemplateName),
+                new SqlParameter("@Description", (object)request.Description ?? DBNull.Value),
+                new SqlParameter("@Category", request.Category),
+                new SqlParameter("@Subject", (object)request.Subject ?? DBNull.Value),
                 new SqlParameter("@Body", request.Body),
+                new SqlParameter("@IsActive", request.IsActive),
                 new SqlParameter("@ModifiedBy", adminId),
                 new SqlParameter("@TemplateId", request.TemplateId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
 
-            // Log to audit (using admin activity log)
             if (rowsAffected > 0)
             {
                 var auditQuery = $@"
@@ -312,7 +296,6 @@ namespace CateringEcommerce.BAL.Base.Admin
             string subject = request.Subject;
             string body = request.Body;
 
-            // If no subject/body provided, get from template
             if (string.IsNullOrEmpty(subject) || string.IsNullOrEmpty(body))
             {
                 EmailTemplateItem template = null;
@@ -335,10 +318,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 body = template.Body;
             }
 
-            // Prepare sample data
             var sampleData = request.SampleData ?? new Dictionary<string, string>();
 
-            // Provide default values for common variables if not provided
             if (!sampleData.ContainsKey("app_name"))
                 sampleData["app_name"] = "Catering Ecommerce Platform";
             if (!sampleData.ContainsKey("customer_name"))
@@ -350,15 +331,12 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             try
             {
-                // Render subject
                 var subjectTemplate = Template.Parse(subject);
                 var renderedSubject = await subjectTemplate.RenderAsync(sampleData);
 
-                // Render body
                 var bodyTemplate = Template.Parse(body);
                 var renderedBody = await bodyTemplate.RenderAsync(sampleData);
 
-                // Find missing variables (variables in template but not in sample data)
                 var variablePattern = new System.Text.RegularExpressions.Regex(@"{{\s*(\w+)\s*}}");
                 var subjectMatches = variablePattern.Matches(subject);
                 var bodyMatches = variablePattern.Matches(body);
@@ -415,20 +393,18 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var variables = new List<TemplateVariableItem>();
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(query, parameters))
+            var variableTable = await _dbHelper.ExecuteAsync(query, parameters);
+            foreach (DataRow row in variableTable.Rows)
             {
-                while (await reader.ReadAsync())
+                variables.Add(new TemplateVariableItem
                 {
-                    variables.Add(new TemplateVariableItem
-                    {
-                        VariableId = reader.GetInt64(reader.GetOrdinal("VariableId")),
-                        TemplateCode = reader.GetString(reader.GetOrdinal("TemplateCode")),
-                        VariableName = reader.GetString(reader.GetOrdinal("VariableName")),
-                        VariableKey = reader.GetString(reader.GetOrdinal("VariableKey")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        ExampleValue = reader.IsDBNull(reader.GetOrdinal("ExampleValue")) ? null : reader.GetString(reader.GetOrdinal("ExampleValue"))
-                    });
-                }
+                    VariableId = row.Field<long>("VariableId"),
+                    TemplateCode = row.Field<string>("TemplateCode"),
+                    VariableName = row.Field<string>("VariableName"),
+                    VariableKey = row.Field<string>("VariableKey"),
+                    Description = row.IsNull("Description") ? null : row.Field<string>("Description"),
+                    ExampleValue = row.IsNull("ExampleValue") ? null : row.Field<string>("ExampleValue")
+                });
             }
 
             return new TemplateVariablesResponse
@@ -440,21 +416,18 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<bool> SendTestEmailAsync(long templateId, string toEmail, Dictionary<string, string> sampleData)
         {
-            // Get template
             var template = await GetEmailTemplateByIdAsync(templateId);
             if (template == null)
             {
                 throw new InvalidOperationException("Template not found");
             }
 
-            // Render template
             var preview = await PreviewTemplateAsync(new TemplatePreviewRequest
             {
                 TemplateId = templateId,
                 SampleData = sampleData
             });
 
-            // Get email settings
             var emailSettings = await GetSettingsByCategoryAsync("EMAIL");
             var smtpHost = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.SMTP_HOST")?.SettingValue;
             var smtpPort = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.SMTP_PORT")?.SettingValue;
@@ -469,7 +442,6 @@ namespace CateringEcommerce.BAL.Base.Admin
                 throw new InvalidOperationException("SMTP settings not configured");
             }
 
-            // Send email using SMTP
             using (var smtpClient = new System.Net.Mail.SmtpClient(smtpHost, int.Parse(smtpPort)))
             {
                 smtpClient.Credentials = new System.Net.NetworkCredential(smtpUsername, smtpPassword);
@@ -495,6 +467,58 @@ namespace CateringEcommerce.BAL.Base.Admin
                     throw new InvalidOperationException($"Failed to send test email: {ex.Message}");
                 }
             }
+        }
+
+        // =============================================
+        // PRIVATE MAPPING HELPERS
+        // =============================================
+
+        private static EmailTemplateItem MapEmailTemplateFromRow(DataRow row)
+        {
+            return new EmailTemplateItem
+            {
+                TemplateId = row.Field<long>("TemplateId"),
+                TemplateCode = row.Field<string>("TemplateCode"),
+                TemplateName = row.Field<string>("TemplateName"),
+                Description = row.IsNull("Description") ? null : row.Field<string>("Description"),
+                Language = row.Field<string>("Language"),
+                Channel = row.Field<string>("Channel"),
+                Category = row.Field<string>("Category"),
+                Subject = row.IsNull("Subject") ? null : row.Field<string>("Subject"),
+                Body = row.Field<string>("Body"),
+                Version = row.Field<int>("Version"),
+                IsActive = row.Field<bool>("IsActive"),
+                UsageCount = row.Field<int>("UsageCount"),
+                CreatedDate = row.Field<DateTime>("CreatedDate"),
+                CreatedBy = row.IsNull("CreatedBy") ? null : row.Field<long>("CreatedBy"),
+                ModifiedDate = row.IsNull("ModifiedDate") ? null : row.Field<DateTime>("ModifiedDate"),
+                ModifiedBy = row.IsNull("ModifiedBy") ? null : row.Field<long>("ModifiedBy"),
+                ModifiedByName = row.IsNull("ModifiedByName") ? null : row.Field<string>("ModifiedByName")
+            };
+        }
+
+        private static EmailTemplateItem MapEmailTemplateFromReader(SqlDataReader reader)
+        {
+            return new EmailTemplateItem
+            {
+                TemplateId = reader.GetInt64(reader.GetOrdinal("TemplateId")),
+                TemplateCode = reader.GetString(reader.GetOrdinal("TemplateCode")),
+                TemplateName = reader.GetString(reader.GetOrdinal("TemplateName")),
+                Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
+                Language = reader.GetString(reader.GetOrdinal("Language")),
+                Channel = reader.GetString(reader.GetOrdinal("Channel")),
+                Category = reader.GetString(reader.GetOrdinal("Category")),
+                Subject = reader.IsDBNull(reader.GetOrdinal("Subject")) ? null : reader.GetString(reader.GetOrdinal("Subject")),
+                Body = reader.GetString(reader.GetOrdinal("Body")),
+                Version = reader.GetInt32(reader.GetOrdinal("Version")),
+                IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
+                UsageCount = reader.GetInt32(reader.GetOrdinal("UsageCount")),
+                CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
+                CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
+                ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
+                ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
+                ModifiedByName = reader.IsDBNull(reader.GetOrdinal("ModifiedByName")) ? null : reader.GetString(reader.GetOrdinal("ModifiedByName"))
+            };
         }
     }
 }

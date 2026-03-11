@@ -27,8 +27,8 @@ BEGIN
         c_resolved_date DATETIME NULL,
 
         -- Metadata
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         CONSTRAINT UQ_TicketNumber UNIQUE (c_ticket_number)
     );
@@ -36,7 +36,7 @@ BEGIN
     CREATE INDEX IX_SupportTickets_OwnerId ON t_sys_support_tickets (c_ownerid);
     CREATE INDEX IX_SupportTickets_Status ON t_sys_support_tickets (c_status);
     CREATE INDEX IX_SupportTickets_Category ON t_sys_support_tickets (c_category);
-    CREATE INDEX IX_SupportTickets_CreatedDate ON t_sys_support_tickets (c_created_date DESC);
+    CREATE INDEX IX_SupportTickets_CreatedDate ON t_sys_support_tickets (c_createddate DESC);
 END
 GO
 
@@ -48,7 +48,7 @@ BEGIN
         c_sender_type NVARCHAR(20) NOT NULL,            -- Owner, Admin
         c_sender_id BIGINT NOT NULL,
         c_message_text NVARCHAR(2000) NOT NULL,
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
 
         CONSTRAINT FK_TicketMessages_Ticket FOREIGN KEY (c_ticket_id)
             REFERENCES t_sys_support_tickets (c_ticket_id)

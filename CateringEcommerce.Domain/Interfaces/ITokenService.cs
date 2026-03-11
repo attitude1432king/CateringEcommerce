@@ -12,7 +12,7 @@ namespace CateringEcommerce.Domain.Interfaces
         /// <param name="userType">Type of user (ADMIN, USER, PARTNER, SUPERVISOR)</param>
         /// <param name="additionalClaims">Optional additional claims to include in token</param>
         /// <returns>JWT token string</returns>
-        string GenerateToken(string userId, string userType, Dictionary<string, string>? additionalClaims = null);
+        string GenerateToken(string userId, string role, Dictionary<string, string>? additionalClaims = null);
 
         /// <summary>
         /// Validate JWT token signature and expiration

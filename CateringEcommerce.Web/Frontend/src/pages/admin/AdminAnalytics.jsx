@@ -8,6 +8,19 @@ import OrderStatusChart from '../../components/admin/analytics/OrderStatusChart'
 import { adminAnalyticsApi } from '../../services/analyticsApi';
 import { toast } from 'react-hot-toast';
 
+const INDIA_TIME_ZONE = 'Asia/Kolkata';
+
+const formatDateInIndia = (date) =>
+    new Intl.DateTimeFormat('en-CA', {
+        timeZone: INDIA_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
+
+const getIndiaNow = () =>
+    new Date(new Date().toLocaleString('en-US', { timeZone: INDIA_TIME_ZONE }));
+
 /**
  * Admin Analytics Dashboard
  * Comprehensive analytics with charts, metrics, and date filtering
@@ -30,14 +43,14 @@ const AdminAnalytics = () => {
     const [revenueGranularity, setRevenueGranularity] = useState('day');
 
     useEffect(() => {
-        // Initialize with default date range (last 30 days)
-        const today = new Date();
+        // Initialize with default date range (last 30 days) in India timezone
+        const today = getIndiaNow();
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 30);
 
         setDateRange({
-            from: thirtyDaysAgo.toISOString().split('T')[0],
-            to: today.toISOString().split('T')[0],
+            from: formatDateInIndia(thirtyDaysAgo),
+            to: formatDateInIndia(today),
         });
     }, []);
 
@@ -356,7 +369,10 @@ const AdminAnalytics = () => {
                                             </p>
                                             <p className="text-sm text-gray-500">{order.cateringName}</p>
                                             <p className="text-xs text-gray-400 mt-1">
-                                                {new Date(order.orderDate).toLocaleDateString()}
+                                                {new Date(order.orderDate).toLocaleDateString(
+                                                    'en-IN',
+                                                    { timeZone: INDIA_TIME_ZONE }
+                                                )}
                                             </p>
                                         </div>
                                         <div className="text-right">

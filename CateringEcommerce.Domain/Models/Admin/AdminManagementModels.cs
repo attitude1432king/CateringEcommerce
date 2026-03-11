@@ -92,7 +92,7 @@ namespace CateringEcommerce.Domain.Models.Admin
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string? Mobile { get; set; }
-        public string PasswordHash { get; set; } = string.Empty; // Client sends pre-hashed password
+        public string Password { get; set; } = string.Empty; // Client sends pre-hashed password
         public long RoleId { get; set; }
         public bool IsActive { get; set; } = true;
         public bool ForcePasswordReset { get; set; } = true; // Default to force password reset

@@ -1,5 +1,4 @@
-﻿using CateringEcommerce.Domain.Interfaces;
-using Microsoft.Extensions.Configuration;
+using CateringEcommerce.Domain.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -16,32 +15,27 @@ namespace CateringEcommerce.BAL.Configuration
     /// </summary>
     public class TokenService : ITokenService
     {
-        private readonly IConfiguration _config;
-        private readonly string _jwtKey;
-        private readonly string _jwtIssuer;
-        private readonly string _jwtAudience;
-        private readonly int _expireMinutes;
+        private readonly ISystemSettingsProvider _settings;
 
-        public TokenService(IConfiguration config)
+        public TokenService(ISystemSettingsProvider settings)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-
-            var jwtSettings = _config.GetSection("Jwt");
-            _jwtKey = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key not configured");
-            _jwtIssuer = jwtSettings["Issuer"] ?? throw new InvalidOperationException("JWT Issuer not configured");
-            _jwtAudience = jwtSettings["Audience"] ?? throw new InvalidOperationException("JWT Audience not configured");
-            _expireMinutes = Convert.ToInt32(jwtSettings["ExpireMinutes"] ?? "1440"); // Default 24 hours
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         }
 
         /// <summary>
         /// Generate JWT token with flexible claims
         /// </summary>
-        public string GenerateToken(string userId, string userType, Dictionary<string, string>? additionalClaims = null)
+        public string GenerateToken(string userId, string role, Dictionary<string, string>? additionalClaims = null)
         {
+            var jwtKey = _settings.GetString("JWT.KEY");
+            var jwtIssuer = _settings.GetString("JWT.ISSUER");
+            var jwtAudience = _settings.GetString("JWT.AUDIENCE");
+            var expireMinutes = _settings.GetInt("JWT.EXPIRE_MINUTES", 1440);
+
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, userId),
-                new Claim("UserType", userType),
+                new Claim(ClaimTypes.Role, role),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -54,33 +48,18 @@ namespace CateringEcommerce.BAL.Configuration
                 }
             }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _jwtIssuer,
-                audience: _jwtAudience,
+                issuer: jwtIssuer,
+                audience: jwtAudience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(_expireMinutes),
+                expires: DateTime.UtcNow.AddMinutes(expireMinutes),
                 signingCredentials: creds
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        /// <summary>
-        /// Legacy method for backward compatibility
-        /// </summary>
-        public string GenerateToken(string username, string role, string PKID, string phoneNumber)
-        {
-            var additionalClaims = new Dictionary<string, string>
-            {
-                { JwtRegisteredClaimNames.Sub, username },
-                { ClaimTypes.Role, role },
-                { ClaimTypes.MobilePhone, phoneNumber }
-            };
-
-            return GenerateToken(PKID, role, additionalClaims);
         }
 
         /// <summary>
@@ -92,7 +71,7 @@ namespace CateringEcommerce.BAL.Configuration
                 return false;
 
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_jwtKey);
+            var key = Encoding.UTF8.GetBytes(_settings.GetString("JWT.KEY"));
 
             try
             {
@@ -101,9 +80,9 @@ namespace CateringEcommerce.BAL.Configuration
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = true,
-                    ValidIssuer = _jwtIssuer,
+                    ValidIssuer = _settings.GetString("JWT.ISSUER"),
                     ValidateAudience = true,
-                    ValidAudience = _jwtAudience,
+                    ValidAudience = _settings.GetString("JWT.AUDIENCE"),
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 }, out SecurityToken validatedToken);

@@ -27,52 +27,50 @@ namespace CateringEcommerce.BAL.Base.Admin
                     u.c_email AS Email,
                     u.c_isemailverified AS IsEmailVerified,
                     u.c_isphoneverified AS IsPhoneVerified,
+                    ISNULL(u.c_isactive, 1) AS IsActive,
                     ISNULL(u.c_isblocked, 0) AS IsBlocked,
+                    ISNULL(u.c_isdeleted, 0) AS IsDeleted,
+                    c.c_cityname AS CityName,
+                    s.c_statename AS StateName,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
                     ISNULL(SUM(o.c_total_amount), 0) AS TotalSpent,
                     COUNT(DISTINCT r.c_reviewid) AS TotalReviews,
-                    u.c_created_date AS CreatedDate,
+                    u.c_createddate AS CreatedDate,
                     u.c_last_login AS LastLogin
                 FROM {Table.SysUser} u
+                LEFT JOIN {Table.City} c ON u.c_cityid = c.c_cityid
+                LEFT JOIN {Table.State} s ON u.c_stateid = s.c_stateid
                 LEFT JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                 LEFT JOIN {Table.SysCateringReview} r ON u.c_userid = r.c_userid
                 WHERE 1=1");
 
             var parameters = new List<SqlParameter>();
 
-            if (!string.IsNullOrEmpty(request.SearchTerm))
-            {
-                queryBuilder.Append(" AND (u.c_name LIKE @SearchTerm OR u.c_mobile LIKE @SearchTerm OR u.c_email LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
-            }
-
-            if (request.IsBlocked.HasValue)
-            {
-                queryBuilder.Append(" AND ISNULL(u.c_isblocked, 0) = @IsBlocked");
-                parameters.Add(new SqlParameter("@IsBlocked", request.IsBlocked.Value));
-            }
+            AppendFilters(queryBuilder, parameters, request);
 
             queryBuilder.Append(@"
                 GROUP BY u.c_userid, u.c_name, u.c_mobile, u.c_email,
-                         u.c_isemailverified, u.c_isphoneverified, u.c_isblocked,
-                         u.c_created_date, u.c_last_login");
+                         u.c_isemailverified, u.c_isphoneverified, u.c_isactive,
+                         u.c_isblocked, u.c_isdeleted,
+                         c.c_cityname, s.c_statename,
+                         u.c_createddate, u.c_last_login");
 
             string sortColumn = request.SortBy switch
             {
                 "FullName" => "u.c_name",
                 "TotalOrders" => "TotalOrders",
                 "TotalSpent" => "TotalSpent",
-                _ => "u.c_created_date"
+                "Phone" => "u.c_mobile",
+                "Email" => "u.c_email",
+                "CityName" => "c.c_cityname",
+                "StateName" => "s.c_statename",
+                _ => "u.c_createddate"
             };
 
-            queryBuilder.Append($" ORDER BY {sortColumn} {request.SortOrder}");
+            queryBuilder.Append($" ORDER BY {sortColumn} {(request.SortOrder == "ASC" ? "ASC" : "DESC")}");
 
-            string countQuery = $@"
-                SELECT COUNT(DISTINCT u.c_userid)
-                FROM {Table.SysUser} u
-                WHERE 1=1" + GetWhereClauseForCount(request);
-
-            int totalRecords = Convert.ToInt32(_dbHelper.ExecuteScalar(countQuery, parameters.ToArray()));
+            // Count query
+            int totalRecords = GetTotalCount(request);
 
             int offset = (request.PageNumber - 1) * request.PageSize;
             queryBuilder.Append($" OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY");
@@ -82,21 +80,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             var users = new List<AdminUserListItem>();
             foreach (DataRow row in dt.Rows)
             {
-                users.Add(new AdminUserListItem
-                {
-                    UserId = Convert.ToInt64(row["UserId"]),
-                    FullName = row["FullName"]?.ToString() ?? string.Empty,
-                    Phone = row["Phone"]?.ToString() ?? string.Empty,
-                    Email = row["Email"]?.ToString(),
-                    IsEmailVerified = row["IsEmailVerified"] != DBNull.Value && Convert.ToBoolean(row["IsEmailVerified"]),
-                    IsPhoneVerified = row["IsPhoneVerified"] != DBNull.Value && Convert.ToBoolean(row["IsPhoneVerified"]),
-                    IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
-                    TotalOrders = Convert.ToInt32(row["TotalOrders"]),
-                    TotalSpent = Convert.ToDecimal(row["TotalSpent"]),
-                    TotalReviews = Convert.ToInt32(row["TotalReviews"]),
-                    CreatedDate = Convert.ToDateTime(row["CreatedDate"]),
-                    LastLogin = row["LastLogin"] != DBNull.Value ? Convert.ToDateTime(row["LastLogin"]) : null
-                });
+                users.Add(MapToListItem(row));
             }
 
             return new AdminUserListResponse
@@ -115,10 +99,16 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SELECT
                     u.c_userid, u.c_name, u.c_mobile, u.c_email, u.c_picture,
                     u.c_isemailverified, u.c_isphoneverified,
+                    ISNULL(u.c_isactive, 1) AS IsActive,
                     ISNULL(u.c_isblocked, 0) AS IsBlocked,
-                    u.c_block_reason,
-                    u.c_created_date, u.c_last_login
+                    ISNULL(u.c_isdeleted, 0) AS IsDeleted,
+                    u.c_block_reason, u.c_description,
+                    c.c_cityname AS CityName,
+                    s.c_statename AS StateName,
+                    u.c_createddate, u.c_last_login
                 FROM {Table.SysUser} u
+                LEFT JOIN {Table.City} c ON u.c_cityid = c.c_cityid
+                LEFT JOIN {Table.State} s ON u.c_stateid = s.c_stateid
                 WHERE u.c_userid = @UserId";
 
             SqlParameter[] parameters = { new SqlParameter("@UserId", userId) };
@@ -139,17 +129,22 @@ namespace CateringEcommerce.BAL.Base.Admin
                 Phone = row["c_mobile"]?.ToString() ?? string.Empty,
                 Email = row["c_email"]?.ToString(),
                 ProfilePhoto = row["c_picture"]?.ToString(),
+                Description = row["c_description"]?.ToString(),
                 IsEmailVerified = row["c_isemailverified"] != DBNull.Value && Convert.ToBoolean(row["c_isemailverified"]),
                 IsPhoneVerified = row["c_isphoneverified"] != DBNull.Value && Convert.ToBoolean(row["c_isphoneverified"]),
+                IsActive = Convert.ToBoolean(row["IsActive"]),
                 IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
+                IsDeleted = Convert.ToBoolean(row["IsDeleted"]),
                 BlockReason = row["c_block_reason"]?.ToString(),
+                CityName = row["CityName"]?.ToString(),
+                StateName = row["StateName"]?.ToString(),
                 TotalOrders = totalOrders,
                 TotalSpent = totalSpent,
                 TotalReviews = totalReviews,
                 AverageRating = avgRating,
                 RecentOrders = recentOrders,
                 RecentReviews = recentReviews,
-                CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                CreatedDate = row["c_createddate"] != DBNull.Value ? Convert.ToDateTime(row["c_createddate"]) : DateTime.MinValue,
                 LastLogin = row["c_last_login"] != DBNull.Value ? Convert.ToDateTime(row["c_last_login"]) : null
             };
         }
@@ -160,7 +155,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 UPDATE {Table.SysUser}
                 SET c_isblocked = @IsBlocked,
                     c_block_reason = @Reason,
-                    c_last_modified = GETDATE()
+                    c_modifieddate = GETDATE()
                 WHERE c_userid = @UserId";
 
             SqlParameter[] parameters = {
@@ -173,6 +168,213 @@ namespace CateringEcommerce.BAL.Base.Admin
             return rowsAffected > 0;
         }
 
+        public bool SoftDeleteUser(long userId, long adminId)
+        {
+            string query = $@"
+                UPDATE {Table.SysUser}
+                SET c_isdeleted = 1,
+                    c_isactive = 0,
+                    c_deleted_by = @AdminId,
+                    c_deleted_date = GETDATE(),
+                    c_modifieddate = GETDATE()
+                WHERE c_userid = @UserId AND ISNULL(c_isdeleted, 0) = 0";
+
+            SqlParameter[] parameters = {
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@AdminId", adminId)
+            };
+
+            int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
+            return rowsAffected > 0;
+        }
+
+        public bool RestoreUser(long userId, long adminId)
+        {
+            string query = $@"
+                UPDATE {Table.SysUser}
+                SET c_isdeleted = 0,
+                    c_isactive = 1,
+                    c_deleted_by = NULL,
+                    c_deleted_date = NULL,
+                    c_modifieddate = GETDATE()
+                WHERE c_userid = @UserId AND c_isdeleted = 1";
+
+            SqlParameter[] parameters = {
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@AdminId", adminId)
+            };
+
+            int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
+            return rowsAffected > 0;
+        }
+
+        public List<AdminUserExportItem> GetUsersForExport(AdminUserListRequest request)
+        {
+            var queryBuilder = new StringBuilder($@"
+                SELECT
+                    u.c_userid AS UserId,
+                    u.c_name AS FullName,
+                    u.c_mobile AS Phone,
+                    u.c_email AS Email,
+                    c.c_cityname AS CityName,
+                    s.c_statename AS StateName,
+                    ISNULL(u.c_isactive, 1) AS IsActive,
+                    ISNULL(u.c_isblocked, 0) AS IsBlocked,
+                    COUNT(DISTINCT o.c_orderid) AS TotalOrders,
+                    ISNULL(SUM(o.c_total_amount), 0) AS TotalSpent,
+                    u.c_createddate AS CreatedDate,
+                    u.c_last_login AS LastLogin
+                FROM {Table.SysUser} u
+                LEFT JOIN {Table.City} c ON u.c_cityid = c.c_cityid
+                LEFT JOIN {Table.State} s ON u.c_stateid = s.c_stateid
+                LEFT JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
+                WHERE ISNULL(u.c_isdeleted, 0) = 0");
+
+            var parameters = new List<SqlParameter>();
+
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                queryBuilder.Append(" AND (u.c_name LIKE @SearchTerm OR u.c_mobile LIKE @SearchTerm OR u.c_email LIKE @SearchTerm)");
+                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+            }
+
+            if (request.IsActive.HasValue)
+            {
+                queryBuilder.Append(" AND ISNULL(u.c_isactive, 1) = @IsActive");
+                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+            }
+
+            if (request.IsBlocked.HasValue)
+            {
+                queryBuilder.Append(" AND ISNULL(u.c_isblocked, 0) = @IsBlocked");
+                parameters.Add(new SqlParameter("@IsBlocked", request.IsBlocked.Value));
+            }
+
+            if (request.StateId.HasValue)
+            {
+                queryBuilder.Append(" AND u.c_stateid = @StateId");
+                parameters.Add(new SqlParameter("@StateId", request.StateId.Value));
+            }
+
+            if (request.CityId.HasValue)
+            {
+                queryBuilder.Append(" AND u.c_cityid = @CityId");
+                parameters.Add(new SqlParameter("@CityId", request.CityId.Value));
+            }
+
+            queryBuilder.Append(@"
+                GROUP BY u.c_userid, u.c_name, u.c_mobile, u.c_email,
+                         c.c_cityname, s.c_statename, u.c_isactive, u.c_isblocked,
+                         u.c_createddate, u.c_last_login
+                ORDER BY u.c_createddate DESC");
+
+            var dt = _dbHelper.Execute(queryBuilder.ToString(), parameters.ToArray());
+
+            var items = new List<AdminUserExportItem>();
+            foreach (DataRow row in dt.Rows)
+            {
+                items.Add(new AdminUserExportItem
+                {
+                    UserId = Convert.ToInt64(row["UserId"]),
+                    FullName = row["FullName"]?.ToString() ?? string.Empty,
+                    Phone = row["Phone"]?.ToString() ?? string.Empty,
+                    Email = row["Email"]?.ToString(),
+                    CityName = row["CityName"]?.ToString(),
+                    StateName = row["StateName"]?.ToString(),
+                    IsActive = Convert.ToBoolean(row["IsActive"]),
+                    IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
+                    TotalOrders = Convert.ToInt32(row["TotalOrders"]),
+                    TotalSpent = Convert.ToDecimal(row["TotalSpent"]),
+                    CreatedDate = row["CreatedDate"] != DBNull.Value ? Convert.ToDateTime(row["CreatedDate"]) : DateTime.MinValue,
+                    LastLogin = row["LastLogin"] != DBNull.Value ? Convert.ToDateTime(row["LastLogin"]) : null
+                });
+            }
+
+            return items;
+        }
+
+        #region Private Helpers
+
+        private void AppendFilters(StringBuilder queryBuilder, List<SqlParameter> parameters, AdminUserListRequest request)
+        {
+            // By default, hide deleted users unless explicitly requested
+            if (request.IsDeleted.HasValue)
+            {
+                queryBuilder.Append(" AND ISNULL(u.c_isdeleted, 0) = @IsDeleted");
+                parameters.Add(new SqlParameter("@IsDeleted", request.IsDeleted.Value));
+            }
+            else
+            {
+                queryBuilder.Append(" AND ISNULL(u.c_isdeleted, 0) = 0");
+            }
+
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                queryBuilder.Append(" AND (u.c_name LIKE @SearchTerm OR u.c_mobile LIKE @SearchTerm OR u.c_email LIKE @SearchTerm)");
+                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+            }
+
+            if (request.IsBlocked.HasValue)
+            {
+                queryBuilder.Append(" AND ISNULL(u.c_isblocked, 0) = @IsBlocked");
+                parameters.Add(new SqlParameter("@IsBlocked", request.IsBlocked.Value));
+            }
+
+            if (request.IsActive.HasValue)
+            {
+                queryBuilder.Append(" AND ISNULL(u.c_isactive, 1) = @IsActive");
+                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+            }
+
+            if (request.StateId.HasValue)
+            {
+                queryBuilder.Append(" AND u.c_stateid = @StateId");
+                parameters.Add(new SqlParameter("@StateId", request.StateId.Value));
+            }
+
+            if (request.CityId.HasValue)
+            {
+                queryBuilder.Append(" AND u.c_cityid = @CityId");
+                parameters.Add(new SqlParameter("@CityId", request.CityId.Value));
+            }
+        }
+
+        private int GetTotalCount(AdminUserListRequest request)
+        {
+            var countBuilder = new StringBuilder($@"
+                SELECT COUNT(DISTINCT u.c_userid)
+                FROM {Table.SysUser} u
+                WHERE 1=1");
+
+            var countParams = new List<SqlParameter>();
+            AppendFilters(countBuilder, countParams, request);
+
+            return Convert.ToInt32(_dbHelper.ExecuteScalar(countBuilder.ToString(), countParams.ToArray()));
+        }
+
+        private AdminUserListItem MapToListItem(DataRow row)
+        {
+            return new AdminUserListItem
+            {
+                UserId = Convert.ToInt64(row["UserId"]),
+                FullName = row["FullName"]?.ToString() ?? string.Empty,
+                Phone = row["Phone"]?.ToString() ?? string.Empty,
+                Email = row["Email"]?.ToString(),
+                IsEmailVerified = row["IsEmailVerified"] != DBNull.Value && Convert.ToBoolean(row["IsEmailVerified"]),
+                IsPhoneVerified = row["IsPhoneVerified"] != DBNull.Value && Convert.ToBoolean(row["IsPhoneVerified"]),
+                IsActive = Convert.ToBoolean(row["IsActive"]),
+                IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
+                IsDeleted = Convert.ToBoolean(row["IsDeleted"]),
+                CityName = row["CityName"]?.ToString(),
+                StateName = row["StateName"]?.ToString(),
+                TotalOrders = Convert.ToInt32(row["TotalOrders"]),
+                TotalSpent = Convert.ToDecimal(row["TotalSpent"]),
+                TotalReviews = Convert.ToInt32(row["TotalReviews"]),
+                CreatedDate = row["CreatedDate"] != DBNull.Value ? Convert.ToDateTime(row["CreatedDate"]) : DateTime.MinValue,
+                LastLogin = row["LastLogin"] != DBNull.Value ? Convert.ToDateTime(row["LastLogin"]) : null
+            };
+        }
+
         private (int TotalOrders, decimal TotalSpent, int TotalReviews, decimal AvgRating) GetUserStats(long userId)
         {
             string query = $@"
@@ -180,7 +382,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
                     ISNULL(SUM(o.c_total_amount), 0) AS TotalSpent,
                     COUNT(DISTINCT r.c_reviewid) AS TotalReviews,
-                    ISNULL(AVG(CAST(r.c_rating AS DECIMAL(3,2))), 0) AS AvgRating
+                    ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(3,2))), 0) AS AvgRating
                 FROM {Table.SysUser} u
                 LEFT JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                 LEFT JOIN {Table.SysCateringReview} r ON u.c_userid = r.c_userid
@@ -207,12 +409,12 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT TOP 5
-                    o.c_orderid, co.c_business_name, o.c_total_amount,
-                    o.c_status, o.c_order_date, o.c_event_date
+                    o.c_orderid, co.c_catering_name, o.c_total_amount,
+                    o.c_order_status, o.c_createddate, o.c_event_date
                 FROM {Table.SysOrders} o
-                JOIN {Table.SysCateringOwner} co ON o.c_catering_ownerid = co.c_catering_ownerid
+                JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
                 WHERE o.c_userid = @UserId
-                ORDER BY o.c_order_date DESC";
+                ORDER BY o.c_createddate DESC";
 
             SqlParameter[] parameters = { new SqlParameter("@UserId", userId) };
             var dt = _dbHelper.Execute(query, parameters);
@@ -238,12 +440,12 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT TOP 5
-                    r.c_reviewid, co.c_business_name, r.c_rating,
-                    r.c_comment, r.c_created_date
+                    r.c_reviewid, co.c_catering_name, r.c_overall_rating,
+                    r.c_review_comment, r.c_createddate
                 FROM {Table.SysCateringReview} r
-                JOIN {Table.SysCateringOwner} co ON r.c_catering_ownerid = co.c_catering_ownerid
+                JOIN {Table.SysCateringOwner} co ON r.c_ownerid = co.c_ownerid
                 WHERE r.c_userid = @UserId
-                ORDER BY r.c_created_date DESC";
+                ORDER BY r.c_createddate DESC";
 
             SqlParameter[] parameters = { new SqlParameter("@UserId", userId) };
             var dt = _dbHelper.Execute(query, parameters);
@@ -257,24 +459,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                     CateringName = row["c_business_name"]?.ToString() ?? string.Empty,
                     Rating = Convert.ToInt32(row["c_rating"]),
                     Comment = row["c_comment"]?.ToString(),
-                    ReviewDate = Convert.ToDateTime(row["c_created_date"])
+                    ReviewDate = Convert.ToDateTime(row["c_createddate"])
                 });
             }
 
             return reviews;
         }
 
-        private string GetWhereClauseForCount(AdminUserListRequest request)
-        {
-            var whereBuilder = new StringBuilder();
-
-            if (!string.IsNullOrEmpty(request.SearchTerm))
-                whereBuilder.Append(" AND (u.c_name LIKE @SearchTerm OR u.c_mobile LIKE @SearchTerm OR u.c_email LIKE @SearchTerm)");
-
-            if (request.IsBlocked.HasValue)
-                whereBuilder.Append($" AND ISNULL(u.c_isblocked, 0) = {(request.IsBlocked.Value ? "1" : "0")}");
-
-            return whereBuilder.ToString();
-        }
+        #endregion
     }
 }

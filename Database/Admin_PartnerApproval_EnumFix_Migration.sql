@@ -10,7 +10,7 @@
 -- - Converts existing string values to their corresponding enum integers
 -- ======================================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '======================================================';

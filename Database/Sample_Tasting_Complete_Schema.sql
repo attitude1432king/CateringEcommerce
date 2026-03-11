@@ -5,7 +5,7 @@
 -- Purpose: Paid sample tasting with live delivery tracking
 -- ============================================================
 
-USE [CateringEcommerce]
+USE [CateringDB]
 GO
 
 -- ============================================================

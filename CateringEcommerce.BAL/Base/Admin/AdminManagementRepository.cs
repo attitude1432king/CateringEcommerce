@@ -54,7 +54,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdmin} a
                 {whereClause}";
 
-            var totalCount = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(countQuery, parameters.ToArray()));
+            var totalCount = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(countQuery, parameters.Select(CloneParameter).ToArray()));
 
             // Get paginated data
             var offset = (request.PageNumber - 1) * request.PageSize;
@@ -67,6 +67,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                 _ => "a.c_createddate"
             };
             var sortOrder = request.SortOrder?.ToUpper() == "ASC" ? "ASC" : "DESC";
+
+            var dataParameters = parameters
+                .Select(CloneParameter)
+                .ToList();
 
             var dataQuery = $@"
                 SELECT
@@ -88,10 +92,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                 ORDER BY {sortColumn} {sortOrder}
                 OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-            parameters.Add(new SqlParameter("@Offset", offset));
-            parameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new SqlParameter("@Offset", offset));
+            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
 
-            var dt = await _dbHelper.ExecuteAsync(dataQuery, parameters.ToArray());
+            var dt = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
             var admins = new List<AdminListItem>();
 
             foreach (DataRow row in dt.Rows)
@@ -214,7 +218,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             var parameters = new SqlParameter[]
             {
                 new SqlParameter("@Username", request.Username),
-                new SqlParameter("@PasswordHash", request.PasswordHash),
+                new SqlParameter("@PasswordHash", request.Password),
                 new SqlParameter("@Email", request.Email),
                 new SqlParameter("@FullName", request.FullName),
                 new SqlParameter("@Mobile", request.Mobile ?? (object)DBNull.Value),
@@ -256,20 +260,25 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<bool> DeleteAdminAsync(long adminId, long deletedBy)
         {
-            // Soft delete by setting isactive to false
             var query = $@"
-                UPDATE {Table.SysAdmin}
-                SET c_isactive = 0,
-                    c_lastmodified = GETDATE(),
-                    c_modifiedby = @DeletedBy
+                DELETE FROM {Table.SysAdmin}
                 WHERE c_adminid = @AdminId";
 
             var parameters = new SqlParameter[]
             {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@DeletedBy", deletedBy)
+                new SqlParameter("@AdminId", adminId)
             };
 
+            var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
+            return rowsAffected > 0;
+        }
+
+        public async Task<bool> RemoveAdminLoginAccessAsync(long adminId)
+        {
+            var query = $@"
+                DELETE FROM {Table.SysAdminUsers}
+                WHERE c_adminid = @AdminId";
+            var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             return rowsAffected > 0;
         }
@@ -457,6 +466,17 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             // Cannot deactivate if this is the last active Super Admin
             return activeSuperAdminCount > 1;
+        }
+
+        private static SqlParameter CloneParameter(SqlParameter p)
+        {
+            return new SqlParameter(p.ParameterName, p.Value)
+            {
+                DbType = p.DbType,
+                Size = p.Size,
+                Precision = p.Precision,
+                Scale = p.Scale
+            };
         }
     }
 }

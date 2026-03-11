@@ -3,7 +3,7 @@
 -- Enterprise-Grade Permission System
 -- =====================================================
 
-USE CateringEcommerce;
+USE CateringDB;
 GO
 
 -- =====================================================
@@ -19,9 +19,9 @@ BEGIN
         c_color NVARCHAR(20) DEFAULT '#6366f1',
         c_is_system_role BIT DEFAULT 0,  -- Cannot be deleted if true
         c_is_active BIT DEFAULT 1,
-        c_created_date DATETIME DEFAULT GETDATE(),
+        c_createddate DATETIME DEFAULT GETDATE(),
         c_created_by BIGINT,
-        c_updated_date DATETIME,
+        c_modifieddate DATETIME,
         c_updated_by BIGINT,
 
         INDEX IX_role_code (c_role_code),
@@ -43,7 +43,7 @@ BEGIN
         c_module NVARCHAR(50),  -- CATERING, USER, REVIEW, EARNINGS, etc.
         c_action NVARCHAR(50),  -- VIEW, CREATE, EDIT, DELETE, BLOCK, etc.
         c_is_active BIT DEFAULT 1,
-        c_created_date DATETIME DEFAULT GETDATE(),
+        c_createddate DATETIME DEFAULT GETDATE(),
 
         INDEX IX_permission_code (c_permission_code),
         INDEX IX_module (c_module),

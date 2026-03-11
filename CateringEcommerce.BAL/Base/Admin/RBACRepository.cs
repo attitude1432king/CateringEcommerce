@@ -1,3 +1,4 @@
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
@@ -21,7 +22,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<List<RoleItem>> GetAllRolesAsync()
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     r.c_role_id,
                     r.c_role_code,
@@ -30,10 +31,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     r.c_color,
                     r.c_is_system_role,
                     r.c_is_active,
-                    r.c_created_date,
-                    (SELECT COUNT(*) FROM t_sys_admin_role_permissions WHERE c_role_id = r.c_role_id) AS PermissionCount,
-                    (SELECT COUNT(*) FROM t_sys_admin_user_roles WHERE c_role_id = r.c_role_id AND c_is_active = 1) AS AdminCount
-                FROM t_sys_admin_roles r
+                    r.c_createddate,
+                    (SELECT COUNT(*) FROM {Table.SysAdminRolePermissions} WHERE c_role_id = r.c_role_id) AS PermissionCount,
+                    (SELECT COUNT(*) FROM {Table.SysAdminUserRoles} WHERE c_role_id = r.c_role_id AND c_is_active = 1) AS AdminCount
+                FROM {Table.SysAdminRoles} r
                 WHERE r.c_is_active = 1
                 ORDER BY
                     CASE WHEN r.c_role_code = 'SUPER_ADMIN' THEN 0 ELSE 1 END,
@@ -55,7 +56,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     IsActive = Convert.ToBoolean(row["c_is_active"]),
                     PermissionCount = Convert.ToInt32(row["PermissionCount"]),
                     AdminCount = Convert.ToInt32(row["AdminCount"]),
-                    CreatedDate = Convert.ToDateTime(row["c_created_date"])
+                    CreatedDate = Convert.ToDateTime(row["c_createddate"])
                 });
             }
 
@@ -64,11 +65,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<RoleDetailResponse?> GetRoleByIdAsync(long roleId)
         {
-            var roleQuery = @"
+            var roleQuery = $@"
                 SELECT
                     c_role_id, c_role_code, c_role_name, c_description, c_color,
-                    c_is_system_role, c_is_active, c_created_date
-                FROM t_sys_admin_roles
+                    c_is_system_role, c_is_active, c_createddate
+                FROM {Table.SysAdminRoles}
                 WHERE c_role_id = @RoleId";
 
             var roleParams = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
@@ -86,20 +87,21 @@ namespace CateringEcommerce.BAL.Base.Admin
                 Color = row["c_color"].ToString() ?? "#6366f1",
                 IsSystemRole = Convert.ToBoolean(row["c_is_system_role"]),
                 IsActive = Convert.ToBoolean(row["c_is_active"]),
-                CreatedDate = Convert.ToDateTime(row["c_created_date"])
+                CreatedDate = Convert.ToDateTime(row["c_createddate"])
             };
 
             // Get permissions
-            var permQuery = @"
+            var permQuery = $@"
                 SELECT
                     p.c_permission_id, p.c_permission_code, p.c_permission_name,
                     p.c_description, p.c_module, p.c_action, p.c_is_active
-                FROM t_sys_admin_permissions p
-                INNER JOIN t_sys_admin_role_permissions rp ON p.c_permission_id = rp.c_permission_id
+                FROM {Table.SysAdminPermissions} p
+                INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
                 WHERE rp.c_role_id = @RoleId AND p.c_is_active = 1
                 ORDER BY p.c_module, p.c_permission_name";
 
-            var permDt = await _dbHelper.ExecuteAsync(permQuery, roleParams);
+            var permParams = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
+            var permDt = await _dbHelper.ExecuteAsync(permQuery, permParams);
             response.Permissions = new List<PermissionItem>();
 
             foreach (DataRow permRow in permDt.Rows)
@@ -117,15 +119,16 @@ namespace CateringEcommerce.BAL.Base.Admin
             }
 
             // Get admin users
-            var adminQuery = @"
+            var adminQuery = $@"
                 SELECT
-                    a.c_adminid, a.c_full_name, a.c_email, a.c_is_active, a.c_created_date
-                FROM t_sys_admin_users a
-                INNER JOIN t_sys_admin_user_roles ur ON a.c_adminid = ur.c_adminid
+                    a.c_adminid, a.c_fullname, a.c_email, a.c_isactive, a.c_createddate
+                FROM {Table.SysAdminUsers} a
+                INNER JOIN {Table.SysAdminUserRoles} ur ON a.c_adminid = ur.c_adminid
                 WHERE ur.c_role_id = @RoleId AND ur.c_is_active = 1
-                ORDER BY a.c_full_name";
+                ORDER BY a.c_fullname";
 
-            var adminDt = await _dbHelper.ExecuteAsync(adminQuery, roleParams);
+            var adminParams = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
+            var adminDt = await _dbHelper.ExecuteAsync(adminQuery, adminParams);
             response.AdminUsers = new List<AdminUserItem>();
 
             foreach (DataRow adminRow in adminDt.Rows)
@@ -133,10 +136,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                 response.AdminUsers.Add(new AdminUserItem
                 {
                     AdminId = Convert.ToInt64(adminRow["c_adminid"]),
-                    FullName = adminRow["c_full_name"].ToString() ?? string.Empty,
+                    FullName = adminRow["c_fullname"].ToString() ?? string.Empty,
                     Email = adminRow["c_email"].ToString() ?? string.Empty,
-                    IsActive = Convert.ToBoolean(adminRow["c_is_active"]),
-                    CreatedDate = Convert.ToDateTime(adminRow["c_created_date"])
+                    IsActive = Convert.ToBoolean(adminRow["c_isactive"]),
+                    CreatedDate = Convert.ToDateTime(adminRow["c_createddate"])
                 });
             }
 
@@ -145,12 +148,12 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<AdminRole?> GetRoleByCodeAsync(string roleCode)
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     c_role_id, c_role_code, c_role_name, c_description, c_color,
-                    c_is_system_role, c_is_active, c_created_date, c_created_by,
-                    c_updated_date, c_updated_by
-                FROM t_sys_admin_roles
+                    c_is_system_role, c_is_active, c_createddate, c_created_by,
+                    c_modifieddate, c_updated_by
+                FROM {Table.SysAdminRoles}
                 WHERE c_role_code = @RoleCode AND c_is_active = 1";
 
             var parameters = new SqlParameter[] { new SqlParameter("@RoleCode", roleCode) };
@@ -168,17 +171,17 @@ namespace CateringEcommerce.BAL.Base.Admin
                 Color = row["c_color"].ToString() ?? "#6366f1",
                 IsSystemRole = Convert.ToBoolean(row["c_is_system_role"]),
                 IsActive = Convert.ToBoolean(row["c_is_active"]),
-                CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                CreatedDate = Convert.ToDateTime(row["c_createddate"]),
                 CreatedBy = row["c_created_by"] != DBNull.Value ? Convert.ToInt64(row["c_created_by"]) : null,
-                UpdatedDate = row["c_updated_date"] != DBNull.Value ? Convert.ToDateTime(row["c_updated_date"]) : null,
+                UpdatedDate = row["c_modifieddate"] != DBNull.Value ? Convert.ToDateTime(row["c_modifieddate"]) : null,
                 UpdatedBy = row["c_updated_by"] != DBNull.Value ? Convert.ToInt64(row["c_updated_by"]) : null
             };
         }
 
         public async Task<long> CreateRoleAsync(CreateRoleRequest request, long createdBy)
         {
-            var insertRoleQuery = @"
-                INSERT INTO t_sys_admin_roles (c_role_code, c_role_name, c_description, c_color, c_is_system_role, c_created_by)
+            var insertRoleQuery = $@"
+                INSERT INTO {Table.SysAdminRoles} (c_role_code, c_role_name, c_description, c_color, c_is_system_role, c_created_by)
                 VALUES (@RoleCode, @RoleName, @Description, @Color, 0, @CreatedBy);
                 SELECT CAST(SCOPE_IDENTITY() as bigint);";
 
@@ -204,12 +207,12 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<bool> UpdateRoleAsync(UpdateRoleRequest request, long updatedBy)
         {
-            var updateRoleQuery = @"
-                UPDATE t_sys_admin_roles
+            var updateRoleQuery = $@"
+                UPDATE {Table.SysAdminRoles}
                 SET c_role_name = @RoleName,
                     c_description = @Description,
                     c_color = @Color,
-                    c_updated_date = GETDATE(),
+                    c_modifieddate = GETDATE(),
                     c_updated_by = @UpdatedBy
                 WHERE c_role_id = @RoleId AND c_is_system_role = 0";
 
@@ -233,9 +236,9 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<bool> DeleteRoleAsync(long roleId, long deletedBy)
         {
             // Only allow deletion of non-system roles
-            var query = @"
-                UPDATE t_sys_admin_roles
-                SET c_is_active = 0, c_updated_date = GETDATE(), c_updated_by = @DeletedBy
+            var query = $@"
+                UPDATE {Table.SysAdminRoles}
+                SET c_is_active = 0, c_modifieddate = GETDATE(), c_updated_by = @DeletedBy
                 WHERE c_role_id = @RoleId AND c_is_system_role = 0";
 
             var parameters = new SqlParameter[]
@@ -250,9 +253,9 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<bool> RoleCodeExistsAsync(string roleCode, long? excludeRoleId = null)
         {
-            var query = @"
+            var query = $@"
                 SELECT COUNT(*)
-                FROM t_sys_admin_roles
+                FROM {Table.SysAdminRoles}
                 WHERE c_role_code = @RoleCode AND c_is_active = 1";
 
             var parameters = new List<SqlParameter>
@@ -276,11 +279,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<PermissionListResponse> GetAllPermissionsAsync()
         {
-            var query = @"
+            var query = $@"
                 SELECT
                     c_permission_id, c_permission_code, c_permission_name,
                     c_description, c_module, c_action, c_is_active
-                FROM t_sys_admin_permissions
+                FROM {Table.SysAdminPermissions}
                 WHERE c_is_active = 1
                 ORDER BY c_module, c_permission_name";
 
@@ -323,10 +326,10 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<List<string>> GetRolePermissionsAsync(long roleId)
         {
-            var query = @"
+            var query = $@"
                 SELECT p.c_permission_code
-                FROM t_sys_admin_permissions p
-                INNER JOIN t_sys_admin_role_permissions rp ON p.c_permission_id = rp.c_permission_id
+                FROM {Table.SysAdminPermissions} p
+                INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
                 WHERE rp.c_role_id = @RoleId AND p.c_is_active = 1";
 
             var parameters = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
@@ -344,17 +347,17 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<bool> AssignPermissionsToRoleAsync(long roleId, List<string> permissionCodes, long assignedBy)
         {
             // First, remove all existing permissions for this role
-            var deleteQuery = "DELETE FROM t_sys_admin_role_permissions WHERE c_role_id = @RoleId";
+            var deleteQuery = $"DELETE FROM {Table.SysAdminRolePermissions} WHERE c_role_id = @RoleId";
             var deleteParams = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
             await _dbHelper.ExecuteNonQueryAsync(deleteQuery, deleteParams);
 
             // Then, insert new permissions
             if (permissionCodes.Any())
             {
-                var insertQuery = @"
-                    INSERT INTO t_sys_admin_role_permissions (c_role_id, c_permission_id, c_assigned_by)
+                var insertQuery = $@"
+                    INSERT INTO {Table.SysAdminRolePermissions} (c_role_id, c_permission_id, c_assigned_by)
                     SELECT @RoleId, c_permission_id, @AssignedBy
-                    FROM t_sys_admin_permissions
+                    FROM {Table.SysAdminPermissions}
                     WHERE c_permission_code IN (" + string.Join(",", permissionCodes.Select((_, i) => $"@Perm{i}")) + ")";
 
                 var parameters = new List<SqlParameter>
@@ -376,11 +379,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<List<string>> GetAdminPermissionsAsync(long adminId)
         {
-            var query = @"
+            var query = $@"
                 SELECT DISTINCT p.c_permission_code
-                FROM t_sys_admin_permissions p
-                INNER JOIN t_sys_admin_role_permissions rp ON p.c_permission_id = rp.c_permission_id
-                INNER JOIN t_sys_admin_user_roles ur ON rp.c_role_id = ur.c_role_id
+                FROM {Table.SysAdminPermissions} p
+                INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
+                INNER JOIN {Table.SysAdminUserRoles} ur ON rp.c_role_id = ur.c_role_id
                 WHERE ur.c_adminid = @AdminId AND ur.c_is_active = 1 AND p.c_is_active = 1";
 
             var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
@@ -401,10 +404,10 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<List<string>> GetAdminRolesAsync(long adminId)
         {
-            var query = @"
+            var query = $@"
                 SELECT r.c_role_code
-                FROM t_sys_admin_roles r
-                INNER JOIN t_sys_admin_user_roles ur ON r.c_role_id = ur.c_role_id
+                FROM {Table.SysAdminRoles} r
+                INNER JOIN {Table.SysAdminUserRoles} ur ON r.c_role_id = ur.c_role_id
                 WHERE ur.c_adminid = @AdminId AND ur.c_is_active = 1 AND r.c_is_active = 1";
 
             var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
@@ -422,18 +425,18 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<bool> AssignRolesToAdminAsync(long adminId, List<long> roleIds, long assignedBy)
         {
             // First, deactivate all existing role assignments
-            var deactivateQuery = "UPDATE t_sys_admin_user_roles SET c_is_active = 0 WHERE c_adminid = @AdminId";
+            var deactivateQuery = $"UPDATE {Table.SysAdminUserRoles} SET c_is_active = 0 WHERE c_adminid = @AdminId";
             var deactivateParams = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
             await _dbHelper.ExecuteNonQueryAsync(deactivateQuery, deactivateParams);
 
             // Then, insert/reactivate new role assignments
             foreach (var roleId in roleIds)
             {
-                var upsertQuery = @"
-                    IF EXISTS (SELECT 1 FROM t_sys_admin_user_roles WHERE c_adminid = @AdminId AND c_role_id = @RoleId)
-                        UPDATE t_sys_admin_user_roles SET c_is_active = 1 WHERE c_adminid = @AdminId AND c_role_id = @RoleId
+                var upsertQuery = $@"
+                    IF EXISTS (SELECT 1 FROM {Table.SysAdminUserRoles} WHERE c_adminid = @AdminId AND c_role_id = @RoleId)
+                        UPDATE {Table.SysAdminUserRoles} SET c_is_active = 1 WHERE c_adminid = @AdminId AND c_role_id = @RoleId
                     ELSE
-                        INSERT INTO t_sys_admin_user_roles (c_adminid, c_role_id, c_assigned_by)
+                        INSERT INTO {Table.SysAdminUserRoles} (c_adminid, c_role_id, c_assigned_by)
                         VALUES (@AdminId, @RoleId, @AssignedBy)";
 
                 var parameters = new SqlParameter[]
@@ -451,8 +454,8 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<bool> RemoveRoleFromAdminAsync(long adminId, long roleId)
         {
-            var query = @"
-                UPDATE t_sys_admin_user_roles
+            var query = $@"
+                UPDATE {Table.SysAdminUserRoles}
                 SET c_is_active = 0
                 WHERE c_adminid = @AdminId AND c_role_id = @RoleId";
 
@@ -472,11 +475,11 @@ namespace CateringEcommerce.BAL.Base.Admin
             var roles = await GetAdminRolesAsync(adminId);
             if (roles.Contains("SUPER_ADMIN")) return true;
 
-            var query = @"
+            var query = $@"
                 SELECT COUNT(*)
-                FROM t_sys_admin_permissions p
-                INNER JOIN t_sys_admin_role_permissions rp ON p.c_permission_id = rp.c_permission_id
-                INNER JOIN t_sys_admin_user_roles ur ON rp.c_role_id = ur.c_role_id
+                FROM {Table.SysAdminPermissions} p
+                INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
+                INNER JOIN {Table.SysAdminUserRoles} ur ON rp.c_role_id = ur.c_role_id
                 WHERE ur.c_adminid = @AdminId
                     AND p.c_permission_code = @PermissionCode
                     AND ur.c_is_active = 1
@@ -506,11 +509,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             if (!permissionCodes.Any()) return false;
 
-            var query = @"
+            var query = $@"
                 SELECT COUNT(*)
-                FROM t_sys_admin_permissions p
-                INNER JOIN t_sys_admin_role_permissions rp ON p.c_permission_id = rp.c_permission_id
-                INNER JOIN t_sys_admin_user_roles ur ON rp.c_role_id = ur.c_role_id
+                FROM {Table.SysAdminPermissions} p
+                INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
+                INNER JOIN {Table.SysAdminUserRoles} ur ON rp.c_role_id = ur.c_role_id
                 WHERE ur.c_adminid = @AdminId
                     AND p.c_permission_code IN (" + string.Join(",", permissionCodes.Select((_, i) => $"@Perm{i}")) + @")
                     AND ur.c_is_active = 1
@@ -557,10 +560,10 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<bool> IsSuperAdminAsync(long adminId)
         {
-            var query = @"
+            var query = $@"
                 SELECT COUNT(*)
-                FROM t_sys_admin a
-                INNER JOIN t_sys_admin_roles r ON a.c_role_id = r.c_role_id
+                FROM {Table.SysAdmin} a
+                INNER JOIN {Table.SysAdminRoles} r ON a.c_role_id = r.c_role_id
                 WHERE a.c_adminid = @AdminId AND r.c_role_code = 'SUPER_ADMIN'";
 
             var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
@@ -574,8 +577,8 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task LogAuditAsync(AuditLogEntry entry)
         {
-            var query = @"
-                INSERT INTO t_sys_admin_audit_logs
+            var query = $@"
+                INSERT INTO {Table.SysAdminAuditLogs}
                 (c_adminid, c_admin_name, c_action, c_module, c_target_id, c_target_type,
                  c_details, c_ip_address, c_user_agent, c_status, c_error_message)
                 VALUES
@@ -637,7 +640,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var whereClause = conditions.Any() ? "WHERE " + string.Join(" AND ", conditions) : "";
 
-            var countQuery = $"SELECT COUNT(*) FROM t_sys_admin_audit_logs {whereClause}";
+            var countQuery = $"SELECT COUNT(*) FROM {Table.SysAdminAuditLogs} {whereClause}";
             var totalCount = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(countQuery, parameters.ToArray()));
 
             var offset = (request.PageNumber - 1) * request.PageSize;
@@ -646,7 +649,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_audit_id, c_adminid, c_admin_name, c_action, c_module,
                     c_target_id, c_target_type, c_details, c_ip_address, c_user_agent,
                     c_timestamp, c_status, c_error_message
-                FROM t_sys_admin_audit_logs
+                FROM {Table.SysAdminAuditLogs}
                 {whereClause}
                 ORDER BY c_timestamp DESC
                 OFFSET {offset} ROWS
@@ -702,7 +705,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             }
 
             // Get admin details to determine if this is the first admin
-            var checkAdminQuery = "SELECT c_adminid FROM t_sys_admin_users WHERE c_adminid = @AdminId";
+            var checkAdminQuery = $"SELECT c_adminid FROM {Table.SysAdminUsers} WHERE c_adminid = @AdminId";
             var adminParams = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
             var adminDt = await _dbHelper.ExecuteAsync(checkAdminQuery, adminParams);
 
@@ -715,7 +718,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             string roleCode = adminId == 1 ? "SUPER_ADMIN" : "CATERING_ADMIN";
 
             // Get role ID
-            var roleQuery = "SELECT c_role_id FROM t_sys_admin_roles WHERE c_role_code = @RoleCode AND c_is_active = 1";
+            var roleQuery = $"SELECT c_role_id FROM {Table.SysAdminRoles} WHERE c_role_code = @RoleCode AND c_is_active = 1";
             var roleParams = new SqlParameter[] { new SqlParameter("@RoleCode", roleCode) };
             var roleIdObj = await _dbHelper.ExecuteScalarAsync(roleQuery, roleParams);
 
@@ -781,7 +784,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             };
 
             // Check if admin exists
-            var adminQuery = "SELECT c_adminid, c_full_name, c_email FROM t_sys_admin_users WHERE c_adminid = @AdminId";
+            var adminQuery = $"SELECT c_adminid, c_fullname, c_email FROM {Table.SysAdminUsers} WHERE c_adminid = @AdminId";
             var adminParams = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
             var adminDt = await _dbHelper.ExecuteAsync(adminQuery, adminParams);
 
@@ -794,7 +797,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             }
 
             // Check role assignments
-            var roleAssignmentQuery = @"
+            var roleAssignmentQuery = $@"
                 SELECT
                     ur.c_id,
                     ur.c_role_id,
@@ -802,8 +805,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     r.c_role_name,
                     ur.c_is_active,
                     ur.c_assigned_date
-                FROM t_sys_admin_user_roles ur
-                INNER JOIN t_sys_admin_roles r ON ur.c_role_id = r.c_role_id
+                FROM {Table.SysAdminUserRoles} ur
+                INNER JOIN {Table.SysAdminRoles} r ON ur.c_role_id = r.c_role_id
                 WHERE ur.c_adminid = @AdminId
                 ORDER BY ur.c_is_active DESC, ur.c_assigned_date DESC";
 

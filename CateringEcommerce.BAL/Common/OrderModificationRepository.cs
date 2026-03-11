@@ -30,7 +30,7 @@ namespace CateringEcommerce.BAL.Common
                 query.Append($@"
                     INSERT INTO {Table.SysOrderModifications} (
                         c_orderid, c_modification_type, c_original_guest_count, c_modified_guest_count,
-                        c_additional_amount, c_modification_reason, c_requested_by, c_status, c_created_date
+                        c_additional_amount, c_modification_reason, c_requested_by, c_status, c_createddate
                     ) VALUES (
                         @OrderId, @ModificationType, @OriginalGuestCount, @ModifiedGuestCount,
                         @AdditionalAmount, @ModificationReason, @RequestedBy, 'Pending', GETDATE()
@@ -75,7 +75,7 @@ namespace CateringEcommerce.BAL.Common
                         m.c_modification_id, m.c_orderid, m.c_modification_type,
                         m.c_original_guest_count, m.c_modified_guest_count, m.c_additional_amount,
                         m.c_modification_reason, m.c_requested_by, m.c_approved_by,
-                        m.c_status, m.c_payment_stage_id, m.c_created_date, m.c_approved_date,
+                        m.c_status, m.c_payment_stage_id, m.c_createddate, m.c_approved_date,
                         o.c_order_number,
                         owner.c_business_name as requested_by_name,
                         u.c_name as approved_by_name
@@ -84,7 +84,7 @@ namespace CateringEcommerce.BAL.Common
                     INNER JOIN {Table.SysCateringOwner} owner ON m.c_requested_by = owner.c_pkid
                     LEFT JOIN {Table.SysUser} u ON m.c_approved_by = u.c_pkid
                     WHERE m.c_orderid = @OrderId
-                    ORDER BY m.c_created_date DESC
+                    ORDER BY m.c_createddate DESC
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]
@@ -123,7 +123,7 @@ namespace CateringEcommerce.BAL.Common
                         m.c_modification_id, m.c_orderid, m.c_modification_type,
                         m.c_original_guest_count, m.c_modified_guest_count, m.c_additional_amount,
                         m.c_modification_reason, m.c_requested_by, m.c_approved_by,
-                        m.c_status, m.c_payment_stage_id, m.c_created_date, m.c_approved_date,
+                        m.c_status, m.c_payment_stage_id, m.c_createddate, m.c_approved_date,
                         o.c_order_number,
                         owner.c_business_name as requested_by_name,
                         u.c_name as approved_by_name
@@ -259,7 +259,7 @@ namespace CateringEcommerce.BAL.Common
                         m.c_modification_id, m.c_orderid, m.c_modification_type,
                         m.c_original_guest_count, m.c_modified_guest_count, m.c_additional_amount,
                         m.c_modification_reason, m.c_requested_by, m.c_approved_by,
-                        m.c_status, m.c_payment_stage_id, m.c_created_date, m.c_approved_date,
+                        m.c_status, m.c_payment_stage_id, m.c_createddate, m.c_approved_date,
                         o.c_order_number,
                         owner.c_business_name as requested_by_name,
                         u.c_name as approved_by_name
@@ -315,7 +315,7 @@ namespace CateringEcommerce.BAL.Common
                 ApprovedByName = row["approved_by_name"] != DBNull.Value ? row["approved_by_name"].ToString() : null,
                 Status = row["c_status"].ToString() ?? string.Empty,
                 PaymentStageId = row["c_payment_stage_id"] != DBNull.Value ? Convert.ToInt64(row["c_payment_stage_id"]) : null,
-                CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                CreatedDate = Convert.ToDateTime(row["c_createddate"]),
                 ApprovedDate = row["c_approved_date"] != DBNull.Value ? Convert.ToDateTime(row["c_approved_date"]) : null
             };
         }

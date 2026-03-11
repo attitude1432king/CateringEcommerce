@@ -27,7 +27,7 @@ BEGIN
 
         -- Audit
         c_removed_date DATETIME NULL,
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
 
         -- Foreign Keys
         CONSTRAINT FK_favorites_user FOREIGN KEY (c_userid)

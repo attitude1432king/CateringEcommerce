@@ -9,19 +9,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:443
  * Generic fetch wrapper with error handling
  */
 const fetchApi = async (endpoint, method = 'GET', body = null) => {
-  const token = localStorage.getItem('authToken');
-
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   const config = {
     method,
-    headers,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
   };
 
   if (body && method !== 'GET') {

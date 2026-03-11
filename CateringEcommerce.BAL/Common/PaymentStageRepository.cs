@@ -32,7 +32,7 @@ namespace CateringEcommerce.BAL.Common
                 query.Append($@"
                     INSERT INTO {Table.SysOrderPaymentStages} (
                         c_orderid, c_stage_type, c_stage_percentage, c_stage_amount,
-                        c_status, c_due_date, c_reminder_sent_count, c_created_date
+                        c_status, c_due_date, c_reminder_sent_count, c_createddate
                     ) VALUES (
                         @OrderId, @StageType, @StagePercentage, @StageAmount,
                         'Pending', @DueDate, 0, GETDATE()
@@ -75,7 +75,7 @@ namespace CateringEcommerce.BAL.Common
                         c_payment_stage_id, c_orderid, c_stage_type, c_stage_percentage, c_stage_amount,
                         c_payment_method, c_payment_gateway, c_razorpay_order_id, c_razorpay_payment_id,
                         c_transaction_id, c_upi_id, c_status, c_payment_date, c_due_date,
-                        c_reminder_sent_count, c_last_reminder_date, c_created_date
+                        c_reminder_sent_count, c_last_reminder_date, c_createddate
                     FROM {Table.SysOrderPaymentStages}
                     WHERE c_orderid = @OrderId
                     ORDER BY c_stage_type ASC
@@ -117,7 +117,7 @@ namespace CateringEcommerce.BAL.Common
                         c_payment_stage_id, c_orderid, c_stage_type, c_stage_percentage, c_stage_amount,
                         c_payment_method, c_payment_gateway, c_razorpay_order_id, c_razorpay_payment_id,
                         c_transaction_id, c_upi_id, c_status, c_payment_date, c_due_date,
-                        c_reminder_sent_count, c_last_reminder_date, c_created_date
+                        c_reminder_sent_count, c_last_reminder_date, c_createddate
                     FROM {Table.SysOrderPaymentStages}
                     WHERE c_orderid = @OrderId AND c_status = 'Pending'
                     ORDER BY c_stage_type ASC
@@ -148,7 +148,7 @@ namespace CateringEcommerce.BAL.Common
         }
 
         // ===================================
-        // UPDATE PAYMENT STAGE STATUS
+        // UPDATE PAYMENT STAGE STATUS (Legacy - Non-Transactional)
         // ===================================
         public async Task<bool> UpdatePaymentStageStatusAsync(long paymentStageId, string status, ProcessPaymentStageDto paymentData)
         {
@@ -186,6 +186,55 @@ namespace CateringEcommerce.BAL.Common
             catch (Exception ex)
             {
                 throw new Exception("Error updating payment stage status: " + ex.Message, ex);
+            }
+        }
+
+        // ===================================
+        // UPDATE PAYMENT STAGE WITH ORDER STATUS (Transactional - NEW)
+        // CRITICAL: This is the preferred method for payment verification
+        // ===================================
+        public async Task<bool> UpdatePaymentStageWithOrderStatusAsync(
+            long paymentStageId,
+            long orderId,
+            string stageType,
+            string status,
+            ProcessPaymentStageDto paymentData,
+            string newOrderStatus)
+        {
+            try
+            {
+                SqlParameter[] parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@PaymentStageId", paymentStageId),
+                    new SqlParameter("@OrderId", orderId),
+                    new SqlParameter("@StageType", stageType),
+                    new SqlParameter("@Status", status),
+                    new SqlParameter("@PaymentMethod", paymentData.PaymentMethod),
+                    new SqlParameter("@PaymentGateway", (object)paymentData.PaymentGateway ?? DBNull.Value),
+                    new SqlParameter("@RazorpayOrderId", (object)paymentData.RazorpayOrderId ?? DBNull.Value),
+                    new SqlParameter("@RazorpayPaymentId", (object)paymentData.RazorpayPaymentId ?? DBNull.Value),
+                    new SqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value),
+                    new SqlParameter("@UpiId", (object)paymentData.UpiId ?? DBNull.Value),
+                    new SqlParameter("@NewOrderStatus", (object)newOrderStatus ?? DBNull.Value),
+                    new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
+                    new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                };
+
+                await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_UpdatePaymentStageWithOrderStatus", parameters);
+
+                var success = parameters[11].Value != null && (bool)parameters[11].Value;
+                var errorMessage = parameters[12].Value as string;
+
+                if (!success && !string.IsNullOrEmpty(errorMessage))
+                {
+                    throw new InvalidOperationException($"Payment update failed: {errorMessage}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error updating payment stage with order status: " + ex.Message, ex);
             }
         }
 
@@ -272,7 +321,7 @@ namespace CateringEcommerce.BAL.Common
                 DueDate = row["c_due_date"] != DBNull.Value ? Convert.ToDateTime(row["c_due_date"]) : null,
                 ReminderSentCount = Convert.ToInt32(row["c_reminder_sent_count"]),
                 LastReminderDate = row["c_last_reminder_date"] != DBNull.Value ? Convert.ToDateTime(row["c_last_reminder_date"]) : null,
-                CreatedDate = Convert.ToDateTime(row["c_created_date"])
+                CreatedDate = Convert.ToDateTime(row["c_createddate"])
             };
         }
     }

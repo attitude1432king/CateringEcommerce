@@ -4,7 +4,7 @@
 -- Purpose: Implement all missing components from the financial strategy document
 -- =============================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '================================================';
@@ -19,46 +19,46 @@ PRINT '';
 PRINT 'SECTION 1: Enhancing Orders Table...';
 
 -- Add guest count locking columns if they don't exist
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_order') AND name = 'c_original_guest_count')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_orders') AND name = 'c_original_guest_count')
 BEGIN
-    ALTER TABLE t_sys_order ADD c_original_guest_count INT NULL;
+    ALTER TABLE t_sys_orders ADD c_original_guest_count INT NULL;
     PRINT '  ✓ Added c_original_guest_count';
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_order') AND name = 'c_locked_guest_count')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_orders') AND name = 'c_locked_guest_count')
 BEGIN
-    ALTER TABLE t_sys_order ADD c_locked_guest_count INT NULL;
+    ALTER TABLE t_sys_orders ADD c_locked_guest_count INT NULL;
     PRINT '  ✓ Added c_locked_guest_count';
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_order') AND name = 'c_guest_count_locked')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_orders') AND name = 'c_guest_count_locked')
 BEGIN
-    ALTER TABLE t_sys_order ADD c_guest_count_locked BIT DEFAULT 0;
+    ALTER TABLE t_sys_orders ADD c_guest_count_locked BIT DEFAULT 0;
     PRINT '  ✓ Added c_guest_count_locked';
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_order') AND name = 'c_guest_count_locked_date')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_orders') AND name = 'c_guest_count_locked_date')
 BEGIN
-    ALTER TABLE t_sys_order ADD c_guest_count_locked_date DATETIME NULL;
+    ALTER TABLE t_sys_orders ADD c_guest_count_locked_date DATETIME NULL;
     PRINT '  ✓ Added c_guest_count_locked_date';
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_order') AND name = 'c_final_served_guest_count')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_orders') AND name = 'c_final_served_guest_count')
 BEGIN
-    ALTER TABLE t_sys_order ADD c_final_served_guest_count INT NULL;
+    ALTER TABLE t_sys_orders ADD c_final_served_guest_count INT NULL;
     PRINT '  ✓ Added c_final_served_guest_count';
 END
 
 -- Add menu locking columns
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_order') AND name = 'c_menu_locked')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_orders') AND name = 'c_menu_locked')
 BEGIN
-    ALTER TABLE t_sys_order ADD c_menu_locked BIT DEFAULT 0;
+    ALTER TABLE t_sys_orders ADD c_menu_locked BIT DEFAULT 0;
     PRINT '  ✓ Added c_menu_locked';
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_order') AND name = 'c_menu_locked_date')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_orders') AND name = 'c_menu_locked_date')
 BEGIN
-    ALTER TABLE t_sys_order ADD c_menu_locked_date DATETIME NULL;
+    ALTER TABLE t_sys_orders ADD c_menu_locked_date DATETIME NULL;
     PRINT '  ✓ Added c_menu_locked_date';
 END
 
@@ -94,13 +94,13 @@ BEGIN
         -- Request Details
         [c_modification_reason] NVARCHAR(500) NOT NULL,
         [c_requested_by] BIGINT NOT NULL, -- Owner/Partner ID or User ID
-        [c_requested_by_type] VARCHAR(20) NOT NULL, -- 'CUSTOMER', 'VENDOR', 'ADMIN'
+        [c_requested_by_type] VARCHAR(20) NOT NULL, -- 'CUSTOMER', 'PARTNER', 'ADMIN'
         [c_request_date] DATETIME DEFAULT GETDATE(),
 
         -- Approval Workflow
         [c_requires_approval] BIT DEFAULT 1,
-        [c_approved_by] BIGINT NULL, -- User ID who approved (if customer requested) or Vendor ID (if vendor requested)
-        [c_approved_by_type] VARCHAR(20) NULL, -- 'CUSTOMER', 'VENDOR', 'ADMIN'
+        [c_approved_by] BIGINT NULL, -- User ID who approved (if customer requested) or Partner ID (if partner requested)
+        [c_approved_by_type] VARCHAR(20) NULL, -- 'CUSTOMER', 'PARTNER', 'ADMIN'
         [c_approval_date] DATETIME NULL,
         [c_status] VARCHAR(20) NOT NULL DEFAULT 'Pending', -- 'Pending', 'Approved', 'Rejected', 'Paid', 'Cancelled'
         [c_rejection_reason] NVARCHAR(500) NULL,
@@ -110,19 +110,19 @@ BEGIN
         [c_payment_transaction_id] BIGINT NULL, -- Links to payment transactions table
 
         -- Audit
-        [c_created_date] DATETIME DEFAULT GETDATE(),
-        [c_modified_date] DATETIME NULL,
+        [c_createddate] DATETIME DEFAULT GETDATE(),
+        [c_modifieddate] DATETIME NULL,
 
-        CONSTRAINT [FK_OrderModifications_Order] FOREIGN KEY ([c_orderid]) REFERENCES [t_sys_order]([c_orderid]) ON DELETE CASCADE,
+        CONSTRAINT [FK_OrderModifications_Order] FOREIGN KEY ([c_orderid]) REFERENCES [t_sys_orders]([c_orderid]) ON DELETE CASCADE,
         CONSTRAINT [CK_OrderModifications_ModificationType] CHECK ([c_modification_type] IN
             ('GUEST_COUNT_INCREASE', 'GUEST_COUNT_DECREASE', 'MENU_CHANGE', 'SERVICE_EXTENSION', 'DECORATION_UPGRADE', 'OTHER')),
-        CONSTRAINT [CK_OrderModifications_RequestedByType] CHECK ([c_requested_by_type] IN ('CUSTOMER', 'VENDOR', 'ADMIN')),
-        CONSTRAINT [CK_OrderModifications_ApprovedByType] CHECK ([c_approved_by_type] IS NULL OR [c_approved_by_type] IN ('CUSTOMER', 'VENDOR', 'ADMIN')),
+        CONSTRAINT [CK_OrderModifications_RequestedByType] CHECK ([c_requested_by_type] IN ('CUSTOMER', 'PARTNER', 'ADMIN')),
+        CONSTRAINT [CK_OrderModifications_ApprovedByType] CHECK ([c_approved_by_type] IS NULL OR [c_approved_by_type] IN ('CUSTOMER', 'PARTNER', 'ADMIN')),
         CONSTRAINT [CK_OrderModifications_Status] CHECK ([c_status] IN ('Pending', 'Approved', 'Rejected', 'Paid', 'Cancelled'))
     );
 
     CREATE INDEX IX_OrderModifications_Order ON t_sys_order_modifications(c_orderid);
-    CREATE INDEX IX_OrderModifications_Status ON t_sys_order_modifications(c_status, c_created_date DESC);
+    CREATE INDEX IX_OrderModifications_Status ON t_sys_order_modifications(c_status, c_createddate DESC);
     CREATE INDEX IX_OrderModifications_Type ON t_sys_order_modifications(c_modification_type);
 
     PRINT '  ✓ Table t_sys_order_modifications created';
@@ -163,11 +163,11 @@ BEGIN
         [c_order_total_amount] DECIMAL(18,2) NOT NULL,
         [c_advance_paid] DECIMAL(18,2) NOT NULL,
         [c_refund_amount] DECIMAL(18,2) NOT NULL,
-        [c_retention_amount] DECIMAL(18,2) NOT NULL, -- Amount kept (for vendor/platform)
+        [c_retention_amount] DECIMAL(18,2) NOT NULL, -- Amount kept (for partner/platform)
         [c_platform_commission_forfeited] DECIMAL(18,2) DEFAULT 0, -- Commission platform gives up
 
-        -- Vendor Compensation
-        [c_vendor_compensation] DECIMAL(18,2) DEFAULT 0, -- Amount vendor keeps for losses
+        -- Partner Compensation
+        [c_partner_compensation] DECIMAL(18,2) DEFAULT 0, -- Amount partner keeps for losses
 
         -- Reason & Evidence
         [c_cancellation_reason] NVARCHAR(1000) NOT NULL,
@@ -179,8 +179,8 @@ BEGIN
         [c_admin_approved_by] BIGINT NULL,
         [c_admin_approval_date] DATETIME NULL,
         [c_admin_notes] NVARCHAR(1000) NULL,
-        [c_vendor_response] NVARCHAR(1000) NULL,
-        [c_vendor_response_date] DATETIME NULL,
+        [c_partner_response] NVARCHAR(1000) NULL,
+        [c_partner_response_date] DATETIME NULL,
 
         -- Refund Processing
         [c_refund_initiated_date] DATETIME NULL,
@@ -189,10 +189,10 @@ BEGIN
         [c_refund_method] VARCHAR(50) NULL, -- 'ORIGINAL_PAYMENT_METHOD', 'BANK_TRANSFER', 'WALLET'
 
         -- Audit
-        [c_created_date] DATETIME DEFAULT GETDATE(),
-        [c_modified_date] DATETIME NULL,
+        [c_createddate] DATETIME DEFAULT GETDATE(),
+        [c_modifieddate] DATETIME NULL,
 
-        CONSTRAINT [FK_CancellationRequests_Order] FOREIGN KEY ([c_orderid]) REFERENCES [t_sys_order]([c_orderid]),
+        CONSTRAINT [FK_CancellationRequests_Order] FOREIGN KEY ([c_orderid]) REFERENCES [t_sys_orders]([c_orderid]),
         CONSTRAINT [FK_CancellationRequests_User] FOREIGN KEY ([c_userid]) REFERENCES [t_sys_user]([c_userid]),
         CONSTRAINT [FK_CancellationRequests_Owner] FOREIGN KEY ([c_ownerid]) REFERENCES [t_sys_catering_owner]([c_ownerid]),
         CONSTRAINT [CK_CancellationRequests_PolicyTier] CHECK ([c_policy_tier] IN ('FULL_REFUND', 'PARTIAL_REFUND', 'NO_REFUND', 'FORCE_MAJEURE')),
@@ -200,7 +200,7 @@ BEGIN
     );
 
     CREATE INDEX IX_CancellationRequests_Order ON t_sys_cancellation_requests(c_orderid);
-    CREATE INDEX IX_CancellationRequests_Status ON t_sys_cancellation_requests(c_status, c_created_date DESC);
+    CREATE INDEX IX_CancellationRequests_Status ON t_sys_cancellation_requests(c_status, c_createddate DESC);
     CREATE INDEX IX_CancellationRequests_PolicyTier ON t_sys_cancellation_requests(c_policy_tier);
 
     PRINT '  ✓ Table t_sys_cancellation_requests created';
@@ -251,13 +251,13 @@ BEGIN
         [c_reported_at] DATETIME DEFAULT GETDATE(),
         [c_is_reported_during_event] BIT DEFAULT 0,
 
-        -- Vendor Response
-        [c_vendor_notified_date] DATETIME NULL,
-        [c_vendor_response] NVARCHAR(MAX) NULL,
-        [c_vendor_response_date] DATETIME NULL,
-        [c_vendor_admitted_fault] BIT NULL,
-        [c_vendor_offered_replacement] BIT DEFAULT 0,
-        [c_vendor_provided_replacement] BIT DEFAULT 0,
+        -- Partner Response
+        [c_partner_notified_date] DATETIME NULL,
+        [c_partner_response] NVARCHAR(MAX) NULL,
+        [c_partner_response_date] DATETIME NULL,
+        [c_partner_admitted_fault] BIT NULL,
+        [c_partner_offered_replacement] BIT DEFAULT 0,
+        [c_partner_provided_replacement] BIT DEFAULT 0,
 
         -- Resolution
         [c_status] VARCHAR(20) NOT NULL DEFAULT 'Open', -- 'Open', 'Under_Investigation', 'Resolved', 'Rejected', 'Escalated'
@@ -283,14 +283,14 @@ BEGIN
         [c_customer_complaint_history_count] INT DEFAULT 0, -- How many complaints this customer has filed
 
         -- Audit
-        [c_created_date] DATETIME DEFAULT GETDATE(),
-        [c_modified_date] DATETIME NULL,
+        [c_createddate] DATETIME DEFAULT GETDATE(),
+        [c_modifieddate] DATETIME NULL,
 
-        CONSTRAINT [FK_OrderComplaints_Order] FOREIGN KEY ([c_orderid]) REFERENCES [t_sys_order]([c_orderid]),
+        CONSTRAINT [FK_OrderComplaints_Order] FOREIGN KEY ([c_orderid]) REFERENCES [t_sys_orders]([c_orderid]),
         CONSTRAINT [FK_OrderComplaints_User] FOREIGN KEY ([c_userid]) REFERENCES [t_sys_user]([c_userid]),
         CONSTRAINT [FK_OrderComplaints_Owner] FOREIGN KEY ([c_ownerid]) REFERENCES [t_sys_catering_owner]([c_ownerid]),
         CONSTRAINT [CK_OrderComplaints_Type] CHECK ([c_complaint_type] IN
-            ('FOOD_COLD', 'FOOD_QUALITY', 'QUANTITY_SHORT', 'LATE_ARRIVAL', 'PARTIAL_ISSUE', 'SETUP_POOR', 'NO_SHOW', 'VENDOR_NO_SHOW', 'OTHER')),
+            ('FOOD_COLD', 'FOOD_QUALITY', 'QUANTITY_SHORT', 'LATE_ARRIVAL', 'PARTIAL_ISSUE', 'SETUP_POOR', 'NO_SHOW', 'PARTNER_NO_SHOW', 'OTHER')),
         CONSTRAINT [CK_OrderComplaints_Severity] CHECK ([c_severity] IN ('CRITICAL', 'MAJOR', 'MINOR')),
         CONSTRAINT [CK_OrderComplaints_Status] CHECK ([c_status] IN ('Open', 'Under_Investigation', 'Resolved', 'Rejected', 'Escalated')),
         CONSTRAINT [CK_OrderComplaints_ResolutionType] CHECK ([c_resolution_type] IS NULL OR [c_resolution_type] IN
@@ -298,7 +298,7 @@ BEGIN
     );
 
     CREATE INDEX IX_OrderComplaints_Order ON t_sys_order_complaints(c_orderid);
-    CREATE INDEX IX_OrderComplaints_Status ON t_sys_order_complaints(c_status, c_created_date DESC);
+    CREATE INDEX IX_OrderComplaints_Status ON t_sys_order_complaints(c_status, c_createddate DESC);
     CREATE INDEX IX_OrderComplaints_Type ON t_sys_order_complaints(c_complaint_type);
     CREATE INDEX IX_OrderComplaints_Severity ON t_sys_order_complaints(c_severity);
     CREATE INDEX IX_OrderComplaints_User ON t_sys_order_complaints(c_userid);
@@ -314,14 +314,14 @@ PRINT 'SECTION 4: Completed';
 PRINT '';
 
 -- =============================================
--- SECTION 5: Vendor Security Deposit
+-- SECTION 5: Partner Security Deposit
 -- =============================================
 
-PRINT 'SECTION 5: Creating Vendor Security Deposit Table...';
+PRINT 'SECTION 5: Creating Partner Security Deposit Table...';
 
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_vendor_security_deposits]') AND type in (N'U'))
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_partner_security_deposits]') AND type in (N'U'))
 BEGIN
-    CREATE TABLE [dbo].[t_sys_vendor_security_deposits] (
+    CREATE TABLE [dbo].[t_sys_partner_security_deposits] (
         [c_deposit_id] BIGINT IDENTITY(1,1) PRIMARY KEY,
         [c_ownerid] BIGINT NOT NULL,
 
@@ -350,21 +350,21 @@ BEGIN
         [c_refund_transaction_id] VARCHAR(200) NULL,
 
         -- Audit
-        [c_created_date] DATETIME DEFAULT GETDATE(),
-        [c_modified_date] DATETIME NULL,
+        [c_createddate] DATETIME DEFAULT GETDATE(),
+        [c_modifieddate] DATETIME NULL,
 
-        CONSTRAINT [FK_VendorSecurityDeposits_Owner] FOREIGN KEY ([c_ownerid]) REFERENCES [t_sys_catering_owner]([c_ownerid]),
-        CONSTRAINT [CK_VendorSecurityDeposits_Status] CHECK ([c_status] IN ('Pending', 'Active', 'Depleted', 'Refunded')),
-        CONSTRAINT [UQ_VendorSecurityDeposits_Owner] UNIQUE ([c_ownerid])
+        CONSTRAINT [FK_PartnerSecurityDeposits_Owner] FOREIGN KEY ([c_ownerid]) REFERENCES [t_sys_catering_owner]([c_ownerid]),
+        CONSTRAINT [CK_PartnerSecurityDeposits_Status] CHECK ([c_status] IN ('Pending', 'Active', 'Depleted', 'Refunded')),
+        CONSTRAINT [UQ_PartnerSecurityDeposits_Owner] UNIQUE ([c_ownerid])
     );
 
-    CREATE INDEX IX_VendorSecurityDeposits_Status ON t_sys_vendor_security_deposits(c_status);
+    CREATE INDEX IX_PartnerSecurityDeposits_Status ON t_sys_partner_security_deposits(c_status);
 
-    PRINT '  ✓ Table t_sys_vendor_security_deposits created';
+    PRINT '  ✓ Table t_sys_partner_security_deposits created';
 END
 ELSE
 BEGIN
-    PRINT '  ℹ Table t_sys_vendor_security_deposits already exists';
+    PRINT '  ℹ Table t_sys_partner_security_deposits already exists';
 END
 
 PRINT 'SECTION 5: Completed';
@@ -392,7 +392,7 @@ BEGIN
 
         -- Reason & Reference
         [c_reason] NVARCHAR(500) NOT NULL,
-        [c_reference_type] VARCHAR(50) NULL, -- 'VENDOR_NO_SHOW', 'COMPLAINT_REFUND', 'CANCELLATION_COMPENSATION', 'INITIAL_DEPOSIT', 'REFUND_TO_VENDOR'
+        [c_reference_type] VARCHAR(50) NULL, -- 'PARTNER_NO_SHOW', 'COMPLAINT_REFUND', 'CANCELLATION_COMPENSATION', 'INITIAL_DEPOSIT', 'REFUND_TO_PARTNER'
         [c_reference_id] BIGINT NULL, -- Complaint ID, Cancellation ID, etc.
 
         -- Approval (for deductions)
@@ -400,16 +400,16 @@ BEGIN
         [c_approval_date] DATETIME NULL,
 
         -- Audit
-        [c_created_date] DATETIME DEFAULT GETDATE(),
+        [c_createddate] DATETIME DEFAULT GETDATE(),
 
-        CONSTRAINT [FK_DepositTransactions_Deposit] FOREIGN KEY ([c_deposit_id]) REFERENCES [t_sys_vendor_security_deposits]([c_deposit_id]),
+        CONSTRAINT [FK_DepositTransactions_Deposit] FOREIGN KEY ([c_deposit_id]) REFERENCES [t_sys_partner_security_deposits]([c_deposit_id]),
         CONSTRAINT [FK_DepositTransactions_Owner] FOREIGN KEY ([c_ownerid]) REFERENCES [t_sys_catering_owner]([c_ownerid]),
-        CONSTRAINT [FK_DepositTransactions_Order] FOREIGN KEY ([c_orderid]) REFERENCES [t_sys_order]([c_orderid]),
+        CONSTRAINT [FK_DepositTransactions_Order] FOREIGN KEY ([c_orderid]) REFERENCES [t_sys_orders]([c_orderid]),
         CONSTRAINT [CK_DepositTransactions_Type] CHECK ([c_transaction_type] IN
             ('DEPOSIT', 'DEDUCTION', 'REFUND', 'HOLD', 'RELEASE_HOLD', 'TOP_UP'))
     );
 
-    CREATE INDEX IX_DepositTransactions_Deposit ON t_sys_deposit_transactions(c_deposit_id, c_created_date DESC);
+    CREATE INDEX IX_DepositTransactions_Deposit ON t_sys_deposit_transactions(c_deposit_id, c_createddate DESC);
     CREATE INDEX IX_DepositTransactions_Owner ON t_sys_deposit_transactions(c_ownerid);
     CREATE INDEX IX_DepositTransactions_Order ON t_sys_deposit_transactions(c_orderid) WHERE c_orderid IS NOT NULL;
 
@@ -424,14 +424,14 @@ PRINT 'SECTION 6: Completed';
 PRINT '';
 
 -- =============================================
--- SECTION 7: Commission Tier Tracking (Vendor Partnership Tiers)
+-- SECTION 7: Commission Tier Tracking (Partner Partnership Tiers)
 -- =============================================
 
-PRINT 'SECTION 7: Creating Vendor Partnership Tier Table...';
+PRINT 'SECTION 7: Creating Partner Partnership Tier Table...';
 
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_vendor_partnership_tiers]') AND type in (N'U'))
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_partnership_tiers]') AND type in (N'U'))
 BEGIN
-    CREATE TABLE [dbo].[t_sys_vendor_partnership_tiers] (
+    CREATE TABLE [dbo].[t_sys_partnership_tiers] (
         [c_tier_id] BIGINT IDENTITY(1,1) PRIMARY KEY,
         [c_ownerid] BIGINT NOT NULL,
 
@@ -473,23 +473,23 @@ BEGIN
         [c_has_account_manager] BIT DEFAULT 0,
 
         -- Audit
-        [c_created_date] DATETIME DEFAULT GETDATE(),
-        [c_modified_date] DATETIME NULL,
+        [c_createddate] DATETIME DEFAULT GETDATE(),
+        [c_modifieddate] DATETIME NULL,
 
-        CONSTRAINT [FK_VendorPartnershipTiers_Owner] FOREIGN KEY ([c_ownerid]) REFERENCES [t_sys_catering_owner]([c_ownerid]),
-        CONSTRAINT [CK_VendorPartnershipTiers_TierName] CHECK ([c_tier_name] IN
+        CONSTRAINT [FK_PartnershipTiers_Owner] FOREIGN KEY ([c_ownerid]) REFERENCES [t_sys_catering_owner]([c_ownerid]),
+        CONSTRAINT [CK_PartnershipTiers_TierName] CHECK ([c_tier_name] IN
             ('FOUNDER_PARTNER', 'LAUNCH_PARTNER', 'EARLY_ADOPTER', 'STANDARD', 'PREMIUM')),
-        CONSTRAINT [UQ_VendorPartnershipTiers_Owner] UNIQUE ([c_ownerid])
+        CONSTRAINT [UQ_PartnershipTiers_Owner] UNIQUE ([c_ownerid])
     );
 
-    CREATE INDEX IX_VendorPartnershipTiers_Tier ON t_sys_vendor_partnership_tiers(c_tier_name);
-    CREATE INDEX IX_VendorPartnershipTiers_LockEndDate ON t_sys_vendor_partnership_tiers(c_tier_lock_end_date) WHERE c_is_lock_period_active = 1;
+    CREATE INDEX IX_PartnershipTiers_Tier ON t_sys_partnership_tiers(c_tier_name);
+    CREATE INDEX IX_PartnershipTiers_LockEndDate ON t_sys_partnership_tiers(c_tier_lock_end_date) WHERE c_is_lock_period_active = 1;
 
-    PRINT '  ✓ Table t_sys_vendor_partnership_tiers created';
+    PRINT '  ✓ Table t_sys_partnership_tiers created';
 END
 ELSE
 BEGIN
-    PRINT '  ℹ Table t_sys_vendor_partnership_tiers already exists';
+    PRINT '  ℹ Table t_sys_partnership_tiers already exists';
 END
 
 PRINT 'SECTION 7: Completed';
@@ -519,19 +519,19 @@ BEGIN
         [c_notice_period_days] INT DEFAULT 60,
         [c_notice_sent_date] DATE NULL,
 
-        -- Vendor Communication
-        [c_vendor_notified] BIT DEFAULT 0,
-        [c_vendor_acknowledged] BIT DEFAULT 0,
-        [c_vendor_acknowledgment_date] DATETIME NULL,
+        -- Partner Communication
+        [c_partner_notified] BIT DEFAULT 0,
+        [c_partner_acknowledged] BIT DEFAULT 0,
+        [c_partner_acknowledgment_date] DATETIME NULL,
 
         -- Audit
         [c_changed_by] BIGINT NULL,
-        [c_created_date] DATETIME DEFAULT GETDATE(),
+        [c_createddate] DATETIME DEFAULT GETDATE(),
 
         CONSTRAINT [FK_CommissionTierHistory_Owner] FOREIGN KEY ([c_ownerid]) REFERENCES [t_sys_catering_owner]([c_ownerid])
     );
 
-    CREATE INDEX IX_CommissionTierHistory_Owner ON t_sys_commission_tier_history(c_ownerid, c_created_date DESC);
+    CREATE INDEX IX_CommissionTierHistory_Owner ON t_sys_commission_tier_history(c_ownerid, c_createddate DESC);
     CREATE INDEX IX_CommissionTierHistory_EffectiveDate ON t_sys_commission_tier_history(c_effective_date);
 
     PRINT '  ✓ Table t_sys_commission_tier_history created';
@@ -601,12 +601,12 @@ BEGIN
     PRINT '  ✓ Added ORDER.MENU_LOCK_DAYS';
 END
 
--- Vendor security deposit amount
-IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'VENDOR.SECURITY_DEPOSIT_AMOUNT')
+-- Partner security deposit amount
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'PARTNER.SECURITY_DEPOSIT_AMOUNT')
 BEGIN
     INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
-    VALUES ('VENDOR.SECURITY_DEPOSIT_AMOUNT', '25000', 'BUSINESS', 'NUMBER', 'Vendor Security Deposit (₹)', 'Required security deposit amount from vendors', 27, '25000');
-    PRINT '  ✓ Added VENDOR.SECURITY_DEPOSIT_AMOUNT';
+    VALUES ('PARTNER.SECURITY_DEPOSIT_AMOUNT', '25000', 'BUSINESS', 'NUMBER', 'Partner Security Deposit (₹)', 'Required security deposit amount from partners', 27, '25000');
+    PRINT '  ✓ Added PARTNER.SECURITY_DEPOSIT_AMOUNT';
 END
 
 -- Dispute resolution SLA
@@ -637,7 +637,7 @@ BEGIN
         [c_next_run_date] DATETIME NULL,
         [c_run_frequency_minutes] INT DEFAULT 60, -- Run every 60 minutes
         [c_orders_processed_last_run] INT DEFAULT 0,
-        [c_created_date] DATETIME DEFAULT GETDATE()
+        [c_createddate] DATETIME DEFAULT GETDATE()
     );
 
     -- Insert default jobs
@@ -668,13 +668,13 @@ PRINT 'Financial Strategy Implementation - COMPLETED';
 PRINT '================================================';
 PRINT '';
 PRINT 'Tables Created/Enhanced:';
-PRINT '  ✓ t_sys_order (enhanced with guest count locking)';
+PRINT '  ✓ t_sys_orders (enhanced with guest count locking)';
 PRINT '  ✓ t_sys_order_modifications (guest count/menu changes)';
 PRINT '  ✓ t_sys_cancellation_requests (cancellation policy tracking)';
 PRINT '  ✓ t_sys_order_complaints (complaint/dispute management)';
-PRINT '  ✓ t_sys_vendor_security_deposits (vendor deposits)';
+PRINT '  ✓ t_sys_partner_security_deposits (partner deposits)';
 PRINT '  ✓ t_sys_deposit_transactions (deposit transaction log)';
-PRINT '  ✓ t_sys_vendor_partnership_tiers (commission tiers)';
+PRINT '  ✓ t_sys_partnership_tiers (commission tiers)';
 PRINT '  ✓ t_sys_commission_tier_history (tier change tracking)';
 PRINT '  ✓ t_sys_auto_lock_jobs (automated job configuration)';
 PRINT '';
@@ -682,7 +682,7 @@ PRINT 'Settings Added:';
 PRINT '  ✓ Cancellation policy settings (7 days / 3-7 days / <48h)';
 PRINT '  ✓ Guest count lock period (5 days)';
 PRINT '  ✓ Menu lock period (3 days)';
-PRINT '  ✓ Vendor security deposit (₹25,000)';
+PRINT '  ✓ Partner security deposit (₹25,000)';
 PRINT '  ✓ Dispute resolution SLA (12 hours)';
 PRINT '';
 PRINT 'Next Steps Required:';
@@ -705,3 +705,4 @@ PRINT '     - Commission tier badges';
 PRINT '';
 PRINT '================================================';
 GO
+

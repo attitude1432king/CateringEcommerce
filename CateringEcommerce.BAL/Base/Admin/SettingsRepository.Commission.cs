@@ -25,7 +25,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             if (request.CateringOwnerId.HasValue)
             {
-                conditions.Add("c.c_catering_ownerid = @CateringOwnerId");
+                conditions.Add("c.c_ownerid = @CateringOwnerId");
                 baseParameters.Add(new SqlParameter("@CateringOwnerId", request.CateringOwnerId.Value));
             }
 
@@ -67,7 +67,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 "ConfigType" => "c.c_config_type",
                 "CommissionRate" => "c.c_commission_rate",
                 "EffectiveFrom" => "c.c_effective_from",
-                _ => "c.c_created_date"
+                _ => "c.c_createddate"
             };
 
             var sortOrder = request.SortOrder?.ToUpper() == "DESC" ? "DESC" : "ASC";
@@ -84,9 +84,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_config_id AS ConfigId,
                     c.c_config_name AS ConfigName,
                     c.c_config_type AS ConfigType,
-                    c.c_catering_ownerid AS CateringOwnerId,
-                    o.c_fullname AS CateringOwnerName,
-                    o.c_businessname AS BusinessName,
+                    c.c_ownerid AS CateringOwnerId,
+                    o.c_owner_name AS CateringOwnerName,
+                    o.c_catering_name AS BusinessName,
                     c.c_commission_rate AS CommissionRate,
                     c.c_fixed_fee AS FixedFee,
                     c.c_min_order_value AS MinOrderValue,
@@ -94,12 +94,12 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_is_active AS IsActive,
                     c.c_effective_from AS EffectiveFrom,
                     c.c_effective_to AS EffectiveTo,
-                    c.c_created_date AS CreatedDate,
-                    c.c_created_by AS CreatedBy,
-                    c.c_modified_date AS ModifiedDate,
-                    c.c_modified_by AS ModifiedBy
+                    c.c_createddate AS CreatedDate,
+                    c.c_createdby AS CreatedBy,
+                    c.c_modifieddate AS ModifiedDate,
+                    c.c_modifiedby AS ModifiedBy
                 FROM {Table.SysCommissionConfig} c
-                LEFT JOIN t_owner_register o ON c.c_catering_ownerid = o.c_ownerid
+                LEFT JOIN {Table.SysCateringOwner} o ON c.c_ownerid = o.c_ownerid
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
                 OFFSET @Offset ROWS
@@ -107,31 +107,29 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var configs = new List<CommissionConfigItem>();
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(dataQuery, dataParameters.ToArray()))
+            var configTable = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
+            foreach (DataRow row in configTable.Rows)
             {
-                while (await reader.ReadAsync())
+                configs.Add(new CommissionConfigItem
                 {
-                    configs.Add(new CommissionConfigItem
-                    {
-                        ConfigId = reader.GetInt64(reader.GetOrdinal("ConfigId")),
-                        ConfigName = reader.GetString(reader.GetOrdinal("ConfigName")),
-                        ConfigType = reader.GetString(reader.GetOrdinal("ConfigType")),
-                        CateringOwnerId = reader.IsDBNull(reader.GetOrdinal("CateringOwnerId")) ? null : reader.GetInt64(reader.GetOrdinal("CateringOwnerId")),
-                        CateringOwnerName = reader.IsDBNull(reader.GetOrdinal("CateringOwnerName")) ? null : reader.GetString(reader.GetOrdinal("CateringOwnerName")),
-                        BusinessName = reader.IsDBNull(reader.GetOrdinal("BusinessName")) ? null : reader.GetString(reader.GetOrdinal("BusinessName")),
-                        CommissionRate = reader.GetDecimal(reader.GetOrdinal("CommissionRate")),
-                        FixedFee = reader.GetDecimal(reader.GetOrdinal("FixedFee")),
-                        MinOrderValue = reader.IsDBNull(reader.GetOrdinal("MinOrderValue")) ? null : reader.GetDecimal(reader.GetOrdinal("MinOrderValue")),
-                        MaxOrderValue = reader.IsDBNull(reader.GetOrdinal("MaxOrderValue")) ? null : reader.GetDecimal(reader.GetOrdinal("MaxOrderValue")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        EffectiveFrom = reader.GetDateTime(reader.GetOrdinal("EffectiveFrom")),
-                        EffectiveTo = reader.IsDBNull(reader.GetOrdinal("EffectiveTo")) ? null : reader.GetDateTime(reader.GetOrdinal("EffectiveTo")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy"))
-                    });
-                }
+                    ConfigId = row.Field<long>("ConfigId"),
+                    ConfigName = row.Field<string>("ConfigName"),
+                    ConfigType = row.Field<string>("ConfigType"),
+                    CateringOwnerId = row.IsNull("CateringOwnerId") ? null : row.Field<long>("CateringOwnerId"),
+                    CateringOwnerName = row.IsNull("CateringOwnerName") ? null : row.Field<string>("CateringOwnerName"),
+                    BusinessName = row.IsNull("BusinessName") ? null : row.Field<string>("BusinessName"),
+                    CommissionRate = row.Field<decimal>("CommissionRate"),
+                    FixedFee = row.Field<decimal>("FixedFee"),
+                    MinOrderValue = row.IsNull("MinOrderValue") ? null : row.Field<decimal>("MinOrderValue"),
+                    MaxOrderValue = row.IsNull("MaxOrderValue") ? null : row.Field<decimal>("MaxOrderValue"),
+                    IsActive = row.Field<bool>("IsActive"),
+                    EffectiveFrom = row.Field<DateTime>("EffectiveFrom"),
+                    EffectiveTo = row.IsNull("EffectiveTo") ? null : row.Field<DateTime>("EffectiveTo"),
+                    CreatedDate = row.Field<DateTime>("CreatedDate"),
+                    CreatedBy = row.IsNull("CreatedBy") ? null : row.Field<long>("CreatedBy"),
+                    ModifiedDate = row.IsNull("ModifiedDate") ? null : row.Field<DateTime>("ModifiedDate"),
+                    ModifiedBy = row.IsNull("ModifiedBy") ? null : row.Field<long>("ModifiedBy")
+                });
             }
 
             var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
@@ -153,7 +151,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_config_id AS ConfigId,
                     c.c_config_name AS ConfigName,
                     c.c_config_type AS ConfigType,
-                    c.c_catering_ownerid AS CateringOwnerId,
+                    c.c_ownerid AS CateringOwnerId,
                     o.c_fullname AS CateringOwnerName,
                     o.c_businessname AS BusinessName,
                     c.c_commission_rate AS CommissionRate,
@@ -163,12 +161,12 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_is_active AS IsActive,
                     c.c_effective_from AS EffectiveFrom,
                     c.c_effective_to AS EffectiveTo,
-                    c.c_created_date AS CreatedDate,
-                    c.c_created_by AS CreatedBy,
-                    c.c_modified_date AS ModifiedDate,
-                    c.c_modified_by AS ModifiedBy
+                    c.c_createddate AS CreatedDate,
+                    c.c_createdby AS CreatedBy,
+                    c.c_modifieddate AS ModifiedDate,
+                    c.c_modifiedby AS ModifiedBy
                 FROM {Table.SysCommissionConfig} c
-                LEFT JOIN t_owner_register o ON c.c_catering_ownerid = o.c_ownerid
+                LEFT JOIN t_owner_register o ON c.c_ownerid = o.c_ownerid
                 WHERE c.c_config_id = @ConfigId";
 
             var parameters = new[]
@@ -176,31 +174,30 @@ namespace CateringEcommerce.BAL.Base.Admin
                 new SqlParameter("@ConfigId", configId)
             };
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(query, parameters))
+            var configTable = await _dbHelper.ExecuteAsync(query, parameters);
+            if (configTable.Rows.Count > 0)
             {
-                if (await reader.ReadAsync())
+                var row = configTable.Rows[0];
+                return new CommissionConfigItem
                 {
-                    return new CommissionConfigItem
-                    {
-                        ConfigId = reader.GetInt64(reader.GetOrdinal("ConfigId")),
-                        ConfigName = reader.GetString(reader.GetOrdinal("ConfigName")),
-                        ConfigType = reader.GetString(reader.GetOrdinal("ConfigType")),
-                        CateringOwnerId = reader.IsDBNull(reader.GetOrdinal("CateringOwnerId")) ? null : reader.GetInt64(reader.GetOrdinal("CateringOwnerId")),
-                        CateringOwnerName = reader.IsDBNull(reader.GetOrdinal("CateringOwnerName")) ? null : reader.GetString(reader.GetOrdinal("CateringOwnerName")),
-                        BusinessName = reader.IsDBNull(reader.GetOrdinal("BusinessName")) ? null : reader.GetString(reader.GetOrdinal("BusinessName")),
-                        CommissionRate = reader.GetDecimal(reader.GetOrdinal("CommissionRate")),
-                        FixedFee = reader.GetDecimal(reader.GetOrdinal("FixedFee")),
-                        MinOrderValue = reader.IsDBNull(reader.GetOrdinal("MinOrderValue")) ? null : reader.GetDecimal(reader.GetOrdinal("MinOrderValue")),
-                        MaxOrderValue = reader.IsDBNull(reader.GetOrdinal("MaxOrderValue")) ? null : reader.GetDecimal(reader.GetOrdinal("MaxOrderValue")),
-                        IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
-                        EffectiveFrom = reader.GetDateTime(reader.GetOrdinal("EffectiveFrom")),
-                        EffectiveTo = reader.IsDBNull(reader.GetOrdinal("EffectiveTo")) ? null : reader.GetDateTime(reader.GetOrdinal("EffectiveTo")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy")) ? null : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                        ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                        ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy")) ? null : reader.GetInt64(reader.GetOrdinal("ModifiedBy"))
-                    };
-                }
+                    ConfigId = row.Field<long>("ConfigId"),
+                    ConfigName = row.Field<string>("ConfigName"),
+                    ConfigType = row.Field<string>("ConfigType"),
+                    CateringOwnerId = row.IsNull("CateringOwnerId") ? null : row.Field<long>("CateringOwnerId"),
+                    CateringOwnerName = row.IsNull("CateringOwnerName") ? null : row.Field<string>("CateringOwnerName"),
+                    BusinessName = row.IsNull("BusinessName") ? null : row.Field<string>("BusinessName"),
+                    CommissionRate = row.Field<decimal>("CommissionRate"),
+                    FixedFee = row.Field<decimal>("FixedFee"),
+                    MinOrderValue = row.IsNull("MinOrderValue") ? null : row.Field<decimal>("MinOrderValue"),
+                    MaxOrderValue = row.IsNull("MaxOrderValue") ? null : row.Field<decimal>("MaxOrderValue"),
+                    IsActive = row.Field<bool>("IsActive"),
+                    EffectiveFrom = row.Field<DateTime>("EffectiveFrom"),
+                    EffectiveTo = row.IsNull("EffectiveTo") ? null : row.Field<DateTime>("EffectiveTo"),
+                    CreatedDate = row.Field<DateTime>("CreatedDate"),
+                    CreatedBy = row.IsNull("CreatedBy") ? null : row.Field<long>("CreatedBy"),
+                    ModifiedDate = row.IsNull("ModifiedDate") ? null : row.Field<DateTime>("ModifiedDate"),
+                    ModifiedBy = row.IsNull("ModifiedBy") ? null : row.Field<long>("ModifiedBy")
+                };
             }
 
             return null;
@@ -229,9 +226,9 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var query = $@"
                 INSERT INTO {Table.SysCommissionConfig}
-                (c_config_name, c_config_type, c_catering_ownerid, c_commission_rate, c_fixed_fee,
+                (c_config_name, c_config_type, c_ownerid, c_commission_rate, c_fixed_fee,
                  c_min_order_value, c_max_order_value, c_is_active, c_effective_from, c_effective_to,
-                 c_created_by, c_created_date)
+                 c_createdby, c_createddate)
                 OUTPUT INSERTED.c_config_id
                 VALUES
                 (@ConfigName, @ConfigType, @CateringOwnerId, @CommissionRate, @FixedFee,
@@ -291,8 +288,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_is_active = @IsActive,
                     c_effective_from = @EffectiveFrom,
                     c_effective_to = @EffectiveTo,
-                    c_modified_by = @ModifiedBy,
-                    c_modified_date = GETDATE()
+                    c_modifiedby = @ModifiedBy,
+                    c_modifieddate = GETDATE()
                 WHERE c_config_id = @ConfigId";
 
             var parameters = new[]
@@ -344,7 +341,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                         c_fixed_fee AS FixedFee
                     FROM {Table.SysCommissionConfig}
                     WHERE c_config_type = 'CATERING_SPECIFIC'
-                        AND c_catering_ownerid = @CateringOwnerId
+                        AND c_ownerid = @CateringOwnerId
                         AND c_is_active = 1
                         AND c_effective_from <= @OrderDate
                         AND (c_effective_to IS NULL OR c_effective_to >= @OrderDate)
@@ -356,23 +353,22 @@ namespace CateringEcommerce.BAL.Base.Admin
                     new SqlParameter("@OrderDate", orderDate)
                 };
 
-                using (var reader = await _dbHelper.ExecuteReaderAsync(specificQuery, specificParams))
+                var specificTable = await _dbHelper.ExecuteAsync(specificQuery, specificParams);
+                if (specificTable.Rows.Count > 0)
                 {
-                    if (await reader.ReadAsync())
-                    {
-                        var rate = reader.GetDecimal(reader.GetOrdinal("CommissionRate"));
-                        var fixedFee = reader.GetDecimal(reader.GetOrdinal("FixedFee"));
+                    var row = specificTable.Rows[0];
+                    var rate = row.Field<decimal>("CommissionRate");
+                    var fixedFee = row.Field<decimal>("FixedFee");
 
-                        return new ApplicableCommissionResult
-                        {
-                            ConfigId = reader.GetInt64(reader.GetOrdinal("ConfigId")),
-                            ConfigName = reader.GetString(reader.GetOrdinal("ConfigName")),
-                            ConfigType = reader.GetString(reader.GetOrdinal("ConfigType")),
-                            CommissionRate = rate,
-                            FixedFee = fixedFee,
-                            CalculatedCommission = (orderValue * rate / 100) + fixedFee
-                        };
-                    }
+                    return new ApplicableCommissionResult
+                    {
+                        ConfigId = row.Field<long>("ConfigId"),
+                        ConfigName = row.Field<string>("ConfigName"),
+                        ConfigType = row.Field<string>("ConfigType"),
+                        CommissionRate = rate,
+                        FixedFee = fixedFee,
+                        CalculatedCommission = (orderValue * rate / 100) + fixedFee
+                    };
                 }
             }
 
@@ -399,23 +395,22 @@ namespace CateringEcommerce.BAL.Base.Admin
                 new SqlParameter("@OrderValue", orderValue)
             };
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(tieredQuery, tieredParams))
+            var tieredTable = await _dbHelper.ExecuteAsync(tieredQuery, tieredParams);
+            if (tieredTable.Rows.Count > 0)
             {
-                if (await reader.ReadAsync())
-                {
-                    var rate = reader.GetDecimal(reader.GetOrdinal("CommissionRate"));
-                    var fixedFee = reader.GetDecimal(reader.GetOrdinal("FixedFee"));
+                var row = tieredTable.Rows[0];
+                var rate = row.Field<decimal>("CommissionRate");
+                var fixedFee = row.Field<decimal>("FixedFee");
 
-                    return new ApplicableCommissionResult
-                    {
-                        ConfigId = reader.GetInt64(reader.GetOrdinal("ConfigId")),
-                        ConfigName = reader.GetString(reader.GetOrdinal("ConfigName")),
-                        ConfigType = reader.GetString(reader.GetOrdinal("ConfigType")),
-                        CommissionRate = rate,
-                        FixedFee = fixedFee,
-                        CalculatedCommission = (orderValue * rate / 100) + fixedFee
-                    };
-                }
+                return new ApplicableCommissionResult
+                {
+                    ConfigId = row.Field<long>("ConfigId"),
+                    ConfigName = row.Field<string>("ConfigName"),
+                    ConfigType = row.Field<string>("ConfigType"),
+                    CommissionRate = rate,
+                    FixedFee = fixedFee,
+                    CalculatedCommission = (orderValue * rate / 100) + fixedFee
+                };
             }
 
             // 3. Fall back to Global config
@@ -438,23 +433,22 @@ namespace CateringEcommerce.BAL.Base.Admin
                 new SqlParameter("@OrderDate", orderDate)
             };
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(globalQuery, globalParams))
+            var globalTable = await _dbHelper.ExecuteAsync(globalQuery, globalParams);
+            if (globalTable.Rows.Count > 0)
             {
-                if (await reader.ReadAsync())
-                {
-                    var rate = reader.GetDecimal(reader.GetOrdinal("CommissionRate"));
-                    var fixedFee = reader.GetDecimal(reader.GetOrdinal("FixedFee"));
+                var row = globalTable.Rows[0];
+                var rate = row.Field<decimal>("CommissionRate");
+                var fixedFee = row.Field<decimal>("FixedFee");
 
-                    return new ApplicableCommissionResult
-                    {
-                        ConfigId = reader.GetInt64(reader.GetOrdinal("ConfigId")),
-                        ConfigName = reader.GetString(reader.GetOrdinal("ConfigName")),
-                        ConfigType = reader.GetString(reader.GetOrdinal("ConfigType")),
-                        CommissionRate = rate,
-                        FixedFee = fixedFee,
-                        CalculatedCommission = (orderValue * rate / 100) + fixedFee
-                    };
-                }
+                return new ApplicableCommissionResult
+                {
+                    ConfigId = row.Field<long>("ConfigId"),
+                    ConfigName = row.Field<string>("ConfigName"),
+                    ConfigType = row.Field<string>("ConfigType"),
+                    CommissionRate = rate,
+                    FixedFee = fixedFee,
+                    CalculatedCommission = (orderValue * rate / 100) + fixedFee
+                };
             }
 
             // No applicable config found
@@ -477,7 +471,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             if (configType == "CATERING_SPECIFIC" && cateringOwnerId.HasValue)
             {
-                conditions.Add("c_catering_ownerid = @CateringOwnerId");
+                conditions.Add("c_ownerid = @CateringOwnerId");
                 parameters.Add(new SqlParameter("@CateringOwnerId", cateringOwnerId.Value));
             }
 

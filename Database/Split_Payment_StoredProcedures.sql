@@ -2,7 +2,7 @@
 -- Split Payment Stored Procedures
 -- ===============================================
 
-USE CateringEcommerce;
+USE CateringDB;
 GO
 
 -- ===============================================

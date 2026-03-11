@@ -2,6 +2,7 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Common;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Delivery;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -14,7 +15,7 @@ namespace CateringEcommerce.API.Controllers.User
     /// <summary>
     /// Sample Delivery Controller - Third-party real-time tracking
     /// </summary>
-    [Authorize]
+    [UserAuthorize]
     [ApiController]
     [Route("api/User/[controller]")]
     public class SampleDeliveryController : ControllerBase

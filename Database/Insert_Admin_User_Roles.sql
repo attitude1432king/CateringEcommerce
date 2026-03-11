@@ -3,7 +3,7 @@
 -- Maps Admin Users to Roles
 -- =====================================================
 
-USE CateringEcommerce;
+USE CateringDB;
 GO
 
 PRINT '=====================================================';

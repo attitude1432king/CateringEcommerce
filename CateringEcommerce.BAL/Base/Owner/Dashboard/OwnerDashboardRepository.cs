@@ -32,56 +32,60 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                     -- Current Period Metrics
                     SELECT
-                        ISNULL(SUM(c_final_amount), 0) AS TotalRevenue,
+                        ISNULL(SUM(c_total_amount), 0) AS TotalRevenue,
                         COUNT(*) AS TotalOrders,
                         SUM(CASE WHEN c_order_status = 'Pending' THEN 1 ELSE 0 END) AS PendingOrders,
                         COUNT(DISTINCT c_userid) AS TotalCustomers,
-                        ISNULL(AVG(c_final_amount), 0) AS AverageOrderValue,
+                        ISNULL(AVG(c_total_amount), 0) AS AverageOrderValue,
                         SUM(CASE WHEN c_event_date >= GETDATE() THEN 1 ELSE 0 END) AS UpcomingEvents
                     FROM {Table.SysOrders}
-                    WHERE c_ownerid = @OwnerId AND c_created_date >= @CurrentPeriodStart
+                    WHERE c_ownerid = @OwnerId AND c_createddate >= @CurrentPeriodStart
 
                     -- Previous Period Metrics
                     SELECT
-                        ISNULL(SUM(c_final_amount), 0) AS PrevTotalRevenue,
+                        ISNULL(SUM(c_total_amount), 0) AS PrevTotalRevenue,
                         COUNT(*) AS PrevTotalOrders,
                         SUM(CASE WHEN c_order_status = 'Pending' THEN 1 ELSE 0 END) AS PrevPendingOrders,
                         COUNT(DISTINCT c_userid) AS PrevTotalCustomers,
-                        ISNULL(AVG(c_final_amount), 0) AS PrevAverageOrderValue
+                        ISNULL(AVG(c_total_amount), 0) AS PrevAverageOrderValue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= @PreviousPeriodStart
-                        AND c_created_date <= @PreviousPeriodEnd
+                        AND c_createddate >= @PreviousPeriodStart
+                        AND c_createddate <= @PreviousPeriodEnd
 
                     -- Customer Satisfaction
-                    SELECT ISNULL(AVG(CAST(c_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfaction
+                    SELECT ISNULL(AVG(CAST(c_overall_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfaction
                     FROM {Table.SysCateringReview}
-                    WHERE c_ownerid = @OwnerId AND c_rating > 0";
+                    WHERE c_ownerid = @OwnerId AND c_overall_rating > 0";
 
                 var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
 
                 var metrics = new DashboardMetricsDto();
+                if (dataSet == null || dataSet.Tables.Count == 0)
+                {
+                    return metrics;
+                }
 
                 if (dataSet.Tables.Count > 0 && dataSet.Tables[0].Rows.Count > 0)
                 {
                     var currentRow = dataSet.Tables[0].Rows[0];
-                    metrics.TotalRevenue = Convert.ToDecimal(currentRow["TotalRevenue"]);
-                    metrics.TotalOrders = Convert.ToInt32(currentRow["TotalOrders"]);
-                    metrics.PendingOrders = Convert.ToInt32(currentRow["PendingOrders"]);
-                    metrics.TotalCustomers = Convert.ToInt32(currentRow["TotalCustomers"]);
-                    metrics.AverageOrderValue = Convert.ToDecimal(currentRow["AverageOrderValue"]);
-                    metrics.UpcomingEvents = Convert.ToInt32(currentRow["UpcomingEvents"]);
+                    metrics.TotalRevenue = GetDecimalValue(currentRow, "TotalRevenue");
+                    metrics.TotalOrders = GetIntValue(currentRow, "TotalOrders");
+                    metrics.PendingOrders = GetIntValue(currentRow, "PendingOrders");
+                    metrics.TotalCustomers = GetIntValue(currentRow, "TotalCustomers");
+                    metrics.AverageOrderValue = GetDecimalValue(currentRow, "AverageOrderValue");
+                    metrics.UpcomingEvents = GetIntValue(currentRow, "UpcomingEvents");
                 }
 
                 if (dataSet.Tables.Count > 1 && dataSet.Tables[1].Rows.Count > 0)
                 {
                     var prevRow = dataSet.Tables[1].Rows[0];
-                    var prevRevenue = Convert.ToDecimal(prevRow["PrevTotalRevenue"]);
-                    var prevOrders = Convert.ToInt32(prevRow["PrevTotalOrders"]);
-                    var prevPending = Convert.ToInt32(prevRow["PrevPendingOrders"]);
-                    var prevCustomers = Convert.ToInt32(prevRow["PrevTotalCustomers"]);
-                    var prevAvgOrder = Convert.ToDecimal(prevRow["PrevAverageOrderValue"]);
+                    var prevRevenue = GetDecimalValue(prevRow, "PrevTotalRevenue");
+                    var prevOrders = GetIntValue(prevRow, "PrevTotalOrders");
+                    var prevPending = GetIntValue(prevRow, "PrevPendingOrders");
+                    var prevCustomers = GetIntValue(prevRow, "PrevTotalCustomers");
+                    var prevAvgOrder = GetDecimalValue(prevRow, "PrevAverageOrderValue");
 
                     metrics.RevenueChange = CalculatePercentageChange(metrics.TotalRevenue, prevRevenue);
                     metrics.OrdersChange = CalculatePercentageChange(metrics.TotalOrders, prevOrders);
@@ -92,7 +96,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 if (dataSet.Tables.Count > 2 && dataSet.Tables[2].Rows.Count > 0)
                 {
-                    metrics.CustomerSatisfaction = Convert.ToDecimal(dataSet.Tables[2].Rows[0]["CustomerSatisfaction"]);
+                    metrics.CustomerSatisfaction = GetDecimalValue(dataSet.Tables[2].Rows[0], "CustomerSatisfaction");
                 }
 
                 return metrics;
@@ -115,67 +119,67 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 switch (period.ToLower())
                 {
                     case "day":
-                        dateFormat = "CONVERT(VARCHAR(10), c_created_date, 23)"; // YYYY-MM-DD
-                        dateGrouping = "DATEADD(DAY, DATEDIFF(DAY, 0, c_created_date), 0)";
+                        dateFormat = "CONVERT(VARCHAR(10), c_createddate, 23)"; // YYYY-MM-DD
+                        dateGrouping = "DATEADD(DAY, DATEDIFF(DAY, 0, c_createddate), 0)";
                         query = $@"
                             SELECT
                                 {dateFormat} AS Period,
-                                ISNULL(SUM(c_final_amount), 0) AS Revenue
+                                ISNULL(SUM(c_total_amount), 0) AS Revenue
                             FROM {Table.SysOrders}
                             WHERE c_ownerid = @OwnerId
-                                AND c_created_date >= DATEADD(DAY, -30, GETDATE())
+                                AND c_createddate >= DATEADD(DAY, -30, GETDATE())
                             GROUP BY {dateGrouping}, {dateFormat}
                             ORDER BY {dateGrouping}";
                         break;
 
                     case "week":
-                        dateFormat = "CONCAT('Week ', DATEPART(WEEK, c_created_date), ' - ', YEAR(c_created_date))";
+                        dateFormat = "CONCAT('Week ', DATEPART(WEEK, c_createddate), ' - ', YEAR(c_createddate))";
                         query = $@"
                             SELECT
                                 {dateFormat} AS Period,
-                                ISNULL(SUM(c_final_amount), 0) AS Revenue
+                                ISNULL(SUM(c_total_amount), 0) AS Revenue
                             FROM {Table.SysOrders}
                             WHERE c_ownerid = @OwnerId
-                                AND c_created_date >= DATEADD(WEEK, -12, GETDATE())
-                            GROUP BY DATEPART(WEEK, c_created_date), YEAR(c_created_date)
-                            ORDER BY YEAR(c_created_date), DATEPART(WEEK, c_created_date)";
+                                AND c_createddate >= DATEADD(WEEK, -12, GETDATE())
+                            GROUP BY DATEPART(WEEK, c_createddate), YEAR(c_createddate)
+                            ORDER BY YEAR(c_createddate), DATEPART(WEEK, c_createddate)";
                         break;
 
                     case "year":
-                        dateFormat = "CAST(YEAR(c_created_date) AS VARCHAR(4))";
+                        dateFormat = "CAST(YEAR(c_createddate) AS VARCHAR(4))";
                         query = $@"
                             SELECT
                                 {dateFormat} AS Period,
-                                ISNULL(SUM(c_final_amount), 0) AS Revenue
+                                ISNULL(SUM(c_total_amount), 0) AS Revenue
                             FROM {Table.SysOrders}
                             WHERE c_ownerid = @OwnerId
-                                AND c_created_date >= DATEADD(YEAR, -5, GETDATE())
-                            GROUP BY YEAR(c_created_date)
-                            ORDER BY YEAR(c_created_date)";
+                                AND c_createddate >= DATEADD(YEAR, -5, GETDATE())
+                            GROUP BY YEAR(c_createddate)
+                            ORDER BY YEAR(c_createddate)";
                         break;
 
                     case "month":
                     default:
-                        dateFormat = "FORMAT(c_created_date, 'MMM yyyy')";
+                        dateFormat = "FORMAT(c_createddate, 'MMM yyyy')";
                         query = $@"
                             SELECT
                                 {dateFormat} AS Period,
-                                ISNULL(SUM(c_final_amount), 0) AS Revenue
+                                ISNULL(SUM(c_total_amount), 0) AS Revenue
                             FROM {Table.SysOrders}
                             WHERE c_ownerid = @OwnerId
-                                AND c_created_date >= DATEADD(MONTH, -12, GETDATE())
-                            GROUP BY YEAR(c_created_date), MONTH(c_created_date), FORMAT(c_created_date, 'MMM yyyy')
-                            ORDER BY YEAR(c_created_date), MONTH(c_created_date)";
+                                AND c_createddate >= DATEADD(MONTH, -12, GETDATE())
+                            GROUP BY YEAR(c_createddate), MONTH(c_createddate), FORMAT(c_createddate, 'MMM yyyy')
+                            ORDER BY YEAR(c_createddate), MONTH(c_createddate)";
                         break;
                 }
 
-                var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
-                var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, parameters));
+                var chartParameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+                var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, chartParameters));
 
                 foreach (DataRow row in dataTable.Rows)
                 {
                     chart.Labels.Add(row["Period"].ToString());
-                    chart.Data.Add(Convert.ToDecimal(row["Revenue"]));
+                    chart.Data.Add(GetDecimalValue(row, "Revenue"));
                 }
 
                 chart.TotalRevenue = chart.Data.Sum();
@@ -200,56 +204,56 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 switch (period.ToLower())
                 {
                     case "day":
-                        dateFormat = "CONVERT(VARCHAR(10), c_created_date, 23)";
+                        dateFormat = "CONVERT(VARCHAR(10), c_createddate, 23)";
                         query = $@"
                             SELECT
                                 {dateFormat} AS Period,
                                 COUNT(*) AS OrderCount
                             FROM {Table.SysOrders}
                             WHERE c_ownerid = @OwnerId
-                                AND c_created_date >= DATEADD(DAY, -30, GETDATE())
+                                AND c_createddate >= DATEADD(DAY, -30, GETDATE())
                             GROUP BY {dateFormat}
                             ORDER BY {dateFormat}";
                         break;
 
                     case "week":
-                        dateFormat = "CONCAT('Week ', DATEPART(WEEK, c_created_date), ' - ', YEAR(c_created_date))";
+                        dateFormat = "CONCAT('Week ', DATEPART(WEEK, c_createddate), ' - ', YEAR(c_createddate))";
                         query = $@"
                             SELECT
                                 {dateFormat} AS Period,
                                 COUNT(*) AS OrderCount
                             FROM {Table.SysOrders}
                             WHERE c_ownerid = @OwnerId
-                                AND c_created_date >= DATEADD(WEEK, -12, GETDATE())
-                            GROUP BY DATEPART(WEEK, c_created_date), YEAR(c_created_date)
-                            ORDER BY YEAR(c_created_date), DATEPART(WEEK, c_created_date)";
+                                AND c_createddate >= DATEADD(WEEK, -12, GETDATE())
+                            GROUP BY DATEPART(WEEK, c_createddate), YEAR(c_createddate)
+                            ORDER BY YEAR(c_createddate), DATEPART(WEEK, c_createddate)";
                         break;
 
                     case "year":
-                        dateFormat = "CAST(YEAR(c_created_date) AS VARCHAR(4))";
+                        dateFormat = "CAST(YEAR(c_createddate) AS VARCHAR(4))";
                         query = $@"
                             SELECT
                                 {dateFormat} AS Period,
                                 COUNT(*) AS OrderCount
                             FROM {Table.SysOrders}
                             WHERE c_ownerid = @OwnerId
-                                AND c_created_date >= DATEADD(YEAR, -5, GETDATE())
-                            GROUP BY YEAR(c_created_date)
-                            ORDER BY YEAR(c_created_date)";
+                                AND c_createddate >= DATEADD(YEAR, -5, GETDATE())
+                            GROUP BY YEAR(c_createddate)
+                            ORDER BY YEAR(c_createddate)";
                         break;
 
                     case "month":
                     default:
-                        dateFormat = "FORMAT(c_created_date, 'MMM yyyy')";
+                        dateFormat = "FORMAT(c_createddate, 'MMM yyyy')";
                         query = $@"
                             SELECT
                                 {dateFormat} AS Period,
                                 COUNT(*) AS OrderCount
                             FROM {Table.SysOrders}
                             WHERE c_ownerid = @OwnerId
-                                AND c_created_date >= DATEADD(MONTH, -12, GETDATE())
-                            GROUP BY YEAR(c_created_date), MONTH(c_created_date), FORMAT(c_created_date, 'MMM yyyy')
-                            ORDER BY YEAR(c_created_date), MONTH(c_created_date)";
+                                AND c_createddate >= DATEADD(MONTH, -12, GETDATE())
+                            GROUP BY YEAR(c_createddate), MONTH(c_createddate), FORMAT(c_createddate, 'MMM yyyy')
+                            ORDER BY YEAR(c_createddate), MONTH(c_createddate)";
                         break;
                 }
 
@@ -259,7 +263,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 foreach (DataRow row in dataTable.Rows)
                 {
                     chart.Labels.Add(row["Period"].ToString());
-                    chart.Data.Add(Convert.ToInt32(row["OrderCount"]));
+                    chart.Data.Add(GetIntValue(row, "OrderCount"));
                 }
 
                 chart.TotalOrders = chart.Data.Sum();
@@ -271,10 +275,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     WHERE c_ownerid = @OwnerId
                     GROUP BY c_order_status";
 
-                var statusTable = await Task.Run(() => _dbHelper.ExecuteAsync(statusQuery, parameters));
+                var statusParameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+                var statusTable = await Task.Run(() => _dbHelper.ExecuteAsync(statusQuery, statusParameters));
                 foreach (DataRow row in statusTable.Rows)
                 {
-                    chart.OrdersByStatus[row["Status"].ToString()] = Convert.ToInt32(row["Count"]);
+                    chart.OrdersByStatus[row["Status"].ToString()] = GetIntValue(row, "Count");
                 }
 
                 return chart;
@@ -293,17 +298,17 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     SELECT TOP {limit}
                         o.c_orderid AS OrderId,
                         o.c_order_number AS OrderNumber,
-                        CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
+                        u.c_name AS CustomerName,
                         o.c_event_type AS EventType,
                         o.c_event_date AS EventDate,
-                        o.c_final_amount AS TotalAmount,
+                        o.c_total_amount AS TotalAmount,
                         o.c_order_status AS OrderStatus,
-                        o.c_created_date AS OrderDate,
+                        o.c_createddate AS OrderDate,
                         o.c_guest_count AS GuestCount
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
                     WHERE o.c_ownerid = @OwnerId
-                    ORDER BY o.c_created_date DESC";
+                    ORDER BY o.c_createddate DESC";
 
                 var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
                 var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, parameters));
@@ -313,15 +318,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     orders.Add(new RecentOrderDto
                     {
-                        OrderId = Convert.ToInt64(row["OrderId"]),
+                        OrderId = GetLongValue(row, "OrderId"),
                         OrderNumber = row["OrderNumber"].ToString(),
                         CustomerName = row["CustomerName"].ToString(),
                         EventType = row["EventType"].ToString(),
-                        EventDate = Convert.ToDateTime(row["EventDate"]),
-                        TotalAmount = Convert.ToDecimal(row["TotalAmount"]),
+                        EventDate = GetDateTimeValue(row, "EventDate"),
+                        TotalAmount = GetDecimalValue(row, "TotalAmount"),
                         OrderStatus = row["OrderStatus"].ToString(),
-                        OrderDate = Convert.ToDateTime(row["OrderDate"]),
-                        GuestCount = Convert.ToInt32(row["GuestCount"])
+                        OrderDate = GetDateTimeValue(row, "OrderDate"),
+                        GuestCount = GetIntValue(row, "GuestCount")
                     });
                 }
 
@@ -341,14 +346,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     SELECT
                         o.c_orderid AS OrderId,
                         o.c_order_number AS OrderNumber,
-                        CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
-                        u.c_mobilenumber AS CustomerPhone,
+                        u.c_name AS CustomerName,
+                        u.c_mobile AS CustomerPhone,
                         o.c_event_type AS EventType,
                         o.c_event_date AS EventDate,
                         o.c_event_time AS EventTime,
-                        o.c_venue_address AS VenueAddress,
+                        o.c_delivery_address AS VenueAddress,
                         o.c_guest_count AS GuestCount,
-                        o.c_final_amount AS TotalAmount,
+                        o.c_total_amount AS TotalAmount,
                         o.c_order_status AS OrderStatus,
                         DATEDIFF(DAY, GETDATE(), o.c_event_date) AS DaysUntilEvent
                     FROM {Table.SysOrders} o
@@ -370,19 +375,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var events = new List<UpcomingEventDto>();
                 foreach (DataRow row in dataTable.Rows)
                 {
-                    var daysUntil = Convert.ToInt32(row["DaysUntilEvent"]);
+                    var daysUntil = GetIntValue(row, "DaysUntilEvent");
                     events.Add(new UpcomingEventDto
                     {
-                        OrderId = Convert.ToInt64(row["OrderId"]),
+                        OrderId = GetLongValue(row, "OrderId"),
                         OrderNumber = row["OrderNumber"].ToString(),
                         CustomerName = row["CustomerName"].ToString(),
                         CustomerPhone = row["CustomerPhone"].ToString(),
                         EventType = row["EventType"].ToString(),
-                        EventDate = Convert.ToDateTime(row["EventDate"]),
+                        EventDate = GetDateTimeValue(row, "EventDate"),
                         EventTime = row["EventTime"].ToString(),
                         VenueAddress = row["VenueAddress"].ToString(),
-                        GuestCount = Convert.ToInt32(row["GuestCount"]),
-                        TotalAmount = Convert.ToDecimal(row["TotalAmount"]),
+                        GuestCount = GetIntValue(row, "GuestCount"),
+                        TotalAmount = GetDecimalValue(row, "TotalAmount"),
                         OrderStatus = row["OrderStatus"].ToString(),
                         DaysUntilEvent = daysUntil,
                         IsUrgent = daysUntil <= 2
@@ -409,7 +414,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         COUNT(DISTINCT oi.c_orderid) AS OrderCount,
                         SUM(oi.c_quantity) AS TotalQuantitySold,
                         SUM(oi.c_item_total) AS TotalRevenue,
-                        ISNULL(AVG(CAST(r.c_rating AS DECIMAL(10,2))), 0) AS AverageRating,
+                        ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(10,2))), 0) AS AverageRating,
                         '' AS ImageUrl,
                         f.c_price AS Price,
                         CASE
@@ -441,15 +446,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     items.Add(new TopMenuItemDto
                     {
-                        MenuItemId = Convert.ToInt64(row["MenuItemId"]),
+                        MenuItemId = GetLongValue(row, "MenuItemId"),
                         MenuItemName = row["MenuItemName"].ToString(),
                         Category = row["Category"].ToString(),
-                        OrderCount = Convert.ToInt32(row["OrderCount"]),
-                        TotalQuantitySold = Convert.ToInt32(row["TotalQuantitySold"]),
-                        TotalRevenue = Convert.ToDecimal(row["TotalRevenue"]),
-                        AverageRating = Convert.ToDecimal(row["AverageRating"]),
+                        OrderCount = GetIntValue(row, "OrderCount"),
+                        TotalQuantitySold = GetIntValue(row, "TotalQuantitySold"),
+                        TotalRevenue = GetDecimalValue(row, "TotalRevenue"),
+                        AverageRating = GetDecimalValue(row, "AverageRating"),
                         ImageUrl = row["ImageUrl"].ToString(),
-                        Price = Convert.ToDecimal(row["Price"])
+                        Price = GetDecimalValue(row, "Price")
                     });
                 }
 
@@ -471,17 +476,17 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                     -- Growth metrics
                     SELECT
-                        ISNULL(SUM(CASE WHEN c_created_date >= @CurrentMonth THEN c_final_amount ELSE 0 END), 0) AS CurrentRevenue,
-                        ISNULL(SUM(CASE WHEN c_created_date >= @PreviousMonth AND c_created_date < @CurrentMonth THEN c_final_amount ELSE 0 END), 0) AS PreviousRevenue,
-                        COUNT(CASE WHEN c_created_date >= @CurrentMonth THEN 1 END) AS CurrentOrders,
-                        COUNT(CASE WHEN c_created_date >= @PreviousMonth AND c_created_date < @CurrentMonth THEN 1 END) AS PreviousOrders,
-                        COUNT(DISTINCT CASE WHEN c_created_date >= @CurrentMonth THEN c_userid END) AS CurrentCustomers,
-                        COUNT(DISTINCT CASE WHEN c_created_date < @CurrentMonth THEN c_userid END) AS ReturningCustomers
+                        ISNULL(SUM(CASE WHEN c_createddate >= @CurrentMonth THEN c_total_amount ELSE 0 END), 0) AS CurrentRevenue,
+                        ISNULL(SUM(CASE WHEN c_createddate >= @PreviousMonth AND c_createddate < @CurrentMonth THEN c_total_amount ELSE 0 END), 0) AS PreviousRevenue,
+                        COUNT(CASE WHEN c_createddate >= @CurrentMonth THEN 1 END) AS CurrentOrders,
+                        COUNT(CASE WHEN c_createddate >= @PreviousMonth AND c_createddate < @CurrentMonth THEN 1 END) AS PreviousOrders,
+                        COUNT(DISTINCT CASE WHEN c_createddate >= @CurrentMonth THEN c_userid END) AS CurrentCustomers,
+                        COUNT(DISTINCT CASE WHEN c_createddate < @CurrentMonth THEN c_userid END) AS ReturningCustomers
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId;
 
                     -- Ratings
-                    SELECT ISNULL(AVG(CAST(c_rating AS DECIMAL(10,2))), 0) AS AvgRating
+                    SELECT ISNULL(AVG(CAST(c_overall_rating AS DECIMAL(10,2))), 0) AS AvgRating
                     FROM {Table.SysCateringReview}
                     WHERE c_ownerid = @OwnerId;
 
@@ -503,16 +508,22 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     ORDER BY SUM(oi.c_item_total) DESC;
 
                     -- Peak order day
-                    SELECT TOP 1 DATENAME(WEEKDAY, c_created_date) AS PeakDay
+                    SELECT TOP 1 DATENAME(WEEKDAY, c_createddate) AS PeakDay
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                    GROUP BY DATENAME(WEEKDAY, c_created_date)
+                    GROUP BY DATENAME(WEEKDAY, c_createddate)
                     ORDER BY COUNT(*) DESC;
 
                     -- Pending payments
-                    SELECT ISNULL(SUM(c_final_amount - c_paid_amount), 0) AS PendingPayments
-                    FROM {Table.SysOrders}
-                    WHERE c_ownerid = @OwnerId AND c_payment_status != 'Completed';";
+                    SELECT ISNULL(SUM(o.c_total_amount - ISNULL(pay.PaidAmount, 0)), 0) AS PendingPayments
+                    FROM {Table.SysOrders} o
+                    OUTER APPLY (
+                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                        FROM {Table.SysOrderPayments} p
+                        WHERE p.c_orderid = o.c_orderid
+                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay
+                    WHERE o.c_ownerid = @OwnerId AND o.c_payment_status != 'Completed';";
 
                 var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -522,12 +533,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (dataSet.Tables.Count > 0 && dataSet.Tables[0].Rows.Count > 0)
                 {
                     var row = dataSet.Tables[0].Rows[0];
-                    var currentRevenue = Convert.ToDecimal(row["CurrentRevenue"]);
-                    var previousRevenue = Convert.ToDecimal(row["PreviousRevenue"]);
-                    var currentOrders = Convert.ToInt32(row["CurrentOrders"]);
-                    var previousOrders = Convert.ToInt32(row["PreviousOrders"]);
-                    var currentCustomers = Convert.ToInt32(row["CurrentCustomers"]);
-                    var returningCustomers = Convert.ToInt32(row["ReturningCustomers"]);
+                    var currentRevenue = GetDecimalValue(row, "CurrentRevenue");
+                    var previousRevenue = GetDecimalValue(row, "PreviousRevenue");
+                    var currentOrders = GetIntValue(row, "CurrentOrders");
+                    var previousOrders = GetIntValue(row, "PreviousOrders");
+                    var currentCustomers = GetIntValue(row, "CurrentCustomers");
+                    var returningCustomers = GetIntValue(row, "ReturningCustomers");
 
                     insights.RevenueGrowth = CalculatePercentageChange(currentRevenue, previousRevenue);
                     insights.OrderGrowth = CalculatePercentageChange(currentOrders, previousOrders);
@@ -538,12 +549,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 if (dataSet.Tables.Count > 1 && dataSet.Tables[1].Rows.Count > 0)
                 {
-                    insights.AverageDeliveryRating = Convert.ToDecimal(dataSet.Tables[1].Rows[0]["AvgRating"]);
+                    insights.AverageDeliveryRating = GetDecimalValue(dataSet.Tables[1].Rows[0], "AvgRating");
                 }
 
                 if (dataSet.Tables.Count > 2 && dataSet.Tables[2].Rows.Count > 0)
                 {
-                    insights.CancellationRate = Convert.ToInt32(dataSet.Tables[2].Rows[0]["CancellationRate"]);
+                    insights.CancellationRate = GetIntValue(dataSet.Tables[2].Rows[0], "CancellationRate");
                 }
 
                 if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
@@ -558,7 +569,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 if (dataSet.Tables.Count > 5 && dataSet.Tables[5].Rows.Count > 0)
                 {
-                    insights.PendingPaymentsAmount = Convert.ToDecimal(dataSet.Tables[5].Rows[0]["PendingPayments"]);
+                    insights.PendingPaymentsAmount = GetDecimalValue(dataSet.Tables[5].Rows[0], "PendingPayments");
                 }
 
                 return insights;
@@ -577,7 +588,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- By Event Type
                     SELECT
                         c_event_type AS EventType,
-                        SUM(c_final_amount) AS Revenue
+                        SUM(c_total_amount) AS Revenue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
                     GROUP BY c_event_type;
@@ -585,25 +596,25 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- By Payment Status
                     SELECT
                         c_payment_status AS PaymentStatus,
-                        SUM(c_final_amount) AS Revenue
+                        SUM(c_total_amount) AS Revenue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
                     GROUP BY c_payment_status;
 
                     -- By Month (Last 12 months)
                     SELECT
-                        FORMAT(c_created_date, 'MMM yyyy') AS Month,
-                        SUM(c_final_amount) AS Revenue
+                        FORMAT(c_createddate, 'MMM yyyy') AS Month,
+                        SUM(c_total_amount) AS Revenue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_created_date >= DATEADD(MONTH, -12, GETDATE())
-                    GROUP BY YEAR(c_created_date), MONTH(c_created_date), FORMAT(c_created_date, 'MMM yyyy')
-                    ORDER BY YEAR(c_created_date), MONTH(c_created_date);
+                        AND c_createddate >= DATEADD(MONTH, -12, GETDATE())
+                    GROUP BY YEAR(c_createddate), MONTH(c_createddate), FORMAT(c_createddate, 'MMM yyyy')
+                    ORDER BY YEAR(c_createddate), MONTH(c_createddate);
 
                     -- Financial Summary
                     SELECT
-                        SUM(c_final_amount) AS GrossRevenue,
-                        SUM(c_final_amount - c_tax_amount) AS NetRevenue,
+                        SUM(c_total_amount) AS GrossRevenue,
+                        SUM(c_total_amount - c_tax_amount) AS NetRevenue,
                         SUM(c_tax_amount) AS TaxAmount,
                         SUM(c_discount_amount) AS DiscountAmount
                     FROM {Table.SysOrders}
@@ -618,7 +629,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     foreach (DataRow row in dataSet.Tables[0].Rows)
                     {
-                        breakdown.ByEventType[row["EventType"].ToString()] = Convert.ToDecimal(row["Revenue"]);
+                        breakdown.ByEventType[row["EventType"].ToString()] = GetDecimalValue(row, "Revenue");
                     }
                 }
 
@@ -626,7 +637,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     foreach (DataRow row in dataSet.Tables[1].Rows)
                     {
-                        breakdown.ByPaymentStatus[row["PaymentStatus"].ToString()] = Convert.ToDecimal(row["Revenue"]);
+                        breakdown.ByPaymentStatus[row["PaymentStatus"].ToString()] = GetDecimalValue(row, "Revenue");
                     }
                 }
 
@@ -634,17 +645,17 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     foreach (DataRow row in dataSet.Tables[2].Rows)
                     {
-                        breakdown.ByMonth[row["Month"].ToString()] = Convert.ToDecimal(row["Revenue"]);
+                        breakdown.ByMonth[row["Month"].ToString()] = GetDecimalValue(row, "Revenue");
                     }
                 }
 
                 if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
                 {
                     var row = dataSet.Tables[3].Rows[0];
-                    breakdown.GrossRevenue = Convert.ToDecimal(row["GrossRevenue"]);
-                    breakdown.NetRevenue = Convert.ToDecimal(row["NetRevenue"]);
-                    breakdown.TaxAmount = Convert.ToDecimal(row["TaxAmount"]);
-                    breakdown.DiscountAmount = Convert.ToDecimal(row["DiscountAmount"]);
+                    breakdown.GrossRevenue = GetDecimalValue(row, "GrossRevenue");
+                    breakdown.NetRevenue = GetDecimalValue(row, "NetRevenue");
+                    breakdown.TaxAmount = GetDecimalValue(row, "TaxAmount");
+                    breakdown.DiscountAmount = GetDecimalValue(row, "DiscountAmount");
                 }
 
                 return breakdown;
@@ -661,6 +672,50 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 return current > 0 ? 100 : 0;
 
             return Math.Round(((current - previous) / previous) * 100, 2);
+        }
+
+        private static decimal GetDecimalValue(DataRow row, string columnName, decimal defaultValue = 0m)
+        {
+            if (row == null || row.Table == null || !row.Table.Columns.Contains(columnName))
+            {
+                return defaultValue;
+            }
+
+            var value = row[columnName];
+            return value == null || value == DBNull.Value ? defaultValue : Convert.ToDecimal(value);
+        }
+
+        private static int GetIntValue(DataRow row, string columnName, int defaultValue = 0)
+        {
+            if (row == null || row.Table == null || !row.Table.Columns.Contains(columnName))
+            {
+                return defaultValue;
+            }
+
+            var value = row[columnName];
+            return value == null || value == DBNull.Value ? defaultValue : Convert.ToInt32(value);
+        }
+
+        private static long GetLongValue(DataRow row, string columnName, long defaultValue = 0L)
+        {
+            if (row == null || row.Table == null || !row.Table.Columns.Contains(columnName))
+            {
+                return defaultValue;
+            }
+
+            var value = row[columnName];
+            return value == null || value == DBNull.Value ? defaultValue : Convert.ToInt64(value);
+        }
+
+        private static DateTime GetDateTimeValue(DataRow row, string columnName, DateTime? defaultValue = null)
+        {
+            if (row == null || row.Table == null || !row.Table.Columns.Contains(columnName))
+            {
+                return defaultValue ?? DateTime.MinValue;
+            }
+
+            var value = row[columnName];
+            return value == null || value == DBNull.Value ? (defaultValue ?? DateTime.MinValue) : Convert.ToDateTime(value);
         }
     }
 }

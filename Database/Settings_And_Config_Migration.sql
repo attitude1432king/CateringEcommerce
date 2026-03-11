@@ -6,7 +6,7 @@
 -- Date: 2026-01-27
 -- =============================================
 
-USE [CateringEcommerce]
+USE [CateringDB]
 GO
 
 -- =============================================
@@ -29,14 +29,10 @@ BEGIN
         [c_validation_regex] NVARCHAR(500),
         [c_default_value] NVARCHAR(MAX),
         [c_is_active] BIT DEFAULT 1,
-        [c_created_date] DATETIME DEFAULT GETDATE(),
-        [c_created_by] BIGINT,
-        [c_modified_date] DATETIME,
-        [c_modified_by] BIGINT,
-        CONSTRAINT [FK_SysSettings_CreatedBy] FOREIGN KEY ([c_created_by]) REFERENCES [t_admin_users]([c_admin_id]),
-        CONSTRAINT [FK_SysSettings_ModifiedBy] FOREIGN KEY ([c_modified_by]) REFERENCES [t_admin_users]([c_admin_id]),
-        CONSTRAINT [CK_SysSettings_Category] CHECK ([c_category] IN ('SYSTEM', 'EMAIL', 'PAYMENT', 'BUSINESS', 'NOTIFICATION')),
-        CONSTRAINT [CK_SysSettings_ValueType] CHECK ([c_value_type] IN ('STRING', 'NUMBER', 'BOOLEAN', 'JSON', 'ENCRYPTED'))
+        [c_createddate] DATETIME DEFAULT GETDATE(),
+        [c_createdby] BIGINT,
+        [c_modifieddate] DATETIME,
+        [c_modifiedby] BIGINT
     );
 
     CREATE NONCLUSTERED INDEX [IX_SysSettings_Category] ON [dbo].[t_sys_settings]([c_category]);
@@ -62,9 +58,7 @@ BEGIN
         [c_changed_by_name] NVARCHAR(200),
         [c_change_date] DATETIME DEFAULT GETDATE(),
         [c_change_reason] NVARCHAR(500),
-        [c_ip_address] NVARCHAR(50),
-        CONSTRAINT [FK_SettingsHistory_Setting] FOREIGN KEY ([c_setting_id]) REFERENCES [t_sys_settings]([c_setting_id]),
-        CONSTRAINT [FK_SettingsHistory_ChangedBy] FOREIGN KEY ([c_changed_by]) REFERENCES [t_admin_users]([c_admin_id])
+        [c_ip_address] NVARCHAR(50)
     );
 
     CREATE NONCLUSTERED INDEX [IX_SettingsHistory_SettingId] ON [dbo].[t_sys_settings_history]([c_setting_id]);
@@ -84,7 +78,7 @@ BEGIN
         [c_config_id] BIGINT IDENTITY(1,1) PRIMARY KEY,
         [c_config_name] NVARCHAR(200) NOT NULL,
         [c_config_type] NVARCHAR(50) NOT NULL, -- 'GLOBAL', 'CATERING_SPECIFIC', 'TIERED'
-        [c_catering_ownerid] BIGINT NULL,
+        [c_ownerid] BIGINT NULL,
         [c_commission_rate] DECIMAL(5, 2) NOT NULL,
         [c_fixed_fee] DECIMAL(10, 2) DEFAULT 0,
         [c_min_order_value] DECIMAL(10, 2),
@@ -92,29 +86,16 @@ BEGIN
         [c_is_active] BIT DEFAULT 1,
         [c_effective_from] DATE NOT NULL,
         [c_effective_to] DATE NULL,
-        [c_created_date] DATETIME DEFAULT GETDATE(),
-        [c_created_by] BIGINT,
-        [c_modified_date] DATETIME,
-        [c_modified_by] BIGINT,
-        CONSTRAINT [FK_CommissionConfig_CateringOwner] FOREIGN KEY ([c_catering_ownerid]) REFERENCES [t_owner_register]([c_ownerid]),
-        CONSTRAINT [FK_CommissionConfig_CreatedBy] FOREIGN KEY ([c_created_by]) REFERENCES [t_admin_users]([c_admin_id]),
-        CONSTRAINT [FK_CommissionConfig_ModifiedBy] FOREIGN KEY ([c_modified_by]) REFERENCES [t_admin_users]([c_admin_id]),
-        CONSTRAINT [CK_CommissionConfig_Type] CHECK ([c_config_type] IN ('GLOBAL', 'CATERING_SPECIFIC', 'TIERED')),
-        CONSTRAINT [CK_CommissionConfig_Rate] CHECK ([c_commission_rate] >= 0 AND [c_commission_rate] <= 100),
-        CONSTRAINT [CK_CommissionConfig_CateringOwner] CHECK (
-            ([c_config_type] = 'CATERING_SPECIFIC' AND [c_catering_ownerid] IS NOT NULL) OR
-            ([c_config_type] != 'CATERING_SPECIFIC' AND [c_catering_ownerid] IS NULL)
-        ),
-        CONSTRAINT [CK_CommissionConfig_OrderValue] CHECK (
-            ([c_min_order_value] IS NULL AND [c_max_order_value] IS NULL) OR
-            ([c_min_order_value] IS NOT NULL AND [c_max_order_value] IS NOT NULL AND [c_min_order_value] < [c_max_order_value])
-        )
+        [c_createddate] DATETIME DEFAULT GETDATE(),
+        [c_createdby] BIGINT,
+        [c_modifieddate] DATETIME,
+        [c_modifiedby] BIGINT
     );
 
     CREATE NONCLUSTERED INDEX [IX_CommissionConfig_Type] ON [dbo].[t_sys_commission_config]([c_config_type]);
     CREATE NONCLUSTERED INDEX [IX_CommissionConfig_Active] ON [dbo].[t_sys_commission_config]([c_is_active]);
     CREATE NONCLUSTERED INDEX [IX_CommissionConfig_EffectiveDates] ON [dbo].[t_sys_commission_config]([c_effective_from], [c_effective_to]);
-    CREATE NONCLUSTERED INDEX [IX_CommissionConfig_CateringOwner] ON [dbo].[t_sys_commission_config]([c_catering_ownerid]) WHERE [c_catering_ownerid] IS NOT NULL;
+    CREATE NONCLUSTERED INDEX [IX_CommissionConfig_CateringOwner] ON [dbo].[t_sys_commission_config]([c_ownerid]) WHERE [c_ownerid] IS NOT NULL;
 
     PRINT 'Table t_sys_commission_config created successfully';
 END
@@ -611,11 +592,507 @@ VALUES
     ('PARTNER_REJECTED', 'Business Name', '{{ business_name }}', 'Catering business name', 'Delicious Caterers'),
     ('PARTNER_REJECTED', 'Rejection Reason', '{{ rejection_reason }}', 'Reason for rejection', 'Incomplete documentation');
 
-PRINT 'Template variables seeded successfully';
+-- Supervisor-specific variables
+DECLARE @SupervisorTemplates TABLE (TemplateCode NVARCHAR(100));
+INSERT INTO @SupervisorTemplates VALUES
+    ('SUPERVISOR_REQUEST_APPROVED'), ('SUPERVISOR_REQUEST_REJECTED'),
+    ('SUPERVISOR_REQUEST_UNDER_REVIEW'), ('SUPERVISOR_INFO_REQUESTED'),
+    ('SUPERVISOR_ASSIGNED_EVENT'), ('SUPERVISOR_EVENT_LIVE_STATUS'),
+    ('SUPERVISOR_EVENT_COMPLETED');
+
+-- Common supervisor variables across all supervisor templates
+INSERT INTO t_sys_template_variables (c_template_code, c_variable_name, c_variable_key, c_description, c_example_value)
+SELECT
+    st.TemplateCode,
+    'Supervisor Name',
+    '{{ supervisor_name }}',
+    'Full name of the supervisor',
+    'Rahul Sharma'
+FROM @SupervisorTemplates st
+WHERE NOT EXISTS (
+    SELECT 1 FROM t_sys_template_variables
+    WHERE c_template_code = st.TemplateCode AND c_variable_key = '{{ supervisor_name }}'
+);
+
+INSERT INTO t_sys_template_variables (c_template_code, c_variable_name, c_variable_key, c_description, c_example_value)
+SELECT
+    st.TemplateCode,
+    'Supervisor Email',
+    '{{ supervisor_email }}',
+    'Email address of the supervisor',
+    'rahul.sharma@example.com'
+FROM @SupervisorTemplates st
+WHERE NOT EXISTS (
+    SELECT 1 FROM t_sys_template_variables
+    WHERE c_template_code = st.TemplateCode AND c_variable_key = '{{ supervisor_email }}'
+);
+
+INSERT INTO t_sys_template_variables (c_template_code, c_variable_name, c_variable_key, c_description, c_example_value)
+SELECT
+    st.TemplateCode,
+    'Supervisor Phone',
+    '{{ supervisor_phone }}',
+    'Phone number of the supervisor',
+    '+91-9876543210'
+FROM @SupervisorTemplates st
+WHERE NOT EXISTS (
+    SELECT 1 FROM t_sys_template_variables
+    WHERE c_template_code = st.TemplateCode AND c_variable_key = '{{ supervisor_phone }}'
+);
+
+INSERT INTO t_sys_template_variables (c_template_code, c_variable_name, c_variable_key, c_description, c_example_value)
+SELECT
+    st.TemplateCode,
+    'Supervisor Status',
+    '{{ supervisor_status }}',
+    'Current status of the supervisor application or assignment',
+    'Approved'
+FROM @SupervisorTemplates st
+WHERE NOT EXISTS (
+    SELECT 1 FROM t_sys_template_variables
+    WHERE c_template_code = st.TemplateCode AND c_variable_key = '{{ supervisor_status }}'
+);
+
+-- Event-specific supervisor variables (for assignment/event templates)
+INSERT INTO t_sys_template_variables (c_template_code, c_variable_name, c_variable_key, c_description, c_example_value)
+VALUES
+    ('SUPERVISOR_ASSIGNED_EVENT', 'Event Name', '{{ event_name }}', 'Name of the catering event', 'Wedding Reception - Sharma Family'),
+    ('SUPERVISOR_ASSIGNED_EVENT', 'Event Date', '{{ event_date }}', 'Date of the event', '15-Mar-2026'),
+    ('SUPERVISOR_ASSIGNED_EVENT', 'Event Location', '{{ event_location }}', 'Location of the event', 'Grand Banquet Hall, Mumbai'),
+    ('SUPERVISOR_ASSIGNED_EVENT', 'Client Name', '{{ client_name }}', 'Name of the client who booked the event', 'Amit Sharma'),
+    ('SUPERVISOR_ASSIGNED_EVENT', 'Monitoring Start Time', '{{ monitoring_start_time }}', 'Start time for supervisor monitoring', '10:00 AM'),
+    ('SUPERVISOR_ASSIGNED_EVENT', 'Monitoring End Time', '{{ monitoring_end_time }}', 'End time for supervisor monitoring', '06:00 PM'),
+    ('SUPERVISOR_EVENT_LIVE_STATUS', 'Event Name', '{{ event_name }}', 'Name of the catering event', 'Wedding Reception - Sharma Family'),
+    ('SUPERVISOR_EVENT_LIVE_STATUS', 'Event Date', '{{ event_date }}', 'Date of the event', '15-Mar-2026'),
+    ('SUPERVISOR_EVENT_LIVE_STATUS', 'Event Location', '{{ event_location }}', 'Location of the event', 'Grand Banquet Hall, Mumbai'),
+    ('SUPERVISOR_EVENT_LIVE_STATUS', 'Client Name', '{{ client_name }}', 'Name of the client who booked the event', 'Amit Sharma'),
+    ('SUPERVISOR_EVENT_COMPLETED', 'Event Name', '{{ event_name }}', 'Name of the catering event', 'Wedding Reception - Sharma Family'),
+    ('SUPERVISOR_EVENT_COMPLETED', 'Event Date', '{{ event_date }}', 'Date of the event', '15-Mar-2026'),
+    ('SUPERVISOR_EVENT_COMPLETED', 'Event Location', '{{ event_location }}', 'Location of the event', 'Grand Banquet Hall, Mumbai'),
+    ('SUPERVISOR_EVENT_COMPLETED', 'Client Name', '{{ client_name }}', 'Name of the client who booked the event', 'Amit Sharma'),
+    ('SUPERVISOR_EVENT_COMPLETED', 'Monitoring Start Time', '{{ monitoring_start_time }}', 'Start time for supervisor monitoring', '10:00 AM'),
+    ('SUPERVISOR_EVENT_COMPLETED', 'Monitoring End Time', '{{ monitoring_end_time }}', 'End time for supervisor monitoring', '06:00 PM');
+
+-- Status reason variable for rejection/info request templates
+INSERT INTO t_sys_template_variables (c_template_code, c_variable_name, c_variable_key, c_description, c_example_value)
+VALUES
+    ('SUPERVISOR_REQUEST_REJECTED', 'Status Reason', '{{ status_reason }}', 'Reason for rejection', 'Incomplete documentation submitted'),
+    ('SUPERVISOR_INFO_REQUESTED', 'Status Reason', '{{ status_reason }}', 'Information requested from supervisor', 'Please upload a valid ID proof and address verification document');
+
+PRINT 'Template variables seeded successfully (including Supervisor variables)';
 GO
 
 -- =============================================
--- SECTION 12: Summary
+-- SECTION 12: Seed Data - JWT Settings
+-- =============================================
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'JWT.KEY')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive, c_is_readonly)
+    VALUES ('JWT.KEY', 'u83$9Sj@q!5#LmQzTNfT^PwBzEoRk1At', 'JWT', 'STRING', 'JWT Signing Key', 'Secret key used to sign JWT tokens', 1, '', 1, 0);
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'JWT.ISSUER')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('JWT.ISSUER', 'https://localhost:44368', 'JWT', 'STRING', 'JWT Issuer', 'Issuer URL for JWT tokens', 2, 'https://localhost:44368');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'JWT.AUDIENCE')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('JWT.AUDIENCE', 'https://localhost:5173/', 'JWT', 'STRING', 'JWT Audience', 'Audience URL for JWT tokens', 3, 'https://localhost:5173/');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'JWT.EXPIRE_MINUTES')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('JWT.EXPIRE_MINUTES', '60', 'JWT', 'NUMBER', 'JWT Expiry (Minutes)', 'JWT token expiration time in minutes', 4, '60', '^[1-9][0-9]*$');
+END
+
+PRINT 'JWT settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 13: Seed Data - TWILIO Settings
+-- =============================================
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'TWILIO.ACCOUNT_SID')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
+    VALUES ('TWILIO.ACCOUNT_SID', 'ACa0e64157a3eeacc75d11d3ca0a45dc58', 'TWILIO', 'STRING', 'Twilio Account SID', 'Twilio account identifier', 1, '', 1);
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'TWILIO.AUTH_TOKEN')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
+    VALUES ('TWILIO.AUTH_TOKEN', '32d72da8576aab7007b38891731caf34', 'TWILIO', 'STRING', 'Twilio Auth Token', 'Twilio authentication token', 2, '', 1);
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'TWILIO.FROM_PHONE_NUMBER')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('TWILIO.FROM_PHONE_NUMBER', '+918160182327', 'TWILIO', 'STRING', 'Twilio From Phone Number', 'Phone number used for sending SMS', 3, '');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'TWILIO.VERIFY_SERVICE_SID')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
+    VALUES ('TWILIO.VERIFY_SERVICE_SID', 'VA36c73036f1c116da2e88220cdcf48834', 'TWILIO', 'STRING', 'Twilio Verify Service SID', 'Twilio Verify service identifier for OTP', 4, '', 1);
+END
+
+PRINT 'TWILIO settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 14: Seed Data - Additional SYSTEM Settings
+-- =============================================
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SYSTEM.ENCRYPTION_KEY')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive, c_is_readonly)
+    VALUES ('SYSTEM.ENCRYPTION_KEY', 'p3d$Rsj@q!5#ShArP@#$^PwJ@!M@taJ!', 'SYSTEM', 'STRING', 'Encryption Key', 'Master encryption key for AES operations', 20, '', 1, 1);
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SYSTEM.API_BASE_URL')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('SYSTEM.API_BASE_URL', 'https://localhost:44368', 'SYSTEM', 'STRING', 'API Base URL', 'Base URL for the API server', 21, 'https://localhost:44368');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SYSTEM.OTP_EXPIRY_SECONDS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SYSTEM.OTP_EXPIRY_SECONDS', '300', 'SYSTEM', 'NUMBER', 'OTP Expiry (Seconds)', 'OTP code expiration time in seconds', 22, '300', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SYSTEM.COOKIE_EXPIRY_DAYS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SYSTEM.COOKIE_EXPIRY_DAYS', '7', 'SYSTEM', 'NUMBER', 'Cookie Expiry (Days)', 'Authentication cookie expiration in days', 23, '7', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SYSTEM.GEO_CACHE_HOURS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SYSTEM.GEO_CACHE_HOURS', '6', 'SYSTEM', 'NUMBER', 'Geo Cache Duration (Hours)', 'Duration to cache geolocation data in hours', 24, '6', '^[1-9][0-9]*$');
+END
+
+PRINT 'Additional SYSTEM settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 15: Seed Data - SECURITY Settings
+-- =============================================
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.ADMIN_LOGIN_PERMITS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.ADMIN_LOGIN_PERMITS', '3', 'SECURITY', 'NUMBER', 'Admin Login Attempts', 'Maximum admin login attempts per window', 1, '3', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.ADMIN_LOGIN_WINDOW_MINUTES')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.ADMIN_LOGIN_WINDOW_MINUTES', '15', 'SECURITY', 'NUMBER', 'Admin Login Window (Minutes)', 'Time window for admin login rate limiting', 2, '15', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.USER_LOGIN_PERMITS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.USER_LOGIN_PERMITS', '5', 'SECURITY', 'NUMBER', 'User Login Attempts', 'Maximum user login attempts per window', 3, '5', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.USER_LOGIN_WINDOW_MINUTES')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.USER_LOGIN_WINDOW_MINUTES', '10', 'SECURITY', 'NUMBER', 'User Login Window (Minutes)', 'Time window for user login rate limiting', 4, '10', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.OTP_SEND_PERMITS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.OTP_SEND_PERMITS', '3', 'SECURITY', 'NUMBER', 'OTP Send Limit', 'Maximum OTP send attempts per window', 5, '3', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.OTP_SEND_WINDOW_MINUTES')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.OTP_SEND_WINDOW_MINUTES', '60', 'SECURITY', 'NUMBER', 'OTP Send Window (Minutes)', 'Time window for OTP send rate limiting', 6, '60', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.OTP_VERIFY_PERMITS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.OTP_VERIFY_PERMITS', '5', 'SECURITY', 'NUMBER', 'OTP Verify Limit', 'Maximum OTP verification attempts per window', 7, '5', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.OTP_VERIFY_WINDOW_MINUTES')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.OTP_VERIFY_WINDOW_MINUTES', '5', 'SECURITY', 'NUMBER', 'OTP Verify Window (Minutes)', 'Time window for OTP verification rate limiting', 8, '5', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.API_GENERAL_PERMITS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.API_GENERAL_PERMITS', '100', 'SECURITY', 'NUMBER', 'API Rate Limit', 'Maximum API requests per window', 9, '100', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.API_GENERAL_WINDOW_MINUTES')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.API_GENERAL_WINDOW_MINUTES', '1', 'SECURITY', 'NUMBER', 'API Rate Window (Minutes)', 'Time window for API general rate limiting', 10, '1', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.FILE_UPLOAD_PERMITS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.FILE_UPLOAD_PERMITS', '10', 'SECURITY', 'NUMBER', 'File Upload Limit', 'Maximum file uploads per window', 11, '10', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SECURITY.FILE_UPLOAD_WINDOW_MINUTES')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('SECURITY.FILE_UPLOAD_WINDOW_MINUTES', '10', 'SECURITY', 'NUMBER', 'File Upload Window (Minutes)', 'Time window for file upload rate limiting', 12, '10', '^[1-9][0-9]*$');
+END
+
+PRINT 'SECURITY settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 16: Seed Data - Additional BUSINESS Settings
+-- =============================================
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'BUSINESS.MIN_WITHDRAWAL_AMOUNT')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('BUSINESS.MIN_WITHDRAWAL_AMOUNT', '500', 'BUSINESS', 'NUMBER', 'Min Withdrawal Amount', 'Minimum amount for partner withdrawal requests', 13, '500', '^[0-9]+$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'BUSINESS.MAX_ADDRESSES_PER_USER')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('BUSINESS.MAX_ADDRESSES_PER_USER', '5', 'BUSINESS', 'NUMBER', 'Max Addresses Per User', 'Maximum saved addresses allowed per user', 14, '5', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'BUSINESS.MIN_GUESTS_PER_ORDER')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('BUSINESS.MIN_GUESTS_PER_ORDER', '50', 'BUSINESS', 'NUMBER', 'Min Guests Per Order', 'Minimum number of guests required per order', 15, '50', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'BUSINESS.MIN_ADVANCE_PAYMENT_PERCENT')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('BUSINESS.MIN_ADVANCE_PAYMENT_PERCENT', '30', 'BUSINESS', 'NUMBER', 'Min Advance Payment (%)', 'Minimum advance payment percentage required', 16, '30', '^[0-9]+$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'BUSINESS.MIN_ADVANCE_BOOKING_DAYS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('BUSINESS.MIN_ADVANCE_BOOKING_DAYS', '3', 'BUSINESS', 'NUMBER', 'Min Advance Booking Days', 'Minimum days in advance for catering orders', 17, '3', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'BUSINESS.MIN_ADVANCE_BOOKING_HOURS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('BUSINESS.MIN_ADVANCE_BOOKING_HOURS', '24', 'BUSINESS', 'NUMBER', 'Min Advance Booking Hours', 'Minimum hours in advance for event bookings', 18, '24', '^[1-9][0-9]*$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'BUSINESS.MAX_ADVANCE_BOOKING_DAYS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('BUSINESS.MAX_ADVANCE_BOOKING_DAYS', '90', 'BUSINESS', 'NUMBER', 'Max Advance Booking Days', 'Maximum days in advance for event bookings', 19, '90', '^[1-9][0-9]*$');
+END
+
+PRINT 'Additional BUSINESS settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 17: Seed Data - RABBITMQ Settings
+-- =============================================
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'RABBITMQ.ENABLED')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('RABBITMQ.ENABLED', 'false', 'RABBITMQ', 'BOOLEAN', 'RabbitMQ Enabled', 'Enable RabbitMQ message queue integration', 1, 'false');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'RABBITMQ.HOSTNAME')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('RABBITMQ.HOSTNAME', 'localhost', 'RABBITMQ', 'STRING', 'RabbitMQ Hostname', 'RabbitMQ server hostname', 2, 'localhost');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'RABBITMQ.PORT')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
+    VALUES ('RABBITMQ.PORT', '5672', 'RABBITMQ', 'NUMBER', 'RabbitMQ Port', 'RabbitMQ server port number', 3, '5672', '^[0-9]+$');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'RABBITMQ.USERNAME')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
+    VALUES ('RABBITMQ.USERNAME', 'guest', 'RABBITMQ', 'STRING', 'RabbitMQ Username', 'RabbitMQ authentication username', 4, 'guest', 1);
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'RABBITMQ.PASSWORD')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
+    VALUES ('RABBITMQ.PASSWORD', 'guest', 'RABBITMQ', 'STRING', 'RabbitMQ Password', 'RabbitMQ authentication password', 5, 'guest', 1);
+END
+
+PRINT 'RABBITMQ settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 18: Seed Data - APP Settings (URLs, Contact, Branding)
+-- =============================================
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'APP.PARTNER_PORTAL_URL')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('APP.PARTNER_PORTAL_URL', 'https://partner.enyvora.com/login', 'APP', 'STRING', 'Partner Portal URL', 'Login URL for the partner portal', 1, 'https://partner.enyvora.com/login');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'APP.PARTNER_GUIDE_URL')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('APP.PARTNER_GUIDE_URL', 'https://enyvora.com/partner-guide', 'APP', 'STRING', 'Partner Guide URL', 'URL for the partner onboarding guide', 2, 'https://enyvora.com/partner-guide');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'APP.BEST_PRACTICES_URL')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('APP.BEST_PRACTICES_URL', 'https://enyvora.com/best-practices', 'APP', 'STRING', 'Best Practices URL', 'URL for partner best practices page', 3, 'https://enyvora.com/best-practices');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'APP.SUPPORT_URL')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('APP.SUPPORT_URL', 'https://enyvora.com/support', 'APP', 'STRING', 'Support URL', 'URL for the main support page', 4, 'https://enyvora.com/support');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'APP.PARTNER_SUPPORT_EMAIL')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('APP.PARTNER_SUPPORT_EMAIL', 'support@enyvora.com', 'APP', 'STRING', 'Partner Support Email', 'Email address for partner support inquiries', 5, 'support@enyvora.com');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'APP.PARTNER_SUPPORT_PHONE')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('APP.PARTNER_SUPPORT_PHONE', '+91-1234567890', 'APP', 'STRING', 'Partner Support Phone', 'Phone number for partner support', 6, '+91-1234567890');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'APP.REAPPLY_DURATION')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('APP.REAPPLY_DURATION', '30 days', 'APP', 'STRING', 'Reapply Duration', 'Duration after rejection before partner can reapply', 7, '30 days');
+END
+
+PRINT 'APP settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 19: MSG91 Provider Settings
+-- =============================================
+
+PRINT 'Seeding MSG91 settings...';
+GO
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'MSG91.AUTH_KEY')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('MSG91.AUTH_KEY', '', 'MSG91', 'ENCRYPTED', 1, 'MSG91 Auth Key', 'MSG91 API authentication key (keep secret)', 1, '');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'MSG91.SENDER_ID')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('MSG91.SENDER_ID', 'CATAPP', 'MSG91', 'STRING', 0, 'MSG91 Sender ID', '6-character alphanumeric sender ID registered with MSG91', 2, 'CATAPP');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'MSG91.TEMPLATE_ID')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('MSG91.TEMPLATE_ID', '', 'MSG91', 'STRING', 0, 'MSG91 OTP Template ID', 'DLT-approved OTP template ID from MSG91 dashboard', 3, '');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'MSG91.ROUTE')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('MSG91.ROUTE', '4', 'MSG91', 'STRING', 0, 'MSG91 Route', '4 = transactional (OTP), 1 = promotional', 4, '4');
+END
+
+PRINT 'MSG91 settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 20: OTP Service Settings
+-- =============================================
+
+PRINT 'Seeding OTP service settings...';
+GO
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SMS.PROVIDER')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('SMS.PROVIDER', 'MSG91', 'SMS', 'STRING', 0, 'Active SMS Provider', 'Active OTP SMS provider: MSG91 or TWILIO. Requires app restart to take effect.', 1, 'MSG91');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'OTP.LENGTH')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('OTP.LENGTH', '6', 'OTP', 'STRING', 0, 'OTP Length', 'Number of digits in generated OTP (default: 6)', 1, '6');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'OTP.EXPIRY_MINUTES')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('OTP.EXPIRY_MINUTES', '10', 'OTP', 'STRING', 0, 'OTP Expiry (minutes)', 'Time in minutes before OTP expires (default: 10)', 2, '10');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'OTP.MAX_VERIFY_ATTEMPTS')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('OTP.MAX_VERIFY_ATTEMPTS', '5', 'OTP', 'STRING', 0, 'OTP Max Verify Attempts', 'Maximum wrong OTP attempts before entry is locked (default: 5)', 3, '5');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'OTP.BYPASS_VERIFICATION')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('OTP.BYPASS_VERIFICATION', 'false', 'OTP', 'STRING', 0, 'Bypass OTP Verification', 'Set to true only for development/testing to skip actual OTP check. MUST be false in production.', 4, 'false');
+END
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'OTP.MESSAGE_TEMPLATE')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('OTP.MESSAGE_TEMPLATE', 'Your {AppName} OTP is {OTP}. Valid for {EXPIRY} minutes. Do not share this code with anyone.', 'OTP', 'STRING', 0, 'OTP SMS Template', 'SMS template for OTP delivery. Placeholders: {AppName}, {OTP}, {EXPIRY}', 5, 'Your {AppName} OTP is {OTP}. Valid for {EXPIRY} minutes. Do not share this code with anyone.');
+END
+
+PRINT 'OTP service settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 21: Public Stats Settings
+-- =============================================
+
+PRINT 'Seeding public stats settings...';
+GO
+
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'STATS.AVG_GROWTH_PERCENT')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
+    VALUES ('STATS.AVG_GROWTH_PERCENT', '150', 'STATS', 'INT', 0, 'Avg Partner Growth (%)', 'Average revenue growth percentage shown on the Partner Login page stat counter', 1, '150');
+END
+
+PRINT 'Public stats settings seeded successfully';
+GO
+
+-- =============================================
+-- SECTION 22: Summary
 -- =============================================
 
 PRINT '================================================';
@@ -628,12 +1105,21 @@ PRINT '  - t_sys_commission_config';
 PRINT '  - t_sys_template_variables';
 PRINT '';
 PRINT 'Settings Seeded:';
-PRINT '  - SYSTEM: 11 settings';
+PRINT '  - SYSTEM: 16 settings';
 PRINT '  - EMAIL: 11 settings';
 PRINT '  - PAYMENT: 10 settings';
-PRINT '  - BUSINESS: 12 settings';
+PRINT '  - BUSINESS: 16 settings';
 PRINT '  - NOTIFICATION: 12 settings';
-PRINT '  Total: 56 settings';
+PRINT '  - JWT: 4 settings';
+PRINT '  - TWILIO: 4 settings';
+PRINT '  - SECURITY: 12 settings';
+PRINT '  - RABBITMQ: 5 settings';
+PRINT '  - APP: 7 settings';
+PRINT '  - MSG91: 4 settings';
+PRINT '  - SMS: 1 setting';
+PRINT '  - OTP: 5 settings';
+PRINT '  - STATS: 1 setting';
+PRINT '  Total: 111 settings';
 PRINT '';
 PRINT 'Commission Configs: 1 default global config';
 PRINT 'Template Variables: Common + specific variables';

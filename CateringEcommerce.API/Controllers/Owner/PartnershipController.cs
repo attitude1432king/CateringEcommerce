@@ -1,3 +1,4 @@
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,8 @@ namespace CateringEcommerce.API.Controllers.Owner
 {
     [Route("api/owner/partnership")]
     [ApiController]
-    [Authorize(Roles = "Owner,Partner")]
+    [OwnerAuthorize]
+
     public class PartnershipController : ControllerBase
     {
         private readonly IPartnershipRepository _partnershipRepo;

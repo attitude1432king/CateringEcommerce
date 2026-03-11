@@ -11,6 +11,7 @@ BEGIN
         c_template_id BIGINT IDENTITY(1,1) PRIMARY KEY,
         c_template_code NVARCHAR(100) NOT NULL UNIQUE,
         c_template_name NVARCHAR(200) NOT NULL,
+        c_description NVARCHAR(500) NULL,
         c_language NVARCHAR(10) NOT NULL DEFAULT 'en',
         c_channel NVARCHAR(20) NOT NULL, -- EMAIL, SMS, INAPP
         c_category NVARCHAR(50) NOT NULL,
@@ -19,8 +20,10 @@ BEGIN
         c_version INT NOT NULL DEFAULT 1,
         c_is_active BIT NOT NULL DEFAULT 1,
         c_usage_count INT NOT NULL DEFAULT 0,
-        c_created_date DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modified_date DATETIME NULL
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_createdby BIGINT NULL,
+        c_modifieddate DATETIME NULL,
+        c_modifiedby BIGINT NULL
     );
 
     CREATE NONCLUSTERED INDEX IX_NotificationTemplates_Code
@@ -30,6 +33,28 @@ BEGIN
         ON t_sys_notification_templates(c_channel, c_language, c_is_active);
 
     PRINT 'Table t_sys_notification_templates created successfully';
+END
+GO
+
+-- Add missing columns if table already exists without them
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_notification_templates') AND name = 'c_description')
+BEGIN
+    ALTER TABLE t_sys_notification_templates ADD c_description NVARCHAR(500) NULL;
+    PRINT 'Added c_description column';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_notification_templates') AND name = 'c_createdby')
+BEGIN
+    ALTER TABLE t_sys_notification_templates ADD c_createdby BIGINT NULL;
+    PRINT 'Added c_createdby column';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_notification_templates') AND name = 'c_modifiedby')
+BEGIN
+    ALTER TABLE t_sys_notification_templates ADD c_modifiedby BIGINT NULL;
+    PRINT 'Added c_modifiedby column';
 END
 GO
 
@@ -655,6 +680,148 @@ NULL,
 NULL,
 '{{ promotion_message }} {{ promotion_url }} -Enyvora');
 
+-- ============================================
+-- SUPERVISOR LIFECYCLE TEMPLATES
+-- ============================================
+
+INSERT INTO t_sys_notification_templates (c_template_code, c_template_name, c_language, c_channel, c_category, c_subject, c_body)
+VALUES
+('SUPERVISOR_REQUEST_APPROVED_EMAIL', 'Supervisor Request Approved Email', 'en', 'EMAIL', 'SUPERVISOR',
+'Your Supervisor Application Has Been Approved - Enyvora',
+'<!DOCTYPE html>
+<html>
+<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}h2{color:#27ae60}</style></head>
+<body>
+<h2>Congratulations, {{ supervisor_name }}!</h2>
+<p>We are pleased to inform you that your supervisor application has been <strong>approved</strong>.</p>
+<p><strong>Status:</strong> {{ supervisor_status }}</p>
+<p>You can now log in to your supervisor portal and start accepting event assignments.</p>
+<p><strong>Your Details:</strong><br>
+Name: {{ supervisor_name }}<br>
+Email: {{ supervisor_email }}<br>
+Phone: {{ supervisor_phone }}</p>
+<p><a href="{{ app_url }}/supervisor/login" style="background:#27ae60;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px">Login to Supervisor Portal</a></p>
+<p>For any questions, contact us at <strong>{{ support_email }}</strong>.</p>
+<p>Best regards,<br>Enyvora Team</p>
+</body>
+</html>'),
+
+('SUPERVISOR_REQUEST_REJECTED_EMAIL', 'Supervisor Request Rejected Email', 'en', 'EMAIL', 'SUPERVISOR',
+'Supervisor Application Update - Enyvora',
+'<!DOCTYPE html>
+<html>
+<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}h2{color:#e74c3c}</style></head>
+<body>
+<h2>Application Status Update</h2>
+<p>Dear <strong>{{ supervisor_name }}</strong>,</p>
+<p>Thank you for your interest in joining Enyvora as a supervisor.</p>
+<p>After careful review, we regret to inform you that your application has been <strong>rejected</strong>.</p>
+<p><strong>Reason:</strong> {{ status_reason }}</p>
+<p>You may address the issues mentioned above and re-apply in the future.</p>
+<p>If you have any questions, contact us at <strong>{{ support_email }}</strong>.</p>
+<p>Best regards,<br>Enyvora Team</p>
+</body>
+</html>'),
+
+('SUPERVISOR_REQUEST_UNDER_REVIEW_EMAIL', 'Supervisor Request Under Review Email', 'en', 'EMAIL', 'SUPERVISOR',
+'Your Supervisor Application is Under Review - Enyvora',
+'<!DOCTYPE html>
+<html>
+<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}h2{color:#f39c12}</style></head>
+<body>
+<h2>Application Under Review</h2>
+<p>Dear <strong>{{ supervisor_name }}</strong>,</p>
+<p>Your supervisor application is currently <strong>under review</strong> by our team.</p>
+<p><strong>Status:</strong> {{ supervisor_status }}</p>
+<p>Our verification team is reviewing your submitted documents and credentials. This process typically takes 2-3 business days.</p>
+<p>We will notify you once a decision has been made.</p>
+<p>For any questions, contact us at <strong>{{ support_email }}</strong>.</p>
+<p>Best regards,<br>Enyvora Verification Team</p>
+</body>
+</html>'),
+
+('SUPERVISOR_INFO_REQUESTED_EMAIL', 'Supervisor Info Requested Email', 'en', 'EMAIL', 'SUPERVISOR',
+'Additional Information Required - Supervisor Application',
+'<!DOCTYPE html>
+<html>
+<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}h2{color:#f39c12}</style></head>
+<body>
+<h2>Additional Information Required</h2>
+<p>Dear <strong>{{ supervisor_name }}</strong>,</p>
+<p>We are reviewing your supervisor application and require some additional information to proceed.</p>
+<p><strong>Information Requested:</strong><br>{{ status_reason }}</p>
+<p>Please provide the requested information at your earliest convenience so we can continue processing your application.</p>
+<p>You can reply to this email or contact us at <strong>{{ support_email }}</strong>.</p>
+<p>Best regards,<br>Enyvora Verification Team</p>
+</body>
+</html>'),
+
+('SUPERVISOR_ASSIGNED_EVENT_EMAIL', 'Supervisor Assigned to Event Email', 'en', 'EMAIL', 'SUPERVISOR',
+'New Event Assignment - {{ event_name }}',
+'<!DOCTYPE html>
+<html>
+<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}h2{color:#3498db}table{width:100%;border-collapse:collapse}th,td{padding:10px;text-align:left;border-bottom:1px solid #ddd}th{background:#3498db;color:#fff}</style></head>
+<body>
+<h2>New Event Assignment</h2>
+<p>Dear <strong>{{ supervisor_name }}</strong>,</p>
+<p>You have been assigned to supervise a new event.</p>
+<table>
+<tr><th>Event Details</th><th></th></tr>
+<tr><td>Event Name</td><td><strong>{{ event_name }}</strong></td></tr>
+<tr><td>Event Date</td><td>{{ event_date }}</td></tr>
+<tr><td>Event Location</td><td>{{ event_location }}</td></tr>
+<tr><td>Client Name</td><td>{{ client_name }}</td></tr>
+<tr><td>Monitoring Start</td><td>{{ monitoring_start_time }}</td></tr>
+<tr><td>Monitoring End</td><td>{{ monitoring_end_time }}</td></tr>
+</table>
+<p><strong>Action Required:</strong> Please confirm your availability and review the event details in the Supervisor Portal.</p>
+<p><a href="{{ app_url }}/supervisor/assignments" style="background:#3498db;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px">View Assignment Details</a></p>
+<p>For any questions, contact us at <strong>{{ support_email }}</strong>.</p>
+<p>Best regards,<br>Enyvora Team</p>
+</body>
+</html>'),
+
+('SUPERVISOR_EVENT_LIVE_STATUS_EMAIL', 'Supervisor Event Live Status Update Email', 'en', 'EMAIL', 'SUPERVISOR',
+'Event Live Update - {{ event_name }}',
+'<!DOCTYPE html>
+<html>
+<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}h2{color:#27ae60}</style></head>
+<body>
+<h2>Event Live Status Update</h2>
+<p>Dear <strong>{{ supervisor_name }}</strong>,</p>
+<p>This is a status update for the event you are supervising:</p>
+<p><strong>Event:</strong> {{ event_name }}<br>
+<strong>Date:</strong> {{ event_date }}<br>
+<strong>Location:</strong> {{ event_location }}<br>
+<strong>Client:</strong> {{ client_name }}</p>
+<p><strong>Current Status:</strong> {{ supervisor_status }}</p>
+<p>Please ensure all monitoring checkpoints are completed on time. Upload photos and status reports via the Supervisor Portal.</p>
+<p><a href="{{ app_url }}/supervisor/event-execution" style="background:#27ae60;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px">Go to Event Execution</a></p>
+<p>Best regards,<br>Enyvora Team</p>
+</body>
+</html>'),
+
+('SUPERVISOR_EVENT_COMPLETED_EMAIL', 'Supervisor Event Completed Email', 'en', 'EMAIL', 'SUPERVISOR',
+'Event Completed - {{ event_name }}',
+'<!DOCTYPE html>
+<html>
+<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}h2{color:#27ae60}</style></head>
+<body>
+<h2>Event Completed Successfully!</h2>
+<p>Dear <strong>{{ supervisor_name }}</strong>,</p>
+<p>The event you supervised has been marked as <strong>completed</strong>.</p>
+<p><strong>Event:</strong> {{ event_name }}<br>
+<strong>Date:</strong> {{ event_date }}<br>
+<strong>Location:</strong> {{ event_location }}<br>
+<strong>Client:</strong> {{ client_name }}<br>
+<strong>Monitoring:</strong> {{ monitoring_start_time }} - {{ monitoring_end_time }}</p>
+<p>Thank you for your dedication! Your payment for this assignment will be processed shortly.</p>
+<p>Please ensure all final reports and photos are uploaded in the Supervisor Portal.</p>
+<p><a href="{{ app_url }}/supervisor/earnings" style="background:#27ae60;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px">View Earnings</a></p>
+<p>Best regards,<br>Enyvora Team</p>
+</body>
+</html>');
+
 PRINT 'All notification templates inserted successfully';
-PRINT 'Total templates created: 60+ templates covering Email, SMS, and In-App channels';
+PRINT 'Total templates created: 60+ templates covering Email, SMS, and In-App channels (including 7 Supervisor templates)';
 GO

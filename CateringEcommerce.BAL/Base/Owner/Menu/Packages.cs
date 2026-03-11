@@ -26,7 +26,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
         {
             try
             {
-                string query = "SELECT c_categoryid, c_categoryname FROM " + Table.SysFoodCategory + " WHERE c_is_active = 1";
+                string query = "SELECT c_categoryid, c_categoryname FROM " + Table.SysFoodCategory + " WHERE c_isactive = 1";
                 var dtCategory = await _dbHelper.ExecuteAsync(query);
                 var foodCategoryList = new List<FoodCategoryDto>();
                 if (dtCategory.Rows.Count > 0)
@@ -248,7 +248,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             {
                 StringBuilder updateQuery = new StringBuilder();
                 updateQuery.Append($@"UPDATE {Table.SysMenuPackage} SET c_packagename = @PackageName, c_description = @Description,
-                                   c_price = @Price, c_modified_date = @ModifiedDate WHERE c_packageid = @PackagePKID AND c_ownerid = @OwnerPKID");
+                                   c_price = @Price, c_modifieddate = @ModifiedDate WHERE c_packageid = @PackagePKID AND c_ownerid = @OwnerPKID");
 
                 SqlParameter[] parameters = new SqlParameter[]
                 {
@@ -310,7 +310,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 {
                     throw new Exception("Package Item must be required.");
                 }
-                string insertQuery = $@"UPDATE {Table.SysMenuPackageItems} SET c_categoryid = @CategoryId, c_quantity = @Quantity, c_modified_date = @ModifiedDate  
+                string insertQuery = $@"UPDATE {Table.SysMenuPackageItems} SET c_categoryid = @CategoryId, c_quantity = @Quantity, c_modifieddate = @ModifiedDate  
                                  WHERE c_itemid = @ItemId AND c_packageid = @PackagePKID";
                 SqlParameter[] parameters = new SqlParameter[]
                 {
@@ -367,7 +367,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
         {
             try
             {
-                string query = $@"UPDATE {Table.SysMenuPackage} SET c_is_deleted = 1, c_is_active = 0, c_modified_date = GETDATE() WHERE c_packageid = @packagePKID"; 
+                string query = $@"UPDATE {Table.SysMenuPackage} SET c_is_deleted = 1, c_is_active = 0, c_modifieddate = GETDATE() WHERE c_packageid = @packagePKID"; 
                 SqlParameter[] parameters = new SqlParameter[]
                 {
                     new SqlParameter("@PackagePKID", packagePKID),

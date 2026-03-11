@@ -13,6 +13,14 @@ const TrustedDevicesPage = () => {
     const [currentFingerprint, setCurrentFingerprint] = useState(null);
     const [revoking, setRevoking] = useState(null); // Track which device is being revoked
 
+    // Confirmation modals state
+    const [revokeConfirmation, setRevokeConfirmation] = useState({
+        isOpen: false,
+        deviceId: null,
+        deviceName: ''
+    });
+    const [revokeAllConfirmation, setRevokeAllConfirmation] = useState(false);
+
     useEffect(() => {
         fetchDevices();
         initCurrentFingerprint();
@@ -44,11 +52,17 @@ const TrustedDevicesPage = () => {
         }
     };
 
-    const handleRevoke = async (deviceId, deviceName) => {
-        if (!window.confirm(`Are you sure you want to revoke "${deviceName}"? You will need to verify again on next login from this device.`)) {
-            return;
-        }
+    const handleRevoke = (deviceId, deviceName) => {
+        setRevokeConfirmation({
+            isOpen: true,
+            deviceId,
+            deviceName
+        });
+    };
 
+    const confirmRevokeDevice = async () => {
+        const { deviceId, deviceName } = revokeConfirmation;
+        setRevokeConfirmation({ isOpen: false, deviceId: null, deviceName: '' });
         setRevoking(deviceId);
         try {
             const response = await apiService.revokeTrustedDevice(deviceId, 'User revoked');
@@ -68,7 +82,7 @@ const TrustedDevicesPage = () => {
         }
     };
 
-    const handleRevokeAll = async () => {
+    const handleRevokeAll = () => {
         const activeDevicesCount = devices.filter(d => d.isActive && !d.isExpired).length;
 
         if (activeDevicesCount === 0) {
@@ -76,10 +90,11 @@ const TrustedDevicesPage = () => {
             return;
         }
 
-        if (!window.confirm(`Are you sure you want to revoke ALL ${activeDevicesCount} trusted device(s)? You will need to verify on all devices on next login.`)) {
-            return;
-        }
+        setRevokeAllConfirmation(true);
+    };
 
+    const confirmRevokeAll = async () => {
+        setRevokeAllConfirmation(false);
         setLoading(true);
         try {
             const response = await apiService.revokeAllTrustedDevices('Security measure - User requested');
@@ -397,6 +412,70 @@ const TrustedDevicesPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Revoke Single Device Confirmation Modal */}
+            {revokeConfirmation.isOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
+                        <div className="text-center mb-6">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+                                <AlertTriangle className="h-6 w-6 text-yellow-600" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Revoke Device?</h3>
+                            <p className="text-sm text-gray-600">
+                                Are you sure you want to revoke "{revokeConfirmation.deviceName}"? You will need to verify again on next login from this device.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setRevokeConfirmation({ isOpen: false, deviceId: null, deviceName: '' })}
+                                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmRevokeDevice}
+                                className="flex-1 px-4 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
+                            >
+                                Revoke Device
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Revoke All Devices Confirmation Modal */}
+            {revokeAllConfirmation && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
+                        <div className="text-center mb-6">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                                <Shield className="h-6 w-6 text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Revoke All Devices?</h3>
+                            <p className="text-sm text-gray-600">
+                                Are you sure you want to revoke ALL {devices.filter(d => d.isActive && !d.isExpired).length} trusted device(s)? You will need to verify on all devices on next login.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setRevokeAllConfirmation(false)}
+                                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmRevokeAll}
+                                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                            >
+                                Revoke All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -19,11 +19,33 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         }
 
         // =============================================
+        // DOCUMENT MANAGEMENT
+        // =============================================
+
+        public async Task<bool> SubmitIdentityProofDocumentsAsync(long registrationId, string idProofUrl, string addressProofUrl, string photoUrl, string cancelledChequeUrl)
+        {
+            var parameters = new[]
+            {
+                new SqlParameter("@RegistrationId", registrationId),
+                new SqlParameter("@IDProofUrl", (object)idProofUrl ?? DBNull.Value),
+                new SqlParameter("@AddressProofUrl", (object)addressProofUrl ?? DBNull.Value),
+                new SqlParameter("@CancelledChequeUrl", (object)cancelledChequeUrl ?? DBNull.Value)
+            };
+
+            return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_SubmitIdentityProofDocuments", parameters);
+        }
+
+        // =============================================
         // REGISTRATION SUBMISSION
         // =============================================
 
         public async Task<long> SubmitRegistrationAsync(SupervisorRegistrationSubmitDto registration)
         {
+            var registrationIdParam = new SqlParameter("@RegistrationId", SqlDbType.BigInt) 
+            { 
+                Direction = ParameterDirection.Output 
+            };
+
             var parameters = new[]
             {
                 new SqlParameter("@FirstName", registration.FirstName),
@@ -31,21 +53,20 @@ namespace CateringEcommerce.BAL.Base.Supervisor
                 new SqlParameter("@Email", registration.Email),
                 new SqlParameter("@Phone", registration.Phone),
                 new SqlParameter("@Address", registration.Address),
+                new SqlParameter("@Pincode", registration.Pincode),
+                new SqlParameter("@StateID", registration.StateID),
+                new SqlParameter("@CityID", registration.CityID),
                 new SqlParameter("@DateOfBirth", registration.DateOfBirth),
                 new SqlParameter("@IDProofType", registration.IDProofType),
                 new SqlParameter("@IDProofNumber", registration.IDProofNumber),
-                new SqlParameter("@IDProofUrl", registration.IDProofUrl),
-                new SqlParameter("@AddressProofUrl", registration.AddressProofUrl),
-                new SqlParameter("@PhotoUrl", registration.PhotoUrl),
-                new SqlParameter("@PreferredZoneId", (object)registration.PreferredZoneId ?? DBNull.Value),
                 new SqlParameter("@HasPriorExperience", registration.HasPriorExperience),
                 new SqlParameter("@PriorExperienceDetails", (object)registration.PriorExperienceDetails ?? DBNull.Value),
-                new SqlParameter("@RegistrationId", SqlDbType.BigInt) { Direction = ParameterDirection.Output }
+                registrationIdParam
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<object>("sp_SubmitSupervisorRegistration", parameters);
 
-            return parameters[14].Value != DBNull.Value ? Convert.ToInt64(parameters[14].Value) : 0;
+            return registrationIdParam.Value != DBNull.Value ? Convert.ToInt64(registrationIdParam.Value) : 0;
         }
 
         public async Task<SupervisorRegistrationModel> GetRegistrationByIdAsync(long registrationId)

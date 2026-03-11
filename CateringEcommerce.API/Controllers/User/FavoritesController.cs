@@ -1,3 +1,4 @@
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CateringEcommerce.BAL.Base.User;
@@ -14,7 +15,7 @@ namespace CateringEcommerce.API.Controllers.User
     /// </summary>
     [Route("api/User/[controller]")]
     [ApiController]
-    [Authorize]
+    [UserAuthorize]
     public class FavoritesController : ControllerBase
     {
         private readonly IFavoritesRepository _favoritesRepository;

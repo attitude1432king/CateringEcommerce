@@ -26,13 +26,13 @@ namespace CateringEcommerce.BAL.Base.User
 
         public async Task<SubmitReviewResponse> SubmitReviewAsync(long userId, SubmitReviewRequest request)
         {
-            try
+            try 
             {
                 // Validate: Check if order belongs to user and is completed
-                var orderCheckSql = @"
+                var orderCheckSql = $@"
                     SELECT o.c_orderid, o.c_order_status, o.c_ownerid, co.c_catering_name
-                    FROM t_sys_orders o
-                    INNER JOIN t_sys_catering_owner co ON o.c_ownerid = co.c_ownerid
+                    FROM {Table.SysOrders} o
+                    INNER JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
                     WHERE o.c_orderid = @OrderId AND o.c_userid = @UserId";
 
                 var orderCheckParams = new SqlParameter[]
@@ -51,7 +51,7 @@ namespace CateringEcommerce.BAL.Base.User
                     return new SubmitReviewResponse { Success = false, Message = "Can only review completed orders" };
 
                 // Check if already reviewed
-                var existingSql = "SELECT c_reviewid FROM t_sys_catering_review WHERE c_orderid = @OrderId AND c_userid = @UserId";
+                var existingSql = $"SELECT c_reviewid FROM {Table.SysCateringReview} WHERE c_orderid = @OrderId AND c_userid = @UserId";
                 var existingParams = new SqlParameter[]
                 {
                     new SqlParameter("@OrderId", request.OrderId),
@@ -65,8 +65,8 @@ namespace CateringEcommerce.BAL.Base.User
                     return new SubmitReviewResponse { Success = false, Message = "You have already reviewed this order" };
 
                 // Insert review
-                var insertSql = @"
-                    INSERT INTO t_sys_catering_review (
+                var insertSql = $@"
+                    INSERT INTO {Table.SysCateringReview} (
                         c_ownerid, c_userid, c_orderid,
                         c_overall_rating, c_food_quality_rating, c_hygiene_rating,
                         c_staff_behavior_rating, c_decoration_rating, c_punctuality_rating,
@@ -124,7 +124,7 @@ namespace CateringEcommerce.BAL.Base.User
             try
             {
                 // Check order status
-                var orderSql = "SELECT c_orderid, c_order_status FROM t_sys_orders WHERE c_orderid = @OrderId AND c_userid = @UserId";
+                var orderSql = "SELECT c_orderid, c_order_status FROM {Table.SysOrders} WHERE c_orderid = @OrderId AND c_userid = @UserId";
                 var orderParams = new SqlParameter[]
                 {
                     new SqlParameter("@OrderId", orderId),
@@ -141,7 +141,7 @@ namespace CateringEcommerce.BAL.Base.User
                     return new CanReviewResponse { CanReview = false, Message = "Order must be completed to leave a review" };
 
                 // Check if already reviewed
-                var reviewSql = "SELECT c_reviewid FROM t_sys_catering_review WHERE c_orderid = @OrderId AND c_userid = @UserId";
+                var reviewSql = $"SELECT c_reviewid FROM {Table.SysCateringReview} WHERE c_orderid = @OrderId AND c_userid = @UserId";
                 var reviewParams = new SqlParameter[]
                 {
                     new SqlParameter("@OrderId", orderId),
@@ -180,7 +180,7 @@ namespace CateringEcommerce.BAL.Base.User
 
         public async Task<UserReviewDetail> GetUserReviewByOrderAsync(long userId, long orderId)
         {
-            var sql = @"
+            var sql = $@"
                 SELECT
                     r.c_reviewid AS ReviewId,
                     r.c_orderid AS OrderId,
@@ -202,10 +202,10 @@ namespace CateringEcommerce.BAL.Base.User
                     r.c_is_verified AS IsVerified,
                     r.c_is_visible AS IsVisible,
                     o.c_event_type AS EventType
-                FROM t_sys_catering_review r
-                INNER JOIN t_sys_orders o ON r.c_orderid = o.c_orderid
-                INNER JOIN t_sys_catering_owner co ON r.c_ownerid = co.c_ownerid
-                LEFT JOIN t_sys_owner_review_reply orr ON r.c_reviewid = orr.c_reviewid
+                FROM {Table.SysCateringReview} r
+                INNER JOIN {Table.SysOrders} o ON r.c_orderid = o.c_orderid
+                INNER JOIN {Table.SysCateringOwner} co ON r.c_ownerid = co.c_ownerid
+                LEFT JOIN {Table.SysCateringReviewReply} orr ON r.c_reviewid = orr.c_reviewid
                 WHERE r.c_orderid = @OrderId AND r.c_userid = @UserId";
 
             var parameters = new SqlParameter[]
@@ -220,7 +220,7 @@ namespace CateringEcommerce.BAL.Base.User
 
         public async Task<List<UserReviewListItem>> GetUserReviewsAsync(long userId, int pageNumber = 1, int pageSize = 20)
         {
-            var sql = @"
+            var sql = $@"
                 SELECT
                     r.c_reviewid AS ReviewId,
                     r.c_orderid AS OrderId,
@@ -234,10 +234,10 @@ namespace CateringEcommerce.BAL.Base.User
                     r.c_createddate AS ReviewDate,
                     CASE WHEN orr.c_reply_text IS NOT NULL THEN 1 ELSE 0 END AS HasOwnerReply,
                     r.c_is_visible AS IsVisible
-                FROM t_sys_catering_review r
-                INNER JOIN t_sys_orders o ON r.c_orderid = o.c_orderid
-                INNER JOIN t_sys_catering_owner co ON r.c_ownerid = co.c_ownerid
-                LEFT JOIN t_sys_owner_review_reply orr ON r.c_reviewid = orr.c_reviewid
+                FROM {Table.SysCateringReview} r
+                INNER JOIN {Table.SysOrders} o ON r.c_orderid = o.c_orderid
+                INNER JOIN {Table.SysCateringOwner} co ON r.c_ownerid = co.c_ownerid
+                LEFT JOIN {Table.SysCateringReviewReply} orr ON r.c_reviewid = orr.c_reviewid
                 WHERE r.c_userid = @UserId
                 ORDER BY r.c_createddate DESC
                 OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
@@ -255,7 +255,7 @@ namespace CateringEcommerce.BAL.Base.User
 
         public async Task<UserReviewDetail> GetReviewDetailAsync(long reviewId, long userId)
         {
-            var sql = @"
+            var sql = $@"
                 SELECT
                     r.c_reviewid AS ReviewId,
                     r.c_orderid AS OrderId,
@@ -277,10 +277,10 @@ namespace CateringEcommerce.BAL.Base.User
                     r.c_is_verified AS IsVerified,
                     r.c_is_visible AS IsVisible,
                     o.c_event_type AS EventType
-                FROM t_sys_catering_review r
-                INNER JOIN t_sys_orders o ON r.c_orderid = o.c_orderid
-                INNER JOIN t_sys_catering_owner co ON r.c_ownerid = co.c_ownerid
-                LEFT JOIN t_sys_owner_review_reply orr ON r.c_reviewid = orr.c_reviewid
+                FROM {Table.SysCateringReview} r
+                INNER JOIN {Table.SysOrders} o ON r.c_orderid = o.c_orderid
+                INNER JOIN {Table.SysCateringOwner} co ON r.c_ownerid = co.c_ownerid
+                LEFT JOIN {Table.SysCateringReviewReply} orr ON r.c_reviewid = orr.c_reviewid
                 WHERE r.c_reviewid = @ReviewId AND r.c_userid = @UserId";
 
             var parameters = new SqlParameter[]
@@ -298,7 +298,7 @@ namespace CateringEcommerce.BAL.Base.User
             try
             {
                 // Verify ownership
-                var checkSql = "SELECT COUNT(*) FROM t_sys_catering_review WHERE c_reviewid = @ReviewId AND c_userid = @UserId";
+                var checkSql = $"SELECT COUNT(*) FROM {Table.SysCateringReview} WHERE c_reviewid = @ReviewId AND c_userid = @UserId";
                 var checkParams = new SqlParameter[]
                 {
                     new SqlParameter("@ReviewId", request.ReviewId),
@@ -311,8 +311,8 @@ namespace CateringEcommerce.BAL.Base.User
                 if (!ownsReview)
                     return false;
 
-                var updateSql = @"
-                    UPDATE t_sys_catering_review
+                var updateSql = $@"
+                    UPDATE {Table.SysCateringReview}
                     SET c_overall_rating = @OverallRating,
                         c_food_quality_rating = @FoodQualityRating,
                         c_hygiene_rating = @HygieneRating,
@@ -350,7 +350,7 @@ namespace CateringEcommerce.BAL.Base.User
         {
             try
             {
-                var deleteSql = "DELETE FROM t_sys_catering_review WHERE c_reviewid = @ReviewId AND c_userid = @UserId";
+                var deleteSql = $"DELETE FROM {Table.SysCateringReview} WHERE c_reviewid = @ReviewId AND c_userid = @UserId";
                 var parameters = new SqlParameter[]
                 {
                     new SqlParameter("@ReviewId", reviewId),
@@ -369,7 +369,7 @@ namespace CateringEcommerce.BAL.Base.User
         public async Task<CateringReviewsResponse> GetCateringReviewsAsync(long cateringId, int pageNumber = 1, int pageSize = 10)
         {
             // Get reviews
-            var reviewsSql = @"
+            var reviewsSql = $@"
                 SELECT
                     r.c_reviewid AS ReviewId,
                     COALESCE(u.c_firstname + ' ' + LEFT(u.c_lastname, 1) + '.', 'Anonymous') AS UserName,
@@ -387,10 +387,10 @@ namespace CateringEcommerce.BAL.Base.User
                     r.c_createddate AS ReviewDate,
                     r.c_is_verified AS IsVerified,
                     o.c_event_type AS EventType
-                FROM t_sys_catering_review r
-                INNER JOIN t_sys_user u ON r.c_userid = u.c_userid
-                INNER JOIN t_sys_orders o ON r.c_orderid = o.c_orderid
-                LEFT JOIN t_sys_owner_review_reply orr ON r.c_reviewid = orr.c_reviewid
+                FROM {Table.SysCateringReview} r
+                INNER JOIN {Table.SysUser} u ON r.c_userid = u.c_userid
+                INNER JOIN {Table.SysOrders} o ON r.c_orderid = o.c_orderid
+                LEFT JOIN {Table.SysCateringReviewReply} orr ON r.c_reviewid = orr.c_reviewid
                 WHERE r.c_ownerid = @CateringId
                   AND r.c_is_visible = 1
                   AND r.c_ishidden = 0
@@ -407,7 +407,7 @@ namespace CateringEcommerce.BAL.Base.User
             var reviews = await _dbHelper.ExecuteQueryAsync<CateringReviewDisplayDto>(reviewsSql, reviewsParams);
 
             // Get total count
-            var countSql = "SELECT COUNT(*) FROM t_sys_catering_review WHERE c_ownerid = @CateringId AND c_is_visible = 1 AND c_ishidden = 0";
+            var countSql = $"SELECT COUNT(*) FROM {Table.SysCateringReview} WHERE c_ownerid = @CateringId AND c_is_visible = 1 AND c_ishidden = 0";
             var countParams = new SqlParameter[] { new SqlParameter("@CateringId", cateringId) };
             var totalCountResult = await _dbHelper.ExecuteScalarAsync(countSql, countParams);
             var totalCount = Convert.ToInt32(totalCountResult);
@@ -428,7 +428,7 @@ namespace CateringEcommerce.BAL.Base.User
 
         public async Task<ReviewStatsDto> GetCateringReviewStatsAsync(long cateringId)
         {
-            var sql = @"
+            var sql = $@"
                 SELECT
                     COALESCE(AVG(c_overall_rating), 0) AS AverageRating,
                     COUNT(*) AS TotalReviews,
@@ -442,7 +442,7 @@ namespace CateringEcommerce.BAL.Base.User
                     AVG(c_staff_behavior_rating) AS AvgStaffBehavior,
                     AVG(c_decoration_rating) AS AvgDecoration,
                     AVG(c_punctuality_rating) AS AvgPunctuality
-                FROM t_sys_catering_review
+                FROM {Table.SysCateringReview}
                 WHERE c_ownerid = @CateringId AND c_is_visible = 1 AND c_ishidden = 0";
 
             var parameters = new SqlParameter[] { new SqlParameter("@CateringId", cateringId) };

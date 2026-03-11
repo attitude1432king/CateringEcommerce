@@ -1,17 +1,18 @@
-﻿using CateringEcommerce.BAL.Base.Owner.Menu;
+﻿using CateringEcommerce.API.Filters;
+using CateringEcommerce.API.Helpers;
+using CateringEcommerce.BAL.Base.Owner.Menu;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Owner;
+using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using CateringEcommerce.Domain.Models.Owner;
-using CateringEcommerce.API.Helpers;
 
 namespace CateringEcommerce.API.Controllers.Owner.Menu
 {
 
     [ApiController]
     [Route("api/Owner/Menu/Packages")]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class PackagesController : ControllerBase
     {
         private readonly ILogger<PackagesController> _logger;

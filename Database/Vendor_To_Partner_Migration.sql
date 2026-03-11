@@ -12,7 +12,7 @@
 -- 4. This script makes irreversible schema changes
 -- =====================================================
 
-USE [CateringEcommerce];
+USE [CateringDB];
 GO
 
 PRINT '========================================';

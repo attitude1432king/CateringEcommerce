@@ -2,6 +2,7 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner.Dashboard;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,18 +22,18 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
     [Route("api/Owner/[controller]")]
     public class OwnerOrdersController : ControllerBase
     {
-        private readonly IDatabaseHelper _dbHelper;
         private readonly ILogger<OwnerOrdersController> _logger;
+        private readonly IOwnerOrderRepository _ownerOrderRepository;
         private readonly ICurrentUserService _currentUser;
         private readonly string _connStr;
 
         public OwnerOrdersController(
-            IDatabaseHelper dbHelper,
+            IOwnerOrderRepository ownerOrderRepository,
             ILogger<OwnerOrdersController> logger,
             ICurrentUserService currentUser,
             IConfiguration configuration)
         {
-            _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
+            _ownerOrderRepository = ownerOrderRepository ?? throw new ArgumentNullException(nameof(ownerOrderRepository));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
             _connStr = configuration.GetConnectionString("DefaultConnection")
@@ -57,8 +58,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting orders list for owner {ownerId}, page: {filter.Page}");
 
-                var repository = new OwnerOrderManagementRepository(_dbHelper);
-                var orders = await repository.GetOrdersList(ownerId, filter);
+                var orders = await _ownerOrderRepository.GetOrdersList(ownerId, filter);
 
                 return ApiResponseHelper.Success(orders, "Orders list retrieved successfully.");
             }
@@ -87,8 +87,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting order details for owner {ownerId}, order: {orderId}");
 
-                var repository = new OwnerOrderManagementRepository(_dbHelper);
-                var orderDetails = await repository.GetOrderDetails(ownerId, orderId);
+                var orderDetails = await _ownerOrderRepository.GetOrderDetails(ownerId, orderId);
 
                 return ApiResponseHelper.Success(orderDetails, "Order details retrieved successfully.");
             }
@@ -123,8 +122,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Updating order status for owner {ownerId}, order: {orderId}, new status: {statusUpdate.NewStatus}");
 
-                var repository = new OwnerOrderManagementRepository(_dbHelper);
-                var success = await repository.UpdateOrderStatus(ownerId, orderId, statusUpdate);
+                var success = await _ownerOrderRepository.UpdateOrderStatus(ownerId, orderId, statusUpdate);
 
                 if (success)
                 {
@@ -165,15 +163,14 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting order status history for owner {ownerId}, order: {orderId}");
 
-                var repository = new OwnerOrderManagementRepository(_dbHelper);
 
                 // Validate ownership first
-                if (!await repository.ValidateOrderOwnership(ownerId, orderId))
+                if (!await _ownerOrderRepository.ValidateOrderOwnership(ownerId, orderId))
                 {
                     return ApiResponseHelper.Failure("Order does not belong to this owner.");
                 }
 
-                var history = await repository.GetOrderStatusHistory(orderId);
+                var history = await _ownerOrderRepository.GetOrderStatusHistory(orderId);
 
                 return ApiResponseHelper.Success(history, "Order status history retrieved successfully.");
             }
@@ -201,8 +198,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting booking request stats for owner {ownerId}");
 
-                var repository = new OwnerOrderManagementRepository(_dbHelper);
-                var stats = await repository.GetBookingRequestStats(ownerId);
+                var stats = await _ownerOrderRepository.GetBookingRequestStats(ownerId);
 
                 return ApiResponseHelper.Success(stats, "Booking request statistics retrieved successfully.");
             }
@@ -230,8 +226,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 _logger.LogInformation($"Getting order stats for owner {ownerId}");
 
-                var repository = new OwnerOrderManagementRepository(_dbHelper);
-                var stats = await repository.GetOrderStats(ownerId);
+                var stats = await _ownerOrderRepository.GetOrderStats(ownerId);
 
                 return ApiResponseHelper.Success(stats, "Order statistics retrieved successfully.");
             }

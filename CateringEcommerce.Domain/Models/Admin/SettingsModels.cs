@@ -30,8 +30,8 @@ namespace CateringEcommerce.Domain.Models.Admin
 
     public class SettingsListRequest
     {
-        public string Category { get; set; } // Optional filter
-        public string SearchTerm { get; set; }
+        public string? Category { get; set; } // Optional filter
+        public string? SearchTerm { get; set; }
         public bool? IsActive { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 50;
@@ -102,7 +102,7 @@ namespace CateringEcommerce.Domain.Models.Admin
 
     public class CommissionListRequest
     {
-        public string ConfigType { get; set; } // Optional filter
+        public string? ConfigType { get; set; } // Optional filter
         public long? CateringOwnerId { get; set; } // Optional filter
         public bool? IsActive { get; set; }
         public DateTime? EffectiveDate { get; set; } // Filter by effective date range
@@ -167,12 +167,15 @@ namespace CateringEcommerce.Domain.Models.Admin
         public long TemplateId { get; set; }
         public string TemplateCode { get; set; }
         public string TemplateName { get; set; }
-        public string Category { get; set; } // USER, OWNER, ADMIN
+        public string Description { get; set; }
+        public string Language { get; set; }
+        public string Channel { get; set; }
+        public string Category { get; set; }
         public string Subject { get; set; }
         public string Body { get; set; }
-        public string Description { get; set; }
         public int Version { get; set; }
         public bool IsActive { get; set; }
+        public int UsageCount { get; set; }
         public DateTime CreatedDate { get; set; }
         public long? CreatedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
@@ -182,8 +185,8 @@ namespace CateringEcommerce.Domain.Models.Admin
 
     public class EmailTemplateListRequest
     {
-        public string Category { get; set; } // Optional filter: USER, OWNER, ADMIN
-        public string SearchTerm { get; set; }
+        public string? Category { get; set; } // Optional filter: USER, OWNER, ADMIN
+        public string? SearchTerm { get; set; }
         public bool? IsActive { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 50;
@@ -200,21 +203,38 @@ namespace CateringEcommerce.Domain.Models.Admin
         public int TotalPages { get; set; }
     }
 
+    public class CreateEmailTemplateRequest
+    {
+        public string TemplateCode { get; set; }
+        public string TemplateName { get; set; }
+        public string? Description { get; set; }
+        public string Language { get; set; } = "en";
+        public string Channel { get; set; } = "EMAIL";
+        public string Category { get; set; }
+        public string Subject { get; set; }
+        public string Body { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
     public class UpdateEmailTemplateRequest
     {
         public long TemplateId { get; set; }
-        public string Subject { get; set; }
-        public string Body { get; set; }
-        public string ChangeReason { get; set; }
+        public string? TemplateName { get; set; }
+        public string? Description { get; set; }
+        public string? Category { get; set; }
+        public string? Subject { get; set; }
+        public string? Body { get; set; }
+        public bool IsActive { get; set; }
+        public string? ChangeReason { get; set; }
     }
 
     public class TemplatePreviewRequest
     {
         public long? TemplateId { get; set; }
-        public string TemplateCode { get; set; }
-        public string Subject { get; set; } // Optional - for preview without saving
-        public string Body { get; set; } // Optional - for preview without saving
-        public Dictionary<string, string> SampleData { get; set; } // Variable values for preview
+        public string? TemplateCode { get; set; }
+        public string? Subject { get; set; } // Optional - for preview without saving
+        public string? Body { get; set; } // Optional - for preview without saving
+        public Dictionary<string, string>? SampleData { get; set; } // Variable values for preview
     }
 
     public class TemplatePreviewResponse
@@ -227,11 +247,11 @@ namespace CateringEcommerce.Domain.Models.Admin
     public class TemplateVariableItem
     {
         public long VariableId { get; set; }
-        public string TemplateCode { get; set; }
-        public string VariableName { get; set; }
-        public string VariableKey { get; set; } // e.g., {{ customer_name }}
-        public string Description { get; set; }
-        public string ExampleValue { get; set; }
+        public string? TemplateCode { get; set; }
+        public string? VariableName { get; set; }
+        public string? VariableKey { get; set; } // e.g., {{ customer_name }}
+        public string? Description { get; set; }
+        public string? ExampleValue { get; set; }
     }
 
     public class TemplateVariablesResponse

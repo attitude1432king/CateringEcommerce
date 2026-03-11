@@ -61,13 +61,13 @@ export const PaymentProvider = ({ children }) => {
 
   const createRazorpayOrder = async (orderData) => {
     try {
-      // This should call your backend API to create a Razorpay order
-      // For now, returning a mock structure
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/payment/create-razorpay-order`, {
+      // Call backend API to create a Razorpay order
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/User/PaymentGateway/CreateRazorpayOrder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(orderData),
       });
 
@@ -156,12 +156,13 @@ export const PaymentProvider = ({ children }) => {
 
   const verifyPayment = async (paymentData) => {
     try {
-      // This should call your backend API to verify the payment signature
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/payment/verify-razorpay`, {
+      // Call backend API to verify the payment signature
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/User/PaymentGateway/VerifyPayment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(paymentData),
       });
 

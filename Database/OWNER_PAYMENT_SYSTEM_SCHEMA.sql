@@ -50,8 +50,8 @@ BEGIN
         c_failure_reason NVARCHAR(500) NULL,
 
         -- Audit
-        c_created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
         c_created_by BIGINT NULL,
         c_updated_by BIGINT NULL,
 
@@ -104,8 +104,8 @@ BEGIN
         c_bank_reference VARCHAR(100) NULL,
 
         -- Audit
-        c_created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
         c_created_by BIGINT NULL,
         c_updated_by BIGINT NULL,
 
@@ -155,8 +155,8 @@ BEGIN
         -- SCHEDULED, PROCESSING, RELEASED, FAILED, CANCELLED
 
         -- Audit
-        c_created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
 
         -- Foreign keys
         CONSTRAINT FK_OwnerPayoutSchedule_Owner FOREIGN KEY (c_owner_id)
@@ -218,8 +218,8 @@ BEGIN
         c_partner_notes NVARCHAR(1000) NULL,
 
         -- Audit
-        c_created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
 
         -- Foreign keys
         CONSTRAINT FK_PartnerApproval_Owner FOREIGN KEY (c_owner_id)
@@ -269,8 +269,8 @@ BEGIN
         c_reviewed_at DATETIME2 NULL,
 
         -- Audit
-        c_created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
 
         -- Foreign keys
         CONSTRAINT FK_PartnerResponse_Owner FOREIGN KEY (c_owner_id)
@@ -289,7 +289,7 @@ GO
 -- COMPUTED COLUMNS & TRIGGERS
 -- =============================================
 
--- Trigger to update c_updated_at automatically
+-- Trigger to update c_modifieddate automatically
 IF NOT EXISTS (SELECT * FROM sys.triggers WHERE name = 'TR_OwnerPayment_UpdateTimestamp')
 BEGIN
     EXEC('
@@ -299,7 +299,7 @@ BEGIN
     AS
     BEGIN
         UPDATE t_owner_payment
-        SET c_updated_at = GETDATE()
+        SET c_modifieddate = GETDATE()
         WHERE c_owner_payment_id IN (SELECT c_owner_payment_id FROM inserted)
     END
     ')
@@ -323,8 +323,8 @@ BEGIN
         c_max_amount DECIMAL(18,2) NULL,
 
         c_is_active BIT NOT NULL DEFAULT 1,
-        c_created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_updated_at DATETIME2 NOT NULL DEFAULT GETDATE()
+        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE()
     );
 
     -- Insert default platform service fee (e.g., 10%)

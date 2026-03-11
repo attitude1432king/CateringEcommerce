@@ -42,6 +42,20 @@ export const addressDetailsSchema = z.object({
   address: z.string()
     .min(10, 'Address must be at least 10 characters')
     .max(500, 'Address cannot exceed 500 characters'),
+  pincode: z.string()
+    .regex(/^[0-9]{6}$/, 'Pincode must be exactly 6 digits'),
+  stateID: z.number({
+    required_error: 'Please select a state',
+    invalid_type_error: 'Please select a state',
+  })
+    .int()
+    .positive('Please select a state'),
+  cityID: z.number({
+    required_error: 'Please select a city',
+    invalid_type_error: 'Please select a city',
+  })
+    .int()
+    .positive('Please select a city'),
   preferredZoneId: z.number()
     .int()
     .positive('Please select a preferred zone')
@@ -72,6 +86,18 @@ export const experienceDetailsSchema = z
     });
 
 
+// File object shape returned by FileUploader
+const fileObjectSchema = z.object({
+  base64: z.string().optional(),
+  file: z.any().optional(),
+  name: z.string().min(1),
+  type: z.string().min(1),
+  previewUrl: z.string().nullable().optional(),
+}).refine(
+  (val) => Boolean(val?.base64) || Boolean(val?.file),
+  { message: 'Please upload a valid file' }
+);
+
 // Step 4: Identity Proof
 export const identityProofSchema = z.object({
   idProofType: z.enum(['AADHAAR', 'PAN', 'VOTER_ID', 'PASSPORT', 'DRIVING_LICENSE'], {
@@ -81,15 +107,15 @@ export const identityProofSchema = z.object({
     .min(5, 'ID proof number is too short')
     .max(20, 'ID proof number is too long')
     .regex(/^[A-Z0-9]+$/, 'ID proof number can only contain uppercase letters and numbers'),
-  idProofUrl: z.string()
-    .url('Invalid ID proof file URL')
-    .min(1, 'Please upload ID proof document'),
-  addressProofUrl: z.string()
-    .url('Invalid address proof file URL')
-    .min(1, 'Please upload address proof document'),
-  photoUrl: z.string()
-    .url('Invalid photo file URL')
-    .min(1, 'Please upload your photo'),
+  idProofFile: fileObjectSchema.refine(val => val?.file || val?.base64, {
+    message: 'Please upload ID proof document',
+  }),
+  addressProofFile: fileObjectSchema.refine(val => val?.file || val?.base64, {
+    message: 'Please upload address proof document',
+  }),
+  photoFile: fileObjectSchema.refine(val => val?.file || val?.base64, {
+    message: 'Please upload your photo',
+  }),
 });
 
 // Step 6: Banking Details
@@ -115,9 +141,12 @@ export const bankingDetailsSchema = z.object({
   accountType: z.enum(['SAVINGS', 'CURRENT'], {
     errorMap: () => ({ message: 'Please select account type' }),
   }),
-  cancelledChequeUrl: z.string()
-    .url('Invalid cancelled cheque file URL')
-    .min(1, 'Please upload cancelled cheque'),
+  cancelledChequeUrl: z.union([z.string().url(), fileObjectSchema]).refine((val) => {
+    if (typeof val === 'string') return val.trim().length > 0;
+    return Boolean(val?.file) || Boolean(val?.base64);
+  }, {
+    message: 'Please upload cancelled cheque',
+  }),
 });
 
 // Complete Registration Schema

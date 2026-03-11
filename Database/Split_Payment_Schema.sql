@@ -3,7 +3,7 @@
 -- Advance Booking with Escrow Management
 -- ===============================================
 
-USE CateringEcommerce;
+USE CateringDB;
 GO
 
 -- ===============================================

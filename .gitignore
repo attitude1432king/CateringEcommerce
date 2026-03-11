@@ -97,6 +97,13 @@ lerna-debug.log*
 .env.production.local
 .env.*.local
 
+## ASP.NET Configuration (contains secrets)
+**/appsettings.json
+**/appsettings.Development.json
+**/appsettings.Staging.json
+**/appsettings.Production.json
+!**/appsettings.*.template.json
+
 ## ========================================
 ## OPERATING SYSTEM FILES
 ## ========================================

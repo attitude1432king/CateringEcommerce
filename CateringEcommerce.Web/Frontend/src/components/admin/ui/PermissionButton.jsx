@@ -40,63 +40,71 @@ import Button from './Button';
  * </PermissionButton>
  */
 export const PermissionButton = ({
-  permission,
-  anyOf,
-  allOf,
-  hideWhenDenied = false,
-  showTooltip = true,
-  deniedMessage,
-  children,
-  ...buttonProps
+    permission,
+    anyOf,
+    allOf,
+    requiredPermissions,
+    requireSuperAdmin = false,
+    hideWhenDenied = false,
+    showTooltip = true,
+    deniedMessage,
+    children,
+    ...buttonProps
 }) => {
-  const { hasPermission, hasAnyPermission, hasAllPermissions } = usePermissions();
+    const { hasPermission, hasAnyPermission, hasAllPermissions, isSuperAdmin } = usePermissions();
 
-  let hasAccess = false;
-  let permissionName = '';
+    let hasAccess = false;
+    let permissionName = '';
 
-  // Check permissions
-  if (permission) {
-    hasAccess = hasPermission(permission);
-    permissionName = permission;
-  } else if (anyOf && Array.isArray(anyOf)) {
-    hasAccess = hasAnyPermission(anyOf);
-    permissionName = anyOf.join(' or ');
-  } else if (allOf && Array.isArray(allOf)) {
-    hasAccess = hasAllPermissions(allOf);
-    permissionName = allOf.join(' and ');
-  }
+    // Check permissions
+    if (requireSuperAdmin) {
+        hasAccess = isSuperAdmin;
+        permissionName = 'SUPER_ADMIN';
+    } else if (requiredPermissions && Array.isArray(requiredPermissions)) {
+        hasAccess = hasAllPermissions(requiredPermissions);
+        permissionName = requiredPermissions.join(' and ');
+    } else if (permission) {
+        hasAccess = hasPermission(permission);
+        permissionName = permission;
+    } else if (anyOf && Array.isArray(anyOf)) {
+        hasAccess = hasAnyPermission(anyOf);
+        permissionName = anyOf.join(' or ');
+    } else if (allOf && Array.isArray(allOf)) {
+        hasAccess = hasAllPermissions(allOf);
+        permissionName = allOf.join(' and ');
+    }
 
-  // Hide button if permission denied and hideWhenDenied is true
-  if (!hasAccess && hideWhenDenied) {
-    return null;
-  }
+    // Hide button if permission denied and hideWhenDenied is true
+    if (!hasAccess && hideWhenDenied) {
+        return null;
+    }
 
-  // Disabled button with tooltip
-  if (!hasAccess) {
-    const tooltipMessage = deniedMessage || `Requires permission: ${permissionName}`;
+    // Disabled button with tooltip
+    if (!hasAccess) {
+        const tooltipMessage = deniedMessage || `Requires permission: ${permissionName}`;
 
-    return (
-      <div className="relative group inline-block">
-        <Button
-          {...buttonProps}
-          disabled={true}
-          className={`opacity-50 cursor-not-allowed ${buttonProps.className || ''}`}
-        >
-          {children}
-        </Button>
+        return (
+            <div className="relative group inline-block">
+                <Button
+                    {...buttonProps}
+                    disabled={true}
+                    className={`opacity-50 cursor-not-allowed ${buttonProps.className || ''}`}
+                >
+                    {children}
+                </Button>
 
-        {showTooltip && (
-          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-            {tooltipMessage}
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
-          </div>
-        )}
-      </div>
-    );
-  }
+                {showTooltip && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                        {tooltipMessage}
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
-  // Render normal button when permission granted
-  return <Button {...buttonProps}>{children}</Button>;
+    // Render normal button when permission granted
+    return <Button {...buttonProps}>{children}</Button>;
 };
 
 export default PermissionButton;

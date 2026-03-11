@@ -173,15 +173,14 @@ const AdminUserForm = ({ mode, adminData, roles, onSuccess, onCancel }) => {
             let response;
 
             if (mode === 'create') {
-                // Hash password (in production, use proper SHA256)
-                const passwordHash = btoa(formData.password);
-
+                // P0 FIX: Send plaintext password over HTTPS to backend
+                // Backend will hash it securely using bcrypt/argon2
                 response = await adminManagementApi.createAdmin({
                     username: formData.username,
                     email: formData.email,
                     fullName: formData.fullName,
                     mobile: formData.mobile || null,
-                    passwordHash,
+                    password: formData.password, // Send plaintext - backend will hash
                     roleId: parseInt(formData.roleId),
                     isActive: formData.isActive,
                     forcePasswordReset: formData.forcePasswordReset

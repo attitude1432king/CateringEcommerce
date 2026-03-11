@@ -136,13 +136,67 @@ const AdminPartnerRequests = () => {
         });
     };
 
+    // P1 FIX: Implement CSV export functionality
     const handleExport = async () => {
         try {
-            toast.loading('Exporting data...');
-            // TODO: Implement export functionality
-            toast.success('Export completed successfully');
+            if (requests.length === 0) {
+                toast.error('No data to export');
+                return;
+            }
+
+            // Define CSV headers
+            const headers = [
+                'Application ID',
+                'Business Name',
+                'Owner Name',
+                'Email',
+                'Phone',
+                'City',
+                'Status',
+                'Priority',
+                'Applied Date',
+                'Reviewed Date',
+                'Notes'
+            ];
+
+            // Convert requests to CSV rows
+            const rows = requests.map(req => [
+                req.partnershipApplicationId || '',
+                req.businessName || '',
+                `${req.firstName || ''} ${req.lastName || ''}`.trim(),
+                req.email || '',
+                req.phoneNumber || '',
+                req.city || '',
+                req.approvalStatusName || '',
+                req.priorityName || '',
+                req.createdDate ? new Date(req.createdDate).toLocaleDateString() : '',
+                req.reviewedDate ? new Date(req.reviewedDate).toLocaleDateString() : '',
+                req.reviewNotes ? `"${req.reviewNotes.replace(/"/g, '""')}"` : '' // Escape quotes
+            ]);
+
+            // Create CSV content
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.join(','))
+            ].join('\n');
+
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', `partner-requests-${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            toast.success(`Exported ${requests.length} partner requests to CSV`);
         } catch (error) {
-            toast.error('Export failed');
+            console.error('Error exporting CSV:', error);
+            toast.error('Failed to export CSV');
         }
     };
 

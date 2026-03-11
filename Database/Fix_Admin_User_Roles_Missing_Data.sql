@@ -5,7 +5,7 @@
 -- who don't have any role assignments
 -- =====================================================
 
-USE CateringEcommerce;
+USE CateringDB;
 GO
 
 PRINT '=====================================================';
