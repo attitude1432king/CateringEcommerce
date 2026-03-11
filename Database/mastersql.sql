@@ -11,6 +11,9 @@ CREATE TABLE t_sys_user (
     c_description NVARCHAR(4000) NULL, 
     c_stateid INT NULL,
     c_cityid INT NULL, 
+    c_isblocked BIT NOT NULL DEFAULT 0,
+    c_block_reason NVARCHAR(500) NULL,
+    c_last_login DATETIME NULL,
     c_picture NVARCHAR(MAX) NULL,
     c_createddate DATETIME NULL,
     c_modifieddate DATETIME NULL
@@ -70,209 +73,214 @@ INSERT INTO t_sys_state (c_stateid, c_statename) VALUES
 CREATE TABLE t_sys_city (
   c_cityid   INT PRIMARY KEY,
   c_cityname VARCHAR(100) NOT NULL,
-  c_stateid  INT NOT NULL
+  c_stateid  INT NOT NULL,
+  c_isactive  BIT DEFAULT 1,
+  c_createdby INT NULL,
+  c_createddate DATETIME DEFAULT GETDATE(),
+  c_modifiedby INT NULL,
+  c_modifieddate DATETIME NULL, 
 );
 
 
-INSERT INTO t_sys_city (c_cityid, c_cityname, c_stateid) VALUES
+INSERT INTO t_sys_city (c_cityid, c_cityname, c_stateid, c_createdby) VALUES
 -- Andhra Pradesh (1)
- (101, 'Amaravati', 1),
- (102, 'Visakhapatnam', 1),
- (103, 'Vijayawada', 1),
- (104, 'Tirupati', 1),
+ (101, 'Amaravati', 1, 1),
+ (102, 'Visakhapatnam', 1, 1),
+ (103, 'Vijayawada', 1, 1),
+ (104, 'Tirupati', 1, 1),
 
 -- Arunachal Pradesh (2)
- (201, 'Itanagar', 2),
- (202, 'Tawang', 2),
- (203, 'Bomdila', 2),
- (204, 'Naharlagun', 2),
+ (201, 'Itanagar', 2, 1),
+ (202, 'Tawang', 2, 1),
+ (203, 'Bomdila', 2, 1),
+ (204, 'Naharlagun', 2, 1),
 
 -- Assam (3)
- (301, 'Dispur', 3),
- (302, 'Guwahati', 3),
- (303, 'Jorhat', 3),
- (304, 'Dibrugarh', 3),
+ (301, 'Dispur', 3, 1),
+ (302, 'Guwahati', 3, 1),
+ (303, 'Jorhat', 3, 1),
+ (304, 'Dibrugarh', 3, 1),
 
 -- Bihar (4)
- (401, 'Patna', 4),
- (402, 'Gaya', 4),
- (403, 'Bhagalpur', 4),
- (404, 'Muzaffarpur', 4),
+ (401, 'Patna', 4, 1),
+ (402, 'Gaya', 4, 1),
+ (403, 'Bhagalpur', 4, 1),
+ (404, 'Muzaffarpur', 4, 1),
 
 -- Chhattisgarh (5)
- (501, 'Raipur', 5),
- (502, 'Bilaspur', 5),
- (503, 'Durg', 5),
- (504, 'Korba', 5),
+ (501, 'Raipur', 5, 1),
+ (502, 'Bilaspur', 5, 1),
+ (503, 'Durg', 5, 1),
+ (504, 'Korba', 5, 1),
 
 -- Goa (6)
- (601, 'Panaji', 6),
- (602, 'Margao', 6),
- (603, 'Vasco da Gama', 6),
- (604, 'Ponda', 6),
+ (601, 'Panaji', 6, 1),
+ (602, 'Margao', 6, 1),
+ (603, 'Vasco da Gama', 6, 1),
+ (604, 'Ponda', 6, 1),
 
 -- Gujarat (7)
- (701, 'Gandhinagar', 7),
- (702, 'Ahmedabad', 7),
- (703, 'Surat', 7),
- (704, 'Vadodara', 7),
+ (701, 'Gandhinagar', 7, 1),
+ (702, 'Ahmedabad', 7, 1),
+ (703, 'Surat', 7, 1),
+ (704, 'Vadodara', 7, 1),
 
 -- Haryana (8)
- (801, 'Chandigarh', 8),
- (802, 'Faridabad', 8),
- (803, 'Gurugram', 8),
- (804, 'Panipat', 8),
+ (801, 'Chandigarh', 8, 1),
+ (802, 'Faridabad', 8, 1),
+ (803, 'Gurugram', 8, 1),
+ (804, 'Panipat', 8, 1),
 
 -- Himachal Pradesh (9)
- (901, 'Shimla', 9),
- (902, 'Manali', 9),
- (903, 'Dharamshala', 9),
- (904, 'Solan', 9),
+ (901, 'Shimla', 9, 1),
+ (902, 'Manali', 9, 1),
+ (903, 'Dharamshala', 9, 1),
+ (904, 'Solan', 9, 1),
 
 -- Jharkhand (10)
- (1001, 'Ranchi', 10),
- (1002, 'Dhanbad', 10),
- (1003, 'Jamshedpur', 10),
- (1004, 'Bokaro Steel City', 10),
+ (1001, 'Ranchi', 10, 1),
+ (1002, 'Dhanbad', 10, 1),
+ (1003, 'Jamshedpur', 10, 1),
+ (1004, 'Bokaro Steel City', 10, 1),
 
 -- Karnataka (11)
- (1101, 'Bengaluru', 11),
- (1102, 'Mysore', 11),
- (1103, 'Mangalore', 11),
- (1104, 'Hubballi', 11),
+ (1101, 'Bengaluru', 11, 1),
+ (1102, 'Mysore', 11, 1),
+ (1103, 'Mangalore', 11, 1),
+ (1104, 'Hubballi', 11, 1),
 
 -- Kerala (12)
- (1201, 'Thiruvananthapuram', 12),
- (1202, 'Kochi', 12),
- (1203, 'Kozhikode', 12),
- (1204, 'Thrissur', 12),
+ (1201, 'Thiruvananthapuram', 12, 1),
+ (1202, 'Kochi', 12, 1),
+ (1203, 'Kozhikode', 12, 1),
+ (1204, 'Thrissur', 12, 1),
 
 -- Madhya Pradesh (13)
- (1301, 'Bhopal', 13),
- (1302, 'Indore', 13),
- (1303, 'Jabalpur', 13),
- (1304, 'Gwalior', 13),
+ (1301, 'Bhopal', 13, 1),
+ (1302, 'Indore', 13, 1),
+ (1303, 'Jabalpur', 13, 1),
+ (1304, 'Gwalior', 13, 1),
 
 -- Maharashtra (14)
- (1401, 'Mumbai', 14),
- (1402, 'Pune', 14),
- (1403, 'Nagpur', 14),
- (1404, 'Nashik', 14),
+ (1401, 'Mumbai', 14, 1),
+ (1402, 'Pune', 14, 1),
+ (1403, 'Nagpur', 14, 1),
+ (1404, 'Nashik', 14, 1),
 
 -- Manipur (15)
- (1501, 'Imphal', 15),
- (1502, 'Churachandpur', 15),
- (1503, 'Ukhrul', 15),
- (1504, 'Thoubal', 15),
+ (1501, 'Imphal', 15, 1),
+ (1502, 'Churachandpur', 15, 1),
+ (1503, 'Ukhrul', 15, 1),
+ (1504, 'Thoubal', 15, 1),
 
 -- Meghalaya (16)
- (1601, 'Shillong', 16),
- (1602, 'Tura', 16),
- (1603, 'Jowai', 16),
- (1604, 'Nongpoh', 16),
+ (1601, 'Shillong', 16, 1),
+ (1602, 'Tura', 16, 1),
+ (1603, 'Jowai', 16, 1),
+ (1604, 'Nongpoh', 16, 1),
 
 -- Mizoram (17)
- (1701, 'Aizawl', 17),
- (1702, 'Lunglei', 17),
- (1703, 'Kolasib', 17),
- (1704, 'Saiha', 17),
+ (1701, 'Aizawl', 17, 1),
+ (1702, 'Lunglei', 17, 1),
+ (1703, 'Kolasib', 17, 1),
+ (1704, 'Saiha', 17, 1),
 
 -- Nagaland (18)
- (1801, 'Kohima', 18),
- (1802, 'Dimapur', 18),
- (1803, 'Mokokchung', 18),
- (1804, 'Tuensang', 18),
+ (1801, 'Kohima', 18, 1),
+ (1802, 'Dimapur', 18, 1),
+ (1803, 'Mokokchung', 18, 1),
+ (1804, 'Tuensang', 18, 1),
 
 -- Odisha (19)
- (1901, 'Bhubaneswar', 19),
- (1902, 'Cuttack', 19),
- (1903, 'Rourkela', 19),
- (1904, 'Puri', 19),
+ (1901, 'Bhubaneswar', 19, 1),
+ (1902, 'Cuttack', 19, 1),
+ (1903, 'Rourkela', 19, 1),
+ (1904, 'Puri', 19, 1),
 
 -- Punjab (20)
- (2001, 'Chandigarh', 20),
- (2002, 'Ludhiana', 20),
- (2003, 'Amritsar', 20),
- (2004, 'Jalandhar', 20),
+ (2001, 'Chandigarh', 20, 1),
+ (2002, 'Ludhiana', 20, 1),
+ (2003, 'Amritsar', 20, 1),
+ (2004, 'Jalandhar', 20, 1),
 
 -- Rajasthan (21)
- (2101, 'Jaipur', 21),
- (2102, 'Jodhpur', 21),
- (2103, 'Udaipur', 21),
- (2104, 'Kota', 21),
+ (2101, 'Jaipur', 21, 1),
+ (2102, 'Jodhpur', 21, 1),
+ (2103, 'Udaipur', 21, 1),
+ (2104, 'Kota', 21, 1),
 
 -- Sikkim (22)
- (2201, 'Gangtok', 22),
- (2202, 'Namchi', 22),
- (2203, 'Geyzing', 22),
- (2204, 'Mangan', 22),
+ (2201, 'Gangtok', 22, 1),
+ (2202, 'Namchi', 22, 1),
+ (2203, 'Geyzing', 22, 1),
+ (2204, 'Mangan', 22, 1),
 
 -- Tamil Nadu (23)
- (2301, 'Chennai', 23),
- (2302, 'Coimbatore', 23),
- (2303, 'Madurai', 23),
- (2304, 'Tiruchirappalli', 23),
+ (2301, 'Chennai', 23, 1),
+ (2302, 'Coimbatore', 23, 1),
+ (2303, 'Madurai', 23, 1),
+ (2304, 'Tiruchirappalli', 23, 1),
 
 -- Telangana (24)
- (2401, 'Hyderabad', 24),
- (2402, 'Warangal', 24),
- (2403, 'Karimnagar', 24),
- (2404, 'Nizamabad', 24),
+ (2401, 'Hyderabad', 24, 1),
+ (2402, 'Warangal', 24, 1),
+ (2403, 'Karimnagar', 24, 1),
+ (2404, 'Nizamabad', 24, 1),
 
 -- Tripura (25)
- (2501, 'Agartala', 25),
- (2502, 'Dharmanagar', 25),
- (2503, 'Udaipur', 25),
- (2504, 'Bishalgarh', 25),
+ (2501, 'Agartala', 25, 1),
+ (2502, 'Dharmanagar', 25, 1),
+ (2503, 'Udaipur', 25, 1),
+ (2504, 'Bishalgarh', 25, 1),
 
 -- Uttar Pradesh (26)
- (2601, 'Lucknow', 26),
- (2602, 'Kanpur', 26),
- (2603, 'Varanasi', 26),
- (2604, 'Agra', 26),
+ (2601, 'Lucknow', 26, 1),
+ (2602, 'Kanpur', 26, 1),
+ (2603, 'Varanasi', 26, 1),
+ (2604, 'Agra', 26, 1),
 
 -- Uttarakhand (27)
- (2701, 'Dehradun', 27),
- (2702, 'Haridwar', 27),
- (2703, 'Nainital', 27),
- (2704, 'Rishikesh', 27),
+ (2701, 'Dehradun', 27, 1),
+ (2702, 'Haridwar', 27, 1),
+ (2703, 'Nainital', 27, 1),
+ (2704, 'Rishikesh', 27, 1),
 
 -- West Bengal (28)
- (2801, 'Kolkata', 28),
- (2802, 'Asansol', 28),
- (2803, 'Darjeeling', 28),
- (2804, 'Siliguri', 28),
+ (2801, 'Kolkata', 28, 1),
+ (2802, 'Asansol', 28, 1),
+ (2803, 'Darjeeling', 28, 1),
+ (2804, 'Siliguri', 28, 1),
 
 -- Union Territories
 -- Andaman & Nicobar (29)
- (2901, 'Port Blair', 29),
+ (2901, 'Port Blair', 29, 1),
 
 -- Chandigarh (30) -- same as capital
- (3001, 'Chandigarh', 30),
+ (3001, 'Chandigarh', 30, 1),
 
 -- Dadra & Nagar Haveli & Daman & Diu (31)
- (3101, 'Silvassa', 31),
- (3102, 'Daman', 31),
- (3103, 'Diu', 31),
+ (3101, 'Silvassa', 31, 1),
+ (3102, 'Daman', 31, 1),
+ (3103, 'Diu', 31, 1),
 
 -- Delhi (32)
- (3201, 'New Delhi', 32),
- (3202, 'Delhi', 32),
+ (3201, 'New Delhi', 32, 1),
+ (3202, 'Delhi', 32, 1),
 
 -- Jammu & Kashmir (33)
- (3301, 'Srinagar', 33),
- (3302, 'Jammu', 33),
+ (3301, 'Srinagar', 33, 1),
+ (3302, 'Jammu', 33, 1),
 
 -- Ladakh (34)
- (3401, 'Leh', 34),
- (3402, 'Kargil', 34),
+ (3401, 'Leh', 34, 1),
+ (3402, 'Kargil', 34, 1),
 
 -- Lakshadweep (35)
- (3501, 'Kavaratti', 35),
+ (3501, 'Kavaratti', 35, 1),
 
 -- Puducherry (36)
- (3601, 'Puducherry', 36),
- (3602, 'Karaikal', 36);
+ (3601, 'Puducherry', 36, 1),
+ (3602, 'Karaikal', 36, 1);
 
 -----------------------------------------------
 
@@ -282,6 +290,7 @@ CREATE TABLE t_sys_catering_owner (
      -- Business Info
 	c_catering_name NVARCHAR(200) NOT NULL,
     c_owner_name NVARCHAR(200) NOT NULL,
+    c_partnernumber NVARCHAR(50) NOT NULL,
     c_email NVARCHAR(256) NOT NULL,
     c_mobile NVARCHAR(15) NOT NULL,
     c_password_hash NVARCHAR(512) NULL, -- Store encrypted password hash
@@ -293,13 +302,24 @@ CREATE TABLE t_sys_catering_owner (
     c_isactive BIT DEFAULT 1,
     c_email_verified BIT DEFAULT 0,
     c_phone_verified BIT DEFAULT 0,
-    c_verified_by_admin BIT DEFAULT 0,
-	c_isonline BIT DEFAULT 0,
+    c_approval_status INT DEFAULT 1,
+    c_approved_date DATETIME NULL,
+    c_approved_by BIGINT NULL,
+    c_priority INT DEFAULT 1,
+    c_isblocked BIT NOT NULL DEFAULT 0,
+    c_block_reason NVARCHAR(500) NULL,
+    c_rejection_reason NVARCHAR(1000) NULL,
+    c_internal_notes NVARCHAR(MAX) NULL,
 	c_isfeatured BIT DEFAULT 0, -- Featured on homepage
 	-- Contact / Support
     c_support_contact_number NVARCHAR(15) NULL,
     c_alternate_email NVARCHAR(256) NULL,
     c_whatsapp_number NVARCHAR(15) NULL,
+    c_isdeleted BIT NOT NULL DEFAULT 0,
+    c_reviewed_date DATETIME NULL,
+    c_reviewed_by BIGINT NULL,
+    c_deleted_by BIGINT NULL,
+    c_deleted_date DATETIME NULL,
 	c_createddate DATETIME NULL,
     c_modifieddate DATETIME NULL
 );
@@ -379,7 +399,7 @@ CREATE TABLE t_sys_catering_media_uploads (
     c_document_type_id INT,
 	c_is_deleted BIT DEFAULT 0,
     c_uploaded_at DATETIME NULL,
-	c_updated_at DATETIME NULL,	
+	c_modifieddate DATETIME NULL,	
 );
 
 CREATE TABLE t_sys_catering_document_types (
@@ -412,100 +432,102 @@ INSERT INTO t_sys_catering_document_types
 (17, 'Portfolio',      'Showcase of completed events and past work');
 
 
-	
-
-
 CREATE TABLE t_sys_catering_type_category (
-	c_category_id INT PRIMARY KEY,
-	c_category_name NVARCHAR(100) NOT NULL,  -- e.g., "Food Preference", "Event Type"
+	c_categoryid INT PRIMARY KEY,
+	c_categoryname NVARCHAR(100) NOT NULL,  -- e.g., "Food Preference", "Event Type"
 	c_category_code NVARCHAR(10) NOT NULL   -- Optional: for filtering ("food", "event", etc.)
 );
 
 
-INSERT INTO t_sys_catering_type_category(c_category_id, c_category_name, c_category_code) VALUES 
+INSERT INTO t_sys_catering_type_category(c_categoryid, c_categoryname, c_category_code) VALUES 
 
   (1, 'Food Type', 'FT'),
   (2, 'Cuisine Type', 'CT'),
   (3, 'Event Type', 'ET'),
-  (4, 'Service Type', 'ST')
+  (4, 'Service Type', 'ST'),
   (5, 'Serving Slots', 'SS');
 
 
-
 CREATE TABLE t_sys_catering_type_master (
-	c_type_id INT IDENTITY(1,1) PRIMARY KEY,
-	c_category_id INT,
+	c_typeid INT IDENTITY(1,1) PRIMARY KEY,
+	c_categoryid INT,
 	c_type_name NVARCHAR(100),
-	c_description NVARCHAR(1000) NULL, 
-	c_is_active BIT DEFAULT 1
+	c_description NVARCHAR(500) NULL, 
+	c_isactive BIT DEFAULT 1,
+    c_createdby INT NULL, 
+    c_createddate DATETIME DEFAULT GETDATE(),
+    c_modifiedby INT NULL, 
+    c_modifieddate DATETIME NULL,
 );
 
-INSERT INTO t_sys_catering_type_master ( c_category_id, c_type_name, c_description) VALUES
+INSERT INTO t_sys_catering_type_master ( c_categoryid, c_type_name, c_description, c_createdby) VALUES
 
 	-- Food Type
-   (1, 'Vegetarian', 'Pure veg (no eggs/meat/fish)'),
-   (1, 'Non-Vegetarian', 'Includes meat, poultry, seafood'),
-   (1, 'Eggetarian', 'Vegetarian with eggs'),
-   (1, 'Vegan', 'No animal products at all'),
-   (1, 'Jain Food', 'Strict vegetarian, no root vegetables'),
-   (1, 'Satvik', 'Ayurvedic-style pure veg, no onion/garlic'),
-   (1, 'Organic Food', 'Prepared using organic ingredients'),
-   (1, 'Gluten-Free', 'Safe for gluten allergy'),
-   (1, 'Keto', 'High-fat, low-carb meals'),
-   (1, 'Diabetic-Friendly', 'Low sugar, balanced meals'),
+   (1, 'Vegetarian', 'Pure veg (no eggs/meat/fish)', 1),
+   (1, 'Non-Vegetarian', 'Includes meat, poultry, seafood', 1),
+   (1, 'Eggetarian', 'Vegetarian with eggs', 1),
+   (1, 'Vegan', 'No animal products at all', 1),
+   (1, 'Jain Food', 'Strict vegetarian, no root vegetables', 1),
+   (1, 'Satvik', 'Ayurvedic-style pure veg, no onion/garlic', 1),
+   (1, 'Organic Food', 'Prepared using organic ingredients', 1),
+   (1, 'Gluten-Free', 'Safe for gluten allergy', 1),
+   (1, 'Keto', 'High-fat, low-carb meals', 1),
+   (1, 'Diabetic-Friendly', 'Low sugar, balanced meals', 1),
    
    -- Cuisine Type
-	(2, 'South Indian', 'Idli, Dosa, Vada, Sambar, etc.'),
-	(2, 'North Indian', 'Paneer, Dal, Paratha, Chole, etc.'),
-	(2, 'Gujarati', 'Thepla, Farsan, Dal-Dhokli, etc.'),
-	(2, 'Rajasthani', 'Daal Baati, Gatte, etc.'),
-	(2, 'Maharashtrian', 'Poha, Sabudana, Puran Poli, etc.'),
-	(2, 'Bengali', 'Fish curry, Sweets, etc.'),
-	(2, 'Punjabi', 'Butter Chicken, Naan, etc.'),
-	(2, 'Mughlai', 'Rich gravies, kebabs, etc.'),
-	(2, 'Chinese', 'Chinese style (Manchurian, Fried Rice), etc.'),
-	(2, 'Continental', 'Pasta, Salad, Sandwich, etc.'),
-	(2, 'Street Food', 'Chaat, Pav Bhaji, Vada Pav, etc.'),
-	(2, 'Fusion', 'Indo-western creative dishes'),
+	(2, 'South Indian', 'Idli, Dosa, Vada, Sambar, etc.', 1),
+	(2, 'North Indian', 'Paneer, Dal, Paratha, Chole, etc.', 1),
+	(2, 'Gujarati', 'Thepla, Farsan, Dal-Dhokli, etc.', 1),
+	(2, 'Rajasthani', 'Daal Baati, Gatte, etc.',1),
+	(2, 'Maharashtrian', 'Poha, Sabudana, Puran Poli, etc.', 1),
+	(2, 'Bengali', 'Fish curry, Sweets, etc.', 1),
+	(2, 'Punjabi', 'Butter Chicken, Naan, etc.', 1),
+	(2, 'Mughlai', 'Rich gravies, kebabs, etc.', 1),
+	(2, 'Chinese', 'Chinese style (Manchurian, Fried Rice), etc.', 1),
+	(2, 'Continental', 'Pasta, Salad, Sandwich, etc.', 1),
+	(2, 'Street Food', 'Chaat, Pav Bhaji, Vada Pav, etc.', 1),
+	(2, 'Fusion', 'Indo-western creative dishes', 1),
 	
     -- Event Type
-	(3, 'Wedding', 'Large-scale, buffet/multi-course for weddings'),
-	(3, 'Birthday Party', 'Small to medium gatherings'),
-	(3, 'Office/Corporate', 'Formal meals or snacks for office events'),
-	(3, 'Festival', 'Themed food for Diwali, Eid, Navratri, etc.'),
-	(3, 'Housewarming/(Griha Pravesh) ', 'Traditional dishes'),
-	(3, 'Religious/Pooja', 'Satvik/Jain food for rituals'),
-	(3, 'Baby Shower', 'Regional sweet and snack items'),
-	(3, 'Funeral', 'Simple, traditional vegetarian meals'),
+	(3, 'Wedding', 'Large-scale, buffet/multi-course for weddings', 1),
+	(3, 'Birthday Party', 'Small to medium gatherings', 1),
+	(3, 'Office/Corporate', 'Formal meals or snacks for office events', 1),
+	(3, 'Festival', 'Themed food for Diwali, Eid, Navratri, etc.', 1),
+	(3, 'Housewarming/(Griha Pravesh) ', 'Traditional dishes', 1),
+	(3, 'Religious/Pooja', 'Satvik/Jain food for rituals', 1),
+	(3, 'Baby Shower', 'Regional sweet and snack items', 1),
+	(3, 'Funeral', 'Simple, traditional vegetarian meals', 1),
 	
 	--Service Type
-	(4, 'Buffet Style',     'Self-service from food stations'),
-	(4, 'Plate Service',    'Table service with plated meals'),
-	(4, 'Live Counters',    'Food made fresh in front of gues'),
-	(4, 'Tiffin Services',  'Daily/weekly home delivery meals'),
-	(4, 'Self-Pickup',      'Customer collects food from kitchen'),
-	(4, 'Delivery-Only',    'No dine-in, only delivery'),
-	(4, 'Full-Service',     'Food + staff + setup + clean'),
-	(4, 'Drop-off',         'Food delivered, no service staff'),
+	(4, 'Buffet Style',     'Self-service from food stations', 1),
+	(4, 'Plate Service',    'Table service with plated meals', 1),
+	(4, 'Live Counters',    'Food made fresh in front of gues', 1),
+	(4, 'Tiffin Services',  'Daily/weekly home delivery meals', 1),
+	(4, 'Self-Pickup',      'Customer collects food from kitchen', 1),
+	(4, 'Delivery-Only',    'No dine-in, only delivery', 1),
+	(4, 'Full-Service',     'Food + staff + setup + clean', 1),
+	(4, 'Drop-off',         'Food delivered, no service staff', 1),
 	
     -- Serving Slots
-	(5, 'Breakfast', 'Morning meal service usually between 7 AM to 10 AM'),
-	(5, 'Brunch',  'Late morning meal between breakfast and lunch'),
-	(5, 'Lunch',  'Afternoon meal service usually between 12 PM to 3 PM'),
-	(5, 'High Tea', 'Light evening snacks served with tea/coffee, 4 PM to 6 PM'),
-	(5, 'Dinner',  'Evening meal service usually between 7 PM to 10 PM'),
-	(5, 'Snacks',  'Light food items served anytime outside main meals'),
-	(5, 'Midnight Meal', 'Late night food service after 10 PM till early morning');
+	(5, 'Breakfast', 'Morning meal service usually between 7 AM to 10 AM', 1),
+	(5, 'Brunch',  'Late morning meal between breakfast and lunch', 1),
+	(5, 'Lunch',  'Afternoon meal service usually between 12 PM to 3 PM', 1),
+	(5, 'High Tea', 'Light evening snacks served with tea/coffee, 4 PM to 6 PM', 1),
+	(5, 'Dinner',  'Evening meal service usually between 7 PM to 10 PM', 1),
+	(5, 'Snacks',  'Light food items served anytime outside main meals', 1),
+	(5, 'Midnight Meal', 'Late night food service after 10 PM till early morning', 1);
 
 
 CREATE TABLE t_sys_food_category (
   c_categoryid BIGINT PRIMARY KEY IDENTITY(1,1),  
   c_categoryname NVARCHAR(100) NOT NULL, 
   c_description NVARCHAR(500) NULL, 
-  c_is_active BIT NULL, 
+  c_isactive BIT NULL, 
   c_is_global BIT NULL, 
-  c_createdby NVARCHAR(50) NULL, 
-  c_createddate GETDATE() 
+  c_createdby INT NULL, 
+  c_createddate DATETIME DEFAULT GETDATE(),
+  c_modifiedby INT NULL, 
+  c_modifieddate DATETIME NULL,  
 );
 
 INSERT INTO t_sys_food_category (c_categoryname, c_description, c_is_active, c_is_global, c_createdby, c_createddate) VALUES
@@ -523,11 +545,22 @@ INSERT INTO t_sys_food_category (c_categoryname, c_description, c_is_active, c_i
     ('Chat / Street Food', 'Indian street food items', 1, 1, NULL, GETDATE()),
     ('Chinese', 'Chinese cuisine items', 1, 1, NULL, GETDATE()),
     ('Italian', 'Italian cuisine items', 1, 1, NULL, GETDATE()),
-    ('Special Counter', 'Live counters or special stalls', 1, 1, NULL, GETDATE()),
+    ('Special Items', 'Live counters or special stalls', 1, 1, NULL, GETDATE()),
     ('Pan Counter', 'Pan and mouth freshener counters', 1, 1, NULL, GETDATE()),
     ('Mocktail / Coffee Bar', 'Mocktails, coffee, tea, and hot beverages', 1, 1, NULL, GETDATE()),
     ('Bengali Counter', 'Bengali food special items', 1, 1, NULL, GETDATE());
 
+
+CREATE TABLE t_sys_guest_category (
+	c_guest_category_id INT IDENTITY(1,1) PRIMARY KEY,
+	c_categoryname NVARCHAR(100),
+	c_description NVARCHAR(500) NULL, 
+	c_isactive BIT DEFAULT 1,
+    c_createdby INT NULL, 
+    c_createddate DATETIME DEFAULT GETDATE(),
+    c_modifiedby INT NULL, 
+    c_modifieddate DATETIME NULL,
+); 
 
 CREATE TABLE t_map_partner_category (
   c_mapid BIGINT PRIMARY KEY IDENTITY(1,1),  
@@ -546,8 +579,8 @@ CREATE TABLE t_sys_catering_packages (
   c_price DECIMAL(10, 2) NULL, 
   c_is_active BIT NULL, 
   c_is_deleted BIT DEFAULT 0,
-  c_created_date GETDATE(), 
-  c_modified_date DATETIME NULL, 
+  c_createddate GETDATE(), 
+  c_modifieddate DATETIME NULL, 
 );
 
 CREATE TABLE t_sys_catering_package_items (
@@ -555,8 +588,8 @@ CREATE TABLE t_sys_catering_package_items (
   c_packageid BIGINT NOT NULL, 
   c_categoryid INT NOT NULL, 
   c_quantity INT NULL, 
-  c_created_date GETDATE(), 
-  c_modified_date DATETIME NULL
+  c_createddate GETDATE(), 
+  c_modifieddate DATETIME NULL
 );
 
 
@@ -597,13 +630,17 @@ CREATE TABLE t_sys_catering_decorations (
 
 CREATE TABLE t_sys_catering_theme_types
 (
-    c_theme_id     BIGINT IDENTITY(1,1) PRIMARY KEY,
-    c_theme_name   NVARCHAR(150) NOT NULL,
-    c_description  NVARCHAR(500) NULL,
-    c_isactive     BIT NOT NULL
+    c_theme_id    BIGINT IDENTITY(1,1) PRIMARY KEY,
+    c_theme_name  NVARCHAR(150) NOT NULL,
+    c_description NVARCHAR(500) NULL,
+    c_isactive    BIT DEFAULT 1,
+    c_createdby   INT NULL, 
+    c_createddate DATETIME DEFAULT GETDATE(),
+    c_modifiedby  INT NULL, 
+    c_modifieddate DATETIME NULL,
 );
 
-INSERT INTO t_sys_catering_theme_types (c_theme_name, c_description, c_isactive) VALUES
+INSERT INTO t_sys_catering_theme_types (c_theme_name, c_description, c_createdby) VALUES
 
     ('Royal Rajasthani Theme', 'Colorful umbrellas, mirror work, ethnic props, and traditional Rajasthani décor.', 1),
     ('South Indian Temple Theme', 'Banana leaves, brass lamps, and floral garlands inspired by temple décor.', 1),
@@ -682,11 +719,17 @@ CREATE TABLE t_sys_catering_review (
     -- Review Content
     c_review_title NVARCHAR(200) NULL,
     c_review_comment NVARCHAR(2000) NULL,
+    c_owner_reply NVARCHAR(2000) NULL,          -- Owner response to review
+    c_owner_reply_date DATETIME NULL,           -- When owner replied
 
     -- Review Status & Moderation
     c_is_verified BIT DEFAULT 1,                -- Verified order-based review
     c_is_visible BIT DEFAULT 1,                 -- Visible to customers
     c_is_reported BIT DEFAULT 0,                -- Reported by vendor/user
+    c_ishidden BIT NOT NULL DEFAULT 0,          -- Admin hidden flag
+    c_hidden_reason NVARCHAR(500) NULL,         -- Why review was hidden
+    c_hidden_by BIGINT NULL,                    -- Admin who hid review
+    c_hidden_date DATETIME NULL,                -- When review was hidden
     c_admin_status NVARCHAR(20) DEFAULT 'Approved', 
         -- Approved / Pending / Rejected
 
@@ -830,7 +873,7 @@ CREATE TABLE t_sys_order (
     c_ownerid BIGINT NOT NULL,
     c_total_amount DECIMAL(10,2) NOT NULL,
     c_statusid BIGINT NOT NULL, -- Pending, Accepted, Preparing, Delivered, Cancelled
-    c_created_at DATETIME NULL 
+    c_createddate DATETIME NULL 
 );
 
 -- Order Items Table – stores which items are in an order
@@ -868,7 +911,7 @@ CREATE TABLE t_sys_feedback (
     c_userid BIGINT NOT NULL,
     c_rating INT CHECK (c_rating BETWEEN 1 AND 5),
     c_comment NVARCHAR(MAX),
-    c_created_at DATETIME NULL
+    c_createddate DATETIME NULL
 );
 
 --optional: Coupon Table – discounts & promotions
@@ -952,9 +995,9 @@ CREATE TABLE t_notification_templates (
 
     -- Audit
     c_created_by VARCHAR(100),
-    c_created_date DATETIME DEFAULT GETDATE(),
+    c_createddate DATETIME DEFAULT GETDATE(),
     c_updated_by VARCHAR(100),
-    c_updated_date DATETIME DEFAULT GETDATE(),
+    c_modifieddate DATETIME DEFAULT GETDATE(),
     c_last_used_date DATETIME NULL,
     c_usage_count INT DEFAULT 0,
 
@@ -990,7 +1033,7 @@ CREATE INDEX IX_template_versions ON t_notification_template_versions(c_template
 -- In-App Notifications Table
 CREATE TABLE t_inapp_notifications (
     c_notification_id VARCHAR(50) PRIMARY KEY,
-    c_user_id VARCHAR(50) NOT NULL,
+    c_userid VARCHAR(50) NOT NULL,
     c_user_type VARCHAR(20) NOT NULL, -- ADMIN, PARTNER, USER
 
     c_title NVARCHAR(200) NOT NULL,
@@ -1005,11 +1048,11 @@ CREATE TABLE t_inapp_notifications (
     c_is_read BIT DEFAULT 0,
     c_read_at DATETIME NULL,
 
-    c_created_at DATETIME DEFAULT GETDATE(),
+    c_createddate DATETIME DEFAULT GETDATE(),
     c_expires_at DATETIME NULL,
 
-    INDEX IX_inapp_user_unread (c_user_id, c_user_type, c_is_read),
-    INDEX IX_inapp_created (c_created_at DESC)
+    INDEX IX_inapp_user_unread (c_userid, c_user_type, c_is_read),
+    INDEX IX_inapp_created (c_createddate DESC)
 );
 
 -- Notification Delivery Log
@@ -1033,11 +1076,11 @@ CREATE TABLE t_notification_delivery_log (
     c_retry_count INT DEFAULT 0,
     c_cost DECIMAL(10, 4) DEFAULT 0,
 
-    c_created_at DATETIME DEFAULT GETDATE(),
+    c_createddate DATETIME DEFAULT GETDATE(),
 
     INDEX IX_delivery_notification (c_notification_id),
     INDEX IX_delivery_status (c_channel, c_status),
-    INDEX IX_delivery_created (c_created_at DESC)
+    INDEX IX_delivery_created (c_createddate DESC)
 );
 
 -- Notification Queue (for debugging/retry)

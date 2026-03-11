@@ -1,10 +1,13 @@
 ﻿using CateringEcommerce.API.Attributes;
 using CateringEcommerce.API.Controllers.Owner.Menu;
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -14,18 +17,24 @@ namespace CateringEcommerce.API.Controllers.Owner
 {
     [Route("api/Owner/Discounts")]
     [ApiController]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class DiscountsController : ControllerBase
     {
-        private readonly string _connStr;
-        private readonly ILogger<PackagesController> _logger;
+        private readonly ILogger<DiscountsController> _logger;
         private readonly ICurrentUserService _currentUser;
+        private readonly IDiscounts _discountsRepository;
+        private readonly IMappingSyncService _mappingSyncService;
 
-        public DiscountsController(ILogger<PackagesController> logger, IConfiguration configuration, ICurrentUserService currentUser)
+        public DiscountsController(
+            ILogger<DiscountsController> logger,
+            ICurrentUserService currentUser,
+            IDiscounts discountsRepository,
+            IMappingSyncService mappingSyncService)
         {
-            _logger = logger;
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _currentUser = currentUser;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
+            _discountsRepository = discountsRepository ?? throw new ArgumentNullException(nameof(discountsRepository));
+            _mappingSyncService = mappingSyncService ?? throw new ArgumentNullException(nameof(mappingSyncService));
         }
 
         [HttpGet("Count")]
@@ -41,7 +50,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
             try
             {
-                var discountService = new Discounts(_connStr);
+                var discountService = _discountsRepository;
                 var count = await discountService.GetDiscountsCountAsync(ownerId, filterJson);
 
                 _logger.LogInformation(
@@ -79,7 +88,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
             try
             {
-                var discountService = new Discounts(_connStr);
+                var discountService = _discountsRepository;
                 var discounts = await discountService.GetDiscountListAsync(
                     ownerId, page, pageSize, filterJson);
 
@@ -119,7 +128,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
             try
             {
-                var discounts = new Discounts(_connStr);
+                var discounts = _discountsRepository;
 
                 // 1️⃣ Validate unique discount name
                 if (await discounts.IsDiscountNameExists(ownerId, discountDto.Name))
@@ -187,7 +196,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
             try
             {
-                var discounts = new Discounts(_connStr);
+                var discounts = _discountsRepository;
 
                 // 1️. Validate discount ownership
                 if (!await discounts.IsValidDiscountId(ownerId, discountDto.ID.Value))
@@ -251,7 +260,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
             try
             {
-                var discountService = new Discounts(_connStr);
+                var discountService = _discountsRepository;
 
                 // 1️⃣ Validate discount ownership
                 if (!await discountService.IsValidDiscountId(ownerId, discountId))
@@ -292,7 +301,7 @@ namespace CateringEcommerce.API.Controllers.Owner
             if (discountDto.SelectedItems == null || !discountDto.SelectedItems.Any())
                 return;
 
-            var mappingService = new MappingSyncService(_connStr);
+            var mappingService = _mappingSyncService;
 
             switch ((DiscountType)discountDto.Type)
             {
@@ -318,7 +327,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
         private async Task DeactivateDiscountMappingsAsync(long discountId)
         {
-            var mappingService = new MappingSyncService(_connStr);
+            var mappingService = _mappingSyncService;
 
             await mappingService.DeactivateByParentIdAsync(
                 Table.SysCateringDiscountItemMapping,
@@ -335,7 +344,7 @@ namespace CateringEcommerce.API.Controllers.Owner
         private async Task<bool> CheckPriceHigherThanSelectedItems(DiscountDto discountDto, long ownerPKID)
         {
             bool result = false;
-            Discounts discounts = new Discounts(_connStr);
+            var discounts = _discountsRepository;
             switch ((DiscountType)discountDto.Type)
             {
                 case DiscountType.Item:

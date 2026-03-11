@@ -139,11 +139,7 @@ namespace CateringEcommerce.Domain.Models.Admin
         public DateTime CreatedDate { get; set; }
     }
 
-    public class AssignRoleRequest
-    {
-        public long AdminId { get; set; }
-        public List<long> RoleIds { get; set; } = new();
-    }
+    // Note: AssignRoleRequest moved to AdminManagementModels.cs (one-to-one model)
 
     // =====================================================
     // PERMISSION CONTEXT MODELS (for JWT and Frontend)
@@ -211,5 +207,23 @@ namespace CateringEcommerce.Domain.Models.Admin
         public bool HasPermission { get; set; }
         public List<string> GrantedPermissions { get; set; } = new();
         public List<string> DeniedPermissions { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Diagnostic information for admin role assignments
+    /// Used to troubleshoot missing role/permission data
+    /// </summary>
+    public class AdminRoleDiagnostics
+    {
+        public long AdminId { get; set; }
+        public bool AdminExists { get; set; }
+        public string AdminName { get; set; } = string.Empty;
+        public string AdminEmail { get; set; } = string.Empty;
+        public int TotalRoleAssignments { get; set; }
+        public int ActiveRoleAssignments { get; set; }
+        public List<string> RoleAssignments { get; set; } = new();
+        public List<string> Roles { get; set; } = new();
+        public List<string> Permissions { get; set; } = new();
+        public bool NeedsFix { get; set; }
     }
 }

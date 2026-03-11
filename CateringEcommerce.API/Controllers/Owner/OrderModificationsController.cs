@@ -1,7 +1,9 @@
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -11,26 +13,23 @@ using System.Threading.Tasks;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
-    [Authorize]
+    [OwnerAuthorize]
     [ApiController]
     [Route("api/Owner/[controller]")]
     public class OrderModificationsController : ControllerBase
     {
         private readonly ILogger<OrderModificationsController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly IConfiguration _configuration;
-        private readonly string _connStr;
+        private readonly IOrderModificationService _modificationService;
 
         public OrderModificationsController(
             ILogger<OrderModificationsController> logger,
             ICurrentUserService currentUser,
-            IConfiguration configuration)
+            IOrderModificationService modificationService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _modificationService = modificationService ?? throw new ArgumentNullException(nameof(modificationService));
         }
 
         // ===================================
@@ -66,11 +65,8 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 _logger.LogInformation($"Creating order modification for OrderId: {modificationData.OrderId} by Owner: {ownerId}");
 
-                // Create service
-                OrderModificationService modificationService = new OrderModificationService(_connStr);
-
                 // Create modification
-                OrderModificationDto modification = await modificationService.CreateModificationAsync(modificationData);
+                OrderModificationDto modification = await _modificationService.CreateModificationAsync(modificationData);
 
                 _logger.LogInformation($"Order modification created successfully: {modification.ModificationId}");
 
@@ -116,11 +112,8 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 _logger.LogInformation($"Fetching modifications for OrderId: {orderId}");
 
-                // Create service
-                OrderModificationService modificationService = new OrderModificationService(_connStr);
-
                 // Get modifications
-                OrderModificationsSummaryDto summary = await modificationService.GetOrderModificationsAsync(orderId);
+                OrderModificationsSummaryDto summary = await _modificationService.GetOrderModificationsAsync(orderId);
 
                 return ApiResponseHelper.Success(summary);
             }

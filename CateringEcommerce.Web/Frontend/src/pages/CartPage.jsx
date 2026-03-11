@@ -17,6 +17,7 @@ const CartPage = () => {
   const navigate = useNavigate();
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     // Redirect to home if cart is empty
@@ -72,11 +73,17 @@ const CartPage = () => {
   };
 
   const handleProceedToCheckout = () => {
-    navigate('/modern-checkout');
+    navigate('/checkout'); // P0 FIX: Correct route path
   };
 
   const handleContinueShopping = () => {
-    navigate('/browse');
+    navigate('/caterings'); // P2 FIX: Correct route path
+  };
+
+  const handleClearCartConfirm = () => {
+    clearCart();
+    setShowClearConfirm(false);
+    navigate('/');
   };
 
   if (!cart) {
@@ -150,12 +157,7 @@ const CartPage = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to clear your cart?')) {
-                      clearCart();
-                      navigate('/');
-                    }
-                  }}
+                  onClick={() => setShowClearConfirm(true)}
                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   title="Clear cart"
                 >
@@ -260,6 +262,40 @@ const CartPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Clear Cart Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-fade-in">
+            <div className="text-center mb-6">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Clear Cart?</h3>
+              <p className="text-sm text-gray-600">
+                Are you sure you want to remove all items from your cart? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearCartConfirm}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Clear Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

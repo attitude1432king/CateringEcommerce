@@ -2,14 +2,17 @@
 using CateringEcommerce.BAL.Base.User.AuthLogic;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.User;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Extensions;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace CateringEcommerce.API.Controllers.User
 {
@@ -20,16 +23,20 @@ namespace CateringEcommerce.API.Controllers.User
     {
 
         private readonly ISmsService _smsService;
-        private readonly IConfiguration _config;
-        private readonly TokenService _tokenService;
-        private readonly string _connStr;
+        private readonly ITokenService _tokenService;
+        private readonly IUserRepository _userRepository;
+        private readonly IAuthentication _authentication;
+        private readonly IOwnerRepository _ownerRepository;
+        private readonly ISystemSettingsProvider _settings;
 
-        public AuthController(ISmsService smsService, IConfiguration config)
+        public AuthController(ISmsService smsService, IOwnerRepository ownerRepository, ITokenService tokenService, IUserRepository userRepository, IAuthentication authentication, ISystemSettingsProvider settings)
         {
-            _smsService = smsService;
-            _config = config ?? throw new ArgumentNullException(nameof(config)); // Ensure config is not null
-            _connStr = _config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured."); // Ensure connection string is not null
-            _tokenService = new TokenService(config);
+            _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
+            _ownerRepository = ownerRepository ?? throw new ArgumentNullException(nameof(ownerRepository));
+            _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+            _userRepository = userRepository;
+            _authentication = authentication;
+            _settings = settings;
         }
 
         [AllowAnonymous]
@@ -38,16 +45,45 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                Role role  = request.IsPartnerLogin ? Role.Owner : Role.User; // Determine role based on IsPartnerLogin
-                if (string.IsNullOrEmpty(request.PhoneNumber) && !System.Text.RegularExpressions.Regex.IsMatch(request.PhoneNumber, @"^\+91[6-9]\d{9}$"))
+                Role role = request.IsPartnerLogin ? Role.Owner : Role.User; // Determine role based on IsPartnerLogin
+                
+                // Validate phone number format
+                if (string.IsNullOrEmpty(request.PhoneNumber) || !System.Text.RegularExpressions.Regex.IsMatch(request.PhoneNumber, @"^[6-9]\d{9}$"))
                     return BadRequest(new { result = false, message = "The phone number you entered is not valid. Use + followed by the 10-digit number." });
-                UserRepository authentication = new UserRepository(_connStr);
+                
                 string mgs = string.Empty;
+
                 if (!string.IsNullOrEmpty(request.CurrentAction) && request.CurrentAction == "login")
                 {
-                    if (authentication.IsExistNumber(request.PhoneNumber, role.GetDisplayName()))
+                    // LOGIN FLOW
+                    if (_userRepository.IsExistNumber(request.PhoneNumber, role.GetDisplayName()))
                     {
-                        mgs = "OTP sent successfully for login.";
+                        // For Partner/Owner login - Check approval status
+                        if (role == Role.Owner)
+                        {
+                            var (exists, approvalStatus) = _userRepository.CheckOwnerWithApprovalStatus(request.PhoneNumber);
+                            
+                            if (!exists || approvalStatus == null)
+                            {
+                                return ApiResponseHelper.Failure("Partner registration not found. Please register first.");
+                            }
+
+                            // Check approval status and return appropriate message
+                            string approvalMessage = GetApprovalStatusMessage(approvalStatus.Value);
+                            
+                            if (!string.IsNullOrEmpty(approvalMessage))
+                            {
+                                return ApiResponseHelper.Failure(approvalMessage);
+                            }
+                            
+                            // If approved, proceed with OTP
+                            mgs = "OTP sent successfully for login.";
+                        }
+                        else
+                        {
+                            // User login - no approval status check needed
+                            mgs = "OTP sent successfully for login.";
+                        }
                     }
                     else
                     {
@@ -57,15 +93,31 @@ namespace CateringEcommerce.API.Controllers.User
                 }
                 else
                 {
-                    if (authentication.IsExistNumber(request.PhoneNumber, role.GetDisplayName()))
+                    // SIGNUP FLOW
+                    if (_userRepository.IsExistNumber(request.PhoneNumber, role.GetDisplayName()))
                     {
-                        return ApiResponseHelper.Failure("Phone number already exists. Please login instead.");
+                        // For Partner signup - Check if already registered
+                        if (role == Role.Owner)
+                        {
+                            var (exists, approvalStatus) = _userRepository.CheckOwnerWithApprovalStatus(request.PhoneNumber);
+                            
+                            if (exists)
+                            {
+                                return ApiResponseHelper.Failure("This phone number is already registered. Please login instead.");
+                            }
+                        }
+                        else
+                        {
+                            return ApiResponseHelper.Failure("Phone number already exists. Please login instead.");
+                        }
                     }
                     else
                     {
-                        mgs = "OTP sent successfully for signup.";
+                        mgs = role == Role.User ? "OTP sent successfully for signup." : "OTP sent successfully for partner registration.";
                     }
                 }
+
+                // Send OTP via SMS service
                 _smsService.SendOtp(request.PhoneNumber);
                 return ApiResponseHelper.Success(null, mgs);
             }
@@ -73,6 +125,23 @@ namespace CateringEcommerce.API.Controllers.User
             {
                 throw new Exception(ex.Message); // Internal Server Error
             }
+        }
+
+        /// <summary>
+        /// Get status message based on approval status enum value
+        /// Returns empty string if approved, otherwise returns status message
+        /// </summary>
+        private string GetApprovalStatusMessage(int approvalStatusValue)
+        {
+            return approvalStatusValue switch
+            {
+                (int)CateringEcommerce.Domain.Enums.Admin.ApprovalStatus.Approved => "", // Empty means approved, no message
+                (int)CateringEcommerce.Domain.Enums.Admin.ApprovalStatus.Pending => "Your registration is pending approval. Please wait for admin approval.",
+                (int)CateringEcommerce.Domain.Enums.Admin.ApprovalStatus.UnderReview => "Your registration is under review. Our team will review and get back to you soon.",
+                (int)CateringEcommerce.Domain.Enums.Admin.ApprovalStatus.Info_Requested => "We need more information to process your registration. Please check your email for details.",
+                (int)CateringEcommerce.Domain.Enums.Admin.ApprovalStatus.Rejected => "Your registration has been rejected. Please contact support for more information.",
+                _ => "Your registration status is unknown. Please contact support."
+            };
         }
 
         [AllowAnonymous]
@@ -85,15 +154,11 @@ namespace CateringEcommerce.API.Controllers.User
             string roleName = request.IsPartnerLogin ? Role.Owner.GetDisplayName() : Role.User.GetDisplayName(); // Determine role based on IsPartnerLogin
             try
             {
-                // Subscription is pending to the SMS service and verify the OTP
-                //if (_smsService.VerifyOtp(request.PhoneNumber, request.Otp))
-                if (true)
+                if (_smsService.VerifyOtp(request.PhoneNumber ?? string.Empty, request.Otp ?? string.Empty))
                 {
-                    Authentication authenticationDB = new Authentication(_connStr);
-                    OwnerRepository ownerRepository = new OwnerRepository(_connStr);
                     if (!string.IsNullOrEmpty(request.PhoneNumber) && !string.IsNullOrEmpty(request.Name) && request.CurrentAction == "signup" && !request.IsPartnerLogin)
                     {
-                        authenticationDB.CreateUserAccount(request.Name, request.PhoneNumber);
+                        _authentication.CreateUserAccount(request.Name, request.PhoneNumber);
                         msg = "Create & verify account successfully.";
                     }
                     else if (!string.IsNullOrEmpty(request.PhoneNumber) && request.CurrentAction == "login")
@@ -107,8 +172,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                     // With the following explicit type handling:
                     object loginUserDetails = request.IsPartnerLogin
-                        ? (object)ownerRepository.GetOwnerDetails(request.PhoneNumber)
-                        : (object)authenticationDB.GetUserData(request.PhoneNumber);
+                        ? (object)_ownerRepository.GetOwnerDetails(request.PhoneNumber)
+                        : (object)_authentication.GetUserData(request.PhoneNumber);
 
                     // Fix: Use reflection or dynamic to access PkID property
                     string pkId = null;
@@ -121,8 +186,26 @@ namespace CateringEcommerce.API.Controllers.User
                         }
                     }
 
-                    string newToken = _tokenService.GenerateToken(request.Name, roleName, pkId, request.PhoneNumber);
-                    return Ok(new { result = true, message = msg, token = newToken, user = loginUserDetails, role = roleName });
+                    // Generate token with additional claims
+                    var additionalClaims = new Dictionary<string, string>
+                    {
+                        { "UserId", pkId ?? "0" },
+                        { "PhoneNumber", request.PhoneNumber ?? "" }
+                    };
+                    string newToken = _tokenService.GenerateToken(pkId ?? "", roleName, additionalClaims);
+
+                    // Set token in httpOnly cookie — not exposed to JavaScript
+                    var expireMinutes = _settings.GetInt("JWT.EXPIRE_MINUTES", 1440);
+                    Response.Cookies.Append("authToken", newToken, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Lax,
+                        Path = "/",
+                        Expires = DateTimeOffset.UtcNow.AddMinutes(expireMinutes)
+                    });
+
+                    return Ok(new { result = true, message = msg, user = loginUserDetails, role = roleName });
                 }
                 else
                 {
@@ -141,8 +224,6 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                UserRepository userRepository = new UserRepository(_connStr);
-                Authentication authentication = new Authentication(_connStr);
                 var payload = await GoogleJsonWebSignature.ValidateAsync(token);
 
                 var email = payload.Email;
@@ -150,7 +231,7 @@ namespace CateringEcommerce.API.Controllers.User
                 var picture = payload.Picture;
 
                 // Check if user exists or insert new (use your DB logic here)
-                if (!userRepository.IsExistEmail(email))
+                if (!_userRepository.IsExistEmail(email))
                 {
                     Dictionary<string, string> keyValuePairs = new Dictionary<string, string>
                     {
@@ -159,7 +240,7 @@ namespace CateringEcommerce.API.Controllers.User
                         { "isVerified", "true" },
                         { "pictureUrl", picture }
                     };
-                    int inserted = authentication.CreateUserAccount(name: name, dicData: keyValuePairs);
+                    int inserted = _authentication.CreateUserAccount(name: name, dicData: keyValuePairs);
 
                     // Fix: Check if the insertion was successful based on the returned integer value
                     if (inserted <= 0)
@@ -174,6 +255,36 @@ namespace CateringEcommerce.API.Controllers.User
             {
                 return BadRequest(new { status = "error", message = ex.Message });
             }
+        }
+
+        [Authorize]
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            Response.Cookies.Append("authToken", "", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddDays(-1)
+            });
+            return Ok(new { result = true, message = "Logged out successfully." });
+        }
+
+        [Authorize]
+        [HttpGet("me")]
+        public IActionResult GetCurrentUser()
+        {
+            var user = HttpContext.User;
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = user.FindFirst(ClaimTypes.Role)?.Value;
+            var phone = user.FindFirst("PhoneNumber")?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { result = false, message = "Invalid session." });
+
+            return Ok(new { result = true, userId, role, phoneNumber = phone });
         }
 
         [Authorize]

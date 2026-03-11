@@ -273,16 +273,24 @@ namespace CateringEcommerce.BAL.Configuration
             return relativePath;
         }
 
-        public async Task<string> SaveUserFormFileAsync(IFormFile file, long userPkid, string documentType, string fileName = null)
+        public async Task<string> SaveRoleBaseFormFileAsync(IFormFile file, long userPkid, string role, bool isSecure, string documentType, string fileName = null)
         {
             if (file == null || file.Length == 0)
                 return null;
 
-            // ✅ Base upload directory for user files
-            var basePath = Path.Combine(_env.WebRootPath, "uploads", "Users");
+            // ✅ Base upload directory based on security flag
+            var basePath = isSecure
+                ? Path.Combine(_env.WebRootPath, "secure_uploads")
+                : Path.Combine(_env.WebRootPath, "uploads", "Media");
 
-            // ✅ Start with user folder
-            var directoryPath = Path.Combine(basePath, $"user{userPkid}");
+            // ✅ Pluralize role name for folder (User -> Users, Supervisor -> Supervisors, Admin -> Admins)
+            var pluralRole = string.IsNullOrEmpty(role) ? "Users" : role + "s";
+
+            // ✅ Start with pluralized role folder
+            var directoryPath = Path.Combine(basePath, pluralRole);
+
+            // ✅ Add role{userPkid} subfolder
+            directoryPath = Path.Combine(directoryPath, $"{role?.ToLower() ?? "user"}{userPkid}");
 
             // ✅ Add document type subfolder
             if (!string.IsNullOrEmpty(documentType))
@@ -323,8 +331,9 @@ namespace CateringEcommerce.BAL.Configuration
             // ✅ Build relative path
             var relativePathParts = new List<string>
             {
-                "uploads/Users",
-                $"user{userPkid}"
+                isSecure ? "secure_uploads" : "uploads/Media",
+                pluralRole,
+                $"{role?.ToLower() ?? "user"}{userPkid}"
             };
 
             if (!string.IsNullOrEmpty(documentType))

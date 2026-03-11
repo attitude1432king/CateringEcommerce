@@ -3,8 +3,8 @@ using System.Net;
 using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Extensions.Configuration;
 using System.Net.Http;
 using System.Collections.Generic;
 
@@ -20,12 +20,12 @@ namespace CateringEcommerce.BAL.Services
 
     public class NotificationService : INotificationService
     {
-        private readonly IConfiguration _configuration;
+        private readonly ISystemSettingsProvider _settings;
         private readonly HttpClient _httpClient;
 
-        public NotificationService(IConfiguration configuration)
+        public NotificationService(ISystemSettingsProvider settings)
         {
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _httpClient = new HttpClient();
         }
 
@@ -90,15 +90,13 @@ namespace CateringEcommerce.BAL.Services
         {
             try
             {
-                var emailSettings = _configuration.GetSection("EmailSettings");
-
-                string smtpServer = emailSettings["SmtpServer"] ?? "smtp.gmail.com";
-                int smtpPort = int.Parse(emailSettings["SmtpPort"] ?? "587");
-                string senderEmail = emailSettings["SenderEmail"] ?? "noreply@enyvora.com";
-                string senderName = emailSettings["SenderName"] ?? "Enyvora Catering";
-                string username = emailSettings["Username"] ?? "";
-                string password = emailSettings["Password"] ?? "";
-                bool enableSsl = bool.Parse(emailSettings["EnableSsl"] ?? "true");
+                string smtpServer = _settings.GetString("EMAIL.SMTP_HOST", "smtp.gmail.com");
+                int smtpPort = _settings.GetInt("EMAIL.SMTP_PORT", 587);
+                string senderEmail = _settings.GetString("EMAIL.FROM_ADDRESS", "noreply@enyvora.com");
+                string senderName = _settings.GetString("EMAIL.FROM_NAME", "Enyvora Catering");
+                string username = _settings.GetString("EMAIL.SMTP_USERNAME");
+                string password = _settings.GetString("EMAIL.SMTP_PASSWORD");
+                bool enableSsl = _settings.GetBool("EMAIL.ENABLE_SSL", true);
 
                 // Skip if no credentials configured
                 if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
@@ -140,11 +138,9 @@ namespace CateringEcommerce.BAL.Services
         {
             try
             {
-                var smsSettings = _configuration.GetSection("SmsSettings");
-
-                string provider = smsSettings["Provider"] ?? "MSG91";
-                string apiKey = smsSettings["ApiKey"] ?? "";
-                string senderId = smsSettings["SenderId"] ?? "ENVORA";
+                string provider = _settings.GetString("SMS.PROVIDER", "MSG91");
+                string apiKey = _settings.GetString("SMS.API_KEY");
+                string senderId = _settings.GetString("SMS.SENDER_ID", "ENVORA");
 
                 // Skip if no API key configured
                 if (string.IsNullOrEmpty(apiKey))

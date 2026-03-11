@@ -1,23 +1,22 @@
+using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Models.Owner;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
 using System.Threading.Tasks;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.BAL.Common
 {
     public class OrderModificationRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public OrderModificationRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public OrderModificationRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         // ===================================
@@ -31,7 +30,7 @@ namespace CateringEcommerce.BAL.Common
                 query.Append($@"
                     INSERT INTO {Table.SysOrderModifications} (
                         c_orderid, c_modification_type, c_original_guest_count, c_modified_guest_count,
-                        c_additional_amount, c_modification_reason, c_requested_by, c_status, c_created_date
+                        c_additional_amount, c_modification_reason, c_requested_by, c_status, c_createddate
                     ) VALUES (
                         @OrderId, @ModificationType, @OriginalGuestCount, @ModifiedGuestCount,
                         @AdditionalAmount, @ModificationReason, @RequestedBy, 'Pending', GETDATE()
@@ -50,7 +49,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@RequestedBy", modificationData.RequestedBy)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query.ToString(), parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
                 if (dt.Rows.Count > 0)
                 {
                     return Convert.ToInt64(dt.Rows[0][0]);
@@ -76,7 +75,7 @@ namespace CateringEcommerce.BAL.Common
                         m.c_modification_id, m.c_orderid, m.c_modification_type,
                         m.c_original_guest_count, m.c_modified_guest_count, m.c_additional_amount,
                         m.c_modification_reason, m.c_requested_by, m.c_approved_by,
-                        m.c_status, m.c_payment_stage_id, m.c_created_date, m.c_approved_date,
+                        m.c_status, m.c_payment_stage_id, m.c_createddate, m.c_approved_date,
                         o.c_order_number,
                         owner.c_business_name as requested_by_name,
                         u.c_name as approved_by_name
@@ -85,7 +84,7 @@ namespace CateringEcommerce.BAL.Common
                     INNER JOIN {Table.SysCateringOwner} owner ON m.c_requested_by = owner.c_pkid
                     LEFT JOIN {Table.SysUser} u ON m.c_approved_by = u.c_pkid
                     WHERE m.c_orderid = @OrderId
-                    ORDER BY m.c_created_date DESC
+                    ORDER BY m.c_createddate DESC
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]
@@ -93,7 +92,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@OrderId", orderId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<OrderModificationDto> modifications = new List<OrderModificationDto>();
 
                 if (dt.Rows.Count > 0)
@@ -124,7 +123,7 @@ namespace CateringEcommerce.BAL.Common
                         m.c_modification_id, m.c_orderid, m.c_modification_type,
                         m.c_original_guest_count, m.c_modified_guest_count, m.c_additional_amount,
                         m.c_modification_reason, m.c_requested_by, m.c_approved_by,
-                        m.c_status, m.c_payment_stage_id, m.c_created_date, m.c_approved_date,
+                        m.c_status, m.c_payment_stage_id, m.c_createddate, m.c_approved_date,
                         o.c_order_number,
                         owner.c_business_name as requested_by_name,
                         u.c_name as approved_by_name
@@ -140,7 +139,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@ModificationId", modificationId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (dt.Rows.Count > 0)
                 {
@@ -179,7 +178,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@PaymentStageId", (object)paymentStageId ?? DBNull.Value)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -212,7 +211,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@RejectionReason", rejectionReason)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -239,7 +238,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@ModificationId", modificationId)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -260,7 +259,7 @@ namespace CateringEcommerce.BAL.Common
                         m.c_modification_id, m.c_orderid, m.c_modification_type,
                         m.c_original_guest_count, m.c_modified_guest_count, m.c_additional_amount,
                         m.c_modification_reason, m.c_requested_by, m.c_approved_by,
-                        m.c_status, m.c_payment_stage_id, m.c_created_date, m.c_approved_date,
+                        m.c_status, m.c_payment_stage_id, m.c_createddate, m.c_approved_date,
                         o.c_order_number,
                         owner.c_business_name as requested_by_name,
                         u.c_name as approved_by_name
@@ -276,7 +275,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@PaymentStageId", paymentStageId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<OrderModificationDto> modifications = new List<OrderModificationDto>();
 
                 if (dt.Rows.Count > 0)
@@ -316,7 +315,7 @@ namespace CateringEcommerce.BAL.Common
                 ApprovedByName = row["approved_by_name"] != DBNull.Value ? row["approved_by_name"].ToString() : null,
                 Status = row["c_status"].ToString() ?? string.Empty,
                 PaymentStageId = row["c_payment_stage_id"] != DBNull.Value ? Convert.ToInt64(row["c_payment_stage_id"]) : null,
-                CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                CreatedDate = Convert.ToDateTime(row["c_createddate"]),
                 ApprovedDate = row["c_approved_date"] != DBNull.Value ? Convert.ToDateTime(row["c_approved_date"]) : null
             };
         }

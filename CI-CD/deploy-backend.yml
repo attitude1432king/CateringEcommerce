@@ -1,0 +1,151 @@
+# Backend Deployment to IIS
+# ASP.NET Core 9.0 API Deployment
+
+steps:
+  - checkout: self
+    displayName: 'Checkout Source Code'
+
+  - task: DownloadBuildArtifacts@1
+    displayName: 'Download Backend Artifacts'
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: 'backend'
+      downloadPath: '$(System.ArtifactsDirectory)'
+
+  - task: DownloadBuildArtifacts@1
+    displayName: 'Download Deployment Scripts'
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: 'deploy-scripts'
+      downloadPath: '$(System.ArtifactsDirectory)'
+
+  - task: PowerShell@2
+    displayName: 'Stop IIS Application Pool'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Stopping IIS Application Pool: $(IIS_API_POOL)"
+        Import-Module WebAdministration
+
+        if (Get-WebAppPoolState -Name "$(IIS_API_POOL)" -ErrorAction SilentlyContinue) {
+            Stop-WebAppPool -Name "$(IIS_API_POOL)"
+
+            # Wait for pool to stop (max 30 seconds)
+            $timeout = 30
+            $elapsed = 0
+            while ((Get-WebAppPoolState -Name "$(IIS_API_POOL)").Value -ne "Stopped" -and $elapsed -lt $timeout) {
+                Start-Sleep -Seconds 2
+                $elapsed += 2
+            }
+
+            if ((Get-WebAppPoolState -Name "$(IIS_API_POOL)").Value -eq "Stopped") {
+                Write-Host "##[section]Application pool stopped successfully"
+            } else {
+                Write-Host "##[warning]Application pool did not stop gracefully, forcing..."
+                Stop-WebAppPool -Name "$(IIS_API_POOL)" -Force
+            }
+        } else {
+            Write-Host "##[warning]Application pool not found: $(IIS_API_POOL)"
+        }
+
+  - task: PowerShell@2
+    displayName: 'Deploy Backend to IIS'
+    inputs:
+      targetType: 'filePath'
+      filePath: '$(System.ArtifactsDirectory)/deploy-scripts/deploy-backend-iis.ps1'
+      arguments: >
+        -SourcePath "$(System.ArtifactsDirectory)/backend"
+        -DestinationPath "$(IIS_API_PATH)"
+        -AppPoolName "$(IIS_API_POOL)"
+        -SiteName "$(IIS_API_SITE)"
+        -Version "$(VERSION_PREFIX).$(VERSION_SUFFIX)"
+      errorActionPreference: 'stop'
+
+  - task: PowerShell@2
+    displayName: 'Update appsettings.Production.json'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Updating production configuration..."
+        $configPath = "$(IIS_API_PATH)\appsettings.Production.json"
+
+        if (Test-Path $configPath) {
+            $config = Get-Content $configPath -Raw | ConvertFrom-Json
+
+            # Update connection strings (from secure variable)
+            $config.ConnectionStrings.DefaultConnection = "$(DB_CONNECTION_STRING)"
+
+            # Update JWT settings (from secure variables)
+            $config.JwtSettings.SecretKey = "$(JWT_SECRET_KEY)"
+            $config.JwtSettings.Issuer = "https://api.enyvora.com"
+            $config.JwtSettings.Audience = "https://enyvora.com"
+
+            # Update email settings
+            $config.EmailSettings.ApiKey = "$(EMAIL_API_KEY)"
+
+            # Update SMS settings
+            $config.SmsSettings.ApiKey = "$(SMS_API_KEY)"
+
+            # Save updated configuration
+            $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Force
+            Write-Host "##[section]Configuration updated successfully"
+        } else {
+            Write-Host "##[error]Configuration file not found: $configPath"
+            exit 1
+        }
+    env:
+      DB_CONNECTION_STRING: $(DB_CONNECTION_STRING)
+      JWT_SECRET_KEY: $(JWT_SECRET_KEY)
+      EMAIL_API_KEY: $(EMAIL_API_KEY)
+      SMS_API_KEY: $(SMS_API_KEY)
+
+  - task: PowerShell@2
+    displayName: 'Start IIS Application Pool'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Starting IIS Application Pool: $(IIS_API_POOL)"
+        Import-Module WebAdministration
+
+        Start-WebAppPool -Name "$(IIS_API_POOL)"
+
+        # Wait for pool to start (max 30 seconds)
+        $timeout = 30
+        $elapsed = 0
+        while ((Get-WebAppPoolState -Name "$(IIS_API_POOL)").Value -ne "Started" -and $elapsed -lt $timeout) {
+            Start-Sleep -Seconds 2
+            $elapsed += 2
+        }
+
+        if ((Get-WebAppPoolState -Name "$(IIS_API_POOL)").Value -eq "Started") {
+            Write-Host "##[section]Application pool started successfully"
+        } else {
+            Write-Host "##[error]Failed to start application pool"
+            exit 1
+        }
+
+  - task: PowerShell@2
+    displayName: 'Verify Backend Deployment'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Verifying backend deployment..."
+
+        # Check if files exist
+        if (Test-Path "$(IIS_API_PATH)\CateringEcommerce.API.dll") {
+            Write-Host "##[section]Backend DLL found"
+        } else {
+            Write-Host "##[error]Backend DLL not found!"
+            exit 1
+        }
+
+        # Check web.config
+        if (Test-Path "$(IIS_API_PATH)\web.config") {
+            Write-Host "##[section]web.config found"
+        } else {
+            Write-Host "##[warning]web.config not found"
+        }
+
+        Write-Host "Backend deployment verification complete"

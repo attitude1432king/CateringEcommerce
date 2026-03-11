@@ -1,6 +1,8 @@
 ﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
 using System.Data;
@@ -8,14 +10,12 @@ using System.Text;
 
 namespace CateringEcommerce.BAL.Base.Owner
 {
-    public class OwnerRegister
+    public class OwnerRegister: IOwnerRegister
     {
-        private readonly SqlDatabaseManager _db;
-
-        public OwnerRegister(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public OwnerRegister(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         public Int64 CreateOwnerAccount(Dictionary<string, object> dicData)
@@ -63,7 +63,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@CreatedDate", DateTime.Now)
                 };
 
-                var result = _db.ExecuteScalar(query.ToString(), parameters.ToArray());
+                var result = _dbHelper.ExecuteScalar(query.ToString(), parameters.ToArray());
                 return result != null ? Convert.ToInt64(result) : 0;
             }
             catch (Exception ex)
@@ -109,7 +109,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Createddate", DateTime.Now)
 
                 };
-                _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -148,7 +148,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@ServingSlots", !string.IsNullOrEmpty(servingTimeSlots) ? servingTimeSlots : DBNull.Value),
                     new SqlParameter("@Createddate", DateTime.Now)
                 };
-                _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -197,7 +197,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@PanCertificate", string.IsNullOrEmpty(panCertificate) ? DBNull.Value : panCertificate),
                     new SqlParameter("@Createddate", DateTime.Now)
                 };
-                _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -232,7 +232,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@UpiId", !string.IsNullOrEmpty(upiId) ? upiId : DBNull.Value),
                     new SqlParameter("@Createddate", DateTime.Now)
                 };
-                _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -247,13 +247,15 @@ namespace CateringEcommerce.BAL.Base.Owner
             if (string.IsNullOrEmpty(logoPath))
                 throw new ArgumentException("Logo path cannot be null or empty.", nameof(logoPath));
             StringBuilder query = new StringBuilder();
-            query.Append($@"UPDATE {Table.SysCateringOwner} SET c_logo_path = @LogoPath WHERE c_ownerid = @OwnerPkid");
+            string requestNumber = GenerateRunningNumber(ownerPkid, "PR");
+            query.Append($@"UPDATE {Table.SysCateringOwner} SET c_logo_path = @LogoPath, c_partnernumber = @PartnerNumber WHERE c_ownerid = @OwnerPkid");
             List<SqlParameter> parameters = new()
             {
                 new SqlParameter("@LogoPath", logoPath),
-                new SqlParameter("@OwnerPkid", ownerPkid)
+                new SqlParameter("@OwnerPkid", ownerPkid),
+                new SqlParameter("@PartnerNumber", requestNumber)
             };
-            _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+            _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
         }
 
         public void RegisterAgreement(Int64 ownerId, Dictionary<string, object> dicData, string baseUploadPath)
@@ -327,7 +329,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Createddate", DateTime.Now)
                 };
 
-                _db.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -341,9 +343,9 @@ namespace CateringEcommerce.BAL.Base.Owner
                 throw new ArgumentException("Service Type ID must be greater than zero.", nameof(serviceTypeId));
             List<ServiceTypeDetails> serviceTypes = new List<ServiceTypeDetails>();
             StringBuilder query = new StringBuilder();
-            query.Append($@"SELECT c_type_id AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_is_active AS IsActive
+            query.Append($@"SELECT c_typeid AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_is_active AS IsActive
                             FROM {Table.SysCateringTypeMaster} 
-                            WHERE c_category_id = @ServiceTypeId AND c_is_active = 1");
+                            WHERE c_categoryid = @ServiceTypeId AND c_isactive = 1");
 
             var parameters = new List<SqlParameter>
             {
@@ -353,7 +355,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 // Use Task.Run to execute the database operation asynchronously
-                DataTable serviceDetails = await Task.Run(() => _db.Execute(query.ToString(), parameters.ToArray()));
+                DataTable serviceDetails = await Task.Run(() => _dbHelper.Execute(query.ToString(), parameters.ToArray()));
 
                 if (serviceDetails == null || serviceDetails.Rows.Count == 0)
                 {
@@ -377,5 +379,24 @@ namespace CateringEcommerce.BAL.Base.Owner
                 throw new Exception("Error while fetching service details: " + ex.Message);
             }
         }
+
+        private string GenerateRunningNumber(long pkid, string prefix, int sequenceLength = 4)
+        {
+            if (pkid <= 0)
+                throw new ArgumentException("PKID must be greater than zero.");
+
+            if (string.IsNullOrWhiteSpace(prefix))
+                throw new ArgumentException("Prefix cannot be empty.");
+
+            int year = DateTime.UtcNow.Year;
+
+            // 🔑 Auto-adjust sequence length
+            int actualLength = Math.Max(sequenceLength, pkid.ToString().Length);
+
+            string paddedNumber = pkid.ToString().PadLeft(actualLength, '0');
+
+            return $"{prefix}-{year}-{paddedNumber}";
+        }
+
     }
 }

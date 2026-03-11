@@ -8,6 +8,10 @@ namespace CateringEcommerce.Domain.Models.Admin
         public int PageSize { get; set; } = 20;
         public string? SearchTerm { get; set; }
         public bool? IsBlocked { get; set; }
+        public bool? IsActive { get; set; }
+        public bool? IsDeleted { get; set; }
+        public int? StateId { get; set; }
+        public int? CityId { get; set; }
         public string? SortBy { get; set; } = "CreatedDate";
         public string? SortOrder { get; set; } = "DESC";
     }
@@ -20,7 +24,11 @@ namespace CateringEcommerce.Domain.Models.Admin
         public string? Email { get; set; }
         public bool IsEmailVerified { get; set; }
         public bool IsPhoneVerified { get; set; }
+        public bool IsActive { get; set; }
         public bool IsBlocked { get; set; }
+        public bool IsDeleted { get; set; }
+        public string? CityName { get; set; }
+        public string? StateName { get; set; }
         public int TotalOrders { get; set; }
         public decimal TotalSpent { get; set; }
         public int TotalReviews { get; set; }
@@ -37,8 +45,13 @@ namespace CateringEcommerce.Domain.Models.Admin
         public string? ProfilePhoto { get; set; }
         public bool IsEmailVerified { get; set; }
         public bool IsPhoneVerified { get; set; }
+        public bool IsActive { get; set; }
         public bool IsBlocked { get; set; }
+        public bool IsDeleted { get; set; }
         public string? BlockReason { get; set; }
+        public string? CityName { get; set; }
+        public string? StateName { get; set; }
+        public string? Description { get; set; }
         public int TotalOrders { get; set; }
         public decimal TotalSpent { get; set; }
         public int TotalReviews { get; set; }
@@ -83,6 +96,22 @@ namespace CateringEcommerce.Domain.Models.Admin
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
         public int TotalPages { get; set; }
+    }
+
+    public class AdminUserExportItem
+    {
+        public long UserId { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? CityName { get; set; }
+        public string? StateName { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsBlocked { get; set; }
+        public int TotalOrders { get; set; }
+        public decimal TotalSpent { get; set; }
+        public DateTime CreatedDate { get; set; }
+        public DateTime? LastLogin { get; set; }
     }
 
     #endregion

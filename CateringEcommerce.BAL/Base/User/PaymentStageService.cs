@@ -4,23 +4,26 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Services;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.User;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 
 namespace CateringEcommerce.BAL.Base.User
 {
     public class PaymentStageService
     {
-        private readonly string _connectionString;
+        private readonly IDatabaseHelper _dbHelper;
         private readonly PaymentStageRepository _paymentStageRepository;
         private readonly INotificationService? _notificationService;
 
-        public PaymentStageService(string connectionString, INotificationService? notificationService = null)
+        public PaymentStageService(IDatabaseHelper dbHelper, INotificationService? notificationService = null)
         {
-            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            _paymentStageRepository = new PaymentStageRepository(connectionString);
+            _dbHelper = dbHelper;
+            _paymentStageRepository = new PaymentStageRepository(_dbHelper);
             _notificationService = notificationService;
         }
 
@@ -321,6 +324,112 @@ namespace CateringEcommerce.BAL.Base.User
             catch (Exception ex)
             {
                 throw new Exception("Error retrieving payment stage: " + ex.Message, ex);
+            }
+        }
+
+        // ===================================
+        // CHECK IF PAYMENT ALREADY PROCESSED (Idempotency)
+        // ===================================
+        public async Task<bool> IsPaymentAlreadyProcessedAsync(string razorpayPaymentId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(razorpayPaymentId))
+                {
+                    return false;
+                }
+
+                string query = $@"
+                    SELECT COUNT(*)
+                    FROM {Table.SysOrderPaymentStages}
+                    WHERE c_razorpay_payment_id = @RazorpayPaymentId
+                      AND c_status = 'Success'";
+
+                var parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@RazorpayPaymentId", razorpayPaymentId)
+                };
+
+                var result = await _dbHelper.ExecuteScalarAsync<int>(query, parameters, CommandType.Text);
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error checking payment existence: " + ex.Message, ex);
+            }
+        }
+
+        // ===================================
+        // GET PAYMENT STAGE BY RAZORPAY PAYMENT ID (for ownership verification)
+        // ===================================
+        public async Task<PaymentStageDto?> GetPaymentStageByRazorpayPaymentIdAsync(string razorpayPaymentId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(razorpayPaymentId))
+                {
+                    return null;
+                }
+
+                string query = $@"
+                    SELECT TOP 1
+                        c_payment_stage_id,
+                        c_orderid,
+                        c_stage_type,
+                        c_stage_percentage,
+                        c_stage_amount,
+                        c_payment_method,
+                        c_payment_gateway,
+                        c_razorpay_order_id,
+                        c_razorpay_payment_id,
+                        c_transaction_id,
+                        c_upi_id,
+                        c_status,
+                        c_payment_date,
+                        c_due_date,
+                        c_reminder_sent_count,
+                        c_last_reminder_date,
+                        c_createddate
+                    FROM {Table.SysOrderPaymentStages}
+                    WHERE c_razorpay_payment_id = @RazorpayPaymentId";
+
+                var parameters = new SqlParameter[]
+                {
+                    new SqlParameter("@RazorpayPaymentId", razorpayPaymentId)
+                };
+
+                var dt = await _dbHelper.ExecuteAsync(query, parameters);
+
+                if (dt != null && dt.Rows.Count > 0)
+                {
+                    var row = dt.Rows[0];
+                    return new PaymentStageDto
+                    {
+                        PaymentStageId = Convert.ToInt64(row["c_payment_stage_id"]),
+                        OrderId = Convert.ToInt64(row["c_orderid"]),
+                        StageType = row["c_stage_type"].ToString() ?? string.Empty,
+                        StagePercentage = Convert.ToDecimal(row["c_stage_percentage"]),
+                        StageAmount = Convert.ToDecimal(row["c_stage_amount"]),
+                        PaymentMethod = row["c_payment_method"] != DBNull.Value ? row["c_payment_method"].ToString() : null,
+                        PaymentGateway = row["c_payment_gateway"] != DBNull.Value ? row["c_payment_gateway"].ToString() : null,
+                        RazorpayOrderId = row["c_razorpay_order_id"] != DBNull.Value ? row["c_razorpay_order_id"].ToString() : null,
+                        RazorpayPaymentId = row["c_razorpay_payment_id"] != DBNull.Value ? row["c_razorpay_payment_id"].ToString() : null,
+                        TransactionId = row["c_transaction_id"] != DBNull.Value ? row["c_transaction_id"].ToString() : null,
+                        UpiId = row["c_upi_id"] != DBNull.Value ? row["c_upi_id"].ToString() : null,
+                        Status = row["c_status"].ToString() ?? string.Empty,
+                        PaymentDate = row["c_payment_date"] != DBNull.Value ? Convert.ToDateTime(row["c_payment_date"]) : null,
+                        DueDate = row["c_due_date"] != DBNull.Value ? Convert.ToDateTime(row["c_due_date"]) : null,
+                        ReminderSentCount = Convert.ToInt32(row["c_reminder_sent_count"]),
+                        LastReminderDate = row["c_last_reminder_date"] != DBNull.Value ? Convert.ToDateTime(row["c_last_reminder_date"]) : null,
+                        CreatedDate = Convert.ToDateTime(row["c_createddate"])
+                    };
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error retrieving payment stage by Razorpay payment ID: " + ex.Message, ex);
             }
         }
     }

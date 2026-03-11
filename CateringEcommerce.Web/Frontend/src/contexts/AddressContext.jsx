@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { useAppSettings } from './AppSettingsContext';
 
 const AddressContext = createContext(null);
 
@@ -13,12 +14,13 @@ export const useAddress = () => {
 
 export const AddressProvider = ({ children }) => {
   const { user, token } = useAuth();
+  const { getSetting, getInt } = useAppSettings();
   const [addresses, setAddresses] = useState([]);
   const [defaultAddress, setDefaultAddress] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const API_BASE_URL = 'https://localhost:44391/api';
+  const API_BASE_URL = getSetting('SYSTEM.API_BASE_URL', import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368') + '/api';
 
   // Fetch user's saved addresses
   const fetchAddresses = async () => {
@@ -226,9 +228,10 @@ export const AddressProvider = ({ children }) => {
     return addresses.find(addr => addr.addressId === addressId);
   };
 
-  // Check if user can add more addresses (max 5)
+  // Check if user can add more addresses
   const canAddAddress = () => {
-    return addresses.length < 5;
+    const maxAddresses = getInt('BUSINESS.MAX_ADDRESSES_PER_USER', 5);
+    return addresses.length < maxAddresses;
   };
 
   // Fetch addresses when user logs in

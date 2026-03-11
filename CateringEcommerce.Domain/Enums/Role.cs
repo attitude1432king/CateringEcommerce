@@ -11,6 +11,8 @@ namespace CateringEcommerce.Domain.Enums
         [Display(Name = "Owner")]
         Owner = 3,
         [Display(Name = "Super Admin")]
-        SuperAdmin = 4
+        SuperAdmin = 4,
+        [Display(Name = "Supervisor")]
+        Supervisor = 5
     }
 }

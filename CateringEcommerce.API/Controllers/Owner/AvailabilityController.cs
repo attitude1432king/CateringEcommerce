@@ -1,7 +1,9 @@
 ﻿using CateringEcommerce.API.Controllers.Owner.Menu;
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -12,18 +14,21 @@ namespace CateringEcommerce.API.Controllers.Owner
 {
     [Route("api/Owner/Availability")]
     [ApiController]
-    [Authorize(Roles = "Owner")]
+    [OwnerAuthorize]
     public class AvailabilityController : ControllerBase
     {
-        private readonly string _connStr;
         private readonly ILogger<AvailabilityController> _logger;
         private readonly ICurrentUserService _currentUser;
+        private readonly IAvailabilityRepository _availabilityRepository;
 
-        public AvailabilityController(ILogger<AvailabilityController> logger, IConfiguration configuration, ICurrentUserService currentUser)
+        public AvailabilityController(
+            ILogger<AvailabilityController> logger,
+            ICurrentUserService currentUser,
+            IAvailabilityRepository availabilityRepository)
         {
-            _logger = logger;
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _currentUser = currentUser;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
+            _availabilityRepository = availabilityRepository ?? throw new ArgumentNullException(nameof(availabilityRepository));
         }
 
         [HttpGet("GetAvailability")]
@@ -39,8 +44,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
             try
             {
-                AvailabilityRepository _services = new AvailabilityRepository(_connStr);
-                var data = await _services.GetAvailabilityForPageAsync(ownerId, year, month);
+                var data = await _availabilityRepository.GetAvailabilityForPageAsync(ownerId, year, month);
                 return ApiResponseHelper.Success(data, "Availability data loaded");
             }
             catch (Exception ex)
@@ -68,8 +72,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 ownerId);
             try
             {
-                AvailabilityRepository availability = new AvailabilityRepository(_connStr);
-                await availability.UpsertGlobalAsync(ownerId, status);
+                await _availabilityRepository.UpsertGlobalAsync(ownerId, status);
                 return Ok();
             }
             catch (Exception ex)
@@ -96,8 +99,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 ownerId);
             try
             {
-                AvailabilityRepository availability = new AvailabilityRepository(_connStr);
-                await availability.UpsertDateAsync(ownerId, req.Date, req.Status, req.Note);
+                await _availabilityRepository.UpsertDateAsync(ownerId, req.Date, req.Status, req.Note);
                 return Ok();
             }
             catch (Exception ex)

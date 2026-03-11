@@ -1,3 +1,4 @@
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Models.Notification;
@@ -33,7 +34,7 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
-                "INSERT INTO t_sys_notification_delivery " +
+                $"INSERT INTO {Table.SysNotificationDelivery} " +
                 "(c_notification_id, c_channel, c_status, c_provider, c_provider_message_id, " +
                 "c_recipient, c_sent_at, c_delivered_at, c_error_message, c_retry_count, c_cost) " +
                 "VALUES (@NotificationId, @Channel, @Status, @Provider, @ProviderMessageId, " +
@@ -50,7 +51,7 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             var dt = await _dbHelper.ExecuteAsync(
-                "SELECT * FROM t_sys_notification_delivery WHERE c_notification_id = @NotificationId",
+                $"SELECT * FROM {Table.SysNotificationDelivery} WHERE c_notification_id = @NotificationId",
                 parameters
             );
 
@@ -84,7 +85,7 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             var dt = await _dbHelper.ExecuteAsync(
-                "SELECT TOP (@Limit) * FROM t_sys_notification_delivery " +
+                $"SELECT TOP (@Limit) * FROM {Table.SysNotificationDelivery} " +
                 "WHERE c_recipient = @Recipient " +
                 "ORDER BY c_sent_at DESC",
                 parameters
@@ -124,34 +125,179 @@ namespace CateringEcommerce.BAL.Notification
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
-                "UPDATE t_sys_notification_delivery " +
+                $"UPDATE {Table.SysNotificationDelivery} " +
                 "SET c_status = @Status, c_error_message = @ErrorMessage " +
                 "WHERE c_notification_id = @NotificationId",
                 parameters
             );
         }
 
-        // Stub methods for in-app notifications - To be implemented
+        // ============================================
+        // IN-APP NOTIFICATION METHODS
+        // ============================================
+
         public async Task<int> GetUnreadCountAsync(string userId, string? userType = null)
         {
-            await Task.CompletedTask;
-            return 0;
+            var parameters = new SqlParameter[]
+            {
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@UserType", userType ?? "USER")
+            };
+
+            var result = await _dbHelper.ExecuteScalarAsync(
+                $@"SELECT COUNT(*)
+                  FROM {Table.SysNotifications}
+                  WHERE c_userid = @UserId
+                    AND c_user_type = @UserType
+                    AND c_is_read = 0
+                    AND c_is_deleted = 0
+                    AND (c_expires_at IS NULL OR c_expires_at > GETDATE())",
+                parameters
+            );
+
+            return result != null ? Convert.ToInt32(result) : 0;
         }
 
         public async Task MarkAsReadAsync(string notificationId, string userId)
         {
-            await Task.CompletedTask;
+            var parameters = new SqlParameter[]
+            {
+                new SqlParameter("@NotificationId", notificationId),
+                new SqlParameter("@UserId", userId)
+            };
+
+            await _dbHelper.ExecuteNonQueryAsync(
+                $@"UPDATE {Table.SysNotifications}
+                  SET c_is_read = 1, c_read_at = GETDATE()
+                  WHERE c_notification_uuid = @NotificationId
+                    AND c_userid = @UserId
+                    AND c_is_read = 0",
+                parameters
+            );
         }
 
         public async Task<List<InAppNotificationDto>> GetNotificationsAsync(string userId, string? userType = null, int pageSize = 20, int pageNumber = 1)
         {
-            await Task.CompletedTask;
-            return new List<InAppNotificationDto>();
+            var offset = (pageNumber - 1) * pageSize;
+
+            var parameters = new SqlParameter[]
+            {
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@UserType", userType ?? "USER"),
+                new SqlParameter("@PageSize", pageSize),
+                new SqlParameter("@Offset", offset)
+            };
+
+            var dt = await _dbHelper.ExecuteAsync(
+                $@"SELECT
+                    c_notification_uuid AS NotificationId,
+                    c_title AS Title,
+                    c_message AS Message,
+                    c_category AS Category,
+                    c_priority AS Priority,
+                    c_action_url AS ActionUrl,
+                    c_icon_url AS IconUrl,
+                    c_is_read AS IsRead,
+                    c_createddate AS CreatedAt
+                  FROM {Table.SysNotifications}
+                  WHERE c_userid = @UserId
+                    AND c_user_type = @UserType
+                    AND c_is_deleted = 0
+                    AND (c_expires_at IS NULL OR c_expires_at > GETDATE())
+                  ORDER BY c_priority DESC, c_createddate DESC
+                  OFFSET @Offset ROWS
+                  FETCH NEXT @PageSize ROWS ONLY",
+                parameters
+            );
+
+            var notifications = new List<InAppNotificationDto>();
+
+            foreach (DataRow row in dt.Rows)
+            {
+                notifications.Add(new InAppNotificationDto
+                {
+                    NotificationId = row["NotificationId"].ToString() ?? string.Empty,
+                    Title = row["Title"].ToString() ?? string.Empty,
+                    Message = row["Message"].ToString() ?? string.Empty,
+                    Category = row["Category"].ToString() ?? string.Empty,
+                    Priority = Convert.ToInt32(row["Priority"]),
+                    ActionUrl = row["ActionUrl"] != DBNull.Value ? row["ActionUrl"].ToString() ?? string.Empty : string.Empty,
+                    IconUrl = row["IconUrl"] != DBNull.Value ? row["IconUrl"].ToString() ?? string.Empty : string.Empty,
+                    IsRead = Convert.ToBoolean(row["IsRead"]),
+                    CreatedAt = Convert.ToDateTime(row["CreatedAt"])
+                });
+            }
+
+            return notifications;
         }
 
         public async Task SaveInAppNotificationAsync(InAppNotification notification, CancellationToken cancellationToken = default)
         {
-            await Task.CompletedTask;
+            var parameters = new SqlParameter[]
+            {
+                new SqlParameter("@UserId", notification.UserId),
+                new SqlParameter("@UserType", notification.UserType.ToString()),
+                new SqlParameter("@Title", notification.Title),
+                new SqlParameter("@Message", notification.Message),
+                new SqlParameter("@Category", notification.Category),
+                new SqlParameter("@Priority", notification.Priority),
+                new SqlParameter("@ActionUrl", notification.ActionUrl ?? (object)DBNull.Value),
+                new SqlParameter("@IconUrl", notification.IconUrl ?? (object)DBNull.Value),
+                new SqlParameter("@Data", notification.Data ?? (object)DBNull.Value),
+                new SqlParameter("@ExpiresAt", notification.ExpiresAt ?? (object)DBNull.Value)
+            };
+
+            await _dbHelper.ExecuteNonQueryAsync(
+                $@"INSERT INTO {Table.SysNotifications}
+                  (c_userid, c_user_type, c_title, c_message, c_category,
+                   c_priority, c_action_url, c_icon_url, c_data, c_expires_at, c_createddate)
+                  VALUES
+                  (@UserId, @UserType, @Title, @Message, @Category,
+                   @Priority, @ActionUrl, @IconUrl, @Data, @ExpiresAt, GETDATE())",
+                parameters
+            );
+        }
+
+        /// <summary>
+        /// Mark all notifications as read for a user
+        /// </summary>
+        public async Task MarkAllAsReadAsync(string userId, string userType = "USER")
+        {
+            var parameters = new SqlParameter[]
+            {
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@UserType", userType)
+            };
+
+            await _dbHelper.ExecuteNonQueryAsync(
+                $@"UPDATE {Table.SysNotifications}
+                  SET c_is_read = 1, c_read_at = GETDATE()
+                  WHERE c_userid = @UserId
+                    AND c_user_type = @UserType
+                    AND c_is_read = 0
+                    AND c_is_deleted = 0",
+                parameters
+            );
+        }
+
+        /// <summary>
+        /// Delete/soft-delete a notification
+        /// </summary>
+        public async Task DeleteNotificationAsync(string notificationId, string userId)
+        {
+            var parameters = new SqlParameter[]
+            {
+                new SqlParameter("@NotificationId", notificationId),
+                new SqlParameter("@UserId", userId)
+            };
+
+            await _dbHelper.ExecuteNonQueryAsync(
+                $@"UPDATE {Table.SysNotifications}
+                  SET c_is_deleted = 1, c_deleted_at = GETDATE()
+                  WHERE c_notification_uuid = @NotificationId
+                    AND c_userid = @UserId",
+                parameters
+            );
         }
     }
 }

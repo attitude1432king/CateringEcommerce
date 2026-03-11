@@ -1,24 +1,22 @@
+using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Models.User;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using CateringEcommerce.BAL.Configuration;
-using CateringEcommerce.BAL.DatabaseHelper;
-using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.BAL.Common
 {
     public class UserAddressRepository
     {
-        private readonly SqlDatabaseManager _db;
-
-        public UserAddressRepository(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public UserAddressRepository(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         // ===================================
@@ -32,10 +30,10 @@ namespace CateringEcommerce.BAL.Common
                     SELECT
                         c_address_id, c_userid, c_address_label, c_full_address, c_landmark,
                         c_city, c_state, c_pincode, c_contact_person, c_contact_phone,
-                        c_is_default, c_created_date, c_isactive
+                        c_is_default, c_createddate, c_isactive
                     FROM {Table.SysUserAddresses}
                     WHERE c_userid = @UserId AND c_isactive = 1
-                    ORDER BY c_is_default DESC, c_created_date DESC
+                    ORDER BY c_is_default DESC, c_createddate DESC
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]
@@ -43,7 +41,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UserId", userId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 List<SavedAddressDto> addresses = new List<SavedAddressDto>();
 
                 if (dt.Rows.Count > 0)
@@ -63,7 +61,7 @@ namespace CateringEcommerce.BAL.Common
                             ContactPerson = row["c_contact_person"].ToString() ?? string.Empty,
                             ContactPhone = row["c_contact_phone"].ToString() ?? string.Empty,
                             IsDefault = Convert.ToBoolean(row["c_is_default"]),
-                            CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                            CreatedDate = Convert.ToDateTime(row["c_createddate"]),
                             IsActive = Convert.ToBoolean(row["c_isactive"])
                         });
                     }
@@ -88,7 +86,7 @@ namespace CateringEcommerce.BAL.Common
                     SELECT
                         c_address_id, c_userid, c_address_label, c_full_address, c_landmark,
                         c_city, c_state, c_pincode, c_contact_person, c_contact_phone,
-                        c_is_default, c_created_date, c_isactive
+                        c_is_default, c_createddate, c_isactive
                     FROM {Table.SysUserAddresses}
                     WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = 1
                 ";
@@ -99,7 +97,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UserId", userId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (dt.Rows.Count > 0)
                 {
@@ -117,7 +115,7 @@ namespace CateringEcommerce.BAL.Common
                         ContactPerson = row["c_contact_person"].ToString() ?? string.Empty,
                         ContactPhone = row["c_contact_phone"].ToString() ?? string.Empty,
                         IsDefault = Convert.ToBoolean(row["c_is_default"]),
-                        CreatedDate = Convert.ToDateTime(row["c_created_date"]),
+                        CreatedDate = Convert.ToDateTime(row["c_createddate"]),
                         IsActive = Convert.ToBoolean(row["c_isactive"])
                     };
                 }
@@ -148,7 +146,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UserId", userId)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query, parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
                 if (dt.Rows.Count > 0)
                 {
                     return Convert.ToInt32(dt.Rows[0][0]);
@@ -173,7 +171,7 @@ namespace CateringEcommerce.BAL.Common
                 query.Append($@"
                     INSERT INTO {Table.SysUserAddresses} (
                         c_userid, c_address_label, c_full_address, c_landmark, c_city, c_state,
-                        c_pincode, c_contact_person, c_contact_phone, c_is_default, c_created_date, c_isactive
+                        c_pincode, c_contact_person, c_contact_phone, c_is_default, c_createddate, c_isactive
                     ) VALUES (
                         @UserId, @AddressLabel, @FullAddress, @Landmark, @City, @State,
                         @Pincode, @ContactPerson, @ContactPhone, @IsDefault, GETDATE(), 1
@@ -195,7 +193,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@IsDefault", addressData.IsDefault)
                 };
 
-                DataTable dt = await _db.ExecuteAsync(query.ToString(), parameters);
+                DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
                 if (dt.Rows.Count > 0)
                 {
                     return Convert.ToInt64(dt.Rows[0][0]);
@@ -246,7 +244,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@IsDefault", addressData.IsDefault)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -274,7 +272,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UserId", userId)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return rowsAffected > 0;
             }
             catch (Exception ex)
@@ -302,7 +300,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UserId", userId)
                 };
 
-                await _db.ExecuteNonQueryAsync(unsetQuery, unsetParams);
+                await _dbHelper.ExecuteNonQueryAsync(unsetQuery, unsetParams);
 
                 // Then set the specified address as default
                 string setQuery = $@"
@@ -317,7 +315,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@UserId", userId)
                 };
 
-                int rowsAffected = await _db.ExecuteNonQueryAsync(setQuery, setParams);
+                int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(setQuery, setParams);
                 return rowsAffected > 0;
             }
             catch (Exception ex)

@@ -1,18 +1,17 @@
 ﻿using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Text;
 
 namespace CateringEcommerce.BAL.Configuration
 {
-    public class MappingSyncService
+    public class MappingSyncService : IMappingSyncService
     {
-        private readonly SqlDatabaseManager _db;
-
-        public MappingSyncService(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public MappingSyncService(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -38,7 +37,7 @@ namespace CateringEcommerce.BAL.Configuration
             FROM {tableName}
             WHERE {parentColumnName} = @ParentID";
 
-            var existingTable = await _db.ExecuteAsync(
+            var existingTable = await _dbHelper.ExecuteAsync(
                 selectQuery,
                 new[] { new SqlParameter("@ParentID", parentPKID) }
             );
@@ -74,7 +73,7 @@ namespace CateringEcommerce.BAL.Configuration
                 WHERE {parentColumnName} = @ParentID
                   AND {childColumnName} IN ({string.Join(",", toDeactivate)})";
 
-                await _db.ExecuteNonQueryAsync(
+                await _dbHelper.ExecuteNonQueryAsync(
                     deactivateQuery,
                     new[] { new SqlParameter("@ParentID", parentPKID) }
                 );
@@ -91,7 +90,7 @@ namespace CateringEcommerce.BAL.Configuration
                 WHERE {parentColumnName} = @ParentID
                   AND {childColumnName} IN ({string.Join(",", toReactivate)})";
 
-                await _db.ExecuteNonQueryAsync(
+                await _dbHelper.ExecuteNonQueryAsync(
                     reactivateQuery,
                     new[] { new SqlParameter("@ParentID", parentPKID) }
                 );
@@ -107,7 +106,7 @@ namespace CateringEcommerce.BAL.Configuration
                 ({parentColumnName}, {childColumnName}, c_isactive)
                 VALUES (@ParentID, @ChildID, 1)";
 
-                await _db.ExecuteNonQueryAsync(
+                await _dbHelper.ExecuteNonQueryAsync(
                     insertQuery,
                     new[]
                     {
@@ -124,7 +123,7 @@ namespace CateringEcommerce.BAL.Configuration
             DELETE FROM {tableName}
             WHERE {parentColumnName} = @ParentID";
 
-            await _db.ExecuteNonQueryAsync(
+            await _dbHelper.ExecuteNonQueryAsync(
                 query,
                 new[] { new SqlParameter("@ParentID", parentPKID) }
             );
@@ -139,7 +138,7 @@ namespace CateringEcommerce.BAL.Configuration
             WHERE {parentColumnName} = @ParentID
               AND c_isactive = 1";
 
-            await _db.ExecuteNonQueryAsync(
+            await _dbHelper.ExecuteNonQueryAsync(
                 query,
                 new[] { new SqlParameter("@ParentID", parentPKID) }
             );
@@ -163,7 +162,7 @@ namespace CateringEcommerce.BAL.Configuration
                     new SqlParameter("@ParentID", parentPKID)
                 };
 
-                var dataTable = await _db.ExecuteAsync(query.ToString(), parameters);
+                var dataTable = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
 
                 if (dataTable.Rows.Count == 0)
                     return new List<long>();

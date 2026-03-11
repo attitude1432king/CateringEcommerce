@@ -96,6 +96,7 @@ public class CateringSearchFilterDto
     public double? MinRating { get; set; }
     public bool? OnlineOnly { get; set; }
     public bool? VerifiedOnly { get; set; }
+    public bool? HasDecorations { get; set; } // Filter caterings that offer decorations
     public int PageNumber { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

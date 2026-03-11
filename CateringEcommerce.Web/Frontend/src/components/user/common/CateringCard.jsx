@@ -7,9 +7,17 @@ A card component to display catering service details in a grid.
 // File: src/components/user/CatererCard.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { TrustBadge, getTrustLevel } from '../../common/badges';
 
 
 export default function CatererCard({ catering }) {
+    // Determine trust level based on vendor data
+    const trustLevel = getTrustLevel(
+        catering.totalOrders || 0,
+        catering.averageRating || 0,
+        catering.isKYCVerified !== false // Assume verified unless explicitly false
+    );
+
     return (
         <Link
             to={`/caterings/${catering.id}`}
@@ -52,9 +60,22 @@ export default function CatererCard({ catering }) {
                     </div>
                 </div>
 
-                <p className="text-sm text-neutral-500 truncate mb-3">
+                <p className="text-sm text-neutral-500 truncate mb-2">
                     {(catering.cuisineTypes || []).join(', ')}
                 </p>
+
+                {/* Trust Badge */}
+                {trustLevel && (
+                    <div className="mb-3">
+                        <TrustBadge
+                            level={trustLevel}
+                            orderCount={catering.totalOrders}
+                            rating={catering.averageRating}
+                            size="sm"
+                            inline={true}
+                        />
+                    </div>
+                )}
 
                 <div className="flex items-center justify-between text-xs text-neutral-500 border-t pt-3">
                     <span className="truncate">

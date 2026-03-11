@@ -3,6 +3,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.APIModels.Owner;
 using CateringEcommerce.Domain.Models.Owner;
@@ -13,19 +14,17 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 {
     public class OwnerProfile : IOwnerProfile
     {
-        private readonly SqlDatabaseManager _db;
-
-        public OwnerProfile(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public OwnerProfile(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         public async Task<OwnerModel> GetOwnerDetails(long ownerPKID)
         {
             try
             {
-                MediaRepository mediaRepository = new MediaRepository(_db.GetConnectionString());
+                MediaRepository mediaRepository = new MediaRepository(_dbHelper);
                 OwnerModel ownerModel = new OwnerModel();
                 ownerModel.OwnerBusiness = await GetOwnerBusiness(ownerPKID);
                 ownerModel.CateringAddress = await GetCateringAddress(ownerPKID);
@@ -58,7 +57,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 };
 
-                var ownerData = await _db.ExecuteAsync(query.ToString(), parameters.ToArray());
+                var ownerData = await _dbHelper.ExecuteAsync(query.ToString(), parameters.ToArray());
                 if (ownerData.Rows.Count > 0)
                 {
                     var row = ownerData.Rows[0];
@@ -103,7 +102,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     new SqlParameter("@OwnerId", onwerId)
 
                 };
-                var addressData = await _db.ExecuteAsync(query.ToString(), parameters.ToArray());
+                var addressData = await _dbHelper.ExecuteAsync(query.ToString(), parameters.ToArray());
 
                 if (addressData.Rows.Count > 0)
                 {
@@ -145,7 +144,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     new SqlParameter("@OwnerId", ownerId),
                 };
-                var serviceData = await _db.ExecuteAsync(query.ToString(), parameters.ToArray());
+                var serviceData = await _dbHelper.ExecuteAsync(query.ToString(), parameters.ToArray());
                 if (serviceData.Rows.Count > 0)
                 {
                     var row = serviceData.Rows[0];
@@ -185,7 +184,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     new SqlParameter("@OwnerId", ownerId)
                 };
-                var legalDocumentData = await _db.ExecuteAsync(query.ToString(), parameters.ToArray());
+                var legalDocumentData = await _dbHelper.ExecuteAsync(query.ToString(), parameters.ToArray());
                 ownerLegalAndBank = await GetBankDetails(ownerId);
                 if (legalDocumentData.Rows.Count > 0)
                 {
@@ -223,7 +222,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     new SqlParameter("@OwnerId", ownerId)
                 };
-                var bankDetails = await _db.ExecuteAsync(query.ToString(), parameters.ToArray());
+                var bankDetails = await _dbHelper.ExecuteAsync(query.ToString(), parameters.ToArray());
                 if (bankDetails.Rows.Count > 0)
                 {
                     var row = bankDetails.Rows[0];
@@ -265,7 +264,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     new SqlParameter("@SupportEmail", string.IsNullOrEmpty(businessSettings.SupportEmail) ? DBNull.Value : businessSettings.SupportEmail),
                     new SqlParameter("@OwnerId", ownerPKID)
                 };
-                await _db.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -293,7 +292,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     new SqlParameter("@Longitude", string.IsNullOrEmpty(addressSettings.Longitude) ? DBNull.Value : addressSettings.Longitude),
                     new SqlParameter("@OwnerId", ownerPKID)
                 };
-                await _db.ExecuteAsync(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteAsync(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -321,7 +320,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     new SqlParameter("@ServingTimeSlots", servicesSettings.ServingSlots != null ? string.Join(",", servicesSettings.ServingSlots)  : DBNull.Value),
                     new SqlParameter("@OwnerId", ownerPKID)
                 };
-                await _db.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -348,7 +347,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     new SqlParameter("@PanNumber", string.IsNullOrEmpty(legalPaymentSettings.PanNumber) ? DBNull.Value : legalPaymentSettings.PanNumber),
                     new SqlParameter("@OwnerId", ownerPKID)
                 };
-                _db.ExecuteNonQuery(legalQuery.ToString(), legalParameters.ToArray());
+                _dbHelper.ExecuteNonQuery(legalQuery.ToString(), legalParameters.ToArray());
                 StringBuilder bankQuery = new StringBuilder();
                 bankQuery.Append($@"UPDATE {Table.SysCateringOwnerBankDetails} SET c_account_holder_name = @AccountHolderName, 
                     c_account_number = @AccountNumber, c_ifsc_code = @IfscCode WHERE c_ownerid = @OwnerId ");
@@ -359,7 +358,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     new SqlParameter("@IfscCode", legalPaymentSettings.IfscCode),
                     new SqlParameter("@OwnerId", ownerPKID)
                 };
-                await _db.ExecuteNonQueryAsync(bankQuery.ToString(), bankParameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(bankQuery.ToString(), bankParameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -376,7 +375,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     new SqlParameter("@OwnerId", ownerPKID)
                 };
-                var logoData = _db.Execute(query.ToString(), parameters.ToArray());
+                var logoData = _dbHelper.Execute(query.ToString(), parameters.ToArray());
                 if (logoData.Rows.Count > 0)
                 {
                     var row = logoData.Rows[0];

@@ -1,9 +1,11 @@
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.User;
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 
 namespace CateringEcommerce.API.Controllers.User
 {
@@ -12,12 +14,18 @@ namespace CateringEcommerce.API.Controllers.User
     public class HomeController : ControllerBase
     {
         private readonly ILogger<HomeController> _logger;
+        private readonly IHomeService _homeService;
         private readonly string _connStr;
 
-        public HomeController(ILogger<HomeController> logger, IConfiguration configuration)
+        public HomeController(
+            ILogger<HomeController> logger,
+            IHomeService homeService,
+            IConfiguration configuration)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _homeService = homeService ?? throw new ArgumentNullException(nameof(homeService));
+            _connStr = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
         }
 
         /// <summary>
@@ -33,7 +41,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService  homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch verified catering list. City Name: {0}", cityName);
 
                 var cateringList = await homeService.GetVerifiedCateringListAsync(cityName);
@@ -72,6 +80,7 @@ namespace CateringEcommerce.API.Controllers.User
         /// <param name="minOrderFrom">Minimum order value range - from</param>
         /// <param name="minOrderTo">Minimum order value range - to</param>
         /// <param name="deliveryRadius">Delivery radius in km</param>
+        /// <param name="hasDecorations">Filter for caterings that offer decorations</param>
         /// <param name="pageNumber">Page number (1-based, default: 1)</param>
         /// <param name="pageSize">Number of results per page (default: 20, max: 100)</param>
         /// <returns>Paginated search results with catering businesses matching the criteria</returns>
@@ -89,6 +98,7 @@ namespace CateringEcommerce.API.Controllers.User
             [FromQuery] decimal? minOrderFrom = null,
             [FromQuery] decimal? minOrderTo = null,
             [FromQuery] int? deliveryRadius = null,
+            [FromQuery] bool? hasDecorations = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20)
         {
@@ -117,11 +127,12 @@ namespace CateringEcommerce.API.Controllers.User
                     MinOrderValueFrom = minOrderFrom,
                     MinOrderValueTo = minOrderTo,
                     DeliveryRadiusKm = deliveryRadius,
+                    HasDecorations = hasDecorations,
                     PageNumber = pageNumber,
                     PageSize = pageSize
                 };
 
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Search request received - City: {City}, Keyword: {Keyword}, Page: {Page}",
                     city, keyword, pageNumber);
 
@@ -178,7 +189,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch featured caterers for homepage");
 
                 var featuredCaterers = await homeService.GetFeaturedCaterersAsync();
@@ -210,7 +221,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch testimonials for homepage");
 
                 var testimonials = await homeService.GetHomePageTestimonialsAsync();
@@ -242,7 +253,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch homepage statistics");
 
                 var stats = await homeService.GetHomePageStatsAsync();
@@ -274,7 +285,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch packages for catering ID: {CateringId}", cateringId);
 
                 var packages = await homeService.GetCateringPackagesAsync(cateringId);
@@ -317,7 +328,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch food items for catering ID: {CateringId}, Category: {CategoryId}, IsPackageItem: {IsPackageItem}",
                     cateringId, categoryId, isPackageItem);
 
@@ -356,7 +367,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch decorations for catering ID: {CateringId}", cateringId);
 
                 var decorations = await homeService.GetCateringDecorationsAsync(cateringId);
@@ -399,7 +410,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch reviews for catering ID: {CateringId}, Page: {PageNumber}, Size: {PageSize}",
                     cateringId, pageNumber, pageSize);
 
@@ -439,7 +450,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch food categories");
 
                 var categories = await homeService.GetFoodCategoriesAsync();
@@ -472,7 +483,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch catering detail for ID: {CateringId}", cateringId);
 
                 var cateringDetail = await homeService.GetCateringDetailForBrowsingAsync(cateringId);
@@ -518,7 +529,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch package selection for Catering ID: {CateringId}, Package ID: {PackageId}",
                     cateringId, packageId);
 
@@ -565,7 +576,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch package categories for Catering ID: {CateringId}, Package ID: {PackageId}",
                     cateringId, packageId);
 
@@ -611,7 +622,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to search food items in package - Catering ID: {CateringId}, Package ID: {PackageId}, Query: {SearchQuery}",
                     cateringId, packageId, searchQuery);
 
@@ -656,7 +667,7 @@ namespace CateringEcommerce.API.Controllers.User
         {
             try
             {
-                HomeService homeService = new HomeService(_connStr);
+                var homeService = _homeService;
                 _logger.LogInformation("Request received to fetch guest categories for Catering ID: {CateringId}", cateringId);
 
                 var guestCategoriesData = await homeService.GetCateringGuestCategoriesAsync(cateringId);
@@ -678,6 +689,201 @@ namespace CateringEcommerce.API.Controllers.User
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error occurred while fetching guest categories for Catering ID: {CateringId}", cateringId);
+                return StatusCode(500, ApiResponseHelper.Failure("An unexpected error occurred."));
+            }
+        }
+
+        /// <summary>
+        /// Search caterings by service category (Wedding, Corporate, Party, Decorations).
+        /// Maps category to appropriate filters and returns caterings.
+        /// </summary>
+        /// <param name="category">Category name: wedding, corporate, party, decorations</param>
+        /// <param name="city">Optional city filter</param>
+        /// <param name="pageNumber">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 20)</param>
+        /// <returns>List of caterings offering the specified service category</returns>
+        [AllowAnonymous]
+        [HttpGet("SearchByCategory")]
+        public async Task<IActionResult> SearchByCategoryAsync(
+            [FromQuery] string category,
+            [FromQuery] string? city = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(category))
+                {
+                    return BadRequest(ApiResponseHelper.Failure("Category parameter is required."));
+                }
+
+                // Validate and normalize inputs
+                pageNumber = Math.Max(1, pageNumber);
+                pageSize = Math.Clamp(pageSize, 1, 100);
+
+                var filter = new Domain.Models.User.CateringSearchFilterDto
+                {
+                    City = city?.Trim(),
+                    VerifiedOnly = true,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+
+                // Map category to filters
+                string normalizedCategory = category.Trim().ToLowerInvariant();
+
+                switch (normalizedCategory)
+                {
+                    case "wedding":
+                        // Get caterings that offer Wedding event type
+                        filter.EventTypeIds = await GetEventTypeIdsByNameAsync("Wedding");
+                        break;
+
+                    case "corporate":
+                        // Get caterings that offer Corporate event type
+                        filter.EventTypeIds = await GetEventTypeIdsByNameAsync("Corporate");
+                        break;
+
+                    case "party":
+                    case "parties":
+                        // Get caterings that offer Birthday/Party event type
+                        filter.EventTypeIds = await GetEventTypeIdsByNameAsync("Birthday", "Party");
+                        break;
+
+                    case "decorations":
+                        // Get caterings that have active decorations
+                        filter.HasDecorations = true;
+                        break;
+
+                    default:
+                        return BadRequest(ApiResponseHelper.Failure($"Invalid category: {category}. Valid categories are: wedding, corporate, party, decorations"));
+                }
+
+                var homeService = _homeService;
+                _logger.LogInformation("Search by category request - Category: {Category}, City: {City}, Page: {Page}",
+                    category, city, pageNumber);
+
+                var searchResult = await homeService.SearchCateringsAsync(filter);
+
+                _logger.LogInformation("Category search completed - Found {Count} results (Total: {Total})",
+                    searchResult.Results?.Count ?? 0, searchResult.TotalCount);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Caterings for {category} category retrieved successfully.",
+                    data = searchResult.Results,
+                    pagination = new
+                    {
+                        totalCount = searchResult.TotalCount,
+                        pageNumber = searchResult.PageNumber,
+                        pageSize = searchResult.PageSize,
+                        totalPages = (int)Math.Ceiling((double)searchResult.TotalCount / searchResult.PageSize)
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during category-based search");
+                return StatusCode(500, ApiResponseHelper.Failure("An unexpected error occurred during search."));
+            }
+        }
+
+        /// <summary>
+        /// Helper method to get event type IDs by event type names
+        /// </summary>
+        private async Task<List<int>> GetEventTypeIdsByNameAsync(params string[] eventTypeNames)
+        {
+            try
+            {
+                var eventTypeIds = new List<int>();
+
+                using (var connection = new SqlConnection(_connStr))
+                {
+                    await connection.OpenAsync();
+
+                    foreach (var eventTypeName in eventTypeNames)
+                    {
+                        var query = $@"
+                            SELECT c_type_id
+                            FROM {Table.SysCateringTypeMaster}
+                            WHERE c_category_id = 3
+                            AND c_type_name LIKE @EventTypeName
+                            AND c_is_active = 1
+                            AND c_is_deleted = 0";
+
+                        using (var command = new SqlCommand(query, connection))
+                        {
+                            command.Parameters.AddWithValue("@EventTypeName", $"%{eventTypeName}%");
+
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+                                while (await reader.ReadAsync())
+                                {
+                                    eventTypeIds.Add(Convert.ToInt32(reader["c_type_id"]));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return eventTypeIds;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching event type IDs");
+                return new List<int>();
+            }
+        }
+
+        /// <summary>
+        /// Gets all active event types for display on category tiles
+        /// </summary>
+        /// <returns>List of event types from category ID 3</returns>
+        [AllowAnonymous]
+        [HttpGet("EventTypes")]
+        public async Task<IActionResult> GetEventTypesAsync()
+        {
+            try
+            {
+                var eventTypes = new List<object>();
+
+                using (var connection = new SqlConnection(_connStr))
+                {
+                    await connection.OpenAsync();
+
+                    var query = $@"
+                        SELECT c_type_id, c_type_name
+                        FROM {Table.SysCateringTypeMaster}
+                        WHERE c_category_id = 3
+                        AND c_is_active = 1
+                        AND c_is_deleted = 0
+                        ORDER BY c_display_order, c_type_name";
+
+                    using (var command = new SqlCommand(query, connection))
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            eventTypes.Add(new
+                            {
+                                id = Convert.ToInt32(reader["c_type_id"]),
+                                name = reader["c_type_name"].ToString()
+                            });
+                        }
+                    }
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Event types retrieved successfully.",
+                    data = eventTypes
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching event types");
                 return StatusCode(500, ApiResponseHelper.Failure("An unexpected error occurred."));
             }
         }

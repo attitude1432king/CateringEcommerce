@@ -2,6 +2,7 @@
 
 /**
  * A common utility for fetching data from the API.
+ * CONSOLIDATED: This replaces the old apiCall.js with portal-aware redirects
  * @param {string} endpoint - The API endpoint (e.g., '/profile/123').
  * @param {string} method - The HTTP method (GET, POST, PUT).
  * @param {object} [body=null] - The request body for POST/PUT requests.
@@ -17,17 +18,11 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
         url += `?${params.toString()}`;
     }
 
-    const token = (localStorage.getItem('authToken') == null || localStorage.getItem('authToken') == undefined) ? localStorage.getItem('adminToken') : localStorage.getItem('authToken');
-
     const options = {
         method,
+        credentials: 'include', // httpOnly cookie sent automatically
         headers: {}
     };
-
-    // Add Authorization header if token exists
-    if (token) {
-        options.headers['Authorization'] = `Bearer ${token}`;
-    }
 
     // Handle body
     if (body) {
@@ -45,14 +40,24 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
     try {
         const response = await fetch(url, options);
 
-        // Unauthorized handling
+        // Unauthorized handling - redirect to the correct login page based on current portal
         if (response.status === 401) {
-            localStorage.removeItem('enyvora_user');
-            localStorage.removeItem('authToken');
+            const path = window.location.pathname;
 
-            window.location.href = window.location.pathname.startsWith('/partner')
-                ? '/partner-login'
-                : '/';
+            if (path.startsWith('/admin')) {
+                localStorage.removeItem('admin');
+                window.location.href = '/admin/login';
+            } else if (path.startsWith('/supervisor')) {
+                localStorage.removeItem('supervisorToken');
+                localStorage.removeItem('supervisorId');
+                window.location.href = '/supervisor/login';
+            } else if (path.startsWith('/owner') || path.startsWith('/partner')) {
+                //localStorage.removeItem('enyvora_user');
+                //window.location.href = '/partner-login';
+            } else {
+                localStorage.removeItem('enyvora_user');
+                window.location.href = '/';
+            }
 
             throw new Error('Unauthorized');
         }
@@ -74,29 +79,6 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
     }
 };
 
-
-/**
- * NEW - A common utility for fetching data from any external API.
- * @param {string} fullUrl - The complete URL for the external API.
- * @returns {Promise<any>} - The JSON response from the API.
- */
-export const fetchExternalApi = async (fullUrl) => {
-    const response = await fetch(fullUrl, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
-};
-
-
 // Helper function to convert a File object to a Base64 DTO
 export const fileToBase64Dto = (file) => {
     return new Promise((resolve, reject) => {
@@ -110,4 +92,7 @@ export const fileToBase64Dto = (file) => {
         reader.onerror = error => reject(error);
     });
 };
+
+// P3 FIX: Export alias for backward compatibility (consolidating apiCall.js)
+export const apiCall = fetchApi;
 

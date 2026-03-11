@@ -1,0 +1,18 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=YOUR_LOCAL_SERVER;Database=CateringDB;Trusted_Connection=True;MultipleActiveResultSets=True;Encrypt=True;TrustServerCertificate=True;"
+  },
+  "SMS": {
+    "Provider": "MSG91"
+  },
+  "AllowedHosts": "*",
+
+  "_README": "This is a TEMPLATE file. Copy this to appsettings.Development.json and replace YOUR_* placeholders with actual values. Never commit the actual appsettings.Development.json file!"
+}

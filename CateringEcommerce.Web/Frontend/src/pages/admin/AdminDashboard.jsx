@@ -5,6 +5,7 @@ import Card, { CardHeader, CardTitle, CardDescription } from '../../components/a
 import Badge from '../../components/admin/ui/Badge';
 import LoadingSkeleton from '../../components/admin/ui/LoadingSkeleton';
 import { dashboardApi } from '../../services/adminApi';
+import { toast } from 'react-hot-toast'; // P1 FIX: Add toast for error feedback
 import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -68,9 +69,14 @@ const AdminDashboard = () => {
       const response = await dashboardApi.getMetrics();
       if (response.result) {
         setMetrics(response.data);
+      } else {
+        // P1 FIX: Show error toast when metrics fail to load
+        toast.error('Failed to load dashboard metrics');
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      // P1 FIX: Notify user when dashboard fails to load
+      toast.error('Failed to load dashboard. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -136,28 +142,32 @@ const AdminDashboard = () => {
           <StatCard
             title="Total Users"
             value={metrics?.totalUsers?.toLocaleString() || '0'}
-            change={15}
+            change={metrics?.userGrowthPercent ?? 0}
             icon={Users}
             color="bg-blue-500"
           />
           <StatCard
             title="Active Caterings"
             value={metrics?.activeCaterings?.toLocaleString() || '0'}
-            change={8}
+            change={metrics?.cateringGrowthPercent ?? 0}
             icon={Store}
             color="bg-green-500"
           />
           <StatCard
             title="Total Orders"
             value={metrics?.totalOrders?.toLocaleString() || '0'}
-            change={-3}
+            change={metrics?.orderGrowthPercent ?? 0}
             icon={ShoppingCart}
             color="bg-purple-500"
           />
           <StatCard
             title="Total Revenue"
-            value={`₹${(metrics?.totalRevenue / 1000).toFixed(1)}K` || '₹0'}
-            change={20}
+            value={
+              metrics?.totalRevenue != null
+                ? `₹${(metrics.totalRevenue / 1000).toFixed(1)}K`
+                : '₹0'
+            }
+            change={metrics?.revenueGrowthPercent ?? 0}
             icon={DollarSign}
             color="bg-indigo-500"
           />

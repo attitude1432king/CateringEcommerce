@@ -56,7 +56,7 @@ export default function CateringListPage() {
                 pageSize: 20
             };
 
-            console.log('Searching with filters:', searchFilters);
+            // P2 FIX: Removed console.log exposing internal filters
 
             const response = await searchCaterings(searchFilters);
 
@@ -67,7 +67,7 @@ export default function CateringListPage() {
                 setCaterings(data || []);
                 setPagination(paginationData);
 
-                console.log('Search results:', data);
+                // P2 FIX: Removed console.log exposing search results
             } else {
                 showToast('Failed to fetch catering services', 'error');
                 setCaterings([]);

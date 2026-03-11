@@ -1,5 +1,6 @@
 ﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
@@ -10,12 +11,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
 {
     public class Packages : IPackages
     {
-        private readonly SqlDatabaseManager _db;
-
-        public Packages(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public Packages(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -27,8 +26,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
         {
             try
             {
-                string query = "SELECT c_categoryid, c_categoryname FROM " + Table.SysFoodCategory + " WHERE c_is_active = 1";
-                var dtCategory = await _db.ExecuteAsync(query);
+                string query = "SELECT c_categoryid, c_categoryname FROM " + Table.SysFoodCategory + " WHERE c_isactive = 1";
+                var dtCategory = await _dbHelper.ExecuteAsync(query);
                 var foodCategoryList = new List<FoodCategoryDto>();
                 if (dtCategory.Rows.Count > 0)
                 {
@@ -73,7 +72,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@Price", packageDto.Price),
                     new SqlParameter("@OwnerPKID", ownerPKID)
                 };
-                var result = await _db.ExecuteScalarAsync(insertQuery.ToString(), parameters);
+                var result = await _dbHelper.ExecuteScalarAsync(insertQuery.ToString(), parameters);
                 return result != null ? Convert.ToInt64(result) : 0;
             }
             catch (Exception ex)
@@ -108,7 +107,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     parameters.Add(new SqlParameter("@Search", $"%{searchPackageName.ToLower()}%"));
                 }
 
-                var resultObj = await _db.ExecuteScalarAsync(selectQuery.ToString(), parameters.ToArray());
+                var resultObj = await _dbHelper.ExecuteScalarAsync(selectQuery.ToString(), parameters.ToArray());
                 Int32 result = Convert.ToInt32(resultObj);
                 return result;
             }
@@ -164,7 +163,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 if (!string.IsNullOrWhiteSpace(searchPackageName))
                     p1.Add(new SqlParameter("@Search", $"%{searchPackageName.ToLower()}%"));
 
-                var idTable = await _db.ExecuteAsync(sql1.ToString(), p1.ToArray());
+                var idTable = await _dbHelper.ExecuteAsync(sql1.ToString(), p1.ToArray());
 
                 if (idTable.Rows.Count == 0)
                     return new List<PackageDto>();
@@ -193,7 +192,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     WHERE p.c_packageid IN ({idList})
                     ORDER BY p.c_packageid, pi.c_itemid;";
 
-                var packageData = await _db.ExecuteAsync(sql2);
+                var packageData = await _dbHelper.ExecuteAsync(sql2);
 
                 // -----------------------
                 //  STEP 3: BUILD DTO LIST
@@ -249,7 +248,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             {
                 StringBuilder updateQuery = new StringBuilder();
                 updateQuery.Append($@"UPDATE {Table.SysMenuPackage} SET c_packagename = @PackageName, c_description = @Description,
-                                   c_price = @Price, c_modified_date = @ModifiedDate WHERE c_packageid = @PackagePKID AND c_ownerid = @OwnerPKID");
+                                   c_price = @Price, c_modifieddate = @ModifiedDate WHERE c_packageid = @PackagePKID AND c_ownerid = @OwnerPKID");
 
                 SqlParameter[] parameters = new SqlParameter[]
                 {
@@ -260,7 +259,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@PackagePKID", packageDto.PackageId),
                     new SqlParameter("@OwnerPKID", ownerPKID)
                 };
-                var result = await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters);
+                var result = await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters);
 
             }
             catch (Exception ex)
@@ -288,7 +287,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@CategoryId", packageItem.CategoryId),
                     new SqlParameter("@Quantity", packageItem.Quantity),
                 };
-                var result = await _db.ExecuteNonQueryAsync(insertQuery.ToString(), parameters);
+                var result = await _dbHelper.ExecuteNonQueryAsync(insertQuery.ToString(), parameters);
             }
             catch (Exception ex)
             {
@@ -311,7 +310,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 {
                     throw new Exception("Package Item must be required.");
                 }
-                string insertQuery = $@"UPDATE {Table.SysMenuPackageItems} SET c_categoryid = @CategoryId, c_quantity = @Quantity, c_modified_date = @ModifiedDate  
+                string insertQuery = $@"UPDATE {Table.SysMenuPackageItems} SET c_categoryid = @CategoryId, c_quantity = @Quantity, c_modifieddate = @ModifiedDate  
                                  WHERE c_itemid = @ItemId AND c_packageid = @PackagePKID";
                 SqlParameter[] parameters = new SqlParameter[]
                 {
@@ -321,7 +320,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@Quantity", packageItem.Quantity),
                     new SqlParameter("@ModifiedDate", DateTime.Now),
                 };
-                var result = await _db.ExecuteNonQueryAsync(insertQuery.ToString(), parameters);
+                var result = await _dbHelper.ExecuteNonQueryAsync(insertQuery.ToString(), parameters);
             }
             catch (Exception ex)
             {
@@ -351,7 +350,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     deleteQuery.Append(" AND c_itemid = @ItemId");
                     parameters.Add(new SqlParameter("@ItemId", packageItemId));
                 }
-                var result = await _db.ExecuteNonQueryAsync(deleteQuery.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteNonQueryAsync(deleteQuery.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -368,12 +367,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
         {
             try
             {
-                string query = $@"UPDATE {Table.SysMenuPackage} SET c_is_deleted = 1, c_is_active = 0, c_modified_date = GETDATE() WHERE c_packageid = @packagePKID"; 
+                string query = $@"UPDATE {Table.SysMenuPackage} SET c_is_deleted = 1, c_is_active = 0, c_modifieddate = GETDATE() WHERE c_packageid = @packagePKID"; 
                 SqlParameter[] parameters = new SqlParameter[]
                 {
                     new SqlParameter("@PackagePKID", packagePKID),
                 };
-                var result = await _db.ExecuteNonQueryAsync(query.ToString(), parameters);
+                var result = await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters);
             }
             catch (Exception ex)
             {
@@ -399,7 +398,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@OwnerPKID", ownerPKID),
                 };
 
-                return Convert.ToInt16(_db.ExecuteScalar(selectQuery, parameters)) > 0;
+                return Convert.ToInt16(_dbHelper.ExecuteScalar(selectQuery, parameters)) > 0;
             }
             catch (Exception)
             {
@@ -422,7 +421,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@PackagePKID", packagePKID),
                 };
 
-                var packageItemList = await _db.ExecuteAsync(selectQuery, parameters);
+                var packageItemList = await _dbHelper.ExecuteAsync(selectQuery, parameters);
                 if (packageItemList.Rows.Count > 0)
                 {
                     List<PackageItemDto> packageItems = new List<PackageItemDto>();
@@ -466,7 +465,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 {
                     new SqlParameter("@OwnerPKID", ownerPKID),
                 };
-                var packageData = await _db.ExecuteAsync(selectQuery, parameters);
+                var packageData = await _dbHelper.ExecuteAsync(selectQuery, parameters);
                 if (packageData.Rows.Count > 0)
                 {
                     List<PackageDto> packageList = new List<PackageDto>();
@@ -503,7 +502,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@OwnerPKID", ownerPKID),
                     new SqlParameter("@PackagePKID", packagePKID),
                 };
-                return Convert.ToInt16(await _db.ExecuteScalarAsync(selectQuery, parameters)) > 0;
+                return Convert.ToInt16(await _dbHelper.ExecuteScalarAsync(selectQuery, parameters)) > 0;
             }
             catch (Exception)
             {

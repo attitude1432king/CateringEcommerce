@@ -3,14 +3,15 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Payment;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Razorpay.Api;
 
 namespace CateringEcommerce.BAL.Services
 {
-    public class RazorpayPaymentService
+    public class RazorpayPaymentService : IRazorpayPaymentService
     {
         private readonly string _keyId;
         private readonly string _keySecret;
@@ -18,20 +19,22 @@ namespace CateringEcommerce.BAL.Services
         private readonly RazorpayClient _client;
         private readonly ILogger<RazorpayPaymentService>? _logger;
 
-        public RazorpayPaymentService(IConfiguration configuration, ILogger<RazorpayPaymentService>? logger = null)
+        public RazorpayPaymentService(ISystemSettingsProvider settings, ILogger<RazorpayPaymentService>? logger = null)
         {
-            if (configuration == null)
+            if (settings == null)
             {
-                throw new ArgumentNullException(nameof(configuration));
+                throw new ArgumentNullException(nameof(settings));
             }
 
-            _keyId = configuration["RazorpaySettings:KeyId"]
-                ?? throw new InvalidOperationException("Razorpay KeyId is not configured in appsettings.json");
+            _keyId = settings.GetString("PAYMENT.RAZORPAY_KEY_ID");
+            if (string.IsNullOrEmpty(_keyId))
+                throw new InvalidOperationException("Razorpay KeyId is not configured in settings");
 
-            _keySecret = configuration["RazorpaySettings:KeySecret"]
-                ?? throw new InvalidOperationException("Razorpay KeySecret is not configured in appsettings.json");
+            _keySecret = settings.GetString("PAYMENT.RAZORPAY_KEY_SECRET");
+            if (string.IsNullOrEmpty(_keySecret))
+                throw new InvalidOperationException("Razorpay KeySecret is not configured in settings");
 
-            _webhookSecret = configuration["RazorpaySettings:WebhookSecret"] ?? string.Empty;
+            _webhookSecret = settings.GetString("PAYMENT.RAZORPAY_WEBHOOK_SECRET");
 
             _logger = logger;
 
@@ -58,8 +61,9 @@ namespace CateringEcommerce.BAL.Services
 
                 _logger?.LogInformation($"Creating Razorpay order for OrderId: {orderRequest.OrderId}, Amount: ₹{orderRequest.Amount}, Stage: {orderRequest.StageType}");
 
+                // SECURITY FIX: Use precise rounding before conversion to prevent paise discrepancies
                 // Convert amount to paise (Razorpay expects amount in paise)
-                long amountInPaise = (long)(orderRequest.Amount * 100);
+                long amountInPaise = (long)Math.Round(orderRequest.Amount * 100, MidpointRounding.AwayFromZero);
 
                 // Prepare order options
                 Dictionary<string, object> options = new Dictionary<string, object>
@@ -179,10 +183,13 @@ namespace CateringEcommerce.BAL.Services
                     throw new ArgumentException("Signature is required.", nameof(receivedSignature));
                 }
 
+                // SECURITY FIX: Make webhook secret mandatory - prevent payment bypass attacks
                 if (string.IsNullOrEmpty(_webhookSecret))
                 {
-                    _logger?.LogWarning("Webhook secret is not configured. Skipping webhook verification.");
-                    return false;
+                    _logger?.LogError("CRITICAL: Webhook secret is not configured. All webhook requests will be rejected.");
+                    throw new InvalidOperationException(
+                        "Razorpay webhook secret (PAYMENT.RAZORPAY_WEBHOOK_SECRET) is not configured in settings. " +
+                        "Configure the secret in t_sys_settings to enable webhook verification.");
                 }
 
                 // Generate expected signature
@@ -246,8 +253,9 @@ namespace CateringEcommerce.BAL.Services
 
                 _logger?.LogInformation($"Processing refund for PaymentId: {paymentId}, Amount: ₹{refundAmount}");
 
+                // SECURITY FIX: Use precise rounding to prevent amount discrepancies
                 // Convert amount to paise
-                long amountInPaise = (long)(refundAmount * 100);
+                long amountInPaise = (long)Math.Round(refundAmount * 100, MidpointRounding.AwayFromZero);
 
                 // Prepare refund options
                 Dictionary<string, object> refundOptions = new Dictionary<string, object>

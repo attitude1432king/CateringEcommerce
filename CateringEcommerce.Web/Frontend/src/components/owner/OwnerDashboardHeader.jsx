@@ -8,6 +8,7 @@ Fixed vertical alignment of logo and title.
 import React, { useState } from 'react';
 import AvailabilityManagement from './dashboard/availability/AvailabilityManagement'; // Import your component
 import { useAuth } from '../../contexts/AuthContext';
+import OwnerNotifications from './OwnerNotifications';
 
 // Availability Icon
 const AvailabilityIcon = () => (
@@ -38,6 +39,9 @@ export default function OwnerDashboardHeader() {
                     <AvailabilityIcon />
                     <span>Availability</span>
                 </button>
+
+                {/* Notification Bell */}
+                <OwnerNotifications />
 
                 {/* User Info / Profile Link could go here */}
                 <div className="flex items-center gap-2">

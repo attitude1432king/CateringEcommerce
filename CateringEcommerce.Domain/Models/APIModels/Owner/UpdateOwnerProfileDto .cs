@@ -1,4 +1,6 @@
-﻿namespace CateringEcommerce.Domain.Models.APIModels.Owner
+﻿using CateringEcommerce.Domain.Models.Common;
+
+namespace CateringEcommerce.Domain.Models.APIModels.Owner
 {
     public class UpdateOwnerProfileDto
     {

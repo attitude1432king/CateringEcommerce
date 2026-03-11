@@ -2,6 +2,7 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
@@ -13,12 +14,10 @@ namespace CateringEcommerce.BAL.Base.Owner
 {
     public class Decorations : IDecorations
     {
-        private readonly SqlDatabaseManager _db;
-
-        public Decorations(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public Decorations(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -46,7 +45,7 @@ namespace CateringEcommerce.BAL.Base.Owner
 
             sql.Append(BuildDecorationFilterQuery(filter, parameters));
 
-            var result = await _db.ExecuteScalarAsync(sql.ToString(), parameters.ToArray());
+            var result = await _dbHelper.ExecuteScalarAsync(sql.ToString(), parameters.ToArray());
             return result != null ? Convert.ToInt32(result) : 0;
         }
 
@@ -89,7 +88,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                         cd.c_packageids AS PackageIds,
                         STRING_AGG(CONCAT(p.c_packageid, ':', p.c_packagename), ',') AS PackageData
                     FROM {Table.SysCateringDecorations} cd
-                    LEFT JOIN {Table.SysDecorationThemes} tt 
+                    LEFT JOIN {Table.SysCateringThemeTypes} tt 
                         ON tt.c_theme_id = cd.c_theme_id
                     OUTER APPLY (
                         SELECT value 
@@ -112,12 +111,12 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FETCH NEXT @PageSize ROWS ONLY;
                 ");
 
-                var raw = await _db.ExecuteAsync(sql.ToString(), parameters.ToArray());
+                var raw = await _dbHelper.ExecuteAsync(sql.ToString(), parameters.ToArray());
                 if (raw.Rows.Count == 0)
                     return new List<DecorationsModel>();
 
                 var decorations = new List<DecorationsModel>();
-                var mediaRepo = new MediaRepository(_db.GetConnectionString());
+                var mediaRepo = new MediaRepository(_dbHelper);
 
                 foreach (DataRow row in raw.Rows)
                 {
@@ -203,7 +202,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Status", decoration.Status.ToBinary()) // Assuming 1 for active, 0 for inactive
                 };
 
-                var result = await _db.ExecuteScalarAsync(insertQuery.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(insertQuery.ToString(), parameters.ToArray());
                 return result != null ? Convert.ToInt64(result) : 0;
             }
             catch (Exception ex)
@@ -231,7 +230,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@DecorationID", decorationID)
                 };
 
-                return await _db.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
+                return await _dbHelper.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -268,7 +267,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Status", decoration.Status.ToBinary()), // Assuming 1 for active, 0 for inactive
                 };
 
-                return await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
+                return await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -286,9 +285,9 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 string query = $@"SELECT c_theme_id AS ThemeId, c_theme_name AS ThemeName
-                                 FROM {Table.SysDecorationThemes}
+                                 FROM {Table.SysCateringThemeTypes}
                                  WHERE c_isactive = 1 ORDER BY c_theme_name";
-                var dt = await _db.ExecuteAsync(query);
+                var dt = await _dbHelper.ExecuteAsync(query);
                 List<DecorationThemeModel> themes = new List<DecorationThemeModel>();
                 foreach (System.Data.DataRow row in dt.Rows)
                 {
@@ -340,7 +339,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 if (decorationId.HasValue && decorationId.Value > 0)
                     parameters.Add(new SqlParameter("@DecorationId", decorationId.Value));
 
-                var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
                 return count > 0; // true → name already exists
             }
@@ -373,7 +372,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@DecorationId", decorationId)
                 };
 
-                var result = _db.ExecuteScalar(selectQuery, parameters.ToArray());
+                var result = _dbHelper.ExecuteScalar(selectQuery, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
 
                 // If count == 0 → ID does not belong to this owner
@@ -408,7 +407,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Status", status.ToBinary())
                 };
 
-                var result = await _db.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
+                var result = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
             }
             catch (Exception ex)
             {

@@ -1,0 +1,219 @@
+# Main CI/CD Pipeline Orchestrator
+# CateringEcommerce - IIS Deployment Pipeline
+# Supports: First-time deployment, Redeployments, Rollback
+
+trigger:
+  branches:
+    include:
+      - main
+      - release/*
+  paths:
+    exclude:
+      - README.md
+      - docs/*
+      - '**/*.md'
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - README.md
+      - docs/*
+
+# Import shared variables
+variables:
+  - template: variables.yml
+
+# Pipeline stages
+stages:
+  # ========================================
+  # STAGE 1: BUILD (CI)
+  # ========================================
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: BuildBackend
+        displayName: 'Build Backend API'
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - template: build-backend.yml
+
+      - job: BuildFrontend
+        displayName: 'Build React Frontend'
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - template: build-frontend.yml
+
+      - job: RunTests
+        displayName: 'Run Tests'
+        dependsOn:
+          - BuildBackend
+          - BuildFrontend
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - template: test.yml
+
+  # ========================================
+  # STAGE 2: DEPLOY (CD)
+  # ========================================
+  - stage: Deploy
+    displayName: 'Deploy to Production'
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      # Pre-Deployment Checks
+      - job: PreDeployment
+        displayName: 'Pre-Deployment Checks'
+        pool:
+          name: 'Production-Pool'
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: 'Check Database Initialization Status'
+            name: DBCheck
+            inputs:
+              targetType: 'filePath'
+              filePath: '$(DEPLOY_SCRIPTS_PATH)/db-check.ps1'
+              arguments: >
+                -ServerName "$(DB_SERVER)"
+                -DatabaseName "$(DB_NAME)"
+                -FlagFile "$(DB_INIT_FLAG_FILE)"
+              errorActionPreference: 'stop'
+            continueOnError: false
+
+          - task: PowerShell@2
+            displayName: 'Backup Current Deployment'
+            inputs:
+              targetType: 'filePath'
+              filePath: '$(DEPLOY_SCRIPTS_PATH)/backup-site.ps1'
+              arguments: >
+                -ApiPath "$(IIS_API_PATH)"
+                -WebPath "$(IIS_WEB_PATH)"
+                -BackupPath "$(BACKUP_PATH)"
+                -Version "$(VERSION_PREFIX).$(VERSION_SUFFIX)"
+              errorActionPreference: 'stop'
+
+      # Database Initialization (One-Time Only)
+      - job: InitializeDatabase
+        displayName: 'Initialize Database (First Deploy Only)'
+        dependsOn: PreDeployment
+        condition: and(succeeded(), eq(dependencies.PreDeployment.outputs['DBCheck.NeedsInitialization'], 'true'))
+        pool:
+          name: 'Production-Pool'
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: 'Run Database Initialization Scripts'
+            inputs:
+              targetType: 'filePath'
+              filePath: '$(DEPLOY_SCRIPTS_PATH)/db-init.ps1'
+              arguments: >
+                -ServerName "$(DB_SERVER)"
+                -DatabaseName "$(DB_NAME)"
+                -ScriptsPath "$(DATABASE_SCRIPTS_PATH)"
+                -FlagFile "$(DB_INIT_FLAG_FILE)"
+                -ConnectionString "$(DB_CONNECTION_STRING)"
+              errorActionPreference: 'stop'
+            env:
+              DB_CONNECTION_STRING: $(DB_CONNECTION_STRING)
+
+      # Deploy Backend
+      - job: DeployBackend
+        displayName: 'Deploy Backend to IIS'
+        dependsOn:
+          - PreDeployment
+          - InitializeDatabase
+        condition: or(succeeded(), eq(dependencies.InitializeDatabase.result, 'Skipped'))
+        pool:
+          name: 'Production-Pool'
+        steps:
+          - template: deploy-backend.yml
+
+      # Deploy Frontend
+      - job: DeployFrontend
+        displayName: 'Deploy Frontend to IIS'
+        dependsOn:
+          - PreDeployment
+          - InitializeDatabase
+        condition: or(succeeded(), eq(dependencies.InitializeDatabase.result, 'Skipped'))
+        pool:
+          name: 'Production-Pool'
+        steps:
+          - template: deploy-frontend.yml
+
+      # Post-Deployment Validation
+      - job: HealthCheck
+        displayName: 'Health Check & Validation'
+        dependsOn:
+          - DeployBackend
+          - DeployFrontend
+        pool:
+          name: 'Production-Pool'
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: 'Run Health Checks'
+            name: HealthCheck
+            inputs:
+              targetType: 'filePath'
+              filePath: '$(DEPLOY_SCRIPTS_PATH)/health-check.ps1'
+              arguments: >
+                -ApiHealthEndpoint "$(API_HEALTH_ENDPOINT)"
+                -WebHealthEndpoint "$(WEB_HEALTH_ENDPOINT)"
+                -Timeout $(HEALTH_CHECK_TIMEOUT)
+                -Retries $(HEALTH_CHECK_RETRIES)
+              errorActionPreference: 'stop'
+            continueOnError: false
+
+          - task: PowerShell@2
+            displayName: 'Send Success Notification'
+            condition: succeeded()
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "##[section]Deployment Successful!"
+                Write-Host "Version: $(VERSION_PREFIX).$(VERSION_SUFFIX)"
+                Write-Host "API: $(API_HEALTH_ENDPOINT)"
+                Write-Host "Web: $(WEB_HEALTH_ENDPOINT)"
+                # Add email notification logic here
+
+      # Automatic Rollback on Failure
+      - job: Rollback
+        displayName: 'Rollback on Failure'
+        dependsOn: HealthCheck
+        condition: and(failed(), eq(variables['ENABLE_AUTO_ROLLBACK'], 'true'))
+        pool:
+          name: 'Production-Pool'
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: 'Rollback to Previous Version'
+            inputs:
+              targetType: 'filePath'
+              filePath: '$(DEPLOY_SCRIPTS_PATH)/rollback.ps1'
+              arguments: >
+                -ApiPath "$(IIS_API_PATH)"
+                -WebPath "$(IIS_WEB_PATH)"
+                -BackupPath "$(BACKUP_PATH)"
+                -ApiPool "$(IIS_API_POOL)"
+                -WebPool "$(IIS_WEB_POOL)"
+                -Previous
+              errorActionPreference: 'stop'
+
+          - task: PowerShell@2
+            displayName: 'Send Rollback Notification'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "##[error]Deployment Failed - Rolled Back!"
+                Write-Host "Version: $(VERSION_PREFIX).$(VERSION_SUFFIX)"
+                # Add email notification logic here

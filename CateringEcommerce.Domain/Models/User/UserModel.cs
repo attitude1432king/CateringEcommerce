@@ -12,4 +12,6 @@ public class UserModel
     public int StateID { get; set; }
     public string? Description { get; set; }
     public string? ProfilePhoto { get; set; }
+    public bool IsBlocked { get; set; }
+    public string? BlockReason { get; set; }
 }

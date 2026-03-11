@@ -2,6 +2,7 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
@@ -12,12 +13,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
 {
     public class FoodItems: IFoodItems
     {
-        private readonly SqlDatabaseManager _db;
-
-        public FoodItems(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public FoodItems(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         /// <summary>
@@ -38,7 +37,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@OwnerPKID", ownerPKID)
                 };
                 countQuery.Append(BuildFilterQuery(filter, parameters));
-                var result = await _db.ExecuteScalarAsync(countQuery.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(countQuery.ToString(), parameters.ToArray());
                 return result != null ? Convert.ToInt32(result) : 0;
             }
             catch (Exception ex)
@@ -78,7 +77,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@Status", foodItem.Status.ToBinary()) // Assuming 1 for active, 0 for inactive
                 };
 
-                var result = await _db.ExecuteScalarAsync(insertQuery.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(insertQuery.ToString(), parameters.ToArray());
                 return result != null ? Convert.ToInt64(result) : 0;
             }
             catch (Exception ex)
@@ -107,7 +106,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                                     ft.c_issample_tasted AS IsSampleTasted, ft.c_status AS Status, fc.c_categoryname AS CategoryName, tm.c_type_name AS CuisineTypeName
                                     FROM {Table.SysFoodItems} ft 
                                     LEFT JOIN {Table.SysFoodCategory} fc ON ft.c_categoryid = fc.c_categoryid 
-                                    LEFT JOIN {Table.SysCateringTypeMaster} tm ON ft.c_cuisinetypeid = tm.c_type_id");
+                                    LEFT JOIN {Table.SysCateringTypeMaster} tm ON ft.c_cuisinetypeid = tm.c_typeid");
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerPKID", ownerPKID),
@@ -123,11 +122,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     FETCH NEXT @PageSize ROWS ONLY;
                 ");
 
-                var foodItemsData = await _db.ExecuteAsync(selectQuery.ToString(), parameters.ToArray());
+                var foodItemsData = await _dbHelper.ExecuteAsync(selectQuery.ToString(), parameters.ToArray());
                 if (foodItemsData.Rows.Count == 0)
                     return new List<FoodItemModel>();
                 var foodItems = new List<FoodItemModel>();
-                MediaRepository mediaRepository = new MediaRepository(_db.GetConnectionString());
+                MediaRepository mediaRepository = new MediaRepository(_dbHelper);
                 foreach (System.Data.DataRow row in foodItemsData.Rows)
                 {
                     var FoodItemId = row["FoodId"] != DBNull.Value ? Convert.ToInt64(row["FoodId"]) : 0;
@@ -199,7 +198,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@IsSampleTaste", foodItem.IsSampleTaste.ToBinary()),
                 };
 
-                return await _db.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
+                return await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -226,7 +225,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@FoodID", foodItemPKID)
                 };
 
-                return await _db.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
+                return await _dbHelper.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -268,7 +267,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 if (foodItemPKID.HasValue && foodItemPKID.Value > 0)
                     parameters.Add(new SqlParameter("@FoodID", foodItemPKID.Value));
 
-                var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
                 return count > 0; 
             }
@@ -345,7 +344,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 {
                     new SqlParameter("@OwnerPKID", ownerPKID),
                 };
-                var packageData = await _db.ExecuteAsync(selectQuery, parameters);
+                var packageData = await _dbHelper.ExecuteAsync(selectQuery, parameters);
                 if (packageData.Rows.Count > 0)
                 {
                     List<FoodItemDto> foodItemList = new List<FoodItemDto>();
@@ -384,7 +383,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     new SqlParameter("@OwnerPKID", ownerPKID),
                     new SqlParameter("@FoodItemID", foodItemPKID)
                 };
-                var result = await _db.ExecuteScalarAsync(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
                 return count > 0;
             }

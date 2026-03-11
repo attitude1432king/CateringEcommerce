@@ -1,0 +1,53 @@
+# CI/CD Pipeline Variables
+# CateringEcommerce - Production Environment
+
+variables:
+  # Build Configuration
+  BUILD_CONFIGURATION: 'Release'
+  DOTNET_VERSION: '9.0.x'
+  NODE_VERSION: '20.x'
+
+  # IIS Configuration
+  IIS_SERVER: 'production-server.domain.com'
+  IIS_API_SITE: 'CateringEcommerce_API'
+  IIS_WEB_SITE: 'CateringEcommerce_Web'
+  IIS_API_POOL: 'CateringEcommerce_API_Pool'
+  IIS_WEB_POOL: 'CateringEcommerce_Web_Pool'
+  IIS_API_PATH: 'C:\inetpub\wwwroot\CateringAPI'
+  IIS_WEB_PATH: 'C:\inetpub\wwwroot\CateringWeb'
+
+  # Database Configuration
+  DB_SERVER: 'localhost\SQLEXPRESS'
+  DB_NAME: 'CateringEcommerceDB'
+  DB_INIT_FLAG_TABLE: 'DeploymentHistory'
+  DB_INIT_FLAG_FILE: 'C:\Deployments\CateringEcommerce\.db_initialized'
+
+  # Versioning
+  VERSION_PREFIX: '1.0'
+  VERSION_SUFFIX: '$(Build.BuildNumber)'
+
+  # Paths
+  BACKEND_PROJECT: 'CateringEcommerce.API/CateringEcommerce.API.csproj'
+  FRONTEND_PATH: 'CateringEcommerce.Web/Frontend'
+  DATABASE_SCRIPTS_PATH: 'Database'
+  DEPLOY_SCRIPTS_PATH: 'Deploy'
+
+  # Artifact Configuration
+  ARTIFACT_NAME: 'CateringEcommerce_$(VERSION_PREFIX).$(VERSION_SUFFIX)'
+  BACKUP_PATH: 'C:\Deployments\Backups'
+  ARTIFACT_RETENTION_DAYS: 30
+
+  # Health Check Configuration
+  API_HEALTH_ENDPOINT: 'https://api.enyvora.com/health'
+  WEB_HEALTH_ENDPOINT: 'https://enyvora.com'
+  HEALTH_CHECK_TIMEOUT: 60
+  HEALTH_CHECK_RETRIES: 3
+
+  # Rollback Configuration
+  ENABLE_AUTO_ROLLBACK: true
+  ROLLBACK_ON_HEALTH_CHECK_FAIL: true
+
+  # Notification Configuration
+  NOTIFY_EMAIL: 'devops@enyvora.com'
+  NOTIFY_ON_SUCCESS: true
+  NOTIFY_ON_FAILURE: true

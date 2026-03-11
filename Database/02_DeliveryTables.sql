@@ -35,8 +35,8 @@ BEGIN
         */
 
         -- Timestamps
-        c_created_at DATETIME NOT NULL DEFAULT GETDATE(),
-        c_updated_at DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         -- Indexes
         CONSTRAINT FK_SampleDelivery_Order FOREIGN KEY (c_orderid)
@@ -94,8 +94,8 @@ BEGIN
         c_notes NVARCHAR(500) NULL,
 
         -- System timestamps
-        c_created_at DATETIME NOT NULL DEFAULT GETDATE(),
-        c_updated_at DATETIME NULL,
+        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
+        c_modifieddate DATETIME NULL,
 
         -- Indexes
         CONSTRAINT FK_EventDelivery_Order FOREIGN KEY (c_orderid)

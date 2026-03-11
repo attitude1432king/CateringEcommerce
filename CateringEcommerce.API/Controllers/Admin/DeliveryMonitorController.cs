@@ -20,21 +20,18 @@ namespace CateringEcommerce.API.Controllers.Admin
     [Route("api/Admin/[controller]")]
     public class DeliveryMonitorController : ControllerBase
     {
+        private readonly IEventDeliveryService _eventDeliveryService;
         private readonly ILogger<DeliveryMonitorController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly IConfiguration _configuration;
-        private readonly string _connStr;
 
         public DeliveryMonitorController(
+            IEventDeliveryService eventDeliveryService,
             ILogger<DeliveryMonitorController> logger,
-            ICurrentUserService currentUser,
-            IConfiguration configuration)
+            ICurrentUserService currentUser)
         {
+            _eventDeliveryService = eventDeliveryService ?? throw new ArgumentNullException(nameof(eventDeliveryService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
         }
 
         // ===================================
@@ -54,8 +51,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 _logger.LogInformation("Admin fetching all deliveries for monitoring");
 
-                var service = new EventDeliveryService(_connStr);
-                var deliveries = await service.GetAdminDeliveryMonitorAsync();
+                var deliveries = await _eventDeliveryService.GetAdminDeliveryMonitorAsync();
 
                 return ApiResponseHelper.Success(deliveries);
             }
@@ -79,8 +75,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 _logger.LogInformation($"Admin fetching delivery for order {orderId}");
 
-                var service = new EventDeliveryService(_connStr);
-                var delivery = await service.GetEventDeliveryByOrderIdAsync(orderId);
+                var delivery = await _eventDeliveryService.GetEventDeliveryByOrderIdAsync(orderId);
 
                 if (delivery == null)
                 {
@@ -109,8 +104,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 _logger.LogInformation($"Admin fetching delivery timeline for order {orderId}");
 
-                var service = new EventDeliveryService(_connStr);
-                var timeline = await service.GetDeliveryTimelineAsync(orderId);
+                var timeline = await _eventDeliveryService.GetDeliveryTimelineAsync(orderId);
 
                 return ApiResponseHelper.Success(timeline);
             }
@@ -140,8 +134,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 _logger.LogInformation($"Admin {adminUserId} overriding delivery {request.EventDeliveryId} to status {request.NewStatus}");
                 _logger.LogWarning($"ADMIN OVERRIDE: Delivery {request.EventDeliveryId} status changed to {request.NewStatus}. Reason: {request.Notes}");
 
-                var service = new EventDeliveryService(_connStr);
-                var updatedDelivery = await service.AdminOverrideStatusAsync(
+                var updatedDelivery = await _eventDeliveryService.AdminOverrideStatusAsync(
                     request.EventDeliveryId,
                     request.NewStatus,
                     adminUserId,

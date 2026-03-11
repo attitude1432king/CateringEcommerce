@@ -4,19 +4,27 @@ File: src/components/user/CartDrawer.jsx (REFACTORED - DRAWER OPTIMIZED)
 ========================================
 Cart drawer component optimized for compact sidebar display.
 */
-import React from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../../contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
+import { useAppSettings } from '../../contexts/AppSettingsContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
 export default function CartDrawer() {
     const { cart, isCartOpen, setIsCartOpen, clearCart, updateCart, removeAdditionalItem } = useCart();
     const navigate = useNavigate();
+    const { getInt } = useAppSettings();
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     if (!isCartOpen) return null;
 
     const handleClose = () => setIsCartOpen(false);
+
+    const handleClearCartConfirm = () => {
+        clearCart();
+        setShowClearConfirm(false);
+    };
 
     const handleGuestCountChange = (newCount) => {
         if (newCount >= 50 && newCount <= 10000) {
@@ -189,7 +197,7 @@ export default function CartDrawer() {
                                         </svg>
                                     </button>
                                 </div>
-                                <p className="text-xs text-neutral-500 mt-2 text-center">Min: 50, Max: 10,000 guests</p>
+                                <p className="text-xs text-neutral-500 mt-2 text-center">Min: {getInt('BUSINESS.MIN_GUESTS_PER_ORDER', 50)}, Max: 10,000 guests</p>
                             </div>
 
                             {/* Decoration (if selected) */}
@@ -266,11 +274,7 @@ export default function CartDrawer() {
 
                             {/* Clear Cart Button */}
                             <button
-                                onClick={() => {
-                                    if (window.confirm('Are you sure you want to clear your cart?')) {
-                                        clearCart();
-                                    }
-                                }}
+                                onClick={() => setShowClearConfirm(true)}
                                 className="w-full text-center text-sm text-red-600 hover:text-red-700 hover:bg-red-50 font-medium py-3 rounded-lg transition-colors mt-4"
                             >
                                 Clear Cart
@@ -301,6 +305,40 @@ export default function CartDrawer() {
                     </>
                 )}
             </div>
+
+            {/* Clear Cart Confirmation Modal */}
+            {showClearConfirm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-fade-in">
+                        <div className="text-center mb-6">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Clear Cart?</h3>
+                            <p className="text-sm text-gray-600">
+                                Are you sure you want to remove all items from your cart? This action cannot be undone.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowClearConfirm(false)}
+                                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleClearCartConfirm}
+                                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                            >
+                                Clear Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

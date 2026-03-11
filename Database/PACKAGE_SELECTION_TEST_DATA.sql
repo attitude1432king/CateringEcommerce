@@ -51,7 +51,7 @@ INSERT INTO t_sys_catering_packages (
     c_price,
     c_is_active,
     c_is_deleted,
-    c_created_date
+    c_createddate
 )
 VALUES (
     @TestOwnerId,
@@ -74,7 +74,7 @@ INSERT INTO t_sys_catering_packages (
     c_price,
     c_is_active,
     c_is_deleted,
-    c_created_date
+    c_createddate
 )
 VALUES (
     @TestOwnerId,
@@ -100,7 +100,7 @@ PRINT 'Created Package 2 ID: ' + CAST(@PackageId2 AS VARCHAR(10));
 -- CategoryId 10 = Juice / Beverages
 
 -- Wedding Special Package Categories
-INSERT INTO t_sys_catering_package_items (c_packageid, c_categoryid, c_quantity, c_created_date)
+INSERT INTO t_sys_catering_package_items (c_packageid, c_categoryid, c_quantity, c_createddate)
 VALUES
     (@PackageId1, 1, 2, GETDATE()),   -- Starter: Select 2 items
     (@PackageId1, 4, 3, GETDATE()),   -- Main Course: Select 3 items
@@ -111,7 +111,7 @@ VALUES
 PRINT 'Added category mappings for Wedding Package';
 
 -- Birthday Party Package Categories
-INSERT INTO t_sys_catering_package_items (c_packageid, c_categoryid, c_quantity, c_created_date)
+INSERT INTO t_sys_catering_package_items (c_packageid, c_categoryid, c_quantity, c_createddate)
 VALUES
     (@PackageId2, 1, 3, GETDATE()),   -- Starter: Select 3 items
     (@PackageId2, 4, 2, GETDATE()),   -- Main Course: Select 2 items

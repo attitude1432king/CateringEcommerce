@@ -1,11 +1,12 @@
-﻿using CateringEcommerce.BAL.Base.User.Profile;
-using CateringEcommerce.BAL.Common;
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Common;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.RateLimiting;
+using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.API.Controllers.Common
 {
@@ -14,45 +15,49 @@ namespace CateringEcommerce.API.Controllers.Common
     [Route("api/Common/Auth")]
     public class AuthenticationController : ControllerBase
     {
-        private readonly string _connStr;
-        private readonly EmailService _emailService;
+        private readonly IEmailService _emailService;
         private readonly ISmsService _smsService;
+        private readonly IUserRepository _userRepository;
+        private readonly IProfileSetting _profileSetting;
         private const string EmailType = "email";
         private const string PhoneType = "phone";
         private const string CateringNumberType = "cateringNumber";
 
-        // Constructor updated to initialize all required fields
-        public AuthenticationController(IConfiguration configuration, IOptions<EmailSettings> emailSettings, ISmsService smsService)
+        public AuthenticationController(
+            IEmailService emailService,
+            ISmsService smsService,
+            IUserRepository userRepository,
+            IProfileSetting profileSetting)
         {
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _emailService = new EmailService(emailSettings ?? throw new ArgumentNullException(nameof(emailSettings)));
+            _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
             _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
+            _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
+            _profileSetting = profileSetting ?? throw new ArgumentNullException(nameof(profileSetting));
         }
 
         [AllowAnonymous]
         [HttpPost("send-otp")]
+        [EnableRateLimiting("otp_send")]
         public async Task<IActionResult> SendOtp([FromBody] VerificationRequest request)
         {
             try
             {
-                if (request.Type == EmailType && string.IsNullOrEmpty(request.Value) && !System.Text.RegularExpressions.Regex.IsMatch(request.Value, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                if (request.Type == EmailType && (string.IsNullOrEmpty(request.Value) || !System.Text.RegularExpressions.Regex.IsMatch(request.Value, @"^[^@\s]+@[^@\s]+\.[^@\s]+$")))
                 {
                     return BadRequest(new { result = false, message = "Invalid email format." });
                 }
-                else if (request.Type == PhoneType && string.IsNullOrEmpty(request.Value) && !System.Text.RegularExpressions.Regex.IsMatch(request.Value, @"^\+?[1-9]\d{1,14}$"))
+                else if (request.Type == PhoneType && (string.IsNullOrEmpty(request.Value) || !System.Text.RegularExpressions.Regex.IsMatch(request.Value, @"^\+?[1-9]\d{1,14}$")))
                 {
                     return BadRequest(new { result = false, message = "Invalid phone number format." });
                 }
 
-                UserRepository userRepository = new UserRepository(_connStr);
-
                 var otp = Utils.GenerateOtp();
-                if (request.Type == EmailType && !userRepository.IsExistEmail(request.Value, request.Role))
+                if (request.Type == EmailType && !_userRepository.IsExistEmail(request.Value, request.Role))
                 {
                     _emailService.StoreOtp(request.Value, otp);
                     //await _emailService.SendOtpAsync(request.Value, otp);
                 }
-                else if ((request.Type == PhoneType || request.Type == CateringNumberType) && !userRepository.IsExistRoleBaseNumber(request.Value, request.Type, request.Role))
+                else if ((request.Type == PhoneType || request.Type == CateringNumberType) && !_userRepository.IsExistRoleBaseNumber(request.Value, request.Type, request.Role))
                 {
                     _emailService.StoreOtp(request.Value, otp);
                     //_smsService.SendOtp(request.Value);
@@ -66,18 +71,19 @@ namespace CateringEcommerce.API.Controllers.Common
             }
             catch (Exception ex)
             {
-                throw new Exception(ex.Message);
+                Console.WriteLine($"[ERROR] SendOtp failed: {ex.Message}");
+                return StatusCode(500, new { result = false, message = "An error occurred while sending OTP. Please try again later." });
             }
         }
 
         [AllowAnonymous]
         [HttpPost("verify-otp")]
-        public IActionResult VerifyOtp([FromBody] VerificationRequest request)
+        [EnableRateLimiting("otp_verify")]
+        public async Task<IActionResult> VerifyOtp([FromBody] VerificationRequest request)
         {
             try
             {
                 bool isValid = false;
-                ProfileSetting profileSetting = new ProfileSetting(_connStr);
                 Dictionary<string, string> userData = new Dictionary<string, string>();
 
                 if (request.Type == EmailType && string.IsNullOrEmpty(request.Value))
@@ -92,13 +98,19 @@ namespace CateringEcommerce.API.Controllers.Common
 
                 if (request.Type == EmailType)
                 {
-                    isValid = true; // _emailService.VerifyOtp(request.Value, request.Otp);
-                    userData.Add("email", request.Value);
+                    isValid = _emailService.VerifyOtp(request.Value, request.Otp);
+                    if (isValid)
+                    {
+                        userData.Add("email", request.Value);
+                    }
                 }
                 else if (request.Type == PhoneType || request.Type == CateringNumberType)
                 {
-                    isValid = true; // _smsService.VerifyOtp(request.Value, request.Otp);
-                    userData.Add("phone", request.Value);
+                    isValid = _smsService.VerifyOtp(request.Value, request.Otp);
+                    if (isValid)
+                    {
+                        userData.Add("phone", request.Value);
+                    }
                 }
 
                 if (!isValid)
@@ -108,25 +120,38 @@ namespace CateringEcommerce.API.Controllers.Common
 
                 if (request.pkID > 0)
                 {
-                    profileSetting.UpdateUserDetails(request.pkID, userData);
+                    await _profileSetting.UpdateUserDetails(request.pkID, userData);
                 }
 
-                return Ok(new { result = true, otp = request.Otp, message = "OTP verified successfully." });
+                return Ok(new { result = true, message = "OTP verified successfully." });
             }
             catch (Exception ex)
             {
-                throw new Exception(ex.Message);
+                Console.WriteLine($"[ERROR] VerifyOtp failed: {ex.Message}");
+                return StatusCode(500, new { result = false, message = "An error occurred while verifying OTP. Please try again later." });
             }
         }
     }
 
     public class VerificationRequest
     {
+        [Required(ErrorMessage = "Type is required")]
+        [RegularExpression("^(email|phone|cateringNumber)$", ErrorMessage = "Type must be 'email', 'phone', or 'cateringNumber'")]
         public string? Type { get; set; }
-        public string? Value { get; set; }
-        public string? Otp { get; set; }
-        public long? pkID { get; set; }
-        public string? Role { get; set; }
 
+        [Required(ErrorMessage = "Value is required")]
+        [StringLength(200, ErrorMessage = "Value cannot exceed 200 characters")]
+        public string? Value { get; set; }
+
+        [Required(ErrorMessage = "OTP is required")]
+        [StringLength(10, MinimumLength = 4, ErrorMessage = "OTP must be between 4 and 10 characters")]
+        [RegularExpression("^[0-9]+$", ErrorMessage = "OTP must contain only digits")]
+        public string? Otp { get; set; }
+
+        [Range(0, long.MaxValue, ErrorMessage = "Invalid user ID")]
+        public long? pkID { get; set; }
+
+        [StringLength(50, ErrorMessage = "Role cannot exceed 50 characters")]
+        public string? Role { get; set; }
     }
 }

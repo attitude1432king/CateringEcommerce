@@ -2,6 +2,7 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Common;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Delivery;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -14,26 +15,23 @@ namespace CateringEcommerce.API.Controllers.User
     /// <summary>
     /// Sample Delivery Controller - Third-party real-time tracking
     /// </summary>
-    [Authorize]
+    [UserAuthorize]
     [ApiController]
     [Route("api/User/[controller]")]
     public class SampleDeliveryController : ControllerBase
     {
         private readonly ILogger<SampleDeliveryController> _logger;
         private readonly ICurrentUserService _currentUser;
-        private readonly IConfiguration _configuration;
-        private readonly string _connStr;
+        private readonly ISampleDeliveryService _sampleDeliveryService;
 
         public SampleDeliveryController(
             ILogger<SampleDeliveryController> logger,
             ICurrentUserService currentUser,
-            IConfiguration configuration)
+            ISampleDeliveryService sampleDeliveryService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _sampleDeliveryService = sampleDeliveryService ?? throw new ArgumentNullException(nameof(sampleDeliveryService));
         }
 
         // ===================================
@@ -53,7 +51,7 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"User {userId} fetching sample delivery for order {orderId}");
 
-                var service = new SampleDeliveryService(_connStr);
+                var service = _sampleDeliveryService;
                 var delivery = await service.GetSampleDeliveryByOrderIdAsync(orderId);
 
                 if (delivery == null)
@@ -94,7 +92,7 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"User {userId} tracking sample delivery for order {orderId}");
 
-                var service = new SampleDeliveryService(_connStr);
+                var service = _sampleDeliveryService;
                 var tracking = await service.GetTrackingInfoAsync(orderId);
 
                 if (tracking == null)

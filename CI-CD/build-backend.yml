@@ -1,0 +1,102 @@
+# Backend Build Steps
+# ASP.NET Core 9.0 Backend API
+
+steps:
+  - checkout: self
+    displayName: 'Checkout Source Code'
+
+  - task: UseDotNet@2
+    displayName: 'Install .NET SDK $(DOTNET_VERSION)'
+    inputs:
+      packageType: 'sdk'
+      version: '$(DOTNET_VERSION)'
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Restore NuGet Packages'
+    inputs:
+      command: 'restore'
+      projects: '$(BACKEND_PROJECT)'
+      feedsToUse: 'select'
+      verbosityRestore: 'Minimal'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Build Backend (Release)'
+    inputs:
+      command: 'build'
+      projects: '$(BACKEND_PROJECT)'
+      arguments: >
+        --configuration $(BUILD_CONFIGURATION)
+        --no-restore
+        /p:Version=$(VERSION_PREFIX).$(VERSION_SUFFIX)
+        /p:DebugType=None
+        /p:DebugSymbols=false
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Run Backend Unit Tests'
+    inputs:
+      command: 'test'
+      projects: '**/*Tests.csproj'
+      arguments: >
+        --configuration $(BUILD_CONFIGURATION)
+        --no-build
+        --logger "trx;LogFileName=test-results.trx"
+        --collect "Code Coverage"
+    continueOnError: false
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Publish Backend'
+    inputs:
+      command: 'publish'
+      projects: '$(BACKEND_PROJECT)'
+      arguments: >
+        --configuration $(BUILD_CONFIGURATION)
+        --output $(Build.ArtifactStagingDirectory)/backend
+        --no-build
+        /p:Version=$(VERSION_PREFIX).$(VERSION_SUFFIX)
+      publishWebProjects: false
+      zipAfterPublish: false
+
+  - task: CopyFiles@2
+    displayName: 'Copy Deployment Scripts'
+    inputs:
+      SourceFolder: '$(DEPLOY_SCRIPTS_PATH)'
+      Contents: '**'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/deploy'
+
+  - task: CopyFiles@2
+    displayName: 'Copy Database Scripts'
+    inputs:
+      SourceFolder: '$(DATABASE_SCRIPTS_PATH)'
+      Contents: '**/*.sql'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/database'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Backend Artifacts'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/backend'
+      ArtifactName: 'backend'
+      publishLocation: 'Container'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Deployment Scripts'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/deploy'
+      ArtifactName: 'deploy-scripts'
+      publishLocation: 'Container'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Database Scripts'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/database'
+      ArtifactName: 'database-scripts'
+      publishLocation: 'Container'
+
+  - task: PublishTestResults@2
+    displayName: 'Publish Test Results'
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: 'VSTest'
+      testResultsFiles: '**/*.trx'
+      mergeTestResults: true
+      failTaskOnFailedTests: true

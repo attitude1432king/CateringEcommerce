@@ -109,6 +109,11 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
         /// </summary>
         Task<AdminPermissionsResponse> GetAdminPermissionContextAsync(long adminId);
 
+        /// <summary>
+        /// Check if admin has Super Admin role
+        /// </summary>
+        Task<bool> IsSuperAdminAsync(long adminId);
+
         // =====================================================
         // AUDIT LOGGING
         // =====================================================
@@ -122,5 +127,33 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
         /// Get audit logs with filtering
         /// </summary>
         Task<AuditLogListResponse> GetAuditLogsAsync(AuditLogListRequest request);
+
+        // =====================================================
+        // ADMIN ROLE INITIALIZATION & DIAGNOSTICS
+        // =====================================================
+
+        /// <summary>
+        /// Ensures an admin has at least one active role assigned
+        /// Auto-assigns SUPER_ADMIN (for first admin) or CATERING_ADMIN (for others) if missing
+        /// </summary>
+        Task<bool> EnsureAdminHasRoleAsync(long adminId, long? assignedBy = null);
+
+        /// <summary>
+        /// Gets admin roles with automatic fallback to assign role if missing
+        /// SAFE version that prevents empty role lists
+        /// </summary>
+        Task<List<string>> GetAdminRolesWithFallbackAsync(long adminId);
+
+        /// <summary>
+        /// Gets admin permissions with automatic fallback to assign role if missing
+        /// SAFE version that prevents empty permission lists
+        /// </summary>
+        Task<List<string>> GetAdminPermissionsWithFallbackAsync(long adminId);
+
+        /// <summary>
+        /// Diagnoses admin role assignment issues and returns detailed diagnostic info
+        /// Used for troubleshooting missing role/permission data
+        /// </summary>
+        Task<AdminRoleDiagnostics> DiagnoseAdminRolesAsync(long adminId);
     }
 }

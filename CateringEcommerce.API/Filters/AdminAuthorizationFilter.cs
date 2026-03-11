@@ -15,15 +15,15 @@ namespace CateringEcommerce.API.Filters
 
             // Check if user is authenticated
             if (!user.Identity?.IsAuthenticated ?? true)
-            {
-                context.Result = new UnauthorizedObjectResult(new
                 {
-                    result = false,
-                    message = "Authentication required. Please login.",
-                    type = "error"
-                });
-                return;
-            }
+                    context.Result = new UnauthorizedObjectResult(new
+                    {
+                        result = false,
+                        message = "Authentication required. Please login.",
+                        type = "error"
+                    });
+                    return;
+                }
 
             // Check if user has Admin or SuperAdmin role
             var role = user.FindFirst(ClaimTypes.Role)?.Value;

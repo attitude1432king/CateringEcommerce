@@ -1,7 +1,9 @@
 // ===================================
 // VALIDATE EVENT DETAILS
 // ===================================
-export const validateEventDetails = (eventData) => {
+export const validateEventDetails = (eventData, config = {}) => {
+  const minAdvanceHours = config.minAdvanceBookingHours ?? 24;
+  const maxAdvanceDays = config.maxAdvanceBookingDays ?? 90;
   const errors = {};
 
   // Validate event date
@@ -10,17 +12,17 @@ export const validateEventDetails = (eventData) => {
   } else {
     const eventDate = new Date(eventData.eventDate);
     const minDate = new Date();
-    minDate.setHours(minDate.getHours() + 24); // 24 hours from now
+    minDate.setHours(minDate.getHours() + minAdvanceHours);
 
     if (eventDate < minDate) {
-      errors.eventDate = 'Event date must be at least 24 hours in advance';
+      errors.eventDate = `Event date must be at least ${minAdvanceHours} hours in advance`;
     }
 
     const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 90); // 90 days from now
+    maxDate.setDate(maxDate.getDate() + maxAdvanceDays);
 
     if (eventDate > maxDate) {
-      errors.eventDate = 'Event date cannot be more than 90 days in advance';
+      errors.eventDate = `Event date cannot be more than ${maxAdvanceDays} days in advance`;
     }
   }
 
@@ -239,7 +241,9 @@ export const validateCompleteOrder = (orderData) => {
 // ===================================
 // VALIDATE CHECKOUT DATA (Step-wise)
 // ===================================
-export const validateCheckoutData = (checkoutData, cart, step) => {
+export const validateCheckoutData = (checkoutData, cart, step, config = {}) => {
+  const minAdvancePercent = config.minAdvancePaymentPercent ?? 30;
+  const minAdvanceBookingDays = config.minAdvanceBookingDays ?? 3;
   const errors = {};
   let isValid = true;
 
@@ -285,13 +289,13 @@ export const validateCheckoutData = (checkoutData, cart, step) => {
           isValid = false;
         }
 
-        // Require at least 3 days advance booking
-        const threeDaysFromNow = new Date();
-        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-        threeDaysFromNow.setHours(0, 0, 0, 0);
+        // Require minimum advance booking days
+        const minBookingDate = new Date();
+        minBookingDate.setDate(minBookingDate.getDate() + minAdvanceBookingDays);
+        minBookingDate.setHours(0, 0, 0, 0);
 
-        if (selectedDate < threeDaysFromNow) {
-          errors.eventDate = 'Catering orders require at least 3 days advance booking';
+        if (selectedDate < minBookingDate) {
+          errors.eventDate = `Catering orders require at least ${minAdvanceBookingDays} days advance booking`;
           isValid = false;
         }
       }
@@ -351,8 +355,8 @@ export const validateCheckoutData = (checkoutData, cart, step) => {
         } else if (cart && checkoutData.advanceAmount > cart.totalAmount) {
           errors.advanceAmount = 'Advance amount cannot exceed total amount';
           isValid = false;
-        } else if (cart && checkoutData.advanceAmount < cart.totalAmount * 0.3) {
-          errors.advanceAmount = 'Minimum 30% advance payment required';
+        } else if (cart && checkoutData.advanceAmount < cart.totalAmount * (minAdvancePercent / 100)) {
+          errors.advanceAmount = `Minimum ${minAdvancePercent}% advance payment required`;
           isValid = false;
         }
       }

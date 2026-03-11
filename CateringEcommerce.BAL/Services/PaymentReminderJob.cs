@@ -3,7 +3,7 @@ using System.Data;
 using System.Threading.Tasks;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Services;
-using Microsoft.Extensions.Configuration;
+using CateringEcommerce.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace CateringEcommerce.BAL.Services
@@ -14,16 +14,16 @@ namespace CateringEcommerce.BAL.Services
     /// </summary>
     public class PaymentReminderJob
     {
-        private readonly string _connectionString;
+        private readonly IDatabaseHelper _dbHelper;
         private readonly PaymentStageRepository _paymentStageRepository;
         private readonly NotificationService _notificationService;
         private readonly ILogger<PaymentReminderJob>? _logger;
 
-        public PaymentReminderJob(string connectionString, IConfiguration configuration, ILogger<PaymentReminderJob>? logger = null)
+        public PaymentReminderJob(IDatabaseHelper dbHelper, ISystemSettingsProvider settings, ILogger<PaymentReminderJob>? logger = null)
         {
-            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            _paymentStageRepository = new PaymentStageRepository(connectionString);
-            _notificationService = new NotificationService(configuration ?? throw new ArgumentNullException(nameof(configuration)));
+            _dbHelper = dbHelper;
+            _paymentStageRepository = new PaymentStageRepository(_dbHelper);
+            _notificationService = new NotificationService(settings ?? throw new ArgumentNullException(nameof(settings)));
             _logger = logger;
         }
 

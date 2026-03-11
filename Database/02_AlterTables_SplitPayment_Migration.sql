@@ -193,6 +193,18 @@ BEGIN
     PRINT '  - Column c_upi_id already exists';
 END
 
+-- Add c_paid_amount column
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_order_payments]') AND name = 'c_paid_amount')
+BEGIN
+    ALTER TABLE [dbo].[t_sys_order_payments]
+    ADD [c_paid_amount] DECIMAL(18,2) NULL;
+    PRINT '  - Added column: c_paid_amount';
+END
+ELSE
+BEGIN
+    PRINT '  - Column c_paid_amount already exists';
+END
+
 -- Create index for Razorpay payment lookups
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_order_payments]') AND name = 'IX_payments_razorpay_order')
 BEGIN
@@ -250,11 +262,12 @@ PRINT '     - c_event_longitude';
 PRINT '     - c_event_place_id';
 PRINT '     - c_saved_address_id';
 PRINT '';
-PRINT '  2. t_sys_order_payments - Added 4 columns:';
+PRINT '  2. t_sys_order_payments - Added 5 columns:';
 PRINT '     - c_payment_stage_type';
 PRINT '     - c_razorpay_order_id';
 PRINT '     - c_razorpay_payment_id';
 PRINT '     - c_upi_id';
+PRINT '     - c_paid_amount';
 PRINT '';
 PRINT 'New indexes created for performance optimization.';
 PRINT '================================================';

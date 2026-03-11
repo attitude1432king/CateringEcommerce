@@ -3,7 +3,7 @@
 -- Enterprise-Grade Permission System
 -- =====================================================
 
-USE CateringEcommerce;
+USE CateringDB;
 GO
 
 -- =====================================================
@@ -19,9 +19,9 @@ BEGIN
         c_color NVARCHAR(20) DEFAULT '#6366f1',
         c_is_system_role BIT DEFAULT 0,  -- Cannot be deleted if true
         c_is_active BIT DEFAULT 1,
-        c_created_date DATETIME DEFAULT GETDATE(),
+        c_createddate DATETIME DEFAULT GETDATE(),
         c_created_by BIGINT,
-        c_updated_date DATETIME,
+        c_modifieddate DATETIME,
         c_updated_by BIGINT,
 
         INDEX IX_role_code (c_role_code),
@@ -43,7 +43,7 @@ BEGIN
         c_module NVARCHAR(50),  -- CATERING, USER, REVIEW, EARNINGS, etc.
         c_action NVARCHAR(50),  -- VIEW, CREATE, EDIT, DELETE, BLOCK, etc.
         c_is_active BIT DEFAULT 1,
-        c_created_date DATETIME DEFAULT GETDATE(),
+        c_createddate DATETIME DEFAULT GETDATE(),
 
         INDEX IX_permission_code (c_permission_code),
         INDEX IX_module (c_module),
@@ -81,17 +81,17 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_admin_user_roles')
 BEGIN
     CREATE TABLE t_sys_admin_user_roles (
         c_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_admin_id BIGINT NOT NULL,
+        c_adminid BIGINT NOT NULL,
         c_role_id BIGINT NOT NULL,
         c_assigned_date DATETIME DEFAULT GETDATE(),
         c_assigned_by BIGINT,
         c_is_active BIT DEFAULT 1,
 
-        FOREIGN KEY (c_admin_id) REFERENCES t_sys_admin_users(c_admin_id) ON DELETE CASCADE,
+        FOREIGN KEY (c_adminid) REFERENCES t_sys_admin_users(c_adminid) ON DELETE CASCADE,
         FOREIGN KEY (c_role_id) REFERENCES t_sys_admin_roles(c_role_id) ON DELETE CASCADE,
-        UNIQUE (c_admin_id, c_role_id),
+        UNIQUE (c_adminid, c_role_id),
 
-        INDEX IX_admin_id (c_admin_id),
+        INDEX IX_admin_id (c_adminid),
         INDEX IX_role_id (c_role_id),
         INDEX IX_active (c_is_active)
     );
@@ -105,7 +105,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_admin_audit_logs')
 BEGIN
     CREATE TABLE t_sys_admin_audit_logs (
         c_audit_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_admin_id BIGINT NOT NULL,
+        c_adminid BIGINT NOT NULL,
         c_admin_name NVARCHAR(200),
         c_action NVARCHAR(200) NOT NULL,
         c_module NVARCHAR(50),  -- CATERING, USER, REVIEW, etc.
@@ -118,9 +118,7 @@ BEGIN
         c_status NVARCHAR(20),  -- SUCCESS, FAILED, UNAUTHORIZED
         c_error_message NVARCHAR(MAX),
 
-        FOREIGN KEY (c_admin_id) REFERENCES t_sys_admin_users(c_admin_id),
-
-        INDEX IX_admin_id (c_admin_id),
+        INDEX IX_admin_id (c_adminid),
         INDEX IX_timestamp (c_timestamp DESC),
         INDEX IX_module (c_module),
         INDEX IX_action (c_action)

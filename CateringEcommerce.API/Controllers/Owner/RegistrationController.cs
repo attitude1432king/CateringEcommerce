@@ -1,43 +1,55 @@
 ﻿using CateringEcommerce.API.Attributes;
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Base.Owner;
-using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.Notification;
+using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.APIModels.Owner;
+using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi.Extensions;
 using System.IO;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
-    [Authorize]
+    [OwnerAuthorize]
     [ApiController]
     [Route("api/Auth/Owner")]
     public class RegistrationController : ControllerBase
     {
         private readonly IFileStorageService _fileStorageService;
         private readonly ILogger<RegistrationController> _logger;
-        private readonly IConfiguration _configuration;
         private readonly IWebHostEnvironment _env;
-        private readonly string _connStr;
         private readonly string _customKey;
-        // In a real app, you would inject your database service here
-        // private readonly IOwnerRepository _ownerRepository;
+        private readonly IOwnerRepository _ownerRepository;
+        private readonly IOwnerRegister _ownerRegister;
+        private readonly INotificationHelper _notificationHelper;
+        private readonly IAdminNotificationRepository _adminNotificationRepository;
 
-        public RegistrationController(IFileStorageService fileStorageService, ILogger<RegistrationController> logger, IConfiguration configuration, IWebHostEnvironment env, IOptions<EncryptionSettings> setting)
+        public RegistrationController(
+            IFileStorageService fileStorageService,
+            ILogger<RegistrationController> logger,
+            IWebHostEnvironment env,
+            IOptions<EncryptionSettings> setting,
+            IOwnerRepository ownerRepository,
+            IOwnerRegister ownerRegister,
+            INotificationHelper notificationHelper,
+            IAdminNotificationRepository adminNotificationRepository)
         {
-            _fileStorageService = fileStorageService;
-            _logger = logger;
-            _configuration = configuration;
-            _env = env;
-            _connStr = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _customKey = setting.Value.CustomKey;
+            _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _env = env ?? throw new ArgumentNullException(nameof(env));
+            _customKey = setting?.Value?.CustomKey ?? throw new ArgumentNullException(nameof(setting));
+            _ownerRepository = ownerRepository ?? throw new ArgumentNullException(nameof(ownerRepository));
+            _ownerRegister = ownerRegister ?? throw new ArgumentNullException(nameof(ownerRegister));
+            _notificationHelper = notificationHelper ?? throw new ArgumentNullException(nameof(notificationHelper));
+            _adminNotificationRepository = adminNotificationRepository ?? throw new ArgumentNullException(nameof(adminNotificationRepository));
         }
 
         [AllowAnonymous]
@@ -55,8 +67,6 @@ namespace CateringEcommerce.API.Controllers.Owner
             {
                 _logger.LogInformation("Received registration request for Catering Partner: {CateringName}", registrationData.CateringName);
                 Dictionary<string, object> dicData = new Dictionary<string, object>();
-                OwnerRepository ownerRepository = new OwnerRepository(_connStr);
-                OwnerRegister ownerRegister = new OwnerRegister(_connStr);
                 Int64 ownerPkid = 0;
 
                 if (string.IsNullOrEmpty(registrationData.Email) || string.IsNullOrEmpty(registrationData.Mobile))
@@ -65,7 +75,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 }
 
                 // Here you would typically check if the email or phone number already exists in your database
-                if (ownerRepository.IsEmailExist(registrationData.Email) || ownerRepository.IsOwnerPhoneExist(registrationData.Mobile))
+                if (_ownerRepository.IsEmailExist(registrationData.Email) || _ownerRepository.IsOwnerPhoneExist(registrationData.Mobile))
                 {
                     return BadRequest(new { message = "Email or Phone number already exists. Please use a different one." });
                 }
@@ -76,7 +86,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 dicData = AddedRegistionDataToDictionary(registrationData);
 
                 // 1. Create a new owner in the database and get the PKID
-                ownerPkid = ownerRegister.CreateOwnerAccount(dicData);
+                ownerPkid = _ownerRegister.CreateOwnerAccount(dicData);
                 if (ownerPkid <= 0)
                 {
                     _logger.LogError("Failed to create owner account in the database.");
@@ -119,11 +129,11 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 #region Register the owner catering other details
                 if (!string.IsNullOrEmpty(logoPath) && registrationData.CateringLogo != null)
-                    ownerRegister.UpdateLogoPath(ownerPkid, logoPath);
-                ownerRegister.RegisterAddress(ownerPkid, dicData);
-                ownerRegister.RegisterServices(ownerPkid, dicData);
-                ownerRegister.RegisterLegalDocuments(ownerPkid, dicData);
-                ownerRegister.RegisterBankDetails(ownerPkid, dicData);
+                    _ownerRegister.UpdateLogoPath(ownerPkid, logoPath);
+                _ownerRegister.RegisterAddress(ownerPkid, dicData);
+                _ownerRegister.RegisterServices(ownerPkid, dicData);
+                _ownerRegister.RegisterLegalDocuments(ownerPkid, dicData);
+                _ownerRegister.RegisterBankDetails(ownerPkid, dicData);
 
                 // Fetch agreement text and add additional data for PDF generation
                 string agreementText = GetDefaultAgreementText();
@@ -132,13 +142,53 @@ namespace CateringEcommerce.API.Controllers.Owner
                 dicData.Add("IpAddress", GetClientIpAddress());
                 dicData.Add("UserAgent", Request.Headers["User-Agent"].ToString());
 
-                ownerRegister.RegisterAgreement(ownerPkid, dicData, _env.WebRootPath);
+                _ownerRegister.RegisterAgreement(ownerPkid, dicData, _env.WebRootPath);
 
                 _logger.LogInformation("Logo saved at: {LogoPath}", logoPath);
                 _logger.LogInformation("FSSAI saved at: {FssaiPath}", fssaiPath);
                 _logger.LogInformation("Signature saved at: {SignaturePath}", signaturePath);
 
                 string encOwnerId = CryptoHelper.Encrypt(ownerPkid.ToString(), _customKey);
+
+                // Send notifications for partner registration
+                try
+                {
+                    // 1. Send acknowledgement to partner (Email + SMS)
+                    await _notificationHelper.SendPartnerNotificationAsync(
+                        "PARTNER_REGISTRATION_ACK",
+                        registrationData.OwnerName,
+                        registrationData.Email,
+                        registrationData.Mobile,
+                        new Dictionary<string, object>
+                        {
+                            { "owner_name", registrationData.OwnerName },
+                            { "catering_name", registrationData.CateringName },
+                            { "registration_date", DateTime.Now.ToString("dd MMM yyyy") },
+                            { "partner_support_email", "partner-support@enyvora.com" },
+                            { "partner_support_phone", "+91-1234567890" },
+                            { "terms_url", "https://enyvora.com/partner-terms" }
+                        }
+                    );
+                    _logger.LogInformation("Partner registration acknowledgement sent to {OwnerName}. OwnerId: {OwnerId}",
+                        registrationData.OwnerName, ownerPkid);
+
+                    // 2. Send notification to admin (In-App)
+                    _adminNotificationRepository.CreateNotification(
+                        "NEW_PARTNER_REGISTRATION",
+                        "New Partner Registration Pending Review",
+                        $"New catering partner '{registrationData.CateringName}' has registered and is pending approval. Contact: {registrationData.OwnerName} ({registrationData.Mobile})",
+                        ownerPkid,
+                        "OWNER",
+                        $"/admin/partner-requests/{ownerPkid}",  // link to partner approval page
+                        null   // adminId null = broadcast to all admins
+                    );
+                    _logger.LogInformation("Admin notification created for new partner registration. OwnerId: {OwnerId}", ownerPkid);
+                }
+                catch (Exception ex)
+                {
+                    // Log error but don't fail the registration
+                    _logger.LogError(ex, "Failed to send notifications for partner registration. OwnerId: {OwnerId}", ownerPkid);
+                }
 
                 #endregion
                 // 6. Return a success response
@@ -241,18 +291,18 @@ Version: 1.0";
         {
             if (!Enum.IsDefined(typeof(ServiceType), TypeId))
             {
-                return BadRequest(new { message = "Invalid service type ID." });
+                return ApiResponseHelper.Failure("Invalid service type ID.");
             }
-            OwnerRegister ownerRegister = new OwnerRegister(_connStr);
 
             //Your logic to fetch and return service type details goes here.
-            var details = await ownerRegister.GetServiceDetailsByTypeId(TypeId);
+            var details = await _ownerRegister.GetServiceDetailsByTypeId(TypeId);
 
             return Ok(details);
         }
 
         [AllowAnonymous]
         [HttpPost("UploadMedia")]
+        [EnableRateLimiting("file_upload")]
         [RequestFormLimits(MultipartBodyLengthLimit = 10 * 1024 * 1024)] // 10 MB
         [RequestSizeLimit(10 * 1024 * 1024)]                             // 10 MB
         public async Task<IActionResult> UploadKitchenMediaFile(string ownerId, [FromForm] IFormFile cateringMedia)
@@ -260,24 +310,21 @@ Version: 1.0";
             const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
 
             // ---------------------------
-            // 1. Validate file
+            // 1. SECURITY: Validate file with signature checking
             // ---------------------------
-            if (cateringMedia == null)
-                return ApiResponseHelper.Failure("No file uploaded.");
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".mp4" };
+            var validationResult = FileValidationHelper.ValidateFile(
+                cateringMedia,
+                allowedExtensions,
+                MaxFileSize
+            );
 
-            if (cateringMedia.Length == 0)
-                return ApiResponseHelper.Failure("Uploaded file is empty.");
-
-            if (cateringMedia.Length > MaxFileSize)
-                return ApiResponseHelper.Failure(
-                    $"File '{cateringMedia.FileName}' exceeds the maximum allowed size of 10 MB.",
-                    type: "warning"
-                );
-
-            // Optional: Restrict file types (recommended)
-            var allowedContentTypes = new[] { "image/jpeg", "image/png", "image/webp", "video/mp4" };
-            if (!allowedContentTypes.Contains(cateringMedia.ContentType))
-                return ApiResponseHelper.Failure("Unsupported file type.", type: "warning");
+            if (!validationResult.IsValid)
+            {
+                _logger.LogWarning("File upload validation failed: {Error}. Filename: {Filename}",
+                    validationResult.ErrorMessage, cateringMedia?.FileName);
+                return ApiResponseHelper.Failure(validationResult.ErrorMessage, type: "warning");
+            }
 
             // ---------------------------
             // 2. Validate owner
@@ -292,27 +339,29 @@ Version: 1.0";
                 return ApiResponseHelper.Failure("Invalid owner identifier.");
             }
 
-            var ownerRepository = new OwnerRepository(_connStr);
-            if (!await ownerRepository.IsOwnerExistAsync(ownerPkid))
+            if (!await _ownerRepository.IsOwnerExistAsync(ownerPkid))
                 return ApiResponseHelper.Failure("Partner does not exist.");
 
             // ---------------------------
-            // 3. Save file
+            // 3. SECURITY: Sanitize filename and save file
             // ---------------------------
             try
             {
+                // Generate safe filename to prevent path traversal attacks
+                var safeFilename = FileValidationHelper.GenerateSafeFilename(cateringMedia.FileName);
+
                 string savedPath = await _fileStorageService.SaveFormFileAsync(
                     cateringMedia,
                     ownerPkid,
                     DocumentType.Kitchen.GetDisplayName(),
                     isSecure: false,
-                    cateringMedia.FileName
+                    safeFilename  // Use sanitized filename
                 );
 
                 if (string.IsNullOrWhiteSpace(savedPath))
                     return ApiResponseHelper.Failure("File upload failed.");
 
-                await ownerRepository.SaveFilePath(
+                await _ownerRepository.SaveFilePath(
                     savedPath,
                     ownerPkid,
                     cateringMedia.FileName,

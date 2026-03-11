@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchApi } from '../../services/apiUtils';
+import SampleTasteModal from './SampleTasteModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
@@ -105,6 +106,11 @@ export default function PackageSelectionModal({
         mediaType: 'image',
         foodName: ''
     });
+
+    // Sample Taste Modal state
+    const [showSampleTasteModal, setShowSampleTasteModal] = useState(false);
+    const [sampleTasteItems, setSampleTasteItems] = useState([]);
+    const [pendingPackageSelection, setPendingPackageSelection] = useState(null);
 
     // Refs for scrolling to invalid categories
     const categoryRefs = useRef({});
@@ -305,8 +311,52 @@ export default function PackageSelectionModal({
             }))
         };
 
-        onSelectionComplete(selectionData);
+        // Check if any selected items have sample tasting available
+        const allSelectedItems = [];
+        packageData.categories.forEach(category => {
+            const selectedItems = category.foodItems.filter(item =>
+                (selections[category.categoryId] || []).includes(item.foodId)
+            );
+            allSelectedItems.push(...selectedItems);
+        });
+
+        const itemsWithSampleTaste = allSelectedItems.filter(item => item.isSampleTasted === true);
+
+        if (itemsWithSampleTaste.length > 0) {
+            // Show Sample Taste Modal
+            setSampleTasteItems(itemsWithSampleTaste);
+            setPendingPackageSelection(selectionData);
+            setShowSampleTasteModal(true);
+        } else {
+            // No sample taste items, complete selection directly
+            onSelectionComplete(selectionData);
+            onClose();
+        }
+    };
+
+    // Handle Sample Taste Modal completion
+    const handleSampleTasteComplete = (sampleTasteSelection) => {
+        setShowSampleTasteModal(false);
+
+        // Combine package selection with sample taste selection
+        const finalSelectionData = {
+            ...pendingPackageSelection,
+            sampleTasteItems: sampleTasteSelection || []
+        };
+
+        onSelectionComplete(finalSelectionData);
         onClose();
+    };
+
+    // Handle Sample Taste Modal close (skip sample tasting)
+    const handleSampleTasteClose = () => {
+        setShowSampleTasteModal(false);
+
+        // Complete package selection without sample tasting
+        if (pendingPackageSelection) {
+            onSelectionComplete(pendingPackageSelection);
+            onClose();
+        }
     };
 
     if (!isOpen) return null;
@@ -714,6 +764,16 @@ export default function PackageSelectionModal({
                 mediaType={mediaViewer.mediaType}
                 foodName={mediaViewer.foodName}
             />
+
+            {/* Sample Taste Modal - Conditionally shown when selected items have sample tasting */}
+            {showSampleTasteModal && (
+                <SampleTasteModal
+                    isOpen={showSampleTasteModal}
+                    onClose={handleSampleTasteClose}
+                    foodItems={sampleTasteItems}
+                    onConfirm={handleSampleTasteComplete}
+                />
+            )}
         </>
     );
 }

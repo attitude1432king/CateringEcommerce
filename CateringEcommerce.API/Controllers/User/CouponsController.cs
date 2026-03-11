@@ -2,6 +2,7 @@ using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.User;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Interfaces.User;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,19 +13,18 @@ namespace CateringEcommerce.API.Controllers.User
     [ApiController]
     public class CouponsController : ControllerBase
     {
-        private readonly string _connStr;
         private readonly ILogger<CouponsController> _logger;
         private readonly ICurrentUserService _currentUser;
+        private readonly ICouponService _couponService;
 
         public CouponsController(
             ILogger<CouponsController> logger,
-            IConfiguration configuration,
-            ICurrentUserService currentUser)
+            ICurrentUserService currentUser,
+            ICouponService couponService)
         {
-            _logger = logger;
-            _connStr = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
-            _currentUser = currentUser;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
+            _couponService = couponService ?? throw new ArgumentNullException(nameof(couponService));
         }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace CateringEcommerce.API.Controllers.User
 
             try
             {
-                var couponService = new CouponService(_connStr);
+                var couponService = _couponService;
 
                 // Get userId if authenticated (for filtering by user usage limits)
                 long? userId = null;
@@ -119,7 +119,7 @@ namespace CateringEcommerce.API.Controllers.User
 
             try
             {
-                var couponService = new CouponService(_connStr);
+                var couponService = _couponService;
 
                 // Get userId if authenticated
                 long? userId = null;

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCart } from '../../../contexts/CartContext';
 import { usePayment } from '../../../contexts/PaymentContext';
+import { useAppSettings } from '../../../contexts/AppSettingsContext';
 import { validatePaymentReview, validateFileUpload, fileToBase64 } from '../../../utils/checkoutValidator';
 import ModernPaymentMethodsSection from './ModernPaymentMethodsSection';
 import RazorpayCheckoutButton from './RazorpayCheckoutButton';
@@ -9,6 +10,7 @@ import StickyPriceSummary from './StickyPriceSummary';
 const PaymentReviewForm = ({ formData, onUpdate, onSubmit, onBack, isSubmitting }) => {
   const { cart } = useCart();
   const { isRazorpayLoaded } = usePayment();
+  const { getString } = useAppSettings();
   const [errors, setErrors] = useState({});
   const [paymentMethod, setPaymentMethod] = useState(formData.paymentMethod || 'Razorpay');
   const [paymentProof, setPaymentProof] = useState(formData.paymentProof || null);
@@ -158,19 +160,19 @@ const PaymentReviewForm = ({ formData, onUpdate, onSubmit, onBack, isSubmitting 
               <div className="bg-white rounded-lg p-4 space-y-2 mb-4 shadow-sm">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Bank Name</span>
-                  <span className="font-semibold text-gray-900">HDFC Bank</span>
+                  <span className="font-semibold text-gray-900">{getString('PAYMENT.BANK_NAME', 'HDFC Bank')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Account Name</span>
-                  <span className="font-semibold text-gray-900">Enyvora Catering Services</span>
+                  <span className="font-semibold text-gray-900">{getString('PAYMENT.BANK_ACCOUNT_NAME', 'Enyvora Catering Services')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Account Number</span>
-                  <span className="font-semibold text-gray-900">1234567890123456</span>
+                  <span className="font-semibold text-gray-900">{getString('PAYMENT.BANK_ACCOUNT_NUMBER', '1234567890123456')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">IFSC Code</span>
-                  <span className="font-semibold text-gray-900">HDFC0001234</span>
+                  <span className="font-semibold text-gray-900">{getString('PAYMENT.BANK_IFSC_CODE', 'HDFC0001234')}</span>
                 </div>
               </div>
 

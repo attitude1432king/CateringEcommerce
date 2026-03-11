@@ -52,8 +52,20 @@ export default function CateringDetailPage() {
     const [isSampleModalOpen, setIsSampleModalOpen] = useState(false);
     const [selectedSampleItems, setSelectedSampleItems] = useState([]);
 
+    // Sample Taste Modal for Individual Items
+    const [isIndividualSampleModalOpen, setIsIndividualSampleModalOpen] = useState(false);
+    const [individualSampleItems, setIndividualSampleItems] = useState([]);
+    const [pendingIndividualItemsCart, setPendingIndividualItemsCart] = useState(null);
+
     // Event Setup Modal State (MANDATORY BEFORE ADD TO CART)
     const [isEventSetupModalOpen, setIsEventSetupModalOpen] = useState(false);
+
+    // Cart Replacement Confirmation Modal
+    const [cartReplaceConfirmation, setCartReplaceConfirmation] = useState({
+        isOpen: false,
+        message: '',
+        pendingCartData: null
+    });
 
     // Individual food items selection (À la carte)
     const [selectedIndividualItems, setSelectedIndividualItems] = useState([]);
@@ -268,6 +280,40 @@ export default function CateringDetailPage() {
         setSelectedPackage(packageForSelection);
     };
 
+    // Helper function to process addToCart result
+    const processAddToCartResult = (result, cartData, successMessage = 'Added to cart successfully!') => {
+        if (result.success) {
+            showToast(successMessage, 'success');
+            return true;
+        } else if (result.needsConfirmation) {
+            // Show confirmation modal
+            setCartReplaceConfirmation({
+                isOpen: true,
+                message: result.message,
+                pendingCartData: cartData
+            });
+            return false;
+        }
+        return false;
+    };
+
+    // Handle cart replace confirmation
+    const handleCartReplaceConfirm = () => {
+        const { pendingCartData } = cartReplaceConfirmation;
+        if (pendingCartData) {
+            const result = addToCart(pendingCartData, true); // force = true
+            if (result.success) {
+                showToast('Cart updated successfully!', 'success');
+            }
+        }
+        setCartReplaceConfirmation({ isOpen: false, message: '', pendingCartData: null });
+    };
+
+    // Handle cart replace cancellation
+    const handleCartReplaceCancel = () => {
+        setCartReplaceConfirmation({ isOpen: false, message: '', pendingCartData: null });
+    };
+
     // Handle add to cart with validation
     const handleAddToCart = () => {
         // ✅ ENFORCEMENT: Check if event setup is complete
@@ -307,32 +353,67 @@ export default function CateringDetailPage() {
                 sampleTasteSelections: selectedSampleItems.length > 0 ? selectedSampleItems : null
             };
 
-            const success = addToCart(cartData);
-            if (success) {
-                showToast('Package added to cart successfully!', 'success');
-            }
+            const result = addToCart(cartData);
+            processAddToCartResult(result, cartData, 'Package added to cart successfully!');
         } else if (selectedIndividualItems.length > 0) {
-            const cartData = {
-                cateringId: Number(id),
-                cateringName: cateringDetail?.cateringName || 'Unknown Caterer',
-                cateringLogo: cateringDetail?.logoUrl || '',
-                packageId: null,
-                packageName: 'Custom Order',
-                packagePrice: 0,
-                guestCount: guestCount || null, // Will be set during checkout
-                eventDate: null,
-                eventType: null,
-                eventLocation: null,
-                decorationId: null,
-                decorationName: null,
-                decorationPrice: 0,
-                additionalItems: selectedIndividualItems,
-                packageSelections: null
-            };
+            // Check if any selected individual items have sample tasting available
+            const selectedFoodIds = selectedIndividualItems.map(item => item.foodId);
 
-            const success = addToCart(cartData);
-            if (success) {
-                showToast('Items added to cart successfully!', 'success');
+            // Find sample items that match the selected food items (by name or ID)
+            const availableSampleItems = sampleItems.filter(sampleItem => {
+                // Check if there's a matching food item by foodItemId
+                return selectedFoodIds.includes(sampleItem.foodItemId) ||
+                    // Or check by name (in case IDs don't match)
+                    selectedIndividualItems.some(selectedItem =>
+                        selectedItem.name === sampleItem.name
+                    );
+            });
+
+            if (availableSampleItems.length > 0) {
+                // Show Sample Taste Modal for individual items
+                const cartData = {
+                    cateringId: Number(id),
+                    cateringName: cateringDetail?.cateringName || 'Unknown Caterer',
+                    cateringLogo: cateringDetail?.logoUrl || '',
+                    packageId: null,
+                    packageName: 'Custom Order',
+                    packagePrice: 0,
+                    guestCount: guestCount || null,
+                    eventDate: null,
+                    eventType: null,
+                    eventLocation: null,
+                    decorationId: null,
+                    decorationName: null,
+                    decorationPrice: 0,
+                    additionalItems: selectedIndividualItems,
+                    packageSelections: null
+                };
+
+                setIndividualSampleItems(availableSampleItems);
+                setPendingIndividualItemsCart(cartData);
+                setIsIndividualSampleModalOpen(true);
+            } else {
+                // No sample items available, add directly to cart
+                const cartData = {
+                    cateringId: Number(id),
+                    cateringName: cateringDetail?.cateringName || 'Unknown Caterer',
+                    cateringLogo: cateringDetail?.logoUrl || '',
+                    packageId: null,
+                    packageName: 'Custom Order',
+                    packagePrice: 0,
+                    guestCount: guestCount || null,
+                    eventDate: null,
+                    eventType: null,
+                    eventLocation: null,
+                    decorationId: null,
+                    decorationName: null,
+                    decorationPrice: 0,
+                    additionalItems: selectedIndividualItems,
+                    packageSelections: null
+                };
+
+                const result = addToCart(cartData);
+                processAddToCartResult(result, cartData, 'Items added to cart successfully!');
             }
         }
     };
@@ -356,6 +437,39 @@ export default function CateringDetailPage() {
     const handleSampleSelectionConfirm = (selections) => {
         setSelectedSampleItems(selections);
         showToast('Sample taste items selected successfully!', 'success');
+    };
+
+    // Handle individual items sample taste completion
+    const handleIndividualSampleTasteComplete = (sampleSelections) => {
+        setIsIndividualSampleModalOpen(false);
+
+        if (pendingIndividualItemsCart) {
+            // Add sample taste selections to cart data
+            const finalCartData = {
+                ...pendingIndividualItemsCart,
+                sampleTasteSelections: sampleSelections && sampleSelections.length > 0 ? sampleSelections : null
+            };
+
+            const result = addToCart(finalCartData);
+            processAddToCartResult(result, finalCartData, 'Items added to cart successfully!');
+
+            // Clear pending state
+            setPendingIndividualItemsCart(null);
+        }
+    };
+
+    // Handle individual sample taste modal close (skip sample tasting)
+    const handleIndividualSampleTasteClose = () => {
+        setIsIndividualSampleModalOpen(false);
+
+        if (pendingIndividualItemsCart) {
+            // Add to cart without sample taste selections
+            const result = addToCart(pendingIndividualItemsCart);
+            processAddToCartResult(result, pendingIndividualItemsCart, 'Items added to cart successfully!');
+
+            // Clear pending state
+            setPendingIndividualItemsCart(null);
+        }
     };
 
     // Toggle individual food item selection
@@ -1185,8 +1299,14 @@ export default function CateringDetailPage() {
                                                             alt={item.name}
                                                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                                             onError={(e) => {
+                                                                // SECURITY FIX: Use createElement instead of innerHTML to prevent XSS
                                                                 e.target.style.display = 'none';
-                                                                e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-6xl">${item.isVegetarian ? '🥗' : '🍖'}</div>`;
+                                                                const parent = e.target.parentElement;
+                                                                const fallbackDiv = document.createElement('div');
+                                                                fallbackDiv.className = 'w-full h-full flex items-center justify-center text-6xl';
+                                                                fallbackDiv.textContent = item.isVegetarian ? '🥗' : '🍖';
+                                                                parent.innerHTML = ''; // Clear parent
+                                                                parent.appendChild(fallbackDiv);
                                                             }}
                                                         />
                                                     ) : (
@@ -1497,6 +1617,16 @@ export default function CateringDetailPage() {
                 onConfirm={handleSampleSelectionConfirm}
             />
 
+            {/* Sample Taste Modal for Individual Items */}
+            {isIndividualSampleModalOpen && (
+                <SampleTasteModal
+                    isOpen={isIndividualSampleModalOpen}
+                    onClose={handleIndividualSampleTasteClose}
+                    foodItems={individualSampleItems}
+                    onConfirm={handleIndividualSampleTasteComplete}
+                />
+            )}
+
             {/* Food Item Media Viewer */}
             {foodMediaViewer.isOpen && (
                 <div
@@ -1561,6 +1691,43 @@ export default function CateringDetailPage() {
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {/* Cart Replacement Confirmation Modal */}
+            {cartReplaceConfirmation.isOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="text-center mb-6">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+                                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Replace Cart?</h3>
+                            <p className="text-sm text-gray-600">{cartReplaceConfirmation.message}</p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleCartReplaceCancel}
+                                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCartReplaceConfirm}
+                                className="flex-1 px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                            >
+                                Replace Cart
+                            </button>
+                        </div>
+                    </motion.div>
                 </div>
             )}
         </motion.div>

@@ -1,5 +1,6 @@
 ﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Common;
 using Microsoft.Data.SqlClient;
@@ -9,11 +10,10 @@ namespace CateringEcommerce.BAL.Common
 {
     public class Locations : ILocation
     {
-        private readonly SqlDatabaseManager _db;
-        public Locations(string connectionString)
+        private readonly IDatabaseHelper _dbHelper;
+        public Locations(IDatabaseHelper dbHelper)
         {
-            _db = new SqlDatabaseManager();
-            _db.SetConnectionString(connectionString);
+            _dbHelper = dbHelper;
         }
 
         public async Task<List<State>> GetStates()
@@ -22,7 +22,7 @@ namespace CateringEcommerce.BAL.Common
             string sqlState = "SELECT c_stateid AS StateID,c_statename AS StateName FROM " + Table.State;
 
             // Get all states
-            var stateDataTable = await _db.ExecuteAsync(sqlState) as DataTable;
+            var stateDataTable = await _dbHelper.ExecuteAsync(sqlState) as DataTable;
             if (stateDataTable != null)
             {
                 states = stateDataTable.AsEnumerable()
@@ -47,7 +47,7 @@ namespace CateringEcommerce.BAL.Common
             };
 
             // Use pattern matching to simplify the type check and cast
-            if (await _db.ExecuteAsync(sqlCity, parameters) is DataTable cityDataTable)
+            if (await _dbHelper.ExecuteAsync(sqlCity, parameters) is DataTable cityDataTable)
             {
                 cities = cityDataTable.AsEnumerable()
                    .Where(row => row["CityName"] != DBNull.Value)
@@ -73,7 +73,7 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@CityName", cityName) // Use Microsoft.Data.SqlClient.SqlParameter
                 };
 
-                var result = await _db.ExecuteScalarAsync(query.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query.ToString(), parameters.ToArray());
                 int cityId = result != null ? Convert.ToInt32(result) : 0;
                 return cityId;
             }

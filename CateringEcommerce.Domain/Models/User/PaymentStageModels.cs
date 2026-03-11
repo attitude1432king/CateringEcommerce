@@ -160,4 +160,33 @@ namespace CateringEcommerce.Domain.Models.User
         public List<PaymentStageDto> PendingStages { get; set; } = new List<PaymentStageDto>();
         public List<PaymentStageDto> CompletedStages { get; set; } = new List<PaymentStageDto>();
     }
+
+    // ===================================
+    // RAZORPAY WEBHOOK PAYLOAD DTO
+    // ===================================
+    public class RazorpayWebhookDto
+    {
+        public string Event { get; set; } = string.Empty; // payment.authorized, payment.captured, payment.failed
+        public RazorpayWebhookPayloadDto Payload { get; set; } = new RazorpayWebhookPayloadDto();
+    }
+
+    public class RazorpayWebhookPayloadDto
+    {
+        public RazorpayWebhookPaymentDto Payment { get; set; } = new RazorpayWebhookPaymentDto();
+    }
+
+    public class RazorpayWebhookPaymentDto
+    {
+        public string Id { get; set; } = string.Empty; // Payment ID
+        public string Entity { get; set; } = string.Empty; // "payment"
+        public long Amount { get; set; } // Amount in paise
+        public string Currency { get; set; } = "INR";
+        public string Status { get; set; } = string.Empty; // captured, authorized, failed
+        public string? OrderId { get; set; } // Razorpay Order ID
+        public string? Method { get; set; } // card, netbanking, wallet, upi
+        public string? Email { get; set; }
+        public string? Contact { get; set; }
+        public Dictionary<string, string>? Notes { get; set; } // Custom notes (order_id, user_id, stage_type)
+        public long CreatedAt { get; set; } // Unix timestamp
+    }
 }

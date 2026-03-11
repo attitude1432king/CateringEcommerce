@@ -1,6 +1,6 @@
 ﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
-import { fetchExternalApi,fetchApi, fileToBase64Dto } from './apiUtils';
+import { fetchApi, fileToBase64Dto } from './apiUtils';
 
 export const ownerApiService = {
     /**
@@ -18,7 +18,7 @@ export const ownerApiService = {
     uploadOwnerFiles: async (ownerId, uploadedFiles) => fetchApi(`/Auth/Owner/UploadMedia?ownerId=${ownerId}`, 'POST', uploadedFiles),
 
     // Get the Pincode details from the external API
-    getPincodeDetails: async (pincodeUrl) => fetchExternalApi(pincodeUrl),
+    getPincodeDetails: async (pincode) => fetchApi(`/Common/Locations/pincode/${pincode}`),
 
 
     // CORRECTED FUNCTION to get all options for Step 3 in one call
@@ -359,5 +359,182 @@ export const ownerApiService = {
         deleteBanner: async (bannerId) => fetchApi('/Owner/Banners/Delete', 'POST', bannerId),
 
         updateBannerStatus: async (bannerId, isActive) => fetchApi(`/Owner/Banners/UpdateStatus?bannerId=${bannerId}&isActive=${isActive}`, 'POST'),
+
+    // ===================================
+    // Dashboard APIs
+    // ===================================
+
+        // Dashboard Metrics & Charts
+        getDashboardMetrics: async () => fetchApi('/Owner/OwnerDashboard/metrics'),
+
+        getRevenueChart: async (period = 'month') => fetchApi(`/Owner/OwnerDashboard/revenue-chart?period=${period}`),
+
+        getOrdersChart: async (period = 'month') => fetchApi(`/Owner/OwnerDashboard/orders-chart?period=${period}`),
+
+        getRecentOrders: async (limit = 5) => fetchApi(`/Owner/OwnerDashboard/recent-orders?limit=${limit}`),
+
+        getUpcomingEvents: async (days = 7) => fetchApi(`/Owner/OwnerDashboard/upcoming-events?days=${days}`),
+
+        getTopMenuItems: async (limit = 10) => fetchApi(`/Owner/OwnerDashboard/top-items?limit=${limit}`),
+
+        getPerformanceInsights: async () => fetchApi('/Owner/OwnerDashboard/insights'),
+
+        getRevenueBreakdown: async () => fetchApi('/Owner/OwnerDashboard/revenue-breakdown'),
+
+    // ===================================
+    // Order Management APIs
+    // ===================================
+
+        // Get paginated orders list with filters
+        getOrdersList: async (page = 1, pageSize = 10, filters = {}) =>
+            fetchApi('/Owner/OwnerOrders/list', 'POST', {
+                page,
+                pageSize,
+                ...filters
+            }),
+
+        // Get complete order details
+        getOrderDetails: async (orderId) => fetchApi(`/Owner/OwnerOrders/${orderId}`),
+
+        // Update order status
+        updateOrderStatus: async (orderId, statusData) =>
+            fetchApi(`/Owner/OwnerOrders/${orderId}/status`, 'PUT', statusData),
+
+        // Get order status history
+        getOrderStatusHistory: async (orderId) => fetchApi(`/Owner/OwnerOrders/${orderId}/history`),
+
+        // Get order statistics
+        getOrderStats: async () => fetchApi('/Owner/OwnerOrders/stats'),
+
+        // Get booking request statistics (today/week/month)
+        getBookingRequestStats: async () => fetchApi('/Owner/OwnerOrders/booking-request-stats'),
+
+    // ===================================
+    // Customer Management APIs
+    // ===================================
+
+        // Get paginated customers list with filters
+        getCustomersList: async (page = 1, pageSize = 10, filters = {}) =>
+            fetchApi('/Owner/OwnerCustomers/list', 'POST', {
+                page,
+                pageSize,
+                ...filters
+            }),
+
+        // Get customer details with statistics
+        getCustomerDetails: async (customerId) => fetchApi(`/Owner/OwnerCustomers/${customerId}`),
+
+        // Get customer order history
+        getCustomerOrderHistory: async (customerId) => fetchApi(`/Owner/OwnerCustomers/${customerId}/orders`),
+
+        // Get customer insights and analytics
+        getCustomerInsights: async () => fetchApi('/Owner/OwnerCustomers/insights'),
+
+        // Get top customers
+        getTopCustomers: async (limit = 10, sortBy = 'LifetimeValue') =>
+            fetchApi(`/Owner/OwnerCustomers/top?limit=${limit}&sortBy=${sortBy}`),
+
+    // ===================================
+    // Reports APIs
+    // ===================================
+
+        // Generate sales report
+        generateSalesReport: async (filters = {}) =>
+            fetchApi('/Owner/OwnerReports/sales', 'POST', filters),
+
+        // Generate revenue report
+        generateRevenueReport: async (filters = {}) =>
+            fetchApi('/Owner/OwnerReports/revenue', 'POST', filters),
+
+        // Generate customer report
+        generateCustomerReport: async (filters = {}) =>
+            fetchApi('/Owner/OwnerReports/customers', 'POST', filters),
+
+        // Generate menu performance report
+        generateMenuPerformanceReport: async (filters = {}) =>
+            fetchApi('/Owner/OwnerReports/menu-performance', 'POST', filters),
+
+        // Generate financial report
+        generateFinancialReport: async (filters = {}) =>
+            fetchApi('/Owner/OwnerReports/financial', 'POST', filters),
+
+    // ===================================
+    // Review Management APIs
+    // ===================================
+
+        // Get paginated reviews list with filters
+        getReviews: async (page = 1, pageSize = 10, filters = {}) =>
+            fetchApi('/Owner/OwnerReviews/list', 'POST', {
+                page,
+                pageSize,
+                ...filters
+            }),
+
+        // Get review statistics
+        getReviewStats: async () => fetchApi('/Owner/OwnerReviews/stats'),
+
+        // Submit owner reply to a review
+        submitReviewReply: async (reviewId, replyText) =>
+            fetchApi(`/Owner/OwnerReviews/${reviewId}/reply`, 'POST', { replyText }),
+
+    // ===================================
+    // Support Ticket APIs
+    // ===================================
+
+        // Create a new support ticket
+        createSupportTicket: async (ticketData) =>
+            fetchApi('/Owner/OwnerSupport/create', 'POST', ticketData),
+
+        // Get paginated tickets list with filters
+        getSupportTickets: async (page = 1, pageSize = 10, filters = {}) =>
+            fetchApi('/Owner/OwnerSupport/list', 'POST', {
+                page,
+                pageSize,
+                ...filters
+            }),
+
+        // Get ticket details with messages
+        getSupportTicketDetail: async (ticketId) =>
+            fetchApi(`/Owner/OwnerSupport/${ticketId}`),
+
+        // Send a message on a ticket
+        sendTicketMessage: async (ticketId, messageText) =>
+            fetchApi(`/Owner/OwnerSupport/${ticketId}/message`, 'POST', { messageText }),
+
+        // Get ticket statistics
+        getSupportTicketStats: async () => fetchApi('/Owner/OwnerSupport/stats'),
+
+    // ===================================
+    // Report Export APIs
+    // ===================================
+
+        // Export report (returns file download URL or blob)
+        exportReport: async (reportType, format = 'csv', filters = {}) => {
+            const response = await fetch(`${API_BASE_URL}/api/Owner/OwnerReports/export?type=${reportType}&format=${format}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(filters)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to export report');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const filename = response.headers.get('content-disposition')?.split('filename=')[1] || `${reportType}_report.${format}`;
+
+            // Trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename.replace(/"/g, '');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            return { success: true, message: 'Report exported successfully' };
+        },
 
 };

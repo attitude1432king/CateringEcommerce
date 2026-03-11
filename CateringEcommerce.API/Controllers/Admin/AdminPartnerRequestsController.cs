@@ -1,6 +1,11 @@
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Common.Admin;
+using CateringEcommerce.BAL.Base.Admin;
+using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Helpers;
+using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Interfaces.Admin;
+using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +16,21 @@ namespace CateringEcommerce.API.Controllers.Admin
     [AdminAuthorize]
     public class AdminPartnerRequestsController : ControllerBase
     {
-        private readonly string _connStr;
+        private readonly IAdminPartnerRequestRepository _partnerRequestRepository;
+        private readonly IAdminNotificationRepository _notificationRepository;
+        private readonly INotificationHelper _notificationHelper;
+        private readonly ILogger<AdminPartnerRequestsController> _logger;
 
-        public AdminPartnerRequestsController(IConfiguration config)
+        public AdminPartnerRequestsController(
+            IAdminPartnerRequestRepository partnerRequestRepository,
+            IAdminNotificationRepository notificationRepository,
+            INotificationHelper notificationHelper,
+            ILogger<AdminPartnerRequestsController> logger)
         {
-            _connStr = config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _notificationHelper = notificationHelper ?? throw new ArgumentNullException(nameof(notificationHelper));
+            _partnerRequestRepository = partnerRequestRepository ?? throw new ArgumentNullException(nameof(partnerRequestRepository));
+            _notificationRepository = notificationRepository ?? throw new ArgumentNullException(nameof(notificationRepository));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -26,13 +41,13 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var result = repository.GetAllPartnerRequests(request);
+                var result = _partnerRequestRepository.GetAllPartnerRequests(request);
                 return ApiResponseHelper.Success(result, "Partner requests retrieved successfully.");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -44,8 +59,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var partnerRequest = repository.GetPartnerRequestById(ownerId);
+                var partnerRequest = _partnerRequestRepository.GetPartnerRequestById(ownerId);
 
                 if (partnerRequest == null)
                     return ApiResponseHelper.Failure("Partner request not found.");
@@ -54,14 +68,15 @@ namespace CateringEcommerce.API.Controllers.Admin
                 var adminId = GetAdminIdFromToken();
                 if (adminId.HasValue)
                 {
-                    repository.LogAction(ownerId, adminId.Value, "VIEWED", null, null, "Viewed partner request details", GetClientIpAddress());
+                    _partnerRequestRepository.LogAction(ownerId, adminId.Value, "VIEWED", null, null, "Viewed partner request details", GetClientIpAddress());
                 }
 
                 return ApiResponseHelper.Success(partnerRequest, "Partner request details retrieved successfully.");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -79,22 +94,21 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 request.OwnerId = ownerId;
 
-                var repository = new AdminPartnerRequestRepository(_connStr);
                 PartnerRequestActionResponse result;
 
                 switch (request.ActionType?.ToUpper())
                 {
                     case "APPROVE":
-                        result = repository.ApprovePartnerRequest(request, adminId.Value);
+                        result = _partnerRequestRepository.ApprovePartnerRequest(request, adminId.Value);
                         break;
                     case "REJECT":
-                        result = repository.RejectPartnerRequest(request, adminId.Value);
+                        result = _partnerRequestRepository.RejectPartnerRequest(request, adminId.Value);
                         break;
                     case "REQUEST_INFO":
-                        result = repository.RequestAdditionalInfo(request, adminId.Value);
+                        result = _partnerRequestRepository.RequestAdditionalInfo(request, adminId.Value);
                         break;
                     case "MARK_UNDER_REVIEW":
-                        repository.UpdatePartnerRequestStatus(ownerId, "UNDER_REVIEW", adminId.Value, request.Remarks);
+                        _partnerRequestRepository.UpdatePartnerRequestStatus(ownerId, "UNDER_REVIEW", adminId.Value, request.Remarks);
                         result = new PartnerRequestActionResponse
                         {
                             Success = true,
@@ -111,8 +125,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     // Create notification for certain actions
                     if (request.ActionType?.ToUpper() == "APPROVE")
                     {
-                        var notificationRepo = new AdminNotificationRepository(_connStr);
-                        notificationRepo.CreateNotification(
+                        _notificationRepository.CreateNotification(
                             "PARTNER_REQUEST_APPROVED",
                             $"Partner request approved for {ownerId}",
                             "A partner registration has been approved",
@@ -130,7 +143,8 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -138,7 +152,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         /// Approve a partner request
         /// </summary>
         [HttpPut("{ownerId}/approve")]
-        public IActionResult ApprovePartnerRequest(long ownerId, [FromBody] PartnerRequestActionRequest request)
+        public async Task<IActionResult> ApprovePartnerRequest(long ownerId, [FromBody] PartnerRequestActionRequest request)
         {
             try
             {
@@ -149,14 +163,55 @@ namespace CateringEcommerce.API.Controllers.Admin
                 request.OwnerId = ownerId;
                 request.ActionType = "APPROVE";
 
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var result = repository.ApprovePartnerRequest(request, adminId.Value);
+                var result = _partnerRequestRepository.ApprovePartnerRequest(request, adminId.Value);
 
                 if (result.Success)
                 {
-                    // Create notification for partner approval
-                    var notificationRepo = new AdminNotificationRepository(_connStr);
-                    notificationRepo.CreateNotification(
+                    // Get partner details for notification
+                    var partnerDetails = _partnerRequestRepository.GetPartnerRequestById(ownerId);
+                    if (partnerDetails != null)
+                    {
+                        try
+                        {
+                            // Generate cryptographically secure temporary password
+                            var temporaryPassword = Utils.GenerateSecureTemporaryPassword(16);
+
+                            // TODO: Store hashed password in database for partner login
+                            // _partnerRequestRepository.SetPartnerTemporaryPassword(ownerId, BCrypt.Net.BCrypt.HashPassword(temporaryPassword));
+                            // _partnerRequestRepository.MarkPasswordAsTemporary(ownerId); // Force password change on first login
+
+                            await _notificationHelper.SendPartnerNotificationAsync(
+                                "PARTNER_APPROVAL",
+                                partnerDetails.OwnerName,
+                                partnerDetails.Email,
+                                partnerDetails.Phone,
+                                new Dictionary<string, object>
+                                {
+                                    { "owner_name", partnerDetails.OwnerName },
+                                    { "catering_name", partnerDetails.BusinessName },
+                                    { "approval_date", DateTime.Now.ToString("dd MMM yyyy") },
+                                    { "login_url", "https://enyvora.com/partner/login" },
+                                    { "username", partnerDetails.Email },
+                                    { "temp_password", temporaryPassword }, // Secure generated password
+                                    { "password_expiry_warning", "This password will expire in 24 hours. Please change it upon first login." },
+                                    { "partner_guide_url", "https://enyvora.com/partner-guide" },
+                                    { "best_practices_url", "https://enyvora.com/best-practices" },
+                                    { "support_url", "https://enyvora.com/support" },
+                                    { "partner_support_email", "partner-support@enyvora.com" },
+                                    { "partner_support_phone", "+91-1234567890" }
+                                }
+                            );
+                            _logger.LogInformation("Partner approval notification sent to {OwnerName}. OwnerId: {OwnerId}",
+                                partnerDetails.OwnerName, ownerId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to send partner approval notification. OwnerId: {OwnerId}", ownerId);
+                        }
+                    }
+
+                    // Create admin notification
+                    _notificationRepository.CreateNotification(
                         "PARTNER_REQUEST_APPROVED",
                         $"Partner request approved for {ownerId}",
                         "A partner registration has been approved",
@@ -173,7 +228,8 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -181,7 +237,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         /// Reject a partner request
         /// </summary>
         [HttpPut("{ownerId}/reject")]
-        public IActionResult RejectPartnerRequest(long ownerId, [FromBody] PartnerRequestActionRequest request)
+        public async Task<IActionResult> RejectPartnerRequest(long ownerId, [FromBody] PartnerRequestActionRequest request)
         {
             try
             {
@@ -192,17 +248,50 @@ namespace CateringEcommerce.API.Controllers.Admin
                 request.OwnerId = ownerId;
                 request.ActionType = "REJECT";
 
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var result = repository.RejectPartnerRequest(request, adminId.Value);
+                var result = _partnerRequestRepository.RejectPartnerRequest(request, adminId.Value);
 
                 if (result.Success)
+                {
+                    // Get partner details for notification
+                    var partnerDetails = _partnerRequestRepository.GetPartnerRequestById(ownerId);
+                    if (partnerDetails != null)
+                    {
+                        try
+                        {
+                            // Send rejection notification to partner (Email + SMS)
+
+                            await _notificationHelper.SendPartnerNotificationAsync(
+                                "PARTNER_REJECTION",
+                                partnerDetails.OwnerName,
+                                partnerDetails.Email,
+                                partnerDetails.Phone,
+                                new Dictionary<string, object>
+                                {
+                                    { "owner_name", partnerDetails.OwnerName },
+                                    { "catering_name", partnerDetails.BusinessName },
+                                    { "rejection_reason", request.Remarks ?? "Application did not meet our current requirements" },
+                                    { "reapply_duration", "30 days" },
+                                    { "partner_support_email", "partner-support@enyvora.com" }
+                                }
+                            );
+                            _logger.LogInformation("Partner rejection notification sent to {OwnerName}. OwnerId: {OwnerId}",
+                                partnerDetails.OwnerName, ownerId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to send partner rejection notification. OwnerId: {OwnerId}", ownerId);
+                        }
+                    }
+
                     return ApiResponseHelper.Success(result, result.Message);
+                }
 
                 return ApiResponseHelper.Failure(result.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -210,7 +299,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         /// Request additional information from partner
         /// </summary>
         [HttpPut("{ownerId}/request-info")]
-        public IActionResult RequestAdditionalInfo(long ownerId, [FromBody] PartnerRequestActionRequest request)
+        public async Task<IActionResult> RequestAdditionalInfo(long ownerId, [FromBody] PartnerRequestActionRequest request)
         {
             try
             {
@@ -221,17 +310,50 @@ namespace CateringEcommerce.API.Controllers.Admin
                 request.OwnerId = ownerId;
                 request.ActionType = "REQUEST_INFO";
 
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var result = repository.RequestAdditionalInfo(request, adminId.Value);
+                var result = _partnerRequestRepository.RequestAdditionalInfo(request, adminId.Value);
 
                 if (result.Success)
+                {
+                    // Get partner details for notification
+                    var partnerDetails = _partnerRequestRepository.GetPartnerRequestById(ownerId);
+                    if (partnerDetails != null)
+                    {
+                        try
+                        {
+                            // Send info request notification to partner (Email + SMS)
+                            await _notificationHelper.SendPartnerNotificationAsync(
+                                "PARTNER_INFO_REQUEST",
+                                partnerDetails.OwnerName,
+                                partnerDetails.Email,
+                                partnerDetails.Phone,
+                                new Dictionary<string, object>
+                                {
+                                    { "owner_name", partnerDetails.OwnerName },
+                                    { "catering_name", partnerDetails.BusinessName },
+                                    { "info_requested", request.Remarks ?? "Additional documents and information required" },
+                                    { "deadline_date", DateTime.Now.AddDays(7).ToString("dd MMM yyyy") },
+                                    { "upload_url", "https://enyvora.com/partner/upload-documents" },
+                                    { "partner_support_email", "partner-support@enyvora.com" }
+                                }
+                            );
+                            _logger.LogInformation("Partner info request notification sent to {OwnerName}. OwnerId: {OwnerId}",
+                                partnerDetails.OwnerName, ownerId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to send partner info request notification. OwnerId: {OwnerId}", ownerId);
+                        }
+                    }
+
                     return ApiResponseHelper.Success(result, result.Message);
+                }
 
                 return ApiResponseHelper.Failure(result.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -247,8 +369,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!adminId.HasValue)
                     return Unauthorized(ApiResponseHelper.Failure("Admin ID not found in token."));
 
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var result = repository.UpdateInternalNotes(ownerId, request.Notes, adminId.Value);
+                var result = _partnerRequestRepository.UpdateInternalNotes(ownerId, request.Notes, adminId.Value);
 
                 if (result)
                     return ApiResponseHelper.Success(null, "Internal notes updated successfully.");
@@ -257,7 +378,8 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -273,8 +395,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 if (!adminId.HasValue)
                     return Unauthorized(ApiResponseHelper.Failure("Admin ID not found in token."));
 
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var result = repository.UpdatePriority(ownerId, request.Priority, adminId.Value);
+                var result = _partnerRequestRepository.UpdatePriority(ownerId, request.PriorityId, adminId.Value);
 
                 if (result)
                     return ApiResponseHelper.Success(null, "Priority updated successfully.");
@@ -283,7 +404,8 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -295,14 +417,14 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var timeline = repository.GetActionLog(ownerId);
+                var timeline = _partnerRequestRepository.GetActionLog(ownerId);
 
                 return ApiResponseHelper.Success(timeline, "Action log retrieved successfully.");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -320,8 +442,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 request.OwnerId = ownerId;
 
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var result = repository.SendCommunication(request, adminId.Value);
+                var result = _partnerRequestRepository.SendCommunication(request, adminId.Value);
 
                 if (result.Success)
                     return ApiResponseHelper.Success(result, result.Message);
@@ -330,7 +451,8 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -342,14 +464,14 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var repository = new AdminPartnerRequestRepository(_connStr);
-                var history = repository.GetCommunicationHistory(ownerId);
+                var history = _partnerRequestRepository.GetCommunicationHistory(ownerId);
 
                 return ApiResponseHelper.Success(history, "Communication history retrieved successfully.");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+                _logger.LogError(ex, "Admin Partner Request operation failed");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
         }
 
@@ -381,7 +503,7 @@ namespace CateringEcommerce.API.Controllers.Admin
 
     public class UpdatePriorityRequest
     {
-        public string Priority { get; set; } = "NORMAL";
+        public int PriorityId { get; set; }
     }
 
     #endregion
