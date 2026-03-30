@@ -44,7 +44,8 @@ const PartnerActionModal = ({ request, actionType, onClose, onSuccess }) => {
                     sendNotification: formData.sendNotification
                 });
             }
-
+            
+            response = response.value;
             if (response && response.result) {
                 toast.success(response.message || `Partner ${actionType === 'APPROVE' ? 'approved' : 'rejected'} successfully`);
                 onSuccess();

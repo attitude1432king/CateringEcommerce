@@ -18,6 +18,7 @@ export const useAdminAuth = () => {
 export const AdminAuthProvider = ({ children }) => {
     const [admin, setAdmin] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [requirePasswordChange, setRequirePasswordChange] = useState(false);
     const navigate = useNavigate();
 
     // P0 FIX: Validate session on mount by checking httpOnly cookie with backend
@@ -71,16 +72,21 @@ export const AdminAuthProvider = ({ children }) => {
 
             if (result.result && result.data) {
                 // SECURITY FIX: Token no longer returned (it's in httpOnly cookie)
-                // Only store non-sensitive admin data
-                const adminData = result.data;
+                // Only store non-sensitive admin data (exclude session flags like requirePasswordChange)
+                const { requirePasswordChange: changeRequired, ...profileData } = result.data;
 
-                // Store admin data (NOT token) in localStorage
-                localStorage.setItem('admin', JSON.stringify(adminData));
+                // Store profile data (NOT token, NOT session flags) in localStorage
+                localStorage.setItem('admin', JSON.stringify(profileData));
 
                 // Update state
-                setAdmin(adminData);
+                setAdmin(profileData);
 
-                return { success: true, data: result.data };
+                // Set temporary password flag in React state only (not persisted)
+                if (changeRequired) {
+                    setRequirePasswordChange(true);
+                }
+
+                return { success: true, data: profileData, requirePasswordChange: !!changeRequired };
             } else {
                 return { success: false, message: result.message || 'Login failed' };
             }
@@ -89,6 +95,8 @@ export const AdminAuthProvider = ({ children }) => {
             return { success: false, message: 'Network error. Please try again.' };
         }
     };
+
+    const clearTempFlag = () => setRequirePasswordChange(false);
 
     const logout = async () => {
         try {
@@ -130,6 +138,8 @@ export const AdminAuthProvider = ({ children }) => {
         logout,
         getToken,
         isAuthenticated,
+        requirePasswordChange,
+        clearTempFlag,
     };
 
     return (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import AdminLayout from '../../../components/admin/layout/AdminLayout';
 import MasterDataGrid from '../../../components/admin/masterdata/MasterDataGrid';
 import MasterDataForm from '../../../components/admin/masterdata/MasterDataForm';
 import { masterDataApi } from '../../../services/masterDataApi';
@@ -174,7 +175,13 @@ const GuestCategoryManagement = () => {
     ];
 
     return (
-        <div>
+        <AdminLayout>
+            <nav className="text-xs text-gray-400 mb-4 flex items-center gap-1.5">
+                <span>Dashboard</span><span>/</span>
+                <span>Master Data</span><span>/</span>
+                <span className="text-gray-700 font-medium">Guest Categories</span>
+            </nav>
+
             <div className="mb-6 flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900">Guest Category Management</h2>
@@ -215,7 +222,7 @@ const GuestCategoryManagement = () => {
                 fields={formFields}
                 loading={formLoading}
             />
-        </div>
+        </AdminLayout>
     );
 };
 

@@ -397,7 +397,7 @@ namespace CateringEcommerce.BAL.Base.User
                         c_food_types,
                         c_min_dish_order
                     FROM {Table.SysCateringOwnerService}
-                    WHERE c_catering_id = @CateringId";
+                    WHERE c_ownerid = @CateringId";
 
                 var operationsData = await _dbHelper.ExecuteAsync(
                     operationsQuery,

@@ -32,6 +32,7 @@ namespace CateringEcommerce.Domain.Models.Admin
         public bool IsActive { get; set; }
         public bool IsBlocked { get; set; }
         public bool IsDeleted { get; set; }
+        public bool IsFeatured { get; set; }
         public decimal? Rating { get; set; }
         public int TotalReviews { get; set; }
         public int TotalOrders { get; set; }
@@ -111,6 +112,11 @@ namespace CateringEcommerce.Domain.Models.Admin
         public int TotalOrders { get; set; }
         public decimal TotalEarnings { get; set; }
         public DateTime CreatedDate { get; set; }
+    }
+
+    public class ToggleFeaturedRequest
+    {
+        public bool IsFeatured { get; set; }
     }
 
     #endregion

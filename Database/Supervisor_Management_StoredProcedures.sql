@@ -129,7 +129,7 @@ BEGIN
         SET c_current_status = @NewStatus,
             c_status_reason = @Notes,
             c_modifieddate = GETDATE(),
-            c_modified_by = @AdminId
+            c_modifiedby = @AdminId
         WHERE c_supervisor_id = @SupervisorId;
 
         -- Update application workflow based on new status

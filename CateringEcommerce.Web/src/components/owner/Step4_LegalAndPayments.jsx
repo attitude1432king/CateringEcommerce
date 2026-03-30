@@ -14,7 +14,7 @@ const FilePreview = ({ file, onRemove }) => {
         <div className="mt-2 border rounded-lg p-2 flex items-center justify-between bg-green-50">
             <div className="flex items-center gap-3">
                 {isImage ? (
-                    <img src={file.base64} alt="preview" className="w-10 h-10 object-cover rounded-md" />
+                    <img src={file.previewUrl} alt="preview" className="w-10 h-10 object-cover rounded-md" />
                 ) : (
                     <div className="w-10 h-10 bg-red-100 text-red-600 flex items-center justify-center rounded-md font-bold text-xs">PDF</div>
                 )}

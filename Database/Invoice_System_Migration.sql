@@ -102,9 +102,9 @@ BEGIN
         [c_pdf_generated_date] DATETIME NULL,
 
         -- Audit Fields
-        [c_created_by] BIGINT NULL,
+        [c_createdby] BIGINT NULL,
         [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
-        [c_modified_by] BIGINT NULL,
+        [c_modifiedby] BIGINT NULL,
         [c_modifieddate] DATETIME NULL,
         [c_is_deleted] BIT NOT NULL DEFAULT 0,
         [c_deleted_date] DATETIME NULL,

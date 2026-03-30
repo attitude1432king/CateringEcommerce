@@ -7,13 +7,18 @@
  */
 
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function FloatingCartButton() {
     const { cart, toggleCart, getCartItemCount } = useCart();
     const { isAuthenticated } = useAuth();
+    const location = useLocation();
     const cartCount = getCartItemCount();
+
+    // Hide on catering detail page — that page has its own fixed bottom bar
+    if (location.pathname.match(/\/caterings\/\d+/)) return null;
 
     // Only show when authenticated and cart has items
     if (!isAuthenticated || !cart || cartCount === 0) {

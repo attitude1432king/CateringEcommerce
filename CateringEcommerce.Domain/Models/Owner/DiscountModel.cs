@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using CateringEcommerce.API.Converter;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CateringEcommerce.Domain.Models.Owner
 {
@@ -42,7 +44,11 @@ namespace CateringEcommerce.Domain.Models.Owner
         public int Mode { get; set; } // percentage, flat
         [Required]
         public decimal Value { get; set; }
+
+        [JsonConverter(typeof(NullableDecimalConverter))]
         public decimal? MaxDiscount { get; set; }
+
+        [JsonConverter(typeof(NullableDecimalConverter))]
         public decimal? MinOrderValue { get; set; }
         public List<long> SelectedItems { get; set; } = new List<long>(); // IDs of food items or packages
         [Required]

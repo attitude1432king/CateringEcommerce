@@ -1,5 +1,5 @@
 ﻿using CateringEcommerce.Domain.Models.APIModels.Owner;
-using CateringEcommerce.Domain.Models.Common;
+using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Models.Owner
@@ -34,7 +34,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public Int32[]? LinkedPackageIds { get; set; }  // Package PKID
 
         public bool Status { get; set; }
-        public List<FileUploadDto>? DecorationsMediaFiles { get; set; }
+        public List<IFormFile>? DecorationsMediaFiles { get; set; }
         public List<string>? ExistingDecorationsMediaPaths { get; set; }
     }
 

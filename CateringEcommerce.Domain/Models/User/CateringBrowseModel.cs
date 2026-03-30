@@ -136,8 +136,10 @@ public class CateringFoodItemDto
     public decimal Price { get; set; }
     public bool IsVegetarian { get; set; }
     public bool IsSpicy { get; set; }
+    public bool IsIncludedInPackage { get; set; }
     public bool IsSampleTasted { get; set; }
     public List<string>? ImageUrls { get; set; }
+    public string? VideoUrl { get; set; }
     public bool IsAvailable { get; set; }
     public string? Allergens { get; set; }
 }
@@ -200,6 +202,7 @@ public class DecorationDto
     public string? IncludedInPackageIds { get; set; } // CSV of package IDs
     public bool IsAvailable { get; set; }
     public string? ThumbnailUrl { get; set; }
+    public string? VideoUrl { get; set; }
 }
 
 #endregion

@@ -11,11 +11,11 @@ namespace CateringEcommerce.BAL.Configuration
     /// <summary>
     /// Unified OTP service for all roles (User, Owner, Admin, Supervisor).
     /// Owns the full OTP lifecycle: generate → hash → cache → deliver → verify.
-    /// SMS delivery is delegated to the configured ISmsOtpProvider.
+    /// SMS delivery is delegated to the configured IOtpSmsProvider.
     /// </summary>
     public class SmsService : ISmsService
     {
-        private readonly ISmsOtpProvider _provider;
+        private readonly IOtpSmsProvider _provider;
         private readonly IDistributedCache _cache;
         private readonly ISystemSettingsProvider _settings;
         private readonly ILogger<SmsService> _logger;
@@ -25,7 +25,7 @@ namespace CateringEcommerce.BAL.Configuration
         private const string OtpSendCountPrefix = "otp:sends:";
 
         public SmsService(
-            ISmsOtpProvider provider,
+            IOtpSmsProvider provider,
             IDistributedCache cache,
             ISystemSettingsProvider settings,
             ILogger<SmsService> logger)

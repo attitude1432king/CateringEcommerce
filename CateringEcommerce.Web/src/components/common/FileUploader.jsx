@@ -6,10 +6,8 @@ export default function FileUploader({
     onFileCropped,
     aspect,
     acceptedTypes = "image/jpeg, image/png, application/pdf",
-    returnType = "base64",
 }) {
     const [sourceFile, setSourceFile] = useState(null);
-    const [originalBase64, setOriginalBase64] = useState(null);
     const [originalFile, setOriginalFile] = useState(null);
     const [crop, setCrop] = useState();
     const [completedCrop, setCompletedCrop] = useState(null);
@@ -24,34 +22,23 @@ export default function FileUploader({
 
         const file = e.target.files[0];
         setOriginalFile(file);
-        const reader = new FileReader();
 
-        reader.onload = () => {
-            const result = reader.result?.toString() || "";
-
-            if (file.type.startsWith("image/")) {
-                setSourceFile(result);
-                setOriginalBase64(result);
+        if (file.type.startsWith("image/")) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                setSourceFile(reader.result?.toString() || "");
                 setIsModalOpen(true);
-            } else {
-                if (returnType === "file") {
-                    onFileCropped({
-                        file,
-                        name: file.name,
-                        type: file.type,
-                        previewUrl: null,
-                    });
-                } else {
-                    onFileCropped({
-                        base64: result,
-                        name: file.name,
-                        type: file.type,
-                    });
-                }
-            }
-        };
-
-        reader.readAsDataURL(file);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // Non-image (PDF etc.) — return immediately without cropping
+            onFileCropped({
+                file,
+                name: file.name,
+                type: file.type,
+                previewUrl: null,
+            });
+        }
     }
 
     function handleCropSave() {
@@ -67,7 +54,6 @@ export default function FileUploader({
         canvas.height = completedCrop.height * scaleY;
 
         const ctx = canvas.getContext("2d");
-
         ctx.drawImage(
             image,
             completedCrop.x * scaleX,
@@ -80,47 +66,31 @@ export default function FileUploader({
             canvas.height
         );
 
-        if (returnType === "file") {
-            canvas.toBlob((blob) => {
-                if (!blob) return;
-                const fileName = originalFile?.name || "cropped_image.jpg";
-                const croppedFile = new File([blob], fileName, { type: "image/jpeg" });
-                onFileCropped({
-                    file: croppedFile,
-                    name: croppedFile.name,
-                    type: croppedFile.type,
-                    previewUrl: URL.createObjectURL(croppedFile),
-                });
-                reset();
-            }, "image/jpeg");
-            return;
-        }
-
-        const croppedBase64 = canvas.toDataURL("image/jpeg");
-        onFileCropped({
-            base64: croppedBase64,
-            name: "cropped_image.jpg",
-            type: "image/jpeg",
-        });
-        reset();
+        canvas.toBlob((blob) => {
+            if (!blob) return;
+            const fileName = originalFile?.name || "cropped_image.jpg";
+            const croppedFile = new File([blob], fileName, { type: "image/jpeg" });
+            onFileCropped({
+                file: croppedFile,
+                name: croppedFile.name,
+                type: croppedFile.type,
+                previewUrl: URL.createObjectURL(croppedFile),
+            });
+            reset();
+        }, "image/jpeg");
     }
 
     function handleUseOriginal() {
-        if (returnType === "file" && originalFile) {
+        if (originalFile) {
             onFileCropped({
                 file: originalFile,
                 name: originalFile.name,
                 type: originalFile.type,
-                previewUrl: URL.createObjectURL(originalFile),
-            });
-        } else {
-            onFileCropped({
-                base64: originalBase64,
-                name: "original_image.jpg",
-                type: "image/jpeg",
+                previewUrl: originalFile.type.startsWith("image/")
+                    ? URL.createObjectURL(originalFile)
+                    : null,
             });
         }
-
         reset();
     }
 
@@ -131,7 +101,6 @@ export default function FileUploader({
     function reset() {
         setIsModalOpen(false);
         setSourceFile(null);
-        setOriginalBase64(null);
         setOriginalFile(null);
         setCrop(undefined);
         setCompletedCrop(null);

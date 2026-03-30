@@ -249,6 +249,66 @@ namespace CateringEcommerce.BAL.Base.User
         }
 
         /// <summary>
+        /// Gets platform-wide featured active offers for the home page
+        /// Returns the most recently created active, non-expired discounts across all caterers
+        /// </summary>
+        public async Task<List<DiscountModel>> GetFeaturedOffersAsync(int limit = 6)
+        {
+            try
+            {
+                string query = $@"
+                    SELECT TOP (@Limit)
+                        c_discountid AS ID,
+                        c_discount_name AS Name,
+                        c_discount_description AS Description,
+                        c_discount_code AS Code,
+                        c_discount_type AS Type,
+                        c_discount_mode AS Mode,
+                        c_discount_value AS Value,
+                        c_min_order_value AS MinOrderValue,
+                        c_max_discount_value AS MaxDiscount,
+                        c_startdate AS StartDate,
+                        c_enddate AS EndDate,
+                        c_isactive AS IsActive
+                    FROM {Table.SysCateringDiscount}
+                    WHERE c_isactive = 1
+                        AND c_is_deleted = 0
+                        AND c_status = 1
+                        AND c_startdate <= CAST(GETDATE() AS DATE)
+                        AND c_enddate   >= CAST(GETDATE() AS DATE)
+                    ORDER BY c_createddate DESC";
+
+                var parameters = new[] { new SqlParameter("@Limit", limit) };
+                var data = await _dbHelper.ExecuteAsync(query, parameters);
+
+                if (data.Rows.Count == 0)
+                    return new List<DiscountModel>();
+
+                return data.AsEnumerable()
+                    .Select(row => new DiscountModel
+                    {
+                        ID = row.GetValue<long?>("ID"),
+                        Name = row.GetValue<string>("Name"),
+                        Description = row.GetValue<string>("Description"),
+                        Code = row.GetValue<string>("Code"),
+                        Type = row.GetValue<int>("Type"),
+                        Mode = row.GetValue<int>("Mode"),
+                        Value = row.GetValue<decimal>("Value"),
+                        MinOrderValue = row.GetValue<decimal?>("MinOrderValue"),
+                        MaxDiscount = row.GetValue<decimal?>("MaxDiscount"),
+                        StartDate = row.IsNull("StartDate") ? null : DateOnly.FromDateTime(row.Field<DateTime>("StartDate")),
+                        EndDate = row.IsNull("EndDate") ? null : DateOnly.FromDateTime(row.Field<DateTime>("EndDate")),
+                        IsActive = row.GetValue<bool>("IsActive")
+                    })
+                    .ToList();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Checks how many times a user has used a specific coupon
         /// Counts successful usage from t_sys_catering_discount_usage table
         /// </summary>

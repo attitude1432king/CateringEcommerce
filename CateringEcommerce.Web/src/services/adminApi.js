@@ -29,6 +29,10 @@ export const authApi = {
     getCurrentAdmin: () => apiCall('/auth/me'),
 
     logout: () => apiCall('/auth/logout', { method: 'POST' }),
+
+    // Change temporary password forced on first login for admin-created accounts
+    changeTempPassword: (dto) =>
+        apiCall('/admin/auth/change-temporary-password', 'POST', dto),
 };
 
 // ============================================
@@ -52,6 +56,9 @@ export const cateringApi = {
     delete: (id) => apiCall(`/admin/caterings/${id}`, 'DELETE'),
 
     restore: (id) => apiCall(`/admin/caterings/${id}/restore`, 'POST'),
+
+    toggleFeatured: (id, isFeatured) =>
+        apiCall(`/admin/caterings/${id}/featured`, 'PATCH', { isFeatured }),
 
     exportCaterings: (params) => {
         const queryString = new URLSearchParams(params).toString();
@@ -275,11 +282,21 @@ export const supervisorManagementApi = {
 
     restoreSupervisor: (id) => apiCall(`/admin/supervisors/${id}/restore`, 'POST'),
 
+    getSupervisorDetails: (id) => apiCall(`/admin/supervisors/${id}`),
+
     exportSupervisors: (params) => {
         const queryString = new URLSearchParams(params).toString();
         const url = `${API_BASE_URL}/api/admin/supervisors/export?${queryString}`;
         return fetch(url, { credentials: 'include' });
     },
+};
+
+// ============================================
+// Global Search API
+// ============================================
+export const searchApi = {
+    globalSearch: (query) =>
+        apiCall(`/admin/search?q=${encodeURIComponent(query)}`),
 };
 
 // Export all APIs
@@ -295,4 +312,5 @@ export default {
     partnerApproval: partnerApprovalApi,
     locations: locationApi,
     supervisorManagement: supervisorManagementApi,
+    search: searchApi,
 };

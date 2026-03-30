@@ -22,6 +22,7 @@ namespace CateringEcommerce.BAL.Base.User
         private readonly INotificationHelper _notificationHelper;
         private readonly INotificationService _notificationService;
         private readonly IFileStorageService _fileStorageService;
+        private readonly ISystemSettingsProvider _settingsProvider;
         private readonly ILogger<OrderService> _logger;
 
         public OrderService(
@@ -31,6 +32,7 @@ namespace CateringEcommerce.BAL.Base.User
             INotificationHelper notificationHelper,
             INotificationService notificationService,
             IFileStorageService fileStorageService,
+            ISystemSettingsProvider settingsProvider,
             ILogger<OrderService> logger)
         {
             _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
@@ -39,6 +41,7 @@ namespace CateringEcommerce.BAL.Base.User
             _notificationHelper = notificationHelper ?? throw new ArgumentNullException(nameof(notificationHelper));
             _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
             _fileStorageService = fileStorageService ?? throw new ArgumentNullException(nameof(fileStorageService));
+            _settingsProvider = settingsProvider ?? throw new ArgumentNullException(nameof(settingsProvider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -49,11 +52,12 @@ namespace CateringEcommerce.BAL.Base.User
         {
             try
             {
-                // 1. Validate event date is at least 24 hours in advance
-                DateTime minEventDate = DateTime.Now.AddHours(24);
-                if (orderData.EventDate < minEventDate)
+                // 1. Validate event date matches the platform's minimum advance booking rule
+                int minAdvanceBookingDays = _settingsProvider.GetInt("BUSINESS.MIN_ADVANCE_BOOKING_DAYS", 5);
+                DateTime minEventDate = DateTime.Today.AddDays(minAdvanceBookingDays);
+                if (orderData.EventDate.Date < minEventDate)
                 {
-                    throw new InvalidOperationException("Event date must be at least 24 hours in advance.");
+                    throw new InvalidOperationException($"Event date must be at least {minAdvanceBookingDays} days in advance.");
                 }
 
                 // 2. Check if catering is active and verified
@@ -63,8 +67,21 @@ namespace CateringEcommerce.BAL.Base.User
                     throw new InvalidOperationException("This catering service is currently unavailable.");
                 }
 
-                // 3. Check catering availability for the event date
-                bool isAvailable = await _orderRepository.CheckCateringAvailabilityAsync(orderData.CateringId, orderData.EventDate);
+                // 3. Check catering availability for the event date using the same rules as the public availability API
+                var availabilitySnapshot = await _orderRepository.GetCateringAvailabilitySnapshotAsync(orderData.CateringId, orderData.EventDate);
+                var fallbackCapacity = _settingsProvider.GetInt("BUSINESS.DEFAULT_DAILY_BOOKING_CAPACITY", 1);
+                var isAvailable =
+                    availabilitySnapshot != null &&
+                    availabilitySnapshot.Exists &&
+                    availabilitySnapshot.IsApproved &&
+                    availabilitySnapshot.IsActive &&
+                    availabilitySnapshot.GlobalStatus != AvailabilityStatus.CLOSED &&
+                    availabilitySnapshot.DateStatus != AvailabilityStatus.CLOSED &&
+                    availabilitySnapshot.DateStatus != AvailabilityStatus.FULLY_BOOKED &&
+                    availabilitySnapshot.ExistingBookingCount < (availabilitySnapshot.DailyBookingCapacity > 0
+                        ? availabilitySnapshot.DailyBookingCapacity
+                        : fallbackCapacity);
+
                 if (!isAvailable)
                 {
                     throw new InvalidOperationException("Sorry, this catering is not available on your selected date. Please choose another date.");
@@ -81,18 +98,23 @@ namespace CateringEcommerce.BAL.Base.User
                 string? paymentProofPath = null;
                 if (orderData.PaymentMethod == "BankTransfer")
                 {
-                    if (orderData.PaymentProof == null || string.IsNullOrEmpty(orderData.PaymentProof.Base64))
+                    if (orderData.PaymentProof == null || orderData.PaymentProof.Length == 0)
                     {
                         throw new InvalidOperationException("Payment proof is required for bank transfer payment method.");
                     }
 
-                    // Upload payment proof
-                    paymentProofPath = await _fileStorageService.SaveFileAsync(
-                        orderData.PaymentProof.Base64,
-                        orderData.CateringId, // Using catering ID for folder organization
+                    var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf" };
+                    var validation = FileValidationHelper.ValidateFile(orderData.PaymentProof, allowedExtensions, 10 * 1024 * 1024);
+                    if (!validation.IsValid)
+                        throw new InvalidOperationException(validation.ErrorMessage);
+
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(orderData.PaymentProof.FileName);
+                    paymentProofPath = await _fileStorageService.SaveFormFileAsync(
+                        orderData.PaymentProof,
+                        orderData.CateringId,
                         DocumentType.PaymentProof.GetDisplayName(),
-                        false, // Not secure
-                        orderData.PaymentProof.Name
+                        false,
+                        safeFilename
                     );
                 }
 

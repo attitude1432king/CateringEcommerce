@@ -40,5 +40,5 @@ export const AvailabilityStatus = {
 // Enumerations for global status
 export const GlobalStatus = {
     OPEN: 1,
-    CLOSED: 0
+    CLOSED: 2
 };

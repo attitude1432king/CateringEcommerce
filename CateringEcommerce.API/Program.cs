@@ -14,6 +14,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Configuration.Providers;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces.Sms;
+using CateringEcommerce.Domain.Models.Notification;
 using CateringEcommerce.BAL.Notification;
 using CateringEcommerce.BAL.Services;
 using CateringEcommerce.Domain.Interfaces;
@@ -38,7 +39,6 @@ using RabbitMQ.Client;
 using System.Globalization;
 using System.Text;
 using System.Threading.RateLimiting;
-using Twilio.Base;
 using CateringEcommerce.BAL.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,18 +61,17 @@ builder.Services.AddSession(options =>
 });
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
-// ── SMS Provider (config-driven, single active provider, app restart to switch) ──
+// ── OTP: MSG91 (exclusively for authentication OTP flows) ──
 builder.Services.AddHttpClient("msg91", c =>
 {
     c.Timeout = TimeSpan.FromSeconds(10);
 });
-var smsProvider = builder.Configuration["SMS:Provider"]
-    ?? settingsProvider.GetString("SMS.PROVIDER", "TWILIO");
-if (smsProvider.Equals("MSG91", StringComparison.OrdinalIgnoreCase))
-    builder.Services.AddScoped<ISmsOtpProvider, Msg91OtpProvider>();
-else
-    builder.Services.AddScoped<ISmsOtpProvider, TwilioOtpProvider>();
+builder.Services.AddScoped<IOtpSmsProvider, Msg91OtpProvider>();
 builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Common.ISmsService, CateringEcommerce.BAL.Configuration.SmsService>();
+
+// ── Notifications: AWS SNS (exclusively for order/system SMS) ──
+builder.Services.Configure<AwsSnsSettings>(builder.Configuration.GetSection("AwsSns"));
+builder.Services.AddSingleton<INotificationSmsProvider, AwsSnsNotificationProvider>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -123,6 +122,8 @@ builder.Services.AddScoped<IProfileSetting, CateringEcommerce.BAL.Base.User.Prof
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<IHomeService, HomeService>();
 builder.Services.AddScoped<IOrderService, CateringEcommerce.BAL.Base.User.OrderService>();
+builder.Services.AddScoped<CateringAvailabilityService>();
+builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.User.IContactRepository, CateringEcommerce.BAL.Base.User.ContactRepository>();
 builder.Services.AddScoped<UserAddressService>();
 builder.Services.AddScoped<IUserReviewRepository, CateringEcommerce.BAL.Base.User.UserReviewRepository>();
 builder.Services.AddScoped<IFavoritesRepository, FavoritesRepository>();
@@ -185,6 +186,7 @@ builder.Services.AddScoped<IAdminPartnerApprovalRepository, AdminPartnerApproval
 builder.Services.AddScoped<IAdminPartnerRequestRepository, AdminPartnerRequestRepository>();
 builder.Services.AddScoped<IAdminReviewRepository, AdminReviewRepository>();
 builder.Services.AddScoped<IAdminUserRepository, AdminUserRepository>();
+builder.Services.AddScoped<IAdminSearchRepository, AdminSearchRepository>();
 builder.Services.AddScoped<IMasterDataRepository, MasterDataRepository>();
 builder.Services.AddScoped<IRBACRepository, RBACRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
@@ -694,7 +696,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CateringEcommerce.Domain.Interfaces.Notification.IEmailService, CateringEcommerce.BAL.Notification.EmailService>();
 
         // SMS Providers
-        services.AddSingleton<ISmsProvider, TwilioSmsProvider>();
+        services.AddSingleton<INotificationSmsProvider, AwsSnsNotificationProvider>();
         services.AddScoped<CateringEcommerce.Domain.Interfaces.Notification.ISmsService, CateringEcommerce.BAL.Notification.SmsService>();
 
         // In-App

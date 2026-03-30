@@ -81,7 +81,11 @@ export const apiService = {
     // Profile endpoints
     getUserProfile: () => fetchApi(`/User/ProfileSettings/GetUserProfile`),
     updateUserProfile: (profileData) => fetchApi(`/User/ProfileSettings/UpdateProfile`, 'POST', profileData),
-    uploadProfilePhoto: (profilePhoto) => fetchApi(`/User/ProfileSettings/UploadProfilePhoto`, 'POST', profilePhoto),
+    uploadProfilePhoto: (file) => {
+        const fd = new FormData();
+        fd.append('profilePhoto', file, file.name || 'profile.jpg');
+        return fetchApi(`/User/ProfileSettings/UploadProfilePhoto`, 'POST', fd);
+    },
 
     // Verification endpoints
     sendVerificationOtp: async (type, value, role) => {
@@ -179,6 +183,16 @@ export const apiService = {
             const errorData = await response.json();
             return errorData;
         }
+        return response.json();
+    },
+
+    // Contact Us
+    submitContact: async (data) => {
+        const response = await fetch(`${API_BASE_URL}/api/contact`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
         return response.json();
     },
 

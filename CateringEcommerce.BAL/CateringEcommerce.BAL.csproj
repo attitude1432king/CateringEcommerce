@@ -1,9 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts\**;**\artifacts\**</DefaultItemExcludes>
+    <NoWarn>$(NoWarn);NU1608</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,12 +20,16 @@
     <PackageReference Include="Razorpay" Version="3.2.7" />
     <PackageReference Include="Scriban" Version="6.5.2" />
     <PackageReference Include="SendGrid" Version="9.29.3" />
-    <PackageReference Include="Twilio" Version="7.11.1" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.400.51" />
     <PackageReference Include="QuestPDF" Version="2024.12.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CateringEcommerce.Domain\CateringEcommerce.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Program.cs" />
   </ItemGroup>
 
 </Project>

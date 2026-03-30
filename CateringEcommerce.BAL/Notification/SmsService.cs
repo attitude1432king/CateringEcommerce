@@ -6,13 +6,13 @@ namespace CateringEcommerce.BAL.Notification
 {
     public class SmsService : ISmsService
     {
-        private readonly IEnumerable<ISmsProvider> _providers;
+        private readonly IEnumerable<INotificationSmsProvider> _providers;
         private readonly ILogger<SmsService> _logger;
         private readonly INotificationRepository _repository;
         private readonly IRateLimiter _rateLimiter;
 
         public SmsService(
-            IEnumerable<ISmsProvider> providers,
+            IEnumerable<INotificationSmsProvider> providers,
             ILogger<SmsService> logger,
             INotificationRepository repository,
             IRateLimiter rateLimiter)

@@ -1,6 +1,8 @@
-﻿/**
+/**
  * SupervisorAuthContext
- * Authentication and state management for Supervisor Portal
+ * Authentication and state management for Supervisor Portal.
+ * SECURITY: Token is stored in an httpOnly cookie (set by backend).
+ * JavaScript cannot access the token — XSS attacks cannot exfiltrate it.
  */
 
 import {
@@ -11,7 +13,7 @@ import {
     useCallback,
     useRef,
 } from "react";
-import { getProfile } from "../services/api/supervisor/supervisorApi";
+import { supervisorLogout, getSupervisorMe } from "../services/api/supervisor/supervisorAuthApi";
 
 const SupervisorAuthContext = createContext(null);
 
@@ -30,58 +32,50 @@ export const SupervisorAuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    const hasCheckedAuth = useRef(false); // ✅ prevents double execution
+    const hasCheckedAuth = useRef(false);
 
-    // 🔐 Logout (pure, no side effects)
-    const logout = useCallback(() => {
-        localStorage.removeItem("supervisorToken");
-        localStorage.removeItem("supervisorId");
-        setSupervisor(null);
-        setIsAuthenticated(false);
+    // 🔐 Logout — calls backend to clear httpOnly cookie, then clears local state
+    const logout = useCallback(async () => {
+        try {
+            await supervisorLogout();
+        } catch {
+            // ignore — cookie will expire naturally
+        } finally {
+            setSupervisor(null);
+            setIsAuthenticated(false);
+        }
     }, []);
 
-    // 🔍 Auth check (stable + safe)
+    // 🔍 Auth check — validates session via /api/Supervisor/auth/me (cookie auto-sent)
     const checkAuth = useCallback(async () => {
         if (hasCheckedAuth.current) return;
         hasCheckedAuth.current = true;
 
-        const token = localStorage.getItem("supervisorToken");
-        const supervisorId = localStorage.getItem("supervisorId");
-
-        if (!token || !supervisorId) {
-            setLoading(false);
-            return;
-        }
-
         try {
-            const response = await getProfile();
+            const response = await getSupervisorMe();
 
             if (response?.success) {
                 setSupervisor(response.data?.data || response.data);
                 setIsAuthenticated(true);
             } else {
-                logout();
+                setSupervisor(null);
+                setIsAuthenticated(false);
             }
         } catch {
-            logout();
+            setSupervisor(null);
+            setIsAuthenticated(false);
         } finally {
             setLoading(false);
         }
-    }, [logout]);
+    }, []);
 
     // 🔁 Run ONCE on mount
     useEffect(() => {
         checkAuth();
     }, [checkAuth]);
 
-    // 🔓 Login
-    const login = useCallback((token, supervisorData) => {
-        localStorage.setItem("supervisorToken", token);
-        localStorage.setItem(
-            "supervisorId",
-            supervisorData.id || supervisorData.supervisorId
-        );
-
+    // 🔓 Login — backend sets httpOnly cookie; we store only non-sensitive profile data
+    const login = useCallback((supervisorData) => {
         setSupervisor(supervisorData);
         setIsAuthenticated(true);
     }, []);
@@ -89,7 +83,7 @@ export const SupervisorAuthProvider = ({ children }) => {
     // 🔄 Refresh profile (safe, no auth flip)
     const refreshProfile = useCallback(async () => {
         try {
-            const response = await getProfile();
+            const response = await getSupervisorMe();
             if (response?.success) {
                 setSupervisor(response.data?.data || response.data);
             }
@@ -98,6 +92,9 @@ export const SupervisorAuthProvider = ({ children }) => {
         }
     }, []);
 
+    // SECURITY: getToken() returns null — token is in httpOnly cookie, inaccessible to JS
+    const getToken = useCallback(() => null, []);
+
     const value = {
         supervisor,
         loading,
@@ -105,12 +102,10 @@ export const SupervisorAuthProvider = ({ children }) => {
         login,
         logout,
         refreshProfile,
-        supervisorId:
-            supervisor?.id ||
-            supervisor?.supervisorId ||
-            localStorage.getItem("supervisorId"),
-        supervisorType: supervisor?.supervisorType,
-        authorityLevel: supervisor?.authorityLevel,
+        getToken,
+        supervisorId:    supervisor?.supervisorId || supervisor?.id,
+        supervisorType:  supervisor?.supervisorType,
+        authorityLevel:  supervisor?.authorityLevel,
     };
 
     return (

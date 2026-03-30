@@ -41,7 +41,8 @@ export default function FoodItemFormModal({ isOpen, onClose, onSave, editingItem
         if (!formData.categoryId) newErrors.categoryId = 'Category is required.';
         if (!formData.price || formData.price <= 0) newErrors.price = 'A valid price is required.';
         if (formData.isVeg === null) newErrors.isVeg = 'Dietary preference is required.'; // Validation for isVeg
-        if (formData.media.length === 0) newErrors.media = 'At least one photo or video is required.';
+        if (formData.media.length === 0) newErrors.media = 'Exactly one photo or video is required.';
+        else if (formData.media.length > 1) newErrors.media = 'Only one photo or video is allowed per food item.';
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     }, [formData]);
@@ -162,11 +163,12 @@ export default function FoodItemFormModal({ isOpen, onClose, onSave, editingItem
 
                         <MediaGridUploader
                             label="Food Item Media"
-                            subtext="Upload high-quality photos or videos of your food item."
+                            subtext="Upload one photo or video of this food item."
                             initialMedia={formData.media || []}
                             onMediaChange={handleMediaChange}
                             onMediaClick={setLightboxMedia}
                             error={errors.media}
+                            maxFiles={1}
                         />
 
                         <div className="space-y-4 pt-2 border-t border-neutral-100 mt-4">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { X, Eye, EyeOff, AlertCircle, Info } from 'lucide-react';
+import { X, AlertCircle, Info, Copy, CheckCircle, KeyRound } from 'lucide-react';
 import { adminManagementApi, roleManagementApi } from '../../../services/adminApi';
 import { toast } from 'react-hot-toast';
 import RoleBadge from './RoleBadge';
@@ -19,22 +19,20 @@ import PermissionList from './PermissionList';
  */
 const AdminUserForm = ({ mode, adminData, roles, onSuccess, onCancel }) => {
     const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [selectedRole, setSelectedRole] = useState(null);
     const [rolePermissions, setRolePermissions] = useState({});
+    // Holds the one-time temp password shown after account creation
+    const [tempPasswordToShow, setTempPasswordToShow] = useState(null);
+    const [copied, setCopied] = useState(false);
 
-    // Form state
+    // Form state — no password fields; server auto-generates a temporary password
     const [formData, setFormData] = useState({
         username: '',
         email: '',
         fullName: '',
         mobile: '',
-        password: '',
-        confirmPassword: '',
         roleId: '',
         isActive: true,
-        forcePasswordReset: true
     });
 
     // Validation errors
@@ -48,11 +46,8 @@ const AdminUserForm = ({ mode, adminData, roles, onSuccess, onCancel }) => {
                 email: adminData.email || '',
                 fullName: adminData.fullName || '',
                 mobile: adminData.mobile || '',
-                password: '',
-                confirmPassword: '',
                 roleId: adminData.role?.roleId || '',
                 isActive: adminData.isActive !== undefined ? adminData.isActive : true,
-                forcePasswordReset: false
             });
 
             if (adminData.role) {
@@ -135,21 +130,6 @@ const AdminUserForm = ({ mode, adminData, roles, onSuccess, onCancel }) => {
             newErrors.mobile = 'Invalid mobile number (must be 10 digits)';
         }
 
-        // Password validation (only for create mode)
-        if (mode === 'create') {
-            if (!formData.password) {
-                newErrors.password = 'Password is required';
-            } else if (formData.password.length < 8) {
-                newErrors.password = 'Password must be at least 8 characters';
-            }
-
-            if (!formData.confirmPassword) {
-                newErrors.confirmPassword = 'Please confirm password';
-            } else if (formData.password !== formData.confirmPassword) {
-                newErrors.confirmPassword = 'Passwords do not match';
-            }
-        }
-
         // Role validation
         if (!formData.roleId) {
             newErrors.roleId = 'Please select a role';
@@ -173,17 +153,14 @@ const AdminUserForm = ({ mode, adminData, roles, onSuccess, onCancel }) => {
             let response;
 
             if (mode === 'create') {
-                // P0 FIX: Send plaintext password over HTTPS to backend
-                // Backend will hash it securely using bcrypt/argon2
+                // Server auto-generates a secure temporary password — no password sent from client
                 response = await adminManagementApi.createAdmin({
                     username: formData.username,
                     email: formData.email,
                     fullName: formData.fullName,
                     mobile: formData.mobile || null,
-                    password: formData.password, // Send plaintext - backend will hash
                     roleId: parseInt(formData.roleId),
                     isActive: formData.isActive,
-                    forcePasswordReset: formData.forcePasswordReset
                 });
             } else {
                 response = await adminManagementApi.updateAdmin(adminData.adminId, {
@@ -195,8 +172,13 @@ const AdminUserForm = ({ mode, adminData, roles, onSuccess, onCancel }) => {
             }
 
             if (response.result) {
-                toast.success(mode === 'create' ? 'Admin user created successfully' : 'Admin user updated successfully');
-                onSuccess();
+                if (mode === 'create' && response.data?.temporaryPassword) {
+                    // Show the one-time temp password dialog before calling onSuccess
+                    setTempPasswordToShow(response.data.temporaryPassword);
+                } else {
+                    toast.success('Admin user updated successfully');
+                    onSuccess();
+                }
             } else {
                 toast.error(response.message || 'Operation failed');
             }
@@ -216,6 +198,74 @@ const AdminUserForm = ({ mode, adminData, roles, onSuccess, onCancel }) => {
             setFormData(prev => ({ ...prev, username }));
         }
     };
+
+    const handleCopyPassword = async () => {
+        if (!tempPasswordToShow) return;
+        try {
+            await navigator.clipboard.writeText(tempPasswordToShow);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            toast.error('Unable to copy — please copy manually.');
+        }
+    };
+
+    const handleTempPasswordAcknowledge = () => {
+        setTempPasswordToShow(null);
+        toast.success('Admin user created successfully');
+        onSuccess();
+    };
+
+    // One-time temp password dialog shown after admin creation
+    if (tempPasswordToShow) {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="bg-indigo-100 rounded-full p-2">
+                            <KeyRound className="w-6 h-6 text-indigo-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900">Admin Account Created</h3>
+                            <p className="text-sm text-gray-500">Share this temporary password with the new admin</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                        <p className="text-xs font-semibold text-amber-800 mb-2 uppercase tracking-wide">
+                            Temporary Password — Shown Once
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <code className="flex-1 text-lg font-mono font-bold text-gray-900 bg-white border border-gray-200 rounded px-3 py-2 select-all break-all">
+                                {tempPasswordToShow}
+                            </code>
+                            <button
+                                type="button"
+                                onClick={handleCopyPassword}
+                                className="flex-shrink-0 p-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                                title="Copy to clipboard"
+                            >
+                                {copied ? <CheckCircle className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5 text-sm text-red-800">
+                        <strong>This password will not be shown again.</strong> The admin will be forced to
+                        change it on their first login.
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleTempPasswordAcknowledge}
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
+                    >
+                        I have copied the password — Done
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -346,98 +396,14 @@ const AdminUserForm = ({ mode, adminData, roles, onSuccess, onCancel }) => {
                         </div>
                     </div>
 
-                    {/* Credentials Section (Create mode only) */}
+                    {/* Credentials notice (Create mode only) */}
                     {mode === 'create' && (
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">
-                                Credentials
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Password */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Password <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            name="password"
-                                            value={formData.password}
-                                            onChange={handleInputChange}
-                                            className={`w-full px-4 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                                errors.password ? 'border-red-500' : 'border-gray-300'
-                                            }`}
-                                            placeholder="Min. 8 characters"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                        >
-                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                    {errors.password && (
-                                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                            <AlertCircle className="w-3 h-3" />
-                                            {errors.password}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Confirm Password */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Confirm Password <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type={showConfirmPassword ? 'text' : 'password'}
-                                            name="confirmPassword"
-                                            value={formData.confirmPassword}
-                                            onChange={handleInputChange}
-                                            className={`w-full px-4 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                                errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                                            }`}
-                                            placeholder="Re-enter password"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                        >
-                                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                    {errors.confirmPassword && (
-                                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                            <AlertCircle className="w-3 h-3" />
-                                            {errors.confirmPassword}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Force Password Reset Checkbox */}
-                            <div className="mt-4">
-                                <label className="flex items-start gap-2">
-                                    <input
-                                        type="checkbox"
-                                        name="forcePasswordReset"
-                                        checked={formData.forcePasswordReset}
-                                        onChange={handleInputChange}
-                                        className="mt-1"
-                                    />
-                                    <div>
-                                        <span className="text-sm font-medium text-gray-700">
-                                            Force Password Reset on First Login
-                                        </span>
-                                        <p className="text-xs text-gray-500 mt-0.5">
-                                            User will be required to change their password after first login
-                                        </p>
-                                    </div>
-                                </label>
-                            </div>
+                        <div className="flex items-start gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-800 text-sm">
+                            <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <span>
+                                A secure <strong>temporary password</strong> will be automatically generated and
+                                shown to you after creation. The new admin must change it on their first login.
+                            </span>
                         </div>
                     )}
 

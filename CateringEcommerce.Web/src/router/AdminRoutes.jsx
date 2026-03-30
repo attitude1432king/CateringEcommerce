@@ -15,8 +15,7 @@ import AdminEarnings from '../pages/admin/AdminEarnings';
 import AdminReviews from '../pages/admin/AdminReviews';
 import Forbidden from '../pages/admin/Forbidden';
 
-// Master Data Management
-import MasterDataLayout from '../pages/admin/masterdata/MasterDataLayout';
+// Master Data Management (sidebar-driven, no tab wrapper)
 import CityManagement from '../pages/admin/masterdata/CityManagement';
 import FoodCategoryManagement from '../pages/admin/masterdata/FoodCategoryManagement';
 import CateringTypeManagement from '../pages/admin/masterdata/CateringTypeManagement';
@@ -69,17 +68,15 @@ const AdminRoutes = () => {
         <Route path="/settings" element={<AdminSettings />} />
 
         {/* Master Data Management Routes - Super Admin Only */}
-        <Route path="/master-data" element={<MasterDataLayout />}>
-          <Route path="cities" element={<CityManagement />} />
-          <Route path="food-categories" element={<FoodCategoryManagement />} />
-          <Route path="cuisine-types" element={<CateringTypeManagement categoryId={2} categoryName="Cuisine Types" icon={ChefHat} />} />
-          <Route path="food-types" element={<CateringTypeManagement categoryId={1} categoryName="Food Types" icon={Apple} />} />
-          <Route path="event-types" element={<CateringTypeManagement categoryId={3} categoryName="Event Types" icon={CalendarDays} />} />
-          <Route path="service-types" element={<CateringTypeManagement categoryId={4} categoryName="Service Types" icon={Truck} />} />
-          <Route path="guest-categories" element={<GuestCategoryManagement />} />
-          <Route path="themes" element={<ThemeManagement />} />
-          <Route index element={<Navigate to="cities" replace />} />
-        </Route>
+        <Route path="/master-data" element={<Navigate to="/admin/master-data/cities" replace />} />
+        <Route path="/master-data/cities" element={<CityManagement />} />
+        <Route path="/master-data/food-categories" element={<FoodCategoryManagement />} />
+        <Route path="/master-data/cuisine-types" element={<CateringTypeManagement categoryId={2} categoryName="Cuisine Types" icon={ChefHat} />} />
+        <Route path="/master-data/food-types" element={<CateringTypeManagement categoryId={1} categoryName="Food Types" icon={Apple} />} />
+        <Route path="/master-data/event-types" element={<CateringTypeManagement categoryId={3} categoryName="Event Types" icon={CalendarDays} />} />
+        <Route path="/master-data/service-types" element={<CateringTypeManagement categoryId={4} categoryName="Service Types" icon={Truck} />} />
+        <Route path="/master-data/guest-categories" element={<GuestCategoryManagement />} />
+        <Route path="/master-data/themes" element={<ThemeManagement />} />
 
         {/* Supervisor Management - Sub-tabs */}
         <Route path="/supervisor-management" element={<Navigate to="/admin/supervisor-management/pending" replace />} />

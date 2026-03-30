@@ -202,6 +202,34 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
         }
 
+        /// <summary>
+        /// Toggle featured status of a catering (controls homepage featured section)
+        /// </summary>
+        [HttpPatch("{id}/featured")]
+        public IActionResult ToggleFeatured(long id, [FromBody] ToggleFeaturedRequest request)
+        {
+            try
+            {
+                var adminIdClaim = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier);
+                if (adminIdClaim == null || !long.TryParse(adminIdClaim.Value, out long adminId))
+                    return ApiResponseHelper.Failure("Invalid admin session.");
+
+                bool success = _cateringRepository.ToggleFeaturedStatus(id, request.IsFeatured);
+                if (!success)
+                    return ApiResponseHelper.Failure("Failed to update featured status.");
+
+                _adminAuthRepository.LogAdminActivity(adminId, "TOGGLE_FEATURED",
+                    $"Catering {id} featured set to {request.IsFeatured}");
+
+                return ApiResponseHelper.Success(null,
+                    request.IsFeatured ? "Catering marked as featured." : "Catering removed from featured.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+            }
+        }
+
         private static string EscapeCsv(string value)
         {
             if (string.IsNullOrEmpty(value)) return string.Empty;

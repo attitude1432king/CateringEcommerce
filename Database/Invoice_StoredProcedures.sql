@@ -189,7 +189,7 @@ BEGIN
             c_total_tax_amount, c_discount_amount, c_total_amount, c_amount_paid, c_balance_due,
             c_payment_stage_type, c_payment_percentage, c_status,
             c_company_gstin, c_place_of_supply, c_sac_code,
-            c_created_by, c_createddate
+            c_createdby, c_createddate
         )
         VALUES (
             @OrderId, @UserId, @OwnerId, @InvoiceType, @IsProforma,
@@ -313,9 +313,9 @@ BEGIN
         i.c_internal_remarks AS InternalRemarks,
         i.c_pdf_path AS PdfPath,
         i.c_pdf_generated_date AS PdfGeneratedDate,
-        i.c_created_by AS CreatedBy,
+        i.c_createdby AS CreatedBy,
         i.c_createddate AS CreatedDate,
-        i.c_modified_by AS ModifiedBy,
+        i.c_modifiedby AS ModifiedBy,
         i.c_modifieddate AS ModifiedDate,
         i.c_version AS Version,
         i.c_parent_invoice_id AS ParentInvoiceId,
@@ -461,7 +461,7 @@ BEGIN
         -- Update status
         UPDATE t_sys_invoice
         SET c_status = @NewStatus,
-            c_modified_by = @UpdatedBy,
+            c_modifiedby = @UpdatedBy,
             c_modifieddate = GETDATE()
         WHERE c_invoice_id = @InvoiceId;
 

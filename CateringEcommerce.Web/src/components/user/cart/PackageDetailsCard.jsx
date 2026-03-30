@@ -16,6 +16,17 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
       : packageData.packageSelections)
     : null;
 
+  const packageCategories = packageSelections?.selections
+    || (packageSelections?.selectedItems
+      ? Object.entries(packageSelections.selectedItems).map(([categoryName, items], index) => ({
+          categoryId: index,
+          categoryName,
+          selectedItems: items
+        }))
+      : []);
+
+  const sampleTasteSelections = packageSelections?.sampleTasteSelections || [];
+
   const getCategoryIcon = (categoryName) => {
     const icons = {
       'starters': '🥗',
@@ -107,7 +118,7 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
       {/* Package Details (Collapsible) */}
       {isExpanded && (
         <div className="p-6">
-          {packageSelections && packageSelections.selectedItems ? (
+          {packageSelections && packageCategories.length > 0 ? (
             <div className="space-y-6">
               <div className="flex items-center gap-2 pb-4 border-b">
                 <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -115,17 +126,19 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
                 </svg>
                 <span className="text-sm font-semibold text-green-700">Package Customized</span>
                 <span className="text-xs text-gray-500 ml-auto">
-                  {Object.keys(packageSelections.selectedItems).length} Categories Selected
+                  {packageCategories.length} Categories Selected
                 </span>
               </div>
 
               {/* Food Categories */}
-              {Object.entries(packageSelections.selectedItems).map(([categoryName, items], index) => (
-                <div key={categoryName} className="space-y-3">
+              {packageCategories.map((category, index) => {
+                const items = category.selectedItems || [];
+                return (
+                <div key={`${category.categoryId}-${category.categoryName}`} className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{getCategoryIcon(categoryName)}</span>
+                    <span className="text-2xl">{getCategoryIcon(category.categoryName)}</span>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 capitalize">{categoryName}</h4>
+                      <h4 className="font-semibold text-gray-900 capitalize">{category.categoryName}</h4>
                       <p className="text-xs text-gray-500">{items.length} items selected</p>
                     </div>
                     <span className={`text-xs font-medium px-3 py-1 rounded-full border ${getCategoryBadgeColor(index)}`}>
@@ -134,20 +147,20 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
                   </div>
 
                   {/* Food Items in Category */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-11">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-11">
                     {items.map((item, itemIndex) => (
                       <div
                         key={itemIndex}
                         className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
                       >
                         <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                        <span className="text-sm text-gray-700 flex-1">{item.name || item}</span>
-                        {item.isVeg !== undefined && (
+                        <span className="text-sm text-gray-700 flex-1">{item.foodName || item.name || item}</span>
+                        {(item.isVeg !== undefined || item.isVegetarian !== undefined) && (
                           <span className={`w-4 h-4 border-2 flex items-center justify-center ${
-                            item.isVeg ? 'border-green-600' : 'border-red-600'
+                            (item.isVeg ?? item.isVegetarian) ? 'border-green-600' : 'border-red-600'
                           }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${
-                              item.isVeg ? 'bg-green-600' : 'bg-red-600'
+                              (item.isVeg ?? item.isVegetarian) ? 'bg-green-600' : 'bg-red-600'
                             }`}></span>
                           </span>
                         )}
@@ -155,7 +168,30 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
                     ))}
                   </div>
                 </div>
-              ))}
+              )})}
+
+              {sampleTasteSelections.length > 0 && (
+                <div className="pt-4 border-t space-y-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                    <h4 className="font-semibold text-gray-900">Sample Taste Selections</h4>
+                  </div>
+                  {sampleTasteSelections.map((category) => (
+                    <div key={`sample-${category.categoryId}-${category.categoryName}`} className="bg-teal-50 border border-teal-100 rounded-xl p-3">
+                      <p className="text-sm font-semibold text-teal-900 mb-2">{category.categoryName}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(category.selectedItems || []).map((item) => (
+                          <span key={item.foodItemId || item.name} className="px-2.5 py-1 bg-white text-teal-700 border border-teal-200 rounded-lg text-xs font-medium">
+                            {item.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Additional Info */}
               {packageSelections.servingStyle && (

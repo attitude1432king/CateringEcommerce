@@ -1,8 +1,26 @@
 // ===================================
 // VALIDATE EVENT DETAILS
 // ===================================
+const parseLocalDate = (value) => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+};
+
 export const validateEventDetails = (eventData, config = {}) => {
-  const minAdvanceHours = config.minAdvanceBookingHours ?? 24;
+  const minAdvanceBookingDays = config.minAdvanceBookingDays ?? 5;
   const maxAdvanceDays = config.maxAdvanceBookingDays ?? 90;
   const errors = {};
 
@@ -10,12 +28,13 @@ export const validateEventDetails = (eventData, config = {}) => {
   if (!eventData.eventDate) {
     errors.eventDate = 'Event date is required';
   } else {
-    const eventDate = new Date(eventData.eventDate);
+    const eventDate = parseLocalDate(eventData.eventDate);
     const minDate = new Date();
-    minDate.setHours(minDate.getHours() + minAdvanceHours);
+    minDate.setHours(0, 0, 0, 0);
+    minDate.setDate(minDate.getDate() + minAdvanceBookingDays);
 
     if (eventDate < minDate) {
-      errors.eventDate = `Event date must be at least ${minAdvanceHours} hours in advance`;
+      errors.eventDate = `Event date must be at least ${minAdvanceBookingDays} days in advance`;
     }
 
     const maxDate = new Date();
@@ -117,7 +136,7 @@ export const validatePaymentReview = (paymentData) => {
 
   // Validate payment proof for Bank Transfer
   if (paymentData.paymentMethod === 'BankTransfer') {
-    if (!paymentData.paymentProof || !paymentData.paymentProof.base64) {
+    if (!paymentData.paymentProof || !(paymentData.paymentProof instanceof File)) {
       errors.paymentProof = 'Payment proof is required for bank transfer';
     }
   }
@@ -200,8 +219,6 @@ export const formatPhoneNumber = (phone) => {
 // VALIDATE COMPLETE ORDER DATA
 // ===================================
 export const validateCompleteOrder = (orderData) => {
-  const errors = {};
-
   // Validate all sections
   const eventValidation = validateEventDetails({
     eventDate: orderData.eventDate,
@@ -243,7 +260,7 @@ export const validateCompleteOrder = (orderData) => {
 // ===================================
 export const validateCheckoutData = (checkoutData, cart, step, config = {}) => {
   const minAdvancePercent = config.minAdvancePaymentPercent ?? 30;
-  const minAdvanceBookingDays = config.minAdvanceBookingDays ?? 3;
+  const minAdvanceBookingDays = config.minAdvanceBookingDays ?? 5;
   const errors = {};
   let isValid = true;
 
@@ -280,7 +297,7 @@ export const validateCheckoutData = (checkoutData, cart, step, config = {}) => {
         errors.eventDate = 'Event date is required';
         isValid = false;
       } else {
-        const selectedDate = new Date(checkoutData.eventDate);
+        const selectedDate = parseLocalDate(checkoutData.eventDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 

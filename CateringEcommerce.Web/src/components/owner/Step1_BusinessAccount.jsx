@@ -3,6 +3,7 @@
 File: src/components/owner/Step1_BusinessAccount.jsx (REDESIGNED)
 ========================================
 */
+import { useState } from 'react';
 import ImageUploader from '../common/ImageUploader';
 
 // Reusable input component for this form
@@ -57,6 +58,8 @@ const VerifiedBadge = () => (
 );
 
 export default function Step1_BusinessAccount({ formData, setFormData, errors, onVerifyClick }) {
+    const [logoPreviewUrl, setLogoPreviewUrl] = useState('');
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -71,8 +74,10 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
         }));
     };
 
-    const handleLogoCropped = (base64Image) => {
-        setFormData({ ...formData, cateringLogo: base64Image });
+    const handleLogoCropped = (blob) => {
+        const url = URL.createObjectURL(blob);
+        setLogoPreviewUrl(url);
+        setFormData({ ...formData, cateringLogo: blob });
     };
 
     return (
@@ -163,9 +168,9 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
                             htmlFor="logo-upload-input"
                             className="group cursor-pointer w-full h-40 border-3 border-dashed border-neutral-300 rounded-xl flex flex-col items-center justify-center text-center hover:border-rose-400 hover:bg-rose-50 transition-all duration-200"
                         >
-                            {formData.cateringLogo ? (
+                            {logoPreviewUrl ? (
                                 <div className="relative">
-                                    <img src={formData.cateringLogo} alt="Logo Preview" className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-lg" />
+                                    <img src={logoPreviewUrl} alt="Logo Preview" className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-lg" />
                                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-full transition-all duration-200 flex items-center justify-center">
                                         <p className="text-white font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Change Logo</p>
                                     </div>

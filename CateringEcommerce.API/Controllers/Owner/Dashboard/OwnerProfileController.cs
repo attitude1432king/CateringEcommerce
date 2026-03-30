@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.API.Helpers;
+using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
@@ -62,11 +62,14 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
                 throw;
             }
-            
+
         }
 
         [HttpPost("UpdateBusiness")]
-        public async Task<IActionResult> UpdateBusiness([FromBody] BusinessSettingsDto businessDto)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 5 * 1024 * 1024)]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        public async Task<IActionResult> UpdateBusiness([FromForm] BusinessSettingsDto businessDto, [FromForm] IFormFile? NewLogoFile)
         {
             var ownerPkid = _currentUser.UserId;
             if (ownerPkid <= 0)
@@ -76,14 +79,19 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
             try
             {
                 string newLogoPath = string.Empty;
-                if (businessDto?.NewLogoFile != null)
+                if (NewLogoFile != null && NewLogoFile.Length > 0)
                 {
-                    newLogoPath = await _fileStorageService.SaveFileAsync(
-                        businessDto.NewLogoFile.Base64,
+                    var validation = FileValidationHelper.ValidateFile(NewLogoFile, new[] { ".jpg", ".jpeg", ".png" }, 5 * 1024 * 1024);
+                    if (!validation.IsValid)
+                        return ApiResponseHelper.Failure(validation.ErrorMessage, "warning");
+
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(NewLogoFile.FileName);
+                    newLogoPath = await _fileStorageService.SaveFormFileAsync(
+                        NewLogoFile,
                         ownerPkid,
                         "Logo",
                         false,
-                        businessDto.NewLogoFile.Name
+                        safeFilename
                     );
                 }
 
@@ -94,7 +102,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                     _fileStorageService.DeleteFilePath(oldLogoPath);
                     _ownerRegister.UpdateLogoPath(ownerPkid, newLogoPath);
                 }
-                // ... Database logic to update business settings and newLogoPath ...
+
                 if(businessDto != null)
                     await _ownerProfile.UpdateOwnerBusiness(ownerPkid, businessDto);
 
@@ -104,7 +112,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
             {
                 throw new Exception(ex.Message);
             }
-            
+
         }
 
         [HttpPost("UpdateAddress")]
@@ -115,7 +123,6 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
             try
             {
-                // ... Database logic to update address settings ...
                 if(addressDto != null)
                     await _ownerProfile.UpdateCateringAddress(ownerPkid, addressDto);
                 return Ok(new { message = "Address details updated successfully." });
@@ -130,7 +137,10 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
 
 
         [HttpPost("UpdateServices")]
-        public async Task<IActionResult> UpdateServices([FromBody] ServicesSettingsDto servicesDto)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)]
+        [RequestSizeLimit(50 * 1024 * 1024)]
+        public async Task<IActionResult> UpdateServices([FromForm] ServicesSettingsDto servicesDto, [FromForm] List<IFormFile>? NewKitchenMediaFiles)
         {
             var ownerPkid = _currentUser.UserId;
             if (ownerPkid <= 0) return Unauthorized();
@@ -141,28 +151,37 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                     List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPkid, DocumentType.Kitchen);
                     var filesToDelete = currentMediaPathsInDb
                         .Where(dbPath => !servicesDto.ExistingMediaPaths
-                            .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase)) // optional case-insensitive compare
+                            .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase))
                         .ToList();
 
-                    // Delete the identified files from storage and the database.
                     foreach (var pathToDelete in filesToDelete)
                     {
                         _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
                         await _ownerRepository.DeleteDocumentFile(pathToDelete.Id);
                     }
-
                 }
 
-                if (servicesDto?.NewKitchenMediaFiles != null)
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".mp4" };
+                if (NewKitchenMediaFiles != null)
                 {
-                    foreach (var file in servicesDto.NewKitchenMediaFiles)
+                    foreach (var file in NewKitchenMediaFiles)
                     {
-                        var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPkid, DocumentType.Kitchen.GetDisplayName(), false, file.Name);
-                        await _ownerRepository.SaveFilePath(path, ownerPkid, file.Name, DocumentType.Kitchen);
+                        if (file == null || file.Length == 0)
+                            continue;
+
+                        var validation = FileValidationHelper.ValidateFile(file, allowedExtensions, 10 * 1024 * 1024);
+                        if (!validation.IsValid)
+                        {
+                            _logger.LogWarning("Skipping invalid kitchen media file {Name}: {Error}", file.FileName, validation.ErrorMessage);
+                            continue;
+                        }
+
+                        var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
+                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPkid, DocumentType.Kitchen.GetDisplayName(), false, safeFilename);
+                        await _ownerRepository.SaveFilePath(path, ownerPkid, file.FileName, DocumentType.Kitchen);
                     }
                 }
 
-                // ... Database logic to update services
                 if (servicesDto != null)
                     await _ownerProfile.UpdateCateringServices(ownerPkid, servicesDto);
                 return Ok(new { message = "Service details updated successfully." });
@@ -181,7 +200,6 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
             if (ownerPkid <= 0) return Unauthorized();
             try
             {
-                // ... Database logic to update legal & payment settings ...
                 if(legalDto != null)
                     await _ownerProfile.UpdateLegalAndBankDetails(ownerPkid, legalDto);
                 return Ok(new { message = "Legal & Payment details updated successfully." });

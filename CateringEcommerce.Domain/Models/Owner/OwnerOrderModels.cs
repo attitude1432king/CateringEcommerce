@@ -17,6 +17,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public string? SearchTerm { get; set; } // Order number or customer name
         public string? SortBy { get; set; } = "OrderDate"; // OrderDate, EventDate, Amount
         public string? SortOrder { get; set; } = "DESC"; // ASC, DESC
+        public List<string>? ExcludeStatuses { get; set; } // e.g. ["Pending"] to exclude booking-stage orders
     }
 
     // Order List Item DTO
@@ -28,6 +29,8 @@ namespace CateringEcommerce.Domain.Models.Owner
         public string? CustomerPhone { get; set; }
         public string? EventType { get; set; }
         public DateTime EventDate { get; set; }
+        public string? EventTime { get; set; }
+        public string? VenueAddress { get; set; }
         public DateTime OrderDate { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal PaidAmount { get; set; }
@@ -36,6 +39,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public string? PaymentStatus { get; set; }
         public int GuestCount { get; set; }
         public int DaysUntilEvent { get; set; }
+        public List<string> MenuItems { get; set; } = new List<string>();
     }
 
     // Order Detail DTO
@@ -100,6 +104,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public decimal TotalPrice { get; set; }
         public string? ImageUrl { get; set; }
         public string? SpecialRequest { get; set; }
+        public string? PackageSelections { get; set; }
     }
 
     // Order Status Update DTO
@@ -153,5 +158,59 @@ namespace CateringEcommerce.Domain.Models.Owner
         public int TotalPending { get; set; }
         public int TotalConfirmed { get; set; }
         public int TotalRejected { get; set; }
+    }
+
+    // ─── Sample Tasting Request DTOs ──────────────────────────────────────────
+
+    // Filter DTO for sample requests list
+    public class SampleListFilterDto
+    {
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public string? StatusFilter { get; set; }   // null=all, "SAMPLE_REQUESTED", "SAMPLE_ACCEPTED", "SAMPLE_REJECTED"
+        public string? SearchTerm { get; set; }
+    }
+
+    // Sample request list item — for BookingRequests page
+    public class SampleRequestListItemDto
+    {
+        public long SampleOrderId { get; set; }
+        public long? LinkedOrderId { get; set; }
+        public long? LinkedOrderItemId { get; set; }
+        public string? SourceType { get; set; }
+        public string? ParentOrderNumber { get; set; }
+        public string? CustomerName { get; set; }
+        public string? CustomerPhone { get; set; }
+        public decimal SamplePriceTotal { get; set; }
+        public decimal DeliveryCharge { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string? Status { get; set; }
+        public string? PaymentStatus { get; set; }
+        public string? PickupAddress { get; set; }
+        public List<string> SampleItems { get; set; } = new List<string>();
+        public DateTime RequestedDate { get; set; }
+        public string? RejectionReason { get; set; }
+    }
+
+    // Paginated sample requests response
+    public class PaginatedSampleRequestsDto
+    {
+        public List<SampleRequestListItemDto> Requests { get; set; } = new List<SampleRequestListItemDto>();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+        public bool HasNextPage { get; set; }
+        public bool HasPreviousPage { get; set; }
+    }
+
+    // Accept / Reject action DTO
+    public class SampleRequestActionDto
+    {
+        public string? Action { get; set; }            // "Accept" or "Reject"
+        public string? RejectionReason { get; set; }
+        public string? SourceType { get; set; }
+        public long? LinkedOrderId { get; set; }
+        public long? LinkedOrderItemId { get; set; }
     }
 }

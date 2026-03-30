@@ -148,12 +148,10 @@ export const getEventSupervisionSummary = async (assignmentId) => {
 // EVIDENCE & DOCUMENTATION
 // =====================================================
 
-export const uploadTimestampedEvidence = async (assignmentId, evidence, phase) => {
+export const uploadTimestampedEvidence = async (formData) => {
   try {
-    const response = await apiClient.post(`${BASE}/evidence/upload`, {
-      assignmentId,
-      evidence,
-      phase,
+    const response = await apiClient.post(`${BASE}/evidence/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return handleApiResponse(response);
   } catch (error) {

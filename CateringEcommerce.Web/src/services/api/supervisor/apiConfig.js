@@ -10,23 +10,20 @@ import { sanitizeForLogging } from '../../../utils/securityUtils';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
 // Create axios instance with default config
+// SECURITY: withCredentials sends the httpOnly supervisorToken cookie automatically.
+// The token is never stored in or read from localStorage.
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     timeout: 30000, // 30 seconds
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Request interceptor - Add auth token if exists
+// Request interceptor
 apiClient.interceptors.request.use(
     (config) => {
-        // Get token from localStorage (if authentication is implemented)
-        const token = localStorage.getItem('supervisorToken');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-
         // SECURITY FIX: Log request in development with sanitized data
         if (import.meta.env.DEV) {
             // Sanitize config to avoid logging sensitive data (tokens, passwords, etc.)
@@ -69,10 +66,11 @@ apiClient.interceptors.response.use(
         if (error.response) {
             switch (error.response.status) {
                 case 401:
-                    // Unauthorized - clear token and redirect to login
-                    localStorage.removeItem('supervisorToken');
-                    localStorage.removeItem('supervisorId');
-                    window.location.href = '/supervisor/login';
+                    // Unauthorized - session cookie expired or invalid, redirect to login
+                    // Guard: skip redirect if already on login page to avoid infinite reload loop
+                    if (!window.location.pathname.includes('/supervisor/login')) {
+                        window.location.href = '/supervisor/login';
+                    }
                     break;
                 case 403:
                     // Forbidden - insufficient permissions

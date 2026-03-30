@@ -46,8 +46,22 @@ export const requestPasswordReset = async (identifier) => {
     }
 };
 
+/**
+ * Get current authenticated supervisor profile.
+ * Used by SupervisorAuthContext on mount to validate the httpOnly cookie session.
+ */
+export const getSupervisorMe = async () => {
+    try {
+        const response = await apiClient.get('/api/Supervisor/auth/me');
+        return handleApiResponse(response);
+    } catch (error) {
+        return handleApiError(error);
+    }
+};
+
 export default {
     supervisorLogin,
     supervisorLogout,
+    getSupervisorMe,
     requestPasswordReset,
 };

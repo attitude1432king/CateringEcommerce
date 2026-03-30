@@ -480,3 +480,24 @@ body {
 .container-premium {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
+
+/* Prevent I-beam text cursor on non-interactive elements */
+* {
+    cursor: default !important;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+    cursor: text !important;
+}
+
+a,
+button,
+[role="button"],
+[role="link"],
+select,
+label[for],
+summary {
+    cursor: pointer !important;
+}

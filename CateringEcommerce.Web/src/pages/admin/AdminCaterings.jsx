@@ -7,6 +7,7 @@ import {
     AlertTriangle, FileSearch
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/layout/AdminLayout';
+import CateringDetailDrawer from '../../components/admin/caterings/CateringDetailDrawer';
 import { cateringApi, locationApi } from '../../services/adminApi';
 import { useConfirmation } from '../../contexts/ConfirmationContext';
 import { toast } from 'react-hot-toast';
@@ -39,6 +40,10 @@ const AdminCaterings = () => {
 
     // Stats
     const [stats, setStats] = useState({ total: 0, approved: 0, pending: 0, blocked: 0 });
+
+    // Detail drawer
+    const [selectedCatering, setSelectedCatering] = useState(null);
+    const [drawerLoading, setDrawerLoading] = useState(false);
 
     // Status reason modal
     const [reasonModal, setReasonModal] = useState({ open: false, catering: null, action: null, reason: '' });
@@ -143,6 +148,19 @@ const AdminCaterings = () => {
     }, [filters.stateId]);
 
     // === ACTIONS ===
+
+    const handleViewDetails = async (catering) => {
+        setDrawerLoading(true);
+        try {
+            const res = await cateringApi.getById(catering.cateringId);
+            if (res.result) setSelectedCatering(res.data);
+            else toast.error(res.message || 'Failed to load catering details');
+        } catch {
+            toast.error('Network error. Please try again.');
+        } finally {
+            setDrawerLoading(false);
+        }
+    };
 
     const handleApprove = async (catering) => {
         const confirmed = await confirm({
@@ -256,6 +274,21 @@ const AdminCaterings = () => {
                 fetchCaterings();
             } else {
                 toast.error(result.message || 'Failed to restore catering');
+            }
+        } catch {
+            toast.error('Network error. Please try again.');
+        }
+    };
+
+    const handleToggleFeatured = async (catering) => {
+        const newValue = !catering.isFeatured;
+        try {
+            const result = await cateringApi.toggleFeatured(catering.cateringId, newValue);
+            if (result.result) {
+                toast.success(newValue ? 'Marked as featured' : 'Removed from featured');
+                fetchCaterings();
+            } else {
+                toast.error(result.message || 'Failed to update featured status');
             }
         } catch {
             toast.error('Network error. Please try again.');
@@ -562,6 +595,11 @@ const AdminCaterings = () => {
                                                                 <ShieldCheck className="w-3.5 h-3.5" />
                                                             </span>
                                                         )}
+                                                        {catering.isFeatured && (
+                                                            <span className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-amber-500" title="Featured on homepage">
+                                                                <Star className="w-3.5 h-3.5 fill-amber-400" />
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-1">
@@ -580,11 +618,27 @@ const AdminCaterings = () => {
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center justify-end gap-1">
                                                             <button
-                                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                onClick={() => handleViewDetails(catering)}
+                                                                disabled={drawerLoading}
+                                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
                                                                 title="View Details"
                                                             >
-                                                                <Eye className="w-4 h-4" />
+                                                                {drawerLoading ? (
+                                                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                                                ) : (
+                                                                    <Eye className="w-4 h-4" />
+                                                                )}
                                                             </button>
+
+                                                            {catering.status === 2 && !catering.isDeleted && (
+                                                                <button
+                                                                    onClick={() => handleToggleFeatured(catering)}
+                                                                    className={`p-1.5 rounded-lg transition-colors ${catering.isFeatured ? 'text-amber-500 hover:bg-amber-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                                                                    title={catering.isFeatured ? 'Remove from featured' : 'Mark as featured'}
+                                                                >
+                                                                    <Star className={`w-4 h-4 ${catering.isFeatured ? 'fill-amber-400' : ''}`} />
+                                                                </button>
+                                                            )}
 
                                                             {catering.isDeleted ? (
                                                                 <button
@@ -596,25 +650,6 @@ const AdminCaterings = () => {
                                                                 </button>
                                                             ) : (
                                                                 <>
-                                                                    {catering.status === 1 && (
-                                                                        <>
-                                                                            <button
-                                                                                onClick={() => handleApprove(catering)}
-                                                                                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                                                                title="Approve"
-                                                                            >
-                                                                                <CheckCircle className="w-4 h-4" />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => handleReject(catering)}
-                                                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                                                title="Reject"
-                                                                            >
-                                                                                <XCircle className="w-4 h-4" />
-                                                                            </button>
-                                                                        </>
-                                                                    )}
-
                                                                     {catering.status === 2 && !catering.isBlocked && (
                                                                         <button
                                                                             onClick={() => handleBlock(catering)}
@@ -684,6 +719,14 @@ const AdminCaterings = () => {
                     )}
                 </div>
             </div>
+
+            {/* Catering Detail Drawer */}
+            {selectedCatering && (
+                <CateringDetailDrawer
+                    catering={selectedCatering}
+                    onClose={() => setSelectedCatering(null)}
+                />
+            )}
 
             {/* Reason Modal (for Reject / Block) */}
             {reasonModal.open && (

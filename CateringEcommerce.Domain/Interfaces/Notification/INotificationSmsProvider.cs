@@ -1,8 +1,13 @@
-﻿using CateringEcommerce.Domain.Models.Notification;
+using CateringEcommerce.Domain.Models.Notification;
 
 namespace CateringEcommerce.Domain.Interfaces.Notification
 {
-    public interface ISmsProvider
+    /// <summary>
+    /// Abstraction for SMS notification delivery providers.
+    /// Used exclusively for order/system SMS notifications (NOT OTP).
+    /// Examples: order confirmation, booking approval, payment confirmation, event alerts.
+    /// </summary>
+    public interface INotificationSmsProvider
     {
         string ProviderName { get; }
         int Priority { get; }

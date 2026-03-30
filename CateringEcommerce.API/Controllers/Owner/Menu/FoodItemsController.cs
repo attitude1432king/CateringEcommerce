@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.API.Filters;
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner.Menu;
 using CateringEcommerce.BAL.Common;
@@ -91,7 +91,10 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
         }
 
         [HttpPost("Create")]
-        public async Task<IActionResult> AddFoodItem([FromBody] FoodItemDto foodItems)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)]
+        [RequestSizeLimit(50 * 1024 * 1024)]
+        public async Task<IActionResult> AddFoodItem([FromForm] FoodItemDto foodItems)
         {
             try
             {
@@ -105,10 +108,14 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 {
                     return ApiResponseHelper.Failure("Invalid food item data.", "warning");
                 }
+
+                if (foodItems.FoodItemMediaFiles != null && foodItems.FoodItemMediaFiles.Count > 1)
+                {
+                    return ApiResponseHelper.Failure("Only one image or video is allowed per food item.", "warning");
+                }
                 var objFoodItem = _foodItemsRepository;
 
                 bool nameExists = await objFoodItem.IsFoodItemNameExists(ownerPKID, foodItems.Name);
-                // Check the Food Item Name exists or not
                 if (nameExists)
                 {
                     return ApiResponseHelper.Failure("Food Item is already exists.", "warning");
@@ -121,17 +128,25 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     return BadRequest(new { message = "Failed to create food item." });
                 }
 
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".mp4" };
                 if (foodItems.FoodItemMediaFiles != null)
                 {
                     foreach (var file in foodItems.FoodItemMediaFiles)
                     {
-                        if(file == null || string.IsNullOrEmpty(file.Base64) || string.IsNullOrEmpty(file.Name))
+                        if (file == null || file.Length == 0)
                         {
-                            _logger.LogWarning("Skipping invalid media file for food item ID: {0}", foodItemID);
+                            _logger.LogWarning("Skipping empty media file for food item ID: {0}", foodItemID);
                             continue;
                         }
-                        var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPKID, DocumentType.Food.GetDisplayName(), false, file.Name);
-                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.Food, foodItemID);
+                        var validation = FileValidationHelper.ValidateFile(file, allowedExtensions, 10 * 1024 * 1024);
+                        if (!validation.IsValid)
+                        {
+                            _logger.LogWarning("Skipping invalid file {Name}: {Error}", file.FileName, validation.ErrorMessage);
+                            continue;
+                        }
+                        var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
+                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPKID, DocumentType.Food.GetDisplayName(), false, safeFilename);
+                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.FileName, DocumentType.Food, foodItemID);
                     }
                 }
                 _logger.LogInformation("Food Item added with ID: {0}", foodItemID);
@@ -154,7 +169,6 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 _logger.LogInformation("Fetching Cuisine Type.");
                 var ownerRepo = _ownerRepository;
                 var listCuisineType = await ownerRepo.GetCateringMasterType(CateringMaster.CuisineType);
-                // Filter to include only TypeId and TypeName
                 var filteredList = listCuisineType?
                     .Select(x => new
                     {
@@ -173,7 +187,10 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
         }
 
         [HttpPost("Udpate")]
-        public async Task<IActionResult> UpdateFoodItem([FromBody] FoodItemDto foodItems)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)]
+        [RequestSizeLimit(50 * 1024 * 1024)]
+        public async Task<IActionResult> UpdateFoodItem([FromForm] FoodItemDto foodItems)
         {
             try
             {
@@ -186,6 +203,11 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 if (foodItems == null || string.IsNullOrEmpty(foodItems.Name) || foodItems.CategoryId <= 0 || foodItems.Price <= 0 || foodItems.Id <= 0)
                 {
                     return ApiResponseHelper.Failure("Invalid food item data.", "warning");
+                }
+
+                if (foodItems.FoodItemMediaFiles != null && foodItems.FoodItemMediaFiles.Count > 1)
+                {
+                    return ApiResponseHelper.Failure("Only one image or video is allowed per food item.", "warning");
                 }
                 var objFoodItem = _foodItemsRepository;
 
@@ -208,29 +230,35 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                     List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPKID, DocumentType.Food, foodItems.Id ?? 0);
                     var filesToDelete = currentMediaPathsInDb
                         .Where(dbPath => !foodItems.ExistingFoodItemMediaPaths
-                            .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase)) // optional case-insensitive compare
+                            .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase))
                         .ToList();
 
-                    // Delete the identified files from storage and the database.
                     foreach (var pathToDelete in filesToDelete)
                     {
                         _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
                         await _ownerRepository.DeleteDocumentFile(pathToDelete.Id);
                     }
-
                 }
 
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".mp4" };
                 if (foodItems.FoodItemMediaFiles != null)
                 {
                     foreach (var file in foodItems.FoodItemMediaFiles)
                     {
-                        if (file == null || string.IsNullOrEmpty(file.Base64) || string.IsNullOrEmpty(file.Name))
+                        if (file == null || file.Length == 0)
                         {
-                            _logger.LogWarning("Skipping invalid media file for food item ID: {0}", foodItems.Id);
+                            _logger.LogWarning("Skipping empty media file for food item ID: {0}", foodItems.Id);
                             continue;
                         }
-                        var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPKID, DocumentType.Food.GetDisplayName(), false, file.Name);
-                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.Food, foodItems.Id ?? 0);
+                        var validation = FileValidationHelper.ValidateFile(file, allowedExtensions, 10 * 1024 * 1024);
+                        if (!validation.IsValid)
+                        {
+                            _logger.LogWarning("Skipping invalid file {Name}: {Error}", file.FileName, validation.ErrorMessage);
+                            continue;
+                        }
+                        var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
+                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPKID, DocumentType.Food.GetDisplayName(), false, safeFilename);
+                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.FileName, DocumentType.Food, foodItems.Id ?? 0);
                     }
                 }
 
@@ -265,7 +293,6 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 _logger.LogInformation("Delteing Food Item MediaFiles");
                 List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPKID, DocumentType.Food, foodItemId);
 
-                // Delete the identified files from storage and the database.
                 foreach (var pathToDelete in currentMediaPathsInDb)
                 {
                     await _ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);
@@ -299,18 +326,16 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                 var foodItems = _foodItemsRepository;
                 var listFoodItem = await foodItems.GetFoodItemsLookup(ownerPKID);
 
-                // Safely handle null or empty list
                 var lookup = (listFoodItem ?? new List<FoodItemDto>())
                     .Select(p => new
                     {
-                        Id = p.Id,   // Rename for frontend
+                        Id = p.Id,
                         Name = p.Name
                     })
                     .ToList();
 
                 _logger.LogInformation("Fetched {Count} package lookups.", lookup.Count);
 
-                // Always return an array (even if empty)
                 return Ok(lookup);
             }
             catch (Exception ex)

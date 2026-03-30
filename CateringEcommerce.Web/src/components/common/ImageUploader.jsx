@@ -55,10 +55,12 @@ export default function ImageUploader({ onImageCropped, aspect = 1, circularCrop
         canvas.height = completedCrop.height * scaleY;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(image, completedCrop.x * scaleX, completedCrop.y * scaleY, completedCrop.width * scaleX, completedCrop.height * scaleY, 0, 0, canvas.width, canvas.height);
-        const base64Image = canvas.toDataURL('image/jpeg');
-        onImageCropped(base64Image);
-        setIsModalOpen(false);
-        setImgSrc('');
+        canvas.toBlob((blob) => {
+            if (blob) onImageCropped(blob);
+            setIsModalOpen(false);
+            setImgSrc('');
+        }, 'image/jpeg', 0.92);
+        return;
     }
 
     return (

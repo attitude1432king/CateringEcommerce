@@ -80,7 +80,7 @@ const PartnerRequestsTable = ({
                     <tbody className="bg-white divide-y divide-gray-200">
                         {requests.map((request) => (
                             <tr
-                                key={request.requestId}
+                                key={request.ownerId ?? request.requestNumber}
                                 className="hover:bg-gray-50 transition-colors"
                             >
                                 {/* Request Details */}

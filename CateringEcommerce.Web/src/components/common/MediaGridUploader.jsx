@@ -9,7 +9,7 @@ import { ownerApiService } from '../../services/ownerApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export default function MediaGridUploader({ label, subtext, initialMedia = [], onMediaChange, onMediaClick, error })
+export default function MediaGridUploader({ label, subtext, initialMedia = [], onMediaChange, onMediaClick, error, maxFiles = null })
 {
     const [media, setMedia] = useState(initialMedia || []);
     const fileInputRef = useRef(null);
@@ -29,7 +29,10 @@ export default function MediaGridUploader({ label, subtext, initialMedia = [], o
             fileObject: file
         }));
 
-        const updatedMedia = [...media, ...newMediaFiles];
+        // When maxFiles=1, replace existing instead of appending
+        const updatedMedia = maxFiles === 1
+            ? [newMediaFiles[0]]
+            : [...media, ...newMediaFiles];
         setMedia(updatedMedia);
         onMediaChange(updatedMedia);
     };
@@ -98,12 +101,14 @@ export default function MediaGridUploader({ label, subtext, initialMedia = [], o
                             </div>
                         </div>
                     ))}
-                    <button type="button" onClick={() => fileInputRef.current.click()} className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg text-neutral-400 hover:bg-neutral-100 hover:border-rose-500 hover:text-rose-600 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                        <span className="text-xs mt-1 font-medium">Add Media</span>
-                    </button>
+                    {(maxFiles === null || media.length < maxFiles) && (
+                        <button type="button" onClick={() => fileInputRef.current.click()} className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg text-neutral-400 hover:bg-neutral-100 hover:border-rose-500 hover:text-rose-600 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            <span className="text-xs mt-1 font-medium">{maxFiles === 1 ? 'Upload' : 'Add Media'}</span>
+                        </button>
+                    )}
                 </div>
-                <input type="file" ref={fileInputRef} onChange={onFileSelect} multiple className="hidden" accept="image/png, image/jpeg, video/mp4" />
+                <input type="file" ref={fileInputRef} onChange={onFileSelect} multiple={maxFiles !== 1} className="hidden" accept="image/png, image/jpeg, video/mp4" />
             </div>
             {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
         </div>

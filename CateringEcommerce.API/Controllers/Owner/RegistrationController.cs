@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.API.Attributes;
+using CateringEcommerce.API.Attributes;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Helpers;
@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using System.IO;
+using System.Text.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
@@ -53,68 +54,131 @@ namespace CateringEcommerce.API.Controllers.Owner
         }
 
         [AllowAnonymous]
-        [RequestSizeLimit(long.MaxValue)]
-        [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue)]
-        [ValidateModel]
+        [RequestSizeLimit(50 * 1024 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)]
         [HttpPost("Register")]
-        public async Task<IActionResult> Register([FromBody] OwnerRegistrationDto registrationData)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> Register(
+            [FromForm] string JsonData,
+            [FromForm] IFormFile? CateringLogo,
+            [FromForm] IFormFile? FssaiCertificate,
+            [FromForm] IFormFile? GstCertificate,
+            [FromForm] IFormFile? PanCard,
+            [FromForm] IFormFile? Signature,
+            [FromForm] IFormFile? ChequeCopy)
         {
-            if (!ModelState.IsValid)
+            OwnerRegistrationDto registrationData;
+            try
             {
-                return BadRequest(ModelState);
+                registrationData = JsonSerializer.Deserialize<OwnerRegistrationDto>(JsonData ?? "{}",
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
+            catch
+            {
+                return BadRequest(new { message = "Invalid registration data." });
+            }
+
+            if (registrationData == null)
+                return BadRequest(new { message = "Invalid registration data." });
+
+            TryValidateModel(registrationData);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             try
             {
                 _logger.LogInformation("Received registration request for Catering Partner: {CateringName}", registrationData.CateringName);
-                Dictionary<string, object> dicData = new Dictionary<string, object>();
-                Int64 ownerPkid = 0;
 
                 if (string.IsNullOrEmpty(registrationData.Email) || string.IsNullOrEmpty(registrationData.Mobile))
-                {
                     return BadRequest(new { message = "Email and Phone number are required." });
-                }
 
-                // Here you would typically check if the email or phone number already exists in your database
                 if (_ownerRepository.IsEmailExist(registrationData.Email) || _ownerRepository.IsOwnerPhoneExist(registrationData.Mobile))
-                {
                     return BadRequest(new { message = "Email or Phone number already exists. Please use a different one." });
-                }
+
                 _logger.LogInformation("Email and phone number are valid and not already registered.");
 
+                Dictionary<string, object> dicData = AddedRegistionDataToDictionary(registrationData);
 
-                _logger.LogInformation("Registration data converted to dictionary for database insertion.");
-                dicData = AddedRegistionDataToDictionary(registrationData);
-
-                // 1. Create a new owner in the database and get the PKID
-                ownerPkid = _ownerRegister.CreateOwnerAccount(dicData);
+                Int64 ownerPkid = _ownerRegister.CreateOwnerAccount(dicData);
                 if (ownerPkid <= 0)
                 {
                     _logger.LogError("Failed to create owner account in the database.");
-                    return ApiResponseHelper.Failure("An error occurred while creating the parnter account. Please try again.");
+                    return ApiResponseHelper.Failure("An error occurred while creating the partner account. Please try again.");
                 }
                 _logger.LogInformation("Owner account created successfully with PKID: {OwnerPkid}", ownerPkid);
 
-                // 2. Save uploaded files and get their paths
-                var logoPath = await _fileStorageService.SaveFileAsync(registrationData.CateringLogo ?? string.Empty, ownerPkid, DocumentType.Logo.GetDisplayName(), isSecure: false);
+                var logoExtensions = new[] { ".jpg", ".jpeg", ".png" };
+                var certExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                var sigExtensions = new[] { ".png" };
+
+                // Logo
+                string logoPath = string.Empty;
+                if (CateringLogo != null && CateringLogo.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(CateringLogo, logoExtensions, 5 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(CateringLogo.FileName);
+                    logoPath = await _fileStorageService.SaveFormFileAsync(CateringLogo, ownerPkid, DocumentType.Logo.GetDisplayName(), false, safeFilename);
+                }
 
                 // FSSAI Certificate
-                var fssaiBase64 = registrationData.FssaiCertificate?.Base64 ?? string.Empty;
-                var fssaiName = registrationData.FssaiCertificate?.Name ?? string.Empty;
-                var fssaiPath = await _fileStorageService.SaveFileAsync(fssaiBase64, ownerPkid, CertificateType.FSSAI.GetDisplayName(), isSecure: true, fssaiName);
+                string fssaiPath = string.Empty;
+                if (FssaiCertificate != null && FssaiCertificate.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(FssaiCertificate, certExtensions, 10 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(FssaiCertificate.FileName);
+                    fssaiPath = await _fileStorageService.SaveFormFileAsync(FssaiCertificate, ownerPkid, CertificateType.FSSAI.GetDisplayName(), true, safeFilename);
+                }
 
                 // GST Certificate
-                var gstBase64 = registrationData.GstCertificate?.Base64 ?? string.Empty;
-                var gstName = registrationData.GstCertificate?.Name ?? string.Empty;
-                var gstPath = await _fileStorageService.SaveFileAsync(gstBase64, ownerPkid, CertificateType.GST.GetDisplayName(), isSecure: true, gstName);
+                string gstPath = string.Empty;
+                if (GstCertificate != null && GstCertificate.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(GstCertificate, certExtensions, 10 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(GstCertificate.FileName);
+                    gstPath = await _fileStorageService.SaveFormFileAsync(GstCertificate, ownerPkid, CertificateType.GST.GetDisplayName(), true, safeFilename);
+                }
 
                 // PAN Card
-                var panBase64 = registrationData.PanCard?.Base64 ?? string.Empty;
-                var panName = registrationData.PanCard?.Name ?? string.Empty;
-                var panPath = await _fileStorageService.SaveFileAsync(panBase64, ownerPkid, CertificateType.PAN.GetDisplayName(), isSecure: true, panName);
+                string panPath = string.Empty;
+                if (PanCard != null && PanCard.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(PanCard, certExtensions, 10 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(PanCard.FileName);
+                    panPath = await _fileStorageService.SaveFormFileAsync(PanCard, ownerPkid, CertificateType.PAN.GetDisplayName(), true, safeFilename);
+                }
 
-                // Signature
-                var signatureBase64 = registrationData.Signature ?? string.Empty;
-                var signaturePath = await _fileStorageService.SaveFileAsync(signatureBase64, ownerPkid, CertificateType.Signature.GetDisplayName(), isSecure: true, $"signature_{ownerPkid}.png");
+                // Signature — save file first, then read bytes from disk for PDF embedding
+                string signaturePath = string.Empty;
+                string signatureBase64 = string.Empty;
+                if (Signature != null && Signature.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(Signature, sigExtensions, 2 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    signaturePath = await _fileStorageService.SaveFormFileAsync(Signature, ownerPkid, CertificateType.Signature.GetDisplayName(), true, $"signature_{ownerPkid}.png");
+                    if (!string.IsNullOrEmpty(signaturePath))
+                    {
+                        var physicalPath = Path.Combine(_env.WebRootPath, signaturePath.TrimStart('/'));
+                        if (System.IO.File.Exists(physicalPath))
+                        {
+                            var sigBytes = await System.IO.File.ReadAllBytesAsync(physicalPath);
+                            signatureBase64 = $"data:image/png;base64,{Convert.ToBase64String(sigBytes)}";
+                        }
+                    }
+                }
+
+                // Cheque Copy
+                string chequePath = string.Empty;
+                if (ChequeCopy != null && ChequeCopy.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(ChequeCopy, certExtensions, 10 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(ChequeCopy.FileName);
+                    chequePath = await _fileStorageService.SaveFormFileAsync(ChequeCopy, ownerPkid, CertificateType.PAN.GetDisplayName(), true, safeFilename);
+                }
 
                 if (!string.IsNullOrEmpty(gstPath))
                     dicData.Add("GstCertificatePath", gstPath);
@@ -124,21 +188,20 @@ namespace CateringEcommerce.API.Controllers.Owner
                     dicData.Add("FssaiCertificatePath", fssaiPath);
                 if (!string.IsNullOrEmpty(signaturePath))
                     dicData.Add("SignaturePath", signaturePath);
-
-                //3. Create a method to save everything to the database
+                if (!string.IsNullOrEmpty(chequePath))
+                    dicData.Add("ChequePath", chequePath);
 
                 #region Register the owner catering other details
-                if (!string.IsNullOrEmpty(logoPath) && registrationData.CateringLogo != null)
+                if (!string.IsNullOrEmpty(logoPath))
                     _ownerRegister.UpdateLogoPath(ownerPkid, logoPath);
                 _ownerRegister.RegisterAddress(ownerPkid, dicData);
                 _ownerRegister.RegisterServices(ownerPkid, dicData);
                 _ownerRegister.RegisterLegalDocuments(ownerPkid, dicData);
                 _ownerRegister.RegisterBankDetails(ownerPkid, dicData);
 
-                // Fetch agreement text and add additional data for PDF generation
                 string agreementText = GetDefaultAgreementText();
                 dicData.Add("AgreementText", agreementText);
-                dicData.Add("SignatureBase64", registrationData.Signature ?? string.Empty);
+                dicData.Add("SignatureBase64", signatureBase64);
                 dicData.Add("IpAddress", GetClientIpAddress());
                 dicData.Add("UserAgent", Request.Headers["User-Agent"].ToString());
 
@@ -147,13 +210,13 @@ namespace CateringEcommerce.API.Controllers.Owner
                 _logger.LogInformation("Logo saved at: {LogoPath}", logoPath);
                 _logger.LogInformation("FSSAI saved at: {FssaiPath}", fssaiPath);
                 _logger.LogInformation("Signature saved at: {SignaturePath}", signaturePath);
+                #endregion
 
                 string encOwnerId = CryptoHelper.Encrypt(ownerPkid.ToString(), _customKey);
 
                 // Send notifications for partner registration
                 try
                 {
-                    // 1. Send acknowledgement to partner (Email + SMS)
                     await _notificationHelper.SendPartnerNotificationAsync(
                         "PARTNER_REGISTRATION_ACK",
                         registrationData.OwnerName,
@@ -172,26 +235,22 @@ namespace CateringEcommerce.API.Controllers.Owner
                     _logger.LogInformation("Partner registration acknowledgement sent to {OwnerName}. OwnerId: {OwnerId}",
                         registrationData.OwnerName, ownerPkid);
 
-                    // 2. Send notification to admin (In-App)
                     _adminNotificationRepository.CreateNotification(
                         "NEW_PARTNER_REGISTRATION",
                         "New Partner Registration Pending Review",
                         $"New catering partner '{registrationData.CateringName}' has registered and is pending approval. Contact: {registrationData.OwnerName} ({registrationData.Mobile})",
                         ownerPkid,
                         "OWNER",
-                        $"/admin/partner-requests/{ownerPkid}",  // link to partner approval page
-                        null   // adminId null = broadcast to all admins
+                        $"/admin/partner-requests/{ownerPkid}",
+                        null
                     );
                     _logger.LogInformation("Admin notification created for new partner registration. OwnerId: {OwnerId}", ownerPkid);
                 }
                 catch (Exception ex)
                 {
-                    // Log error but don't fail the registration
                     _logger.LogError(ex, "Failed to send notifications for partner registration. OwnerId: {OwnerId}", ownerPkid);
                 }
 
-                #endregion
-                // 6. Return a success response
                 return ApiResponseHelper.Success(encOwnerId, "Catering partner registered successfully. Your application is under review.");
             }
             catch (Exception ex)
@@ -294,7 +353,6 @@ Version: 1.0";
                 return ApiResponseHelper.Failure("Invalid service type ID.");
             }
 
-            //Your logic to fetch and return service type details goes here.
             var details = await _ownerRegister.GetServiceDetailsByTypeId(TypeId);
 
             return Ok(details);
@@ -303,15 +361,12 @@ Version: 1.0";
         [AllowAnonymous]
         [HttpPost("UploadMedia")]
         [EnableRateLimiting("file_upload")]
-        [RequestFormLimits(MultipartBodyLengthLimit = 10 * 1024 * 1024)] // 10 MB
-        [RequestSizeLimit(10 * 1024 * 1024)]                             // 10 MB
+        [RequestFormLimits(MultipartBodyLengthLimit = 10 * 1024 * 1024)]
+        [RequestSizeLimit(10 * 1024 * 1024)]
         public async Task<IActionResult> UploadKitchenMediaFile(string ownerId, [FromForm] IFormFile cateringMedia)
         {
-            const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
+            const long MaxFileSize = 10 * 1024 * 1024;
 
-            // ---------------------------
-            // 1. SECURITY: Validate file with signature checking
-            // ---------------------------
             var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".mp4" };
             var validationResult = FileValidationHelper.ValidateFile(
                 cateringMedia,
@@ -326,9 +381,6 @@ Version: 1.0";
                 return ApiResponseHelper.Failure(validationResult.ErrorMessage, type: "warning");
             }
 
-            // ---------------------------
-            // 2. Validate owner
-            // ---------------------------
             long ownerPkid;
             try
             {
@@ -342,12 +394,8 @@ Version: 1.0";
             if (!await _ownerRepository.IsOwnerExistAsync(ownerPkid))
                 return ApiResponseHelper.Failure("Partner does not exist.");
 
-            // ---------------------------
-            // 3. SECURITY: Sanitize filename and save file
-            // ---------------------------
             try
             {
-                // Generate safe filename to prevent path traversal attacks
                 var safeFilename = FileValidationHelper.GenerateSafeFilename(cateringMedia.FileName);
 
                 string savedPath = await _fileStorageService.SaveFormFileAsync(
@@ -355,7 +403,7 @@ Version: 1.0";
                     ownerPkid,
                     DocumentType.Kitchen.GetDisplayName(),
                     isSecure: false,
-                    safeFilename  // Use sanitized filename
+                    safeFilename
                 );
 
                 if (string.IsNullOrWhiteSpace(savedPath))
@@ -386,25 +434,13 @@ Version: 1.0";
             }
         }
 
-
-
-        /// <summary>
-        /// Get client IP address from request
-        /// </summary>
-        /// <returns></returns>
         private string GetClientIpAddress()
         {
             try
             {
-                // Try to get IP from X-Forwarded-For header (for proxies/load balancers)
                 string ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault();
-
                 if (string.IsNullOrEmpty(ipAddress))
-                {
-                    // Fall back to RemoteIpAddress
                     ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-                }
-
                 return ipAddress ?? "Unknown";
             }
             catch
@@ -413,10 +449,6 @@ Version: 1.0";
             }
         }
 
-        /// <summary>
-        /// Get default agreement text
-        /// </summary>
-        /// <returns></returns>
         private string GetDefaultAgreementText()
         {
             return @"PARTNER AGREEMENT
@@ -481,11 +513,6 @@ Platform: ENYVORA Partners
 Version: 1.0";
         }
 
-        /// <summary>
-        /// Addded registration data to dictionary for database insertion.
-        /// </summary>
-        /// <param name="registrationData"></param>
-        /// <returns></returns>
         private Dictionary<string, object> AddedRegistionDataToDictionary(OwnerRegistrationDto registrationData)
         {
             Dictionary<string, object> dicData = new Dictionary<string, object>
@@ -523,8 +550,7 @@ Version: 1.0";
                 { "BankAccountName", registrationData.BankAccountName },
                 { "BankAccountNumber", registrationData.BankAccountNumber },
                 { "IfscCode", registrationData.IfscCode },
-                { "ChequePath", registrationData.ChequePath ?? string.Empty }, // Fix for CS8604
-                { "UpiId", registrationData.UpiId ?? string.Empty }, // Fix for CS8604
+                { "UpiId", registrationData.UpiId ?? string.Empty },
                 { "AgreementAccepted", registrationData.AgreementAccepted }
             };
             return dicData;

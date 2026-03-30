@@ -19,6 +19,14 @@ import {
     MessageSquare,
     Clock,
     UserCheck,
+    MapPin,
+    Utensils,
+    ChefHat,
+    CalendarDays,
+    Briefcase,
+    UserSquare2,
+    Palette,
+    Leaf,
 } from 'lucide-react';
 import { useAdminAuth } from '../../../contexts/AdminAuthContext';
 import { usePermissions } from '../../../contexts/PermissionContext';
@@ -26,8 +34,11 @@ import { usePermissions } from '../../../contexts/PermissionContext';
 const AdminSidebar = () => {
     const [collapsed, setCollapsed] = useState(false);
     const [supervisorMenuOpen, setSupervisorMenuOpen] = useState(false);
+    const [masterDataMenuOpen, setMasterDataMenuOpen] = useState(false);
     const supervisorMenuRef = useRef(null);
     const supervisorTimeoutRef = useRef(null);
+    const masterDataMenuRef = useRef(null);
+    const masterDataTimeoutRef = useRef(null);
     const location = useLocation();
     const { logout } = useAdminAuth();
     const { hasPermission, hasRole, isSuperAdmin } = usePermissions();
@@ -45,13 +56,23 @@ const AdminSidebar = () => {
         { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, permission: 'ORDER_VIEW' },
         { name: 'Earnings', href: '/admin/earnings', icon: DollarSign, permission: 'EARNINGS_VIEW' },
         { name: 'Reviews', href: '/admin/reviews', icon: Star, permission: 'REVIEW_VIEW' },
-        { name: 'Master Data', href: '/admin/master-data/cities', icon: Database, badge: 'Super Admin', requireSuperAdmin: true },
         { name: 'Settings', href: '/admin/settings', icon: Settings, requireSuperAdmin: true },
     ];
 
     const supervisorSubItems = [
         { name: 'Pending Requests', href: '/admin/supervisor-management/pending', icon: Clock },
         { name: 'Approved Supervisors', href: '/admin/supervisor-management/approved', icon: UserCheck },
+    ];
+
+    const masterDataSubItems = [
+        { name: 'Cities', href: '/admin/master-data/cities', icon: MapPin },
+        { name: 'Food Categories', href: '/admin/master-data/food-categories', icon: Utensils },
+        { name: 'Cuisine Types', href: '/admin/master-data/cuisine-types', icon: ChefHat },
+        { name: 'Food Types', href: '/admin/master-data/food-types', icon: Leaf },
+        { name: 'Event Types', href: '/admin/master-data/event-types', icon: CalendarDays },
+        { name: 'Service Types', href: '/admin/master-data/service-types', icon: Briefcase },
+        { name: 'Guest Categories', href: '/admin/master-data/guest-categories', icon: UserSquare2 },
+        { name: 'Themes', href: '/admin/master-data/themes', icon: Palette },
     ];
 
     const visibleNavigation = navigation.filter(item => {
@@ -69,6 +90,7 @@ const AdminSidebar = () => {
     };
 
     const isSupervisorActive = location.pathname.startsWith('/admin/supervisor-management');
+    const isMasterDataActive = location.pathname.startsWith('/admin/master-data');
 
     const handleSupervisorMouseEnter = () => {
         if (supervisorTimeoutRef.current) {
@@ -84,11 +106,24 @@ const AdminSidebar = () => {
         }, 200);
     };
 
+    const handleMasterDataMouseEnter = () => {
+        if (masterDataTimeoutRef.current) {
+            clearTimeout(masterDataTimeoutRef.current);
+            masterDataTimeoutRef.current = null;
+        }
+        setMasterDataMenuOpen(true);
+    };
+
+    const handleMasterDataMouseLeave = () => {
+        masterDataTimeoutRef.current = setTimeout(() => {
+            setMasterDataMenuOpen(false);
+        }, 200);
+    };
+
     useEffect(() => {
         return () => {
-            if (supervisorTimeoutRef.current) {
-                clearTimeout(supervisorTimeoutRef.current);
-            }
+            if (supervisorTimeoutRef.current) clearTimeout(supervisorTimeoutRef.current);
+            if (masterDataTimeoutRef.current) clearTimeout(masterDataTimeoutRef.current);
         };
     }, []);
 
@@ -166,6 +201,84 @@ const AdminSidebar = () => {
                         </Link>
                     );
                 })}
+
+                {/* Master Data Management - Hover Submenu */}
+                {isSuperAdmin && (
+                    <div
+                        ref={masterDataMenuRef}
+                        className="relative"
+                        onMouseEnter={handleMasterDataMouseEnter}
+                        onMouseLeave={handleMasterDataMouseLeave}
+                    >
+                        {/* Parent Item */}
+                        <button
+                            onClick={() => setMasterDataMenuOpen(prev => !prev)}
+                            className={`
+                w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg
+                transition-all duration-200
+                ${isMasterDataActive
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50'
+                                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                }
+                ${collapsed ? 'justify-center' : ''}
+              `}
+                            title={collapsed ? 'Master Data' : ''}
+                        >
+                            <Database className="w-5 h-5 flex-shrink-0" />
+                            {!collapsed && (
+                                <div className="flex items-center justify-between flex-1">
+                                    <span className="font-medium">Master Data</span>
+                                    <ChevronRight
+                                        className={`w-4 h-4 transition-transform duration-200 ${masterDataMenuOpen ? 'rotate-90' : ''}`}
+                                    />
+                                </div>
+                            )}
+                        </button>
+
+                        {/* Flyout / Inline Submenu */}
+                        <div
+                            className={`
+                ${collapsed ? 'absolute left-full top-0 ml-2' : 'overflow-hidden'}
+                ${collapsed ? 'min-w-52' : ''}
+                transition-all duration-200 ease-in-out
+                ${masterDataMenuOpen
+                                    ? collapsed
+                                        ? 'opacity-100 visible translate-x-0'
+                                        : 'max-h-96 opacity-100'
+                                    : collapsed
+                                        ? 'opacity-0 invisible -translate-x-2'
+                                        : 'max-h-0 opacity-0'
+                                }
+              `}
+                        >
+                            <div className={`
+                ${collapsed ? 'bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-1' : 'pl-4 mt-1 space-y-0.5'}
+              `}>
+                                {masterDataSubItems.map((sub) => {
+                                    const SubIcon = sub.icon;
+                                    const subActive = location.pathname === sub.href;
+                                    return (
+                                        <Link
+                                            key={sub.href}
+                                            to={sub.href}
+                                            className={`
+                        flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm
+                        transition-all duration-150
+                        ${subActive
+                                                    ? 'bg-indigo-500/20 text-indigo-300 font-medium'
+                                                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                                }
+                      `}
+                                        >
+                                            <SubIcon className="w-4 h-4 flex-shrink-0" />
+                                            <span>{sub.name}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Supervisor Management - Hover Submenu */}
                 {canViewSupervisorManagement && (

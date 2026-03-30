@@ -268,36 +268,6 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
         }
     };
 
-    const handleFacebookLogin = async () => {
-        setError('');
-        setIsLoading(true);
-        try {
-            // Store provider and redirect path for post-auth navigation
-            localStorage.setItem('oauth_provider', 'facebook');
-
-            // SECURITY FIX: Validate redirect URL to prevent open redirect attacks
-            const { sanitizeRedirectUrl } = await import('../../utils/securityUtils');
-            const authRedirect = localStorage.getItem('auth_redirect');
-            const currentPath = window.location.pathname;
-            const redirectPath = sanitizeRedirectUrl(authRedirect || currentPath, '/');
-            localStorage.setItem('oauth_redirect', redirectPath);
-
-            // Get authorization URL from backend
-            const response = await initiateOAuthLogin('facebook');
-
-            if (response.success && response.data && response.data.authorizationUrl) {
-                // Redirect to Facebook OAuth
-                window.location.href = response.data.authorizationUrl;
-            } else {
-                throw new Error(response.message || 'Failed to initiate Facebook login');
-            }
-        } catch (error) {
-            console.error('Facebook login error:', error);
-            setError(error.message || 'Facebook login is currently unavailable. Please try phone login.');
-            setIsLoading(false);
-        }
-    };
-
     const renderLoginView = () => (
         <div className="space-y-4">
             <div className="text-center mb-6">
@@ -393,17 +363,6 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                     </svg>
                     <span>Sign in with Google</span>
-                </button>
-
-                <button
-                    onClick={handleFacebookLogin}
-                    disabled={isLoading}
-                    className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center justify-center space-x-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                    <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
-                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                    <span>Sign in with Facebook</span>
                 </button>
             </div>
 
@@ -655,17 +614,6 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                     </svg>
                     <span>Sign up with Google</span>
-                </button>
-
-                <button
-                    onClick={handleFacebookLogin}
-                    disabled={isLoading}
-                    className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium flex items-center justify-center space-x-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                    <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
-                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                    <span>Sign up with Facebook</span>
                 </button>
             </div>
 

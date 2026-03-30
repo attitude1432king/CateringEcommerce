@@ -8,7 +8,7 @@ Structure: Banner+Logo Hero → Packages → À La Carte Menu → Sample Tasting
 */
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { cateringApi, extractData, isSuccessResponse } from '../services/cateringApi';
 import { useCart } from '../contexts/CartContext';
 import { useEvent } from '../contexts/EventContext';
@@ -17,16 +17,36 @@ import Loader from '../components/common/Loader';
 import PackageSelectionModal from '../components/user/PackageSelectionModal';
 import SampleTasteModal from '../components/user/SampleTasteModal';
 import EventSetupModal from '../components/user/EventSetupModal';
+import AvailabilityCalendarModal from '../components/user/AvailabilityCalendarModal';
 import VegNonVegIcon from '../components/common/VegNonVegIcon';
+import { useAuthGuard } from '../hooks/useAuthGuard';
+import AuthModal from '../components/user/AuthModal';
+import { useAppSettings } from '../contexts/AppSettingsContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+
+const formatDateToYmd = (date) => {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const parseYmdToDate = (value) => {
+    if (!value) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+};
 
 export default function CateringDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { addToCart } = useCart();
-    const { eventData, isSetupComplete } = useEvent();
+    const { eventData, isSetupComplete, updateEventDetails } = useEvent();
     const { showToast } = useToast();
+    const { getInt } = useAppSettings();
+    const { isAuthenticated, triggerAuth, showAuthModal, handleAuthClose, handleAuthSuccess: handleAuthSuccessCart } = useAuthGuard();
 
     // State management
     const [cateringDetail, setCateringDetail] = useState(null);
@@ -37,11 +57,12 @@ export default function CateringDetailPage() {
     const [sampleItems, setSampleItems] = useState([]);
     const [decorations, setDecorations] = useState([]);
     const [reviews, setReviews] = useState([]);
+    const [coupons, setCoupons] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeSection, setActiveSection] = useState('packages');
     const [selectedPackage, setSelectedPackage] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
-    const [guestCount, setGuestCount] = useState(null); // Will be set during checkout
+    const guestCount = null; // Guest count is finalized during checkout
 
     // Package Selection Modal State
     const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
@@ -59,6 +80,12 @@ export default function CateringDetailPage() {
 
     // Event Setup Modal State (MANDATORY BEFORE ADD TO CART)
     const [isEventSetupModalOpen, setIsEventSetupModalOpen] = useState(false);
+    const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
+    const [selectedAvailabilityDate, setSelectedAvailabilityDate] = useState(() => parseYmdToDate(eventData?.eventDate));
+    const [availabilityResult, setAvailabilityResult] = useState(null);
+    const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+    const [blockedCalendarDates, setBlockedCalendarDates] = useState([]);
+    const [availabilityMonthCache, setAvailabilityMonthCache] = useState({});
 
     // Cart Replacement Confirmation Modal
     const [cartReplaceConfirmation, setCartReplaceConfirmation] = useState({
@@ -87,6 +114,8 @@ export default function CateringDetailPage() {
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
+    const minAdvanceBookingDays = getInt('BUSINESS.MIN_ADVANCE_BOOKING_DAYS', 5);
+    const minSelectableDate = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + minAdvanceBookingDays);
 
     // Mouse drag scroll handlers
     const handleMouseDown = (e) => {
@@ -121,6 +150,9 @@ export default function CateringDetailPage() {
 
     // Fetch all data on mount
     useEffect(() => {
+        setAvailabilityMonthCache({});
+        setBlockedCalendarDates([]);
+        setAvailabilityResult(null);
         loadCateringData();
 
         // Prevent body scroll
@@ -129,6 +161,13 @@ export default function CateringDetailPage() {
             document.body.style.overflow = 'unset';
         };
     }, [id]);
+
+    useEffect(() => {
+        const contextDate = parseYmdToDate(eventData?.eventDate);
+        if (contextDate) {
+            setSelectedAvailabilityDate(contextDate);
+        }
+    }, [eventData?.eventDate]);
 
     // Intersection Observer for active section tracking
     useEffect(() => {
@@ -172,13 +211,14 @@ export default function CateringDetailPage() {
             setIsLoading(true);
 
             // Parallel API calls for better performance
-            const [detailRes, packagesRes, categoriesRes, foodItemsRes, decorationsRes, reviewsRes] = await Promise.all([
+            const [detailRes, packagesRes, categoriesRes, foodItemsRes, decorationsRes, reviewsRes, couponsRes] = await Promise.all([
                 cateringApi.getCateringDetail(id),
                 cateringApi.getPackages(id),
                 cateringApi.getFoodCategories(),
                 cateringApi.getFoodItems(id),
                 cateringApi.getDecorations(id),
-                cateringApi.getReviews(id, 1, 6)
+                cateringApi.getReviews(id, 1, 6),
+                cateringApi.getAvailableCoupons(id).catch(() => null)
             ]);
 
             if (isSuccessResponse(detailRes)) {
@@ -198,8 +238,8 @@ export default function CateringDetailPage() {
 
             if (isSuccessResponse(foodItemsRes)) {
                 const items = extractData(foodItemsRes);
-                // Separate sample items from regular menu items
-                const samples = items.filter(item => item.isSampleTasted);
+                // Separate standalone sample items from regular menu items
+                const samples = items.filter(item => item.isSampleTasted && !item.isIncludedInPackage);
                 const regularItems = items.filter(item => !item.isSampleTasted);
                 setSampleItems(samples);
                 setFoodItems(regularItems);
@@ -211,6 +251,10 @@ export default function CateringDetailPage() {
 
             if (isSuccessResponse(reviewsRes)) {
                 setReviews(extractData(reviewsRes));
+            }
+
+            if (couponsRes && isSuccessResponse(couponsRes)) {
+                setCoupons(extractData(couponsRes) || []);
             }
 
             setIsLoading(false);
@@ -247,6 +291,68 @@ export default function CateringDetailPage() {
         }
     };
 
+    const loadAvailabilityCalendarMonth = async (monthDate) => {
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth() + 1;
+        const cacheKey = `${year}-${month}`;
+
+        if (availabilityMonthCache[cacheKey]) {
+            setBlockedCalendarDates(availabilityMonthCache[cacheKey]);
+            return;
+        }
+
+        try {
+            const response = await cateringApi.getAvailabilityCalendar(id, year, month);
+            const blockedDates = extractData(response)?.blockedDates || response?.data?.blockedDates || [];
+            setAvailabilityMonthCache(prev => ({ ...prev, [cacheKey]: blockedDates }));
+            setBlockedCalendarDates(blockedDates);
+        } catch (error) {
+            console.error('Error loading availability calendar:', error);
+            setBlockedCalendarDates([]);
+        }
+    };
+
+    const handleOpenAvailabilityModal = () => {
+        setAvailabilityResult(null);
+        setIsAvailabilityModalOpen(true);
+        const initialDate = selectedAvailabilityDate || parseYmdToDate(eventData?.eventDate) || minSelectableDate;
+        setSelectedAvailabilityDate(initialDate);
+        loadAvailabilityCalendarMonth(initialDate);
+    };
+
+    const handleAvailabilityDateSelect = async (dateValue) => {
+        setSelectedAvailabilityDate(dateValue);
+        setAvailabilityResult(null);
+        setIsCheckingAvailability(true);
+
+        try {
+            const response = await cateringApi.checkAvailability(id, formatDateToYmd(dateValue));
+            const resultData = extractData(response) || response?.data;
+            setAvailabilityResult(resultData);
+        } catch (error) {
+            setAvailabilityResult({
+                isAvailable: false,
+                message: error.message || 'Not available',
+                availableSlots: 0
+            });
+        } finally {
+            setIsCheckingAvailability(false);
+        }
+    };
+
+    const handleProceedToBookingFromAvailability = () => {
+        if (!selectedAvailabilityDate || !availabilityResult?.isAvailable) {
+            return;
+        }
+
+        const selectedDateValue = formatDateToYmd(selectedAvailabilityDate);
+        updateEventDetails({ eventDate: selectedDateValue });
+        setIsAvailabilityModalOpen(false);
+        setIsEventSetupModalOpen(true);
+        scrollToSection('packages');
+        showToast('Date locked in. Complete your event setup to start booking.', 'success');
+    };
+
     // Filter food items by selected category
     const filterFoodItemsByCategory = async (categoryId) => {
         try {
@@ -277,6 +383,7 @@ export default function CateringDetailPage() {
     // Handle package item selection completion
     const handlePackageSelectionComplete = (selectionData) => {
         setPackageSelectedItems(selectionData);
+        setSelectedSampleItems(selectionData?.sampleTasteSelections || []);
         setSelectedPackage(packageForSelection);
     };
 
@@ -316,6 +423,12 @@ export default function CateringDetailPage() {
 
     // Handle add to cart with validation
     const handleAddToCart = () => {
+        // Auth check — show login popup immediately if not signed in
+        if (!isAuthenticated) {
+            triggerAuth(() => handleAddToCart());
+            return;
+        }
+
         // ✅ ENFORCEMENT: Check if event setup is complete
         if (!isSetupComplete) {
             showToast('Please complete event setup first', 'warning');
@@ -342,7 +455,7 @@ export default function CateringDetailPage() {
                 packageName: selectedPackage.name,
                 packagePrice: selectedPackage.pricePerPerson,
                 guestCount: guestCount || null, // Will be set during checkout
-                eventDate: null,
+                eventDate: eventData?.eventDate || (selectedAvailabilityDate ? formatDateToYmd(selectedAvailabilityDate) : null),
                 eventType: null,
                 eventLocation: null,
                 decorationId: null,
@@ -379,14 +492,15 @@ export default function CateringDetailPage() {
                     packageName: 'Custom Order',
                     packagePrice: 0,
                     guestCount: guestCount || null,
-                    eventDate: null,
+                    eventDate: eventData?.eventDate || (selectedAvailabilityDate ? formatDateToYmd(selectedAvailabilityDate) : null),
                     eventType: null,
                     eventLocation: null,
                     decorationId: null,
                     decorationName: null,
                     decorationPrice: 0,
                     additionalItems: selectedIndividualItems,
-                    packageSelections: null
+                    packageSelections: null,
+                    sampleTasteSelections: null
                 };
 
                 setIndividualSampleItems(availableSampleItems);
@@ -402,14 +516,15 @@ export default function CateringDetailPage() {
                     packageName: 'Custom Order',
                     packagePrice: 0,
                     guestCount: guestCount || null,
-                    eventDate: null,
+                    eventDate: eventData?.eventDate || (selectedAvailabilityDate ? formatDateToYmd(selectedAvailabilityDate) : null),
                     eventType: null,
                     eventLocation: null,
                     decorationId: null,
                     decorationName: null,
                     decorationPrice: 0,
                     additionalItems: selectedIndividualItems,
-                    packageSelections: null
+                    packageSelections: null,
+                    sampleTasteSelections: null
                 };
 
                 const result = addToCart(cartData);
@@ -540,7 +655,7 @@ export default function CateringDetailPage() {
     }, {});
 
     return (
-        <motion.div
+        <Motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -632,7 +747,7 @@ export default function CateringDetailPage() {
                 </div>
 
                 {/* Hero Content - Bottom Positioned (Swiggy Style) */}
-                <div className="absolute bottom-0 left-0 right-0 px-4 md:px-8 pb-6 md:pb-10">
+                <div className="absolute bottom-0 left-0 right-0 px-4 md:px-8 pb-24 md:pb-28">
                     <div className="max-w-7xl mx-auto">
                         {/* Main Info */}
                         <div className="mb-4">
@@ -677,6 +792,7 @@ export default function CateringDetailPage() {
                                 View Packages
                             </button>
                             <button
+                                onClick={handleOpenAvailabilityModal}
                                 className="bg-white/95 backdrop-blur-sm hover:bg-white text-neutral-900 px-6 py-3 rounded-xl font-bold text-sm shadow-xl transition-all hover:scale-105 flex items-center gap-2"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -765,48 +881,71 @@ export default function CateringDetailPage() {
                 </div>
             </div>
 
-            {/* ✅ OFFERS & DISCOUNTS SECTION (Swiggy Inspired) */}
-            <div className="px-4 md:px-8 mb-8">
-                <div className="max-w-7xl mx-auto">
-                    <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
-                        <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                        </svg>
-                        Available Offers
-                    </h3>
-                    <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
-                        {/* Offer Card 1 - Best Offer */}
-                        <div className="min-w-[280px] bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl p-5 shadow-xl border-2 border-orange-400 relative overflow-hidden">
-                            <div className="absolute top-2 right-2 bg-yellow-400 text-orange-900 text-xs px-2 py-1 rounded-full font-bold">
-                                BEST OFFER
-                            </div>
-                            <div className="text-3xl font-bold mb-1">25% OFF</div>
-                            <div className="text-sm opacity-90 mb-3">On orders above ₹10,000</div>
-                            <div className="text-xs bg-white/20 rounded-lg px-3 py-1.5 inline-block">
-                                Valid till Jan 31, 2026
-                            </div>
-                        </div>
+            {/* OFFERS & DISCOUNTS SECTION - Dynamic from database */}
+            {coupons.length > 0 && (
+                <div className="px-4 md:px-8 mb-8">
+                    <div className="max-w-7xl mx-auto">
+                        <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
+                            <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                            </svg>
+                            Available Offers
+                        </h3>
+                        <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
+                            {coupons.map((coupon, index) => {
+                                const isPercentage = coupon.discountType === 'Percentage';
+                                const isBest = index === 0 && isPercentage;
+                                const heading = isPercentage
+                                    ? `${coupon.discountValue}% OFF`
+                                    : `Flat ₹${Number(coupon.discountValue).toLocaleString('en-IN')} OFF`;
+                                const subtext = coupon.minOrderValue
+                                    ? `On orders above ₹${Number(coupon.minOrderValue).toLocaleString('en-IN')}`
+                                    : coupon.description || coupon.name;
+                                const validity = coupon.validTo
+                                    ? `Valid till ${new Date(coupon.validTo).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                                    : '';
 
-                        {/* Offer Card 2 */}
-                        <div className="min-w-[280px] bg-white border-2 border-purple-200 rounded-2xl p-5 shadow-lg">
-                            <div className="text-2xl font-bold text-purple-600 mb-1">Flat ₹500 OFF</div>
-                            <div className="text-sm text-neutral-600 mb-3">On Package Bookings</div>
-                            <div className="text-xs bg-purple-100 text-purple-700 rounded-lg px-3 py-1.5 inline-block font-medium">
-                                New Users Only
-                            </div>
-                        </div>
+                                if (isBest) {
+                                    return (
+                                        <div key={coupon.discountId} className="min-w-[280px] bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl p-5 shadow-xl border-2 border-orange-400 relative overflow-hidden">
+                                            <div className="absolute top-2 right-2 bg-yellow-400 text-orange-900 text-xs px-2 py-1 rounded-full font-bold">
+                                                BEST OFFER
+                                            </div>
+                                            <div className="text-3xl font-bold mb-1">{heading}</div>
+                                            {subtext && <div className="text-sm opacity-90 mb-2">{subtext}</div>}
+                                            {coupon.maxDiscount && (
+                                                <div className="text-xs opacity-80 mb-2">Max discount ₹{Number(coupon.maxDiscount).toLocaleString('en-IN')}</div>
+                                            )}
+                                            <div className="flex items-center gap-2 flex-wrap mt-1">
+                                                {validity && (
+                                                    <div className="text-xs bg-white/20 rounded-lg px-3 py-1.5 inline-block">{validity}</div>
+                                                )}
+                                                <div className="text-xs bg-white/30 rounded-lg px-3 py-1.5 inline-block font-mono font-bold tracking-wider">{coupon.couponCode}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
 
-                        {/* Offer Card 3 */}
-                        <div className="min-w-[280px] bg-white border-2 border-green-200 rounded-2xl p-5 shadow-lg">
-                            <div className="text-2xl font-bold text-green-600 mb-1">Free Decoration</div>
-                            <div className="text-sm text-neutral-600 mb-3">On orders above ₹15,000</div>
-                            <div className="text-xs bg-green-100 text-green-700 rounded-lg px-3 py-1.5 inline-block font-medium">
-                                Limited Period
-                            </div>
+                                return (
+                                    <div key={coupon.discountId} className="min-w-[280px] bg-white border-2 border-purple-200 rounded-2xl p-5 shadow-lg">
+                                        <div className="text-2xl font-bold text-purple-600 mb-1">{heading}</div>
+                                        {subtext && <div className="text-sm text-neutral-600 mb-2">{subtext}</div>}
+                                        {coupon.maxDiscount && (
+                                            <div className="text-xs text-neutral-500 mb-2">Max discount ₹{Number(coupon.maxDiscount).toLocaleString('en-IN')}</div>
+                                        )}
+                                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                                            {validity && (
+                                                <div className="text-xs bg-purple-100 text-purple-700 rounded-lg px-3 py-1.5 inline-block font-medium">{validity}</div>
+                                            )}
+                                            <div className="text-xs bg-neutral-100 text-neutral-700 rounded-lg px-3 py-1.5 inline-block font-mono font-bold tracking-wider">{coupon.couponCode}</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* ✅ ENHANCED STICKY TAB NAVIGATION (Swiggy Style with Smooth Animations) */}
             <div className="sticky top-[73px] z-20 bg-white/95 backdrop-blur-xl border-b-2 border-neutral-200 shadow-lg">
@@ -835,7 +974,7 @@ export default function CateringDetailPage() {
                                 </span>
                                 {/* Animated underline */}
                                 {activeSection === tab.id && (
-                                    <motion.div
+                                    <Motion.div
                                         layoutId="activeTab"
                                         className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-t-full"
                                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
@@ -1131,18 +1270,30 @@ export default function CateringDetailPage() {
                                     <h4 className="font-bold text-lg text-neutral-900">Available for Sample Tasting</h4>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                    {sampleItems.slice(0, 8).map(item => (
-                                        <div key={item.foodItemId} className="flex items-center gap-2 text-sm text-neutral-700 bg-neutral-50 rounded-lg p-2">
-                                            {item.imageUrls && item.imageUrls.length > 0 ? (
-                                                <img src={item.imageUrls[0]} alt={item.name} className="w-10 h-10 rounded object-cover" />
-                                            ) : (
-                                                <div className="w-10 h-10 bg-neutral-200 rounded flex items-center justify-center text-xl">
-                                                    {item.isVegetarian ? '🥗' : '🍖'}
+                                    {sampleItems.slice(0, 8).map(item => {
+                                        const sampleImg = item.imageUrls && item.imageUrls.length > 0
+                                            ? (item.imageUrls[0].startsWith('http') ? item.imageUrls[0] : `${API_BASE_URL}${item.imageUrls[0]}`)
+                                            : null;
+                                        const sampleVideo = item.videoUrl
+                                            ? (item.videoUrl.startsWith('http') ? item.videoUrl : `${API_BASE_URL}${item.videoUrl}`)
+                                            : null;
+                                        return (
+                                            <div key={item.foodItemId} className="flex items-center gap-2 text-sm text-neutral-700 bg-neutral-50 rounded-lg p-2">
+                                                <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 relative bg-neutral-200">
+                                                    {sampleImg ? (
+                                                        <img src={sampleImg} alt={item.name} className="w-full h-full object-cover" />
+                                                    ) : sampleVideo ? (
+                                                        <video src={sampleVideo} className="w-full h-full object-cover" muted playsInline />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-lg">
+                                                            {item.isVegetarian ? '🥗' : '🍖'}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                            <span className="flex-1 line-clamp-2 text-xs font-medium">{item.name}</span>
-                                        </div>
-                                    ))}
+                                                <span className="flex-1 line-clamp-2 text-xs font-medium">{item.name}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                                 {sampleItems.length > 8 && (
                                     <p className="text-sm text-neutral-600 mt-3">+{sampleItems.length - 8} more items available for tasting</p>
@@ -1310,15 +1461,15 @@ export default function CateringDetailPage() {
                                                             }}
                                                         />
                                                     ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-6xl">
-                                                            {item.isVegetarian ? '🥗' : '🍖'}
-                                                        </div>
+                                                        <VegNonVegIcon isVeg={item.isVegetarian} placeholder />
                                                     )}
 
-                                                    {/* Veg/Non-Veg Icon (Indian Standard) */}
-                                                    <div className="absolute top-3 left-3 bg-white rounded-md p-1.5 shadow-lg">
-                                                        <VegNonVegIcon isVeg={item.isVegetarian} size="lg" />
-                                                    </div>
+                                                    {/* Veg/Non-Veg Icon overlay — only when media exists */}
+                                                    {(hasVideo || hasImages) && (
+                                                        <div className="absolute top-3 left-3 bg-white rounded-md p-1.5 shadow-lg">
+                                                            <VegNonVegIcon isVeg={item.isVegetarian} size="lg" />
+                                                        </div>
+                                                    )}
 
                                                     {/* Media Count Badge */}
                                                     {hasImages && item.imageUrls.length > 1 && (
@@ -1394,14 +1545,14 @@ export default function CateringDetailPage() {
                                     <div className="h-56 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
                                         {decor.videoUrl ? (
                                             <video
-                                                src={decor.videoUrl}
+                                                src={decor.videoUrl.startsWith('http') ? decor.videoUrl : `${API_BASE_URL}${decor.videoUrl}`}
                                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                                 controls
                                                 muted
                                             />
                                         ) : decor.thumbnailUrl ? (
                                             <img
-                                                src={decor.thumbnailUrl}
+                                                src={decor.thumbnailUrl.startsWith('http') ? decor.thumbnailUrl : `${API_BASE_URL}${decor.thumbnailUrl}`}
                                                 alt={decor.name}
                                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                             />
@@ -1588,6 +1739,19 @@ export default function CateringDetailPage() {
 
             {/* Modals */}
             {/* ✅ MANDATORY EVENT SETUP MODAL - Shows before Add to Cart */}
+            <AvailabilityCalendarModal
+                isOpen={isAvailabilityModalOpen}
+                onClose={() => setIsAvailabilityModalOpen(false)}
+                minDate={minSelectableDate}
+                selectedDate={selectedAvailabilityDate}
+                blockedDates={blockedCalendarDates}
+                onSelectDate={handleAvailabilityDateSelect}
+                onMonthChange={loadAvailabilityCalendarMonth}
+                isChecking={isCheckingAvailability}
+                availabilityResult={availabilityResult}
+                onProceedToBooking={handleProceedToBookingFromAvailability}
+            />
+
             <EventSetupModal
                 isOpen={isEventSetupModalOpen}
                 onClose={() => setIsEventSetupModalOpen(false)}
@@ -1605,6 +1769,7 @@ export default function CateringDetailPage() {
                     cateringId={Number(id)}
                     packageId={packageForSelection.packageId}
                     packageName={packageForSelection.name}
+                    sampleItems={sampleItems}
                     onSelectionComplete={handlePackageSelectionComplete}
                 />
             )}
@@ -1697,7 +1862,7 @@ export default function CateringDetailPage() {
             {/* Cart Replacement Confirmation Modal */}
             {cartReplaceConfirmation.isOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4">
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
@@ -1727,9 +1892,16 @@ export default function CateringDetailPage() {
                                 Replace Cart
                             </button>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 </div>
             )}
-        </motion.div>
+        {/* Auth Modal — triggered on Add to Cart when not signed in */}
+        <AuthModal
+            isOpen={showAuthModal}
+            onClose={handleAuthClose}
+            onSuccess={handleAuthSuccessCart}
+        />
+
+        </Motion.div>
     );
 }

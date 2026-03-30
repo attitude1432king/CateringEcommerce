@@ -23,10 +23,10 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
         // ==========================================
 
         /// <summary>
-        /// Create new admin user with role assignment
+        /// Create new admin user with auto-generated temporary password.
+        /// Returns the new admin ID and the plain-text temporary password (shown once).
         /// </summary>
-        /// <returns>New admin ID</returns>
-        Task<long> CreateAdminAsync(CreateAdminRequest request, long createdBy);
+        Task<CreateAdminResponseDto> CreateAdminAsync(CreateAdminRequest request, long createdBy);
 
         /// <summary>
         /// Update admin information (excluding password and role)

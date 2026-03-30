@@ -48,8 +48,7 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
                 localStorage.removeItem('admin');
                 window.location.href = '/admin/login';
             } else if (path.startsWith('/supervisor')) {
-                localStorage.removeItem('supervisorToken');
-                localStorage.removeItem('supervisorId');
+                // supervisorToken is an httpOnly cookie — no localStorage to clear
                 window.location.href = '/supervisor/login';
             } else if (path.startsWith('/owner') || path.startsWith('/partner')) {
                 //localStorage.removeItem('enyvora_user');
@@ -79,19 +78,6 @@ export const fetchApi = async (endpoint, method = 'GET', body = null, queryParam
     }
 };
 
-// Helper function to convert a File object to a Base64 DTO
-export const fileToBase64Dto = (file) => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve({
-            base64: reader.result,
-            name: file.name,
-            type: file.type,
-        });
-        reader.onerror = error => reject(error);
-    });
-};
 
 // P3 FIX: Export alias for backward compatibility (consolidating apiCall.js)
 export const apiCall = fetchApi;

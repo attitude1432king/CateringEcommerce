@@ -378,10 +378,11 @@ CREATE TABLE t_sys_catering_owner_operations (
     c_cuisine_types NVARCHAR(500), -- comma-separated or JSON
     c_service_types NVARCHAR(300), -- comma-separated or JSON
 	c_event_types NVARCHAR(300), -- comma-separated or JSON
-	c_food_types NVARCHAR(300), -- comma-separated or JSON
+    c_food_types NVARCHAR(300), -- comma-separated or JSON
     c_min_dish_order DECIMAL(10, 2),
     c_delivery_available BIT DEFAULT 0,
     c_delivery_radius_km INT,
+    c_daily_booking_capacity INT NULL,
     c_serving_time_slots NVARCHAR(200), -- e.g., "Breakfast,Lunch"
 	c_createddate DATETIME NULL,
     c_modifieddate DATETIME NULL
@@ -790,7 +791,7 @@ CREATE TABLE t_map_discount_package (
 CREATE TABLE t_catering_availability_global (
     c_id INT IDENTITY(1,1) PRIMARY KEY,
     c_ownerid BIGINT NOT NULL,
-    c_global_status VARCHAR(20) NOT NULL DEFAULT 'OPEN' CHECK (c_global_status IN ('OPEN', 'CLOSED')),
+    c_global_status INT NOT NULL DEFAULT 1 CHECK (c_global_status IN (1, 2)),
     c_closure_reason NVARCHAR(255) NULL,
     c_modifieddate DATETIME DEFAULT GETDATE()
 );
@@ -800,7 +801,7 @@ CREATE TABLE t_catering_availability_dates (
     c_id BIGINT IDENTITY(1,1) PRIMARY KEY,
     c_ownerid BIGINT NOT NULL,
     c_date DATE NOT NULL,
-    c_status VARCHAR(20) NOT NULL CHECK (c_status IN ('CLOSED', 'FULLY_BOOKED', 'OPEN')),
+    c_status INT NOT NULL CHECK (c_status IN (1, 2, 3)),
     c_note NVARCHAR(255) NULL,
     c_createddate DATETIME DEFAULT GETDATE(),
     c_modifieddate DATETIME NULL
@@ -994,7 +995,7 @@ CREATE TABLE t_notification_templates (
     c_sample_data NVARCHAR(MAX), -- JSON object with sample data for preview
 
     -- Audit
-    c_created_by VARCHAR(100),
+    c_createdby VARCHAR(100),
     c_createddate DATETIME DEFAULT GETDATE(),
     c_updated_by VARCHAR(100),
     c_modifieddate DATETIME DEFAULT GETDATE(),

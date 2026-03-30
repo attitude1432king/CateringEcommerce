@@ -14,7 +14,7 @@ export const CartProvider = ({ children }) => {
     const { user, isAuthenticated } = useAuth();
     const [cart, setCart] = useState(null);
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const isLoading = false;
 
     // Load cart from localStorage on mount
     useEffect(() => {
@@ -53,15 +53,20 @@ export const CartProvider = ({ children }) => {
             packageId,
             packageName,
             packagePrice,
-            guestCount = 50,
+            guestCount: rawGuestCount,
             eventDate = null,
             eventType = null,
             eventLocation = null,
             decorationId = null,
             decorationName = null,
             decorationPrice = 0,
-            additionalItems = []
+            additionalItems = [],
+            packageSelections = null,
+            sampleTasteSelections = null
         } = cateringData;
+
+        // null bypasses destructuring defaults — coerce null/undefined to 50
+        const guestCount = rawGuestCount ?? 50;
 
         // Check if trying to add different caterer
         if (cart && cart.cateringId !== cateringId && !force) {
@@ -101,6 +106,8 @@ export const CartProvider = ({ children }) => {
             decorationName,
             decorationPrice,
             additionalItems,
+            packageSelections,
+            sampleTasteSelections,
             baseAmount,
             additionalItemsTotal,
             decorationAmount,

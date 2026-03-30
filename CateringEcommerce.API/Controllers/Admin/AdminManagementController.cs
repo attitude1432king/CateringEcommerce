@@ -1,6 +1,5 @@
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
-using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
@@ -166,11 +165,12 @@ namespace CateringEcommerce.API.Controllers.Admin
                     }
                 }
 
-                request.Password = HashHelper.HashPassword(request.Password); // Hash password before storing
-                var newAdminId = await _adminRepo.CreateAdminAsync(request, adminId);
+                // Password generation and hashing are handled in the repository — do not pass any password here
+                var createResult = await _adminRepo.CreateAdminAsync(request, adminId);
 
-                await LogAuditAsync(adminId, adminName, "CREATE_ADMIN", "ADMIN", newAdminId, "AdminUser", new { request.Username, request.Email, request.RoleId }, "SUCCESS");
-                return ApiResponseHelper.Success(new { AdminId = newAdminId }, "Admin user created successfully.");
+                await LogAuditAsync(adminId, adminName, "CREATE_ADMIN", "ADMIN", createResult.AdminId, "AdminUser", new { request.Username, request.Email, request.RoleId }, "SUCCESS");
+                // Return the CreateAdminResponseDto which includes the one-time temporary password
+                return ApiResponseHelper.Success(createResult, "Admin user created successfully.");
             }
             catch (Exception ex)
             {

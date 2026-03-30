@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.3.11520.95 d18.3
+VisualStudioVersion = 18.3.11520.95
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CateringEcommerce.API", "CateringEcommerce.API\CateringEcommerce.API.csproj", "{B524DDA0-8565-4316-B6C5-B6121855ECBB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CateringEcommerce.Domain", "CateringEcommerce.Domain\CateringEcommerce.Domain.csproj", "{3DBC780B-C93C-459C-BEB4-923422789941}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CateringEcommerce.BAL", "CateringEcommerce.BAL\CateringEcommerce.BAL.csproj", "{5BAD4999-DD73-4464-8242-F42C43FF5804}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CateringEcommerce.Tests", "CateringEcommerce.Tests\CateringEcommerce.Tests.csproj", "{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +57,18 @@ Global
 		{5BAD4999-DD73-4464-8242-F42C43FF5804}.Release|x64.Build.0 = Release|Any CPU
 		{5BAD4999-DD73-4464-8242-F42C43FF5804}.Release|x86.ActiveCfg = Release|Any CPU
 		{5BAD4999-DD73-4464-8242-F42C43FF5804}.Release|x86.Build.0 = Release|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Debug|x64.Build.0 = Debug|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Debug|x86.Build.0 = Debug|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Release|x64.ActiveCfg = Release|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Release|x64.Build.0 = Release|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Release|x86.ActiveCfg = Release|Any CPU
+		{2484CEF4-2E92-4A8B-BBEF-0F1AB3D6E3EF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

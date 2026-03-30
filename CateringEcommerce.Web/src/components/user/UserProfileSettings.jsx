@@ -193,30 +193,21 @@ export default function UserProfileSettings() {
         try {
             setIsLoading(true);
 
-            // 1. Convert blob to base64 for storage and preview
-            const base64String = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(croppedBlob);
-            });
+            // 1. Use object URL for immediate preview
+            const previewUrl = URL.createObjectURL(croppedBlob);
 
             // 2. Update local state immediately for instant preview
-            setProfile(prev => ({ ...prev, profilePhoto: base64String }));
+            setProfile(prev => ({ ...prev, profilePhoto: previewUrl }));
 
-            
             // 3. Upload to backend (API call)
-            // Assuming apiService has an uploadProfilePhoto method
-            // If not, you'll need to create one that accepts FormData with the cropped image
             try {
-                const response = await apiService.uploadProfilePhoto(base64String);
+                const response = await apiService.uploadProfilePhoto(croppedBlob);
 
                 // 4. Update global auth context with the new photo URL from backend response
-                if (response.photoUrl) {  
+                if (response.photoUrl) {
                     updateUserProfileInContext({ profilePhoto: `${API_BASE_URL}${response.photoUrl}` });
                 } else {
-                    // Fallback: use the base64 if backend doesn't return the URL
-                    updateUserProfileInContext({ profilePhoto: base64String });
+                    updateUserProfileInContext({ profilePhoto: previewUrl });
                 }
 
                 showToast('Profile photo updated successfully!', 'success');

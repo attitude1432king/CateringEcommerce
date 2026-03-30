@@ -39,11 +39,10 @@ const SupervisorLogin = () => {
             const result = await supervisorLogin(identifier, password);
 
             if (result.success) {
-                const data = result.data?.data || result.data;
-                const token = data.token;
-                const supervisorData = data.supervisor || data;
-
-                login(token, supervisorData);
+                // SECURITY: backend set httpOnly cookie — no token in response body.
+                // Pass only profile data to context (no token).
+                const supervisorData = result.data?.data || result.data;
+                login(supervisorData);
                 navigate('/supervisor/dashboard');
             } else {
                 setError(result.message || 'Invalid credentials. Please try again.');

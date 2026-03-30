@@ -34,6 +34,8 @@ const AdminLogin = () => {
       const result = await login(username, password);
 
       if (result.success) {
+        // Navigate to dashboard — AdminLayout will show the forced password change
+        // modal if requirePasswordChange is true (blocks all dashboard interaction)
         navigate('/admin/dashboard');
       } else {
         setError(result.message || 'Invalid credentials');
@@ -140,16 +142,18 @@ const AdminLogin = () => {
             </Button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs font-medium text-gray-700 mb-2">Demo Credentials:</p>
-            <p className="text-xs text-gray-600">
-              Username: <code className="bg-white px-2 py-0.5 rounded">admin</code>
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              Password: <code className="bg-white px-2 py-0.5 rounded">Admin@123</code>
-            </p>
-          </div>
+          {/* Demo Credentials — development only, stripped from production build */}
+          {import.meta.env.DEV && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs font-medium text-gray-700 mb-2">Demo Credentials:</p>
+              <p className="text-xs text-gray-600">
+                Username: <code className="bg-white px-2 py-0.5 rounded">admin</code>
+              </p>
+              <p className="text-xs text-gray-600 mt-1">
+                Password: <code className="bg-white px-2 py-0.5 rounded">Admin@123</code>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

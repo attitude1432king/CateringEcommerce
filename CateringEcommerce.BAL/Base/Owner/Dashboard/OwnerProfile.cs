@@ -138,7 +138,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 string query = $@"SELECT c_cuisine_types AS CuisineTypes, c_service_types AS ServiceTypes, 
                     c_event_types AS EventTypes, c_food_types AS FoodTypes, c_min_dish_order AS MinDishOrder, 
-                    c_delivery_radius_km AS DeliveryRadiusKm, c_serving_time_slots AS ServingTimeSlots 
+                    c_delivery_radius_km AS DeliveryRadiusKm, c_daily_booking_capacity AS DailyBookingCapacity, c_serving_time_slots AS ServingTimeSlots 
                     FROM {Table.SysCateringOwnerService} WHERE c_ownerid = @OwnerId";
                 List<SqlParameter> parameters = new()
                 {
@@ -156,6 +156,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         FoodTypeIds = row["FoodTypes"] != DBNull.Value ? ArrayHelper.ConvertStringToIntArray(row["FoodTypes"].ToString()) : null,
                         MinOrderValue = row["MinDishOrder"] != DBNull.Value ? Convert.ToInt32(row["MinDishOrder"]) : 0,
                         DeliveryRediusKm = row["DeliveryRadiusKm"] != DBNull.Value ? Convert.ToInt16(row["DeliveryRadiusKm"]) : 0,
+                        DailyBookingCapacity = row["DailyBookingCapacity"] != DBNull.Value ? Convert.ToInt32(row["DailyBookingCapacity"]) : 0,
                         ServingSlots = row["ServingTimeSlots"] != DBNull.Value ? ArrayHelper.ConvertStringToIntArray(row["ServingTimeSlots"].ToString()) : null
                     };
                 }
@@ -307,7 +308,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 StringBuilder query = new StringBuilder();
                 query.Append($@"UPDATE {Table.SysCateringOwnerService} SET c_cuisine_types = @CuisineTypes, 
                     c_service_types = @ServiceTypes, c_event_types = @EventTypes, c_food_types = @FoodTypes, 
-                    c_min_dish_order = @MinDishOrder, c_delivery_radius_km = @DeliveryRadiusKm, 
+                    c_min_dish_order = @MinDishOrder, c_delivery_radius_km = @DeliveryRadiusKm, c_daily_booking_capacity = @DailyBookingCapacity,
                     c_serving_time_slots = @ServingTimeSlots WHERE c_ownerid = @OwnerId ");
                 List<SqlParameter> parameters = new()
                 {
@@ -317,6 +318,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     new SqlParameter("@FoodTypes", servicesSettings.FoodTypeIds != null ? string.Join(",", servicesSettings.FoodTypeIds) : DBNull.Value),
                     new SqlParameter("@MinDishOrder", servicesSettings.MinOrderValue),
                     new SqlParameter("@DeliveryRadiusKm", servicesSettings.DeliveryRediusKm),
+                    new SqlParameter("@DailyBookingCapacity", servicesSettings.DailyBookingCapacity > 0 ? servicesSettings.DailyBookingCapacity : DBNull.Value),
                     new SqlParameter("@ServingTimeSlots", servicesSettings.ServingSlots != null ? string.Join(",", servicesSettings.ServingSlots)  : DBNull.Value),
                     new SqlParameter("@OwnerId", ownerPKID)
                 };

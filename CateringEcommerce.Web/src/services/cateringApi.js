@@ -58,6 +58,50 @@ export const cateringApi = {
     },
 
     /**
+     * Check availability for a catering on a specific date
+     * @param {number} cateringId
+     * @param {string} date - yyyy-MM-dd
+     */
+    checkAvailability: async (cateringId, date) => {
+        try {
+            return await fetchApi(`/catering/${cateringId}/availability`, 'GET', null, { date });
+        } catch (error) {
+            console.error(`Error checking availability for caterer ${cateringId}:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Get blocked dates for a catering calendar month
+     * @param {number} cateringId
+     * @param {number} year
+     * @param {number} month - 1-based
+     */
+    getAvailabilityCalendar: async (cateringId, year, month) => {
+        try {
+            return await fetchApi(`/catering/${cateringId}/availability/calendar`, 'GET', null, { year, month });
+        } catch (error) {
+            console.error(`Error fetching availability calendar for caterer ${cateringId}:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Get available discount coupons for a specific caterer
+     * Returns only active, non-expired EntireCatering-type discounts
+     * @param {number} cateringId - The caterer's owner ID
+     */
+    getAvailableCoupons: async (cateringId) => {
+        try {
+            const response = await fetchApi(`/User/Coupons/Available/${cateringId}`, 'GET');
+            return response;
+        } catch (error) {
+            console.error(`Error fetching available coupons for caterer ${cateringId}:`, error);
+            throw error;
+        }
+    },
+
+    /**
      * Get all packages for a specific caterer
      * @param {number} cateringId - The caterer's ID
      */

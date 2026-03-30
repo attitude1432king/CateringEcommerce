@@ -17,6 +17,15 @@ namespace CateringEcommerce.Domain.Interfaces.Supervisor
         Task<SupervisorModel> GetSupervisorByIdAsync(long supervisorId);
         Task<SupervisorModel> GetSupervisorByEmailAsync(string email);
         Task<SupervisorModel> GetSupervisorByPhoneAsync(string phone);
+
+        /// <summary>
+        /// Returns credential data for login verification only.
+        /// Includes PasswordHash — must never be returned to client.
+        /// </summary>
+        Task<SupervisorLoginInfo> GetSupervisorForLoginAsync(string identifier);
+
+        /// <summary>Updates the LastLoginDate for audit purposes.</summary>
+        Task UpdateLastLoginAsync(long supervisorId);
         Task<bool> EmailExistsAsync(string email);
         Task<bool> PhoneExistsAsync(string phone);
         Task<List<SupervisorModel>> GetAllSupervisorsAsync(SupervisorType? type = null, string status = null);

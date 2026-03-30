@@ -42,6 +42,23 @@ namespace CateringEcommerce.API.Controllers.Admin
             }
         }
 
+        [HttpGet("{id}")]
+        public IActionResult GetSupervisorDetails(long id)
+        {
+            try
+            {
+                var result = _supervisorRepository.GetSupervisorDetails(id);
+                if (result == null)
+                    return NotFound(ApiResponseHelper.Failure("Supervisor not found."));
+                return ApiResponseHelper.Success(result, "Supervisor details retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get supervisor details for ID: {SupervisorId}", id);
+                return StatusCode(500, ApiResponseHelper.Failure($"Internal server error: {ex.Message}"));
+            }
+        }
+
         [HttpPut("{id}/status")]
         public IActionResult UpdateSupervisorStatus(long id, [FromBody] AdminSupervisorStatusUpdate request)
         {

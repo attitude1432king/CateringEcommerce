@@ -1,6 +1,4 @@
-﻿using CateringEcommerce.Domain.Models.Common;
-
-namespace CateringEcommerce.Domain.Models.APIModels.Owner
+﻿namespace CateringEcommerce.Domain.Models.APIModels.Owner
 {
     public class UpdateOwnerProfileDto
     {
@@ -20,7 +18,7 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         public string? StdNumber { get; set; }
         public string? WhatsAppNumber { get; set; }
         public string? SupportEmail { get; set; }
-        public FileUploadDto? NewLogoFile { get; set; } // For uploading a new logo
+        // NewLogoFile received as [FromForm] IFormFile in the controller
     }
 
     public class AddressSettingsDto
@@ -40,12 +38,13 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         public int DeliveryRediusKm { get; set; }
         public List<int>? ServingSlots { get; set; }
         public int MinOrderValue { get; set; }
+        public int DailyBookingCapacity { get; set; }
         public List<int>? CuisineTypeIds { get; set; }
         public List<int>? FoodTypeIds { get; set; }
         public List<int>? ServiceTypeIds { get; set; }
         public List<int>? EventTypeIds { get; set; }
         public List<string> ExistingMediaPaths { get; set; }
-        public List<FileUploadDto>? NewKitchenMediaFiles { get; set; }
+        // NewKitchenMediaFiles received as [FromForm] List<IFormFile> in the controller
     }
 
     public class LegalPaymentSettingsDto

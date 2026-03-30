@@ -151,7 +151,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 SELECT
                     c_role_id, c_role_code, c_role_name, c_description, c_color,
-                    c_is_system_role, c_is_active, c_createddate, c_created_by,
+                    c_is_system_role, c_is_active, c_createddate, c_createdby,
                     c_modifieddate, c_updated_by
                 FROM {Table.SysAdminRoles}
                 WHERE c_role_code = @RoleCode AND c_is_active = 1";
@@ -172,7 +172,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 IsSystemRole = Convert.ToBoolean(row["c_is_system_role"]),
                 IsActive = Convert.ToBoolean(row["c_is_active"]),
                 CreatedDate = Convert.ToDateTime(row["c_createddate"]),
-                CreatedBy = row["c_created_by"] != DBNull.Value ? Convert.ToInt64(row["c_created_by"]) : null,
+                CreatedBy = row["c_createdby"] != DBNull.Value ? Convert.ToInt64(row["c_createdby"]) : null,
                 UpdatedDate = row["c_modifieddate"] != DBNull.Value ? Convert.ToDateTime(row["c_modifieddate"]) : null,
                 UpdatedBy = row["c_updated_by"] != DBNull.Value ? Convert.ToInt64(row["c_updated_by"]) : null
             };
@@ -181,7 +181,7 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<long> CreateRoleAsync(CreateRoleRequest request, long createdBy)
         {
             var insertRoleQuery = $@"
-                INSERT INTO {Table.SysAdminRoles} (c_role_code, c_role_name, c_description, c_color, c_is_system_role, c_created_by)
+                INSERT INTO {Table.SysAdminRoles} (c_role_code, c_role_name, c_description, c_color, c_is_system_role, c_createdby)
                 VALUES (@RoleCode, @RoleName, @Description, @Color, 0, @CreatedBy);
                 SELECT CAST(SCOPE_IDENTITY() as bigint);";
 

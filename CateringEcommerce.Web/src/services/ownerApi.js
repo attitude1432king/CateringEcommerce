@@ -1,6 +1,16 @@
 ﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
-import { fetchApi, fileToBase64Dto } from './apiUtils';
+import { fetchApi } from './apiUtils';
+
+// Helper: append all scalar/array fields to FormData (skips File/Blob values)
+function appendFields(fd, obj) {
+    Object.entries(obj).forEach(([key, val]) => {
+        if (val === null || val === undefined) return;
+        if (val instanceof File || val instanceof Blob) return;
+        if (Array.isArray(val)) val.forEach(v => fd.append(key, String(v)));
+        else fd.append(key, String(val));
+    });
+}
 
 export const ownerApiService = {
     /**
@@ -13,7 +23,18 @@ export const ownerApiService = {
         return imageExtensions.includes(type.toLowerCase());
     },
 
-    registerOwner: async (formData) => fetchApi(`/Auth/Owner/Register`, 'POST', formData),
+    registerOwner: async (formData) => {
+        const { cateringLogo, fssaiCertificate, gstCertificate, panCard, signature, chequeCopy, ...rest } = formData;
+        const fd = new FormData();
+        fd.append('JsonData', JSON.stringify(rest));
+        if (cateringLogo) fd.append('CateringLogo', cateringLogo);
+        if (fssaiCertificate) fd.append('FssaiCertificate', fssaiCertificate);
+        if (gstCertificate) fd.append('GstCertificate', gstCertificate);
+        if (panCard) fd.append('PanCard', panCard);
+        if (signature) fd.append('Signature', signature);
+        if (chequeCopy) fd.append('ChequeCopy', chequeCopy);
+        return fetchApi(`/Auth/Owner/Register`, 'POST', fd);
+    },
 
     uploadOwnerFiles: async (ownerId, uploadedFiles) => fetchApi(`/Auth/Owner/UploadMedia?ownerId=${ownerId}`, 'POST', uploadedFiles),
 
@@ -54,37 +75,28 @@ export const ownerApiService = {
     getOwnerProfile: async () => fetchApi('/Owner/Profile/GetProfileDetails'),
 
     updateBusinessSettings: async (businessData) => {
-        const payload = { ...businessData };
-        if (businessData.newLogoFile) {
-            payload.newLogoFile = await fileToBase64Dto(businessData.newLogoFile);
-        }
-       return fetchApi('/Owner/Profile/UpdateBusiness', 'POST', payload);
+        const { newLogoFile, ...rest } = businessData;
+        const fd = new FormData();
+        appendFields(fd, rest);
+        if (newLogoFile) fd.append('NewLogoFile', newLogoFile);
+        return fetchApi('/Owner/Profile/UpdateBusiness', 'POST', fd);
     },
 
     updateAddressSettings: async (addressData) => fetchApi('/Owner/Profile/UpdateAddress', 'POST', addressData),
 
     updateServicesSettings: async (servicesData) => {
-        const payload = JSON.parse(JSON.stringify(servicesData)); // Deep copy to handle complex objects
-
-        if (servicesData.kitchenMedia) {
-            const newMediaFiles = [];
-
-            for (const media of servicesData.kitchenMedia) {
-                if (media.fileObject) {
-                    newMediaFiles.push(media.fileObject);
-                }
-            }
-
-            payload.existingMediaPaths = servicesData.kitchenMedia
+        const { kitchenMedia, ...rest } = servicesData;
+        const fd = new FormData();
+        appendFields(fd, rest);
+        if (kitchenMedia) {
+            kitchenMedia
                 .filter(item => item.filePath && !item.fileObject)
-                .map(item => item.filePath);
-            payload.newKitchenMediaFiles = await Promise.all(
-                newMediaFiles.map(file => fileToBase64Dto(file))
-            );
-            delete payload.kitchenMedia;
+                .forEach(item => fd.append('ExistingMediaPaths', item.filePath));
+            kitchenMedia
+                .filter(item => item.fileObject)
+                .forEach(item => fd.append('NewKitchenMediaFiles', item.fileObject));
         }
-
-        return fetchApi('/Owner/Profile/UpdateServices', 'POST', payload);
+        return fetchApi('/Owner/Profile/UpdateServices', 'POST', fd);
     },
 
     updateLegalPaymentSettings: async (legalData) => fetchApi('/Owner/Profile/UpdateLegal', 'POST', legalData),
@@ -113,50 +125,24 @@ export const ownerApiService = {
         getCuisines: async () => fetchApi('/Owner/Menu/FoodItem/GetCuisineType'), 
 
         addFoodItem: async (itemData) => {
-
-            const payload = JSON.parse(JSON.stringify(itemData)); // Deep copy to handle complex objects
-
-            if (itemData.media) {
-                const newMediaFiles = [];
-
-                for (const media of itemData.media) {
-                    if (media.fileObject) {
-                        newMediaFiles.push(media.fileObject);
-                    }
-                }
-
-                payload.foodItemMediaFiles = await Promise.all(
-                    newMediaFiles.map(file => fileToBase64Dto(file))
-                );
-                delete payload.media;
+            const { media, ...rest } = itemData;
+            const fd = new FormData();
+            appendFields(fd, rest);
+            if (media) {
+                media.filter(m => m.fileObject).forEach(m => fd.append('FoodItemMediaFiles', m.fileObject));
             }
-
-            return fetchApi('/Owner/Menu/FoodItem/Create', 'POST', payload);
+            return fetchApi('/Owner/Menu/FoodItem/Create', 'POST', fd);
         },
 
         updateFoodItem: async (itemData) => {
-
-            const payload = JSON.parse(JSON.stringify(itemData)); // Deep copy to handle complex objects
-
-            if (itemData.media) {
-                const newMediaFiles = [];
-
-                for (const media of itemData.media) {
-                    if (media.fileObject) {
-                        newMediaFiles.push(media.fileObject);
-                    }
-                }
-
-                payload.existingFoodItemMediaPaths = itemData.media
-                    .filter(item => item.filePath && !item.fileObject)
-                    .map(item => item.filePath);
-                payload.foodItemMediaFiles = await Promise.all(
-                    newMediaFiles.map(file => fileToBase64Dto(file))
-                );
-                delete payload.media;
+            const { media, ...rest } = itemData;
+            const fd = new FormData();
+            appendFields(fd, rest);
+            if (media) {
+                media.filter(m => m.filePath && !m.fileObject).forEach(m => fd.append('ExistingFoodItemMediaPaths', m.filePath));
+                media.filter(m => m.fileObject).forEach(m => fd.append('FoodItemMediaFiles', m.fileObject));
             }
-
-            return fetchApi('/Owner/Menu/FoodItem/Udpate', 'POST', payload);
+            return fetchApi('/Owner/Menu/FoodItem/Udpate', 'POST', fd);
         },
 
         deleteFoodItem: async (itemId) => fetchApi('/Owner/Menu/FoodItem/Delete', 'POST', itemId),
@@ -177,49 +163,24 @@ export const ownerApiService = {
         getDecorations: async (currentPage, itemsPerPage, filterJson) => fetchApi(`/Owner/Decorations/Data?page=${currentPage}&pageSize=${itemsPerPage}&filterJson=${filterJson}`),
 
         addDecorations: async (itemData) => {
-
-            const payload = JSON.parse(JSON.stringify(itemData)); // Deep copy to handle complex objects
-
-            if (itemData.media) {
-                const newMediaFiles = [];
-
-                for (const media of itemData.media) {
-                    if (media.fileObject) {
-                        newMediaFiles.push(media.fileObject);
-                    }
-                }
-
-                payload.DecorationsMediaFiles = await Promise.all(
-                    newMediaFiles.map(file => fileToBase64Dto(file))
-                );
-                delete payload.media;
+            const { media, ...rest } = itemData;
+            const fd = new FormData();
+            appendFields(fd, rest);
+            if (media) {
+                media.filter(m => m.fileObject).forEach(m => fd.append('DecorationsMediaFiles', m.fileObject));
             }
-
-            return fetchApi('/Owner/Decorations/Create', 'POST', payload);
+            return fetchApi('/Owner/Decorations/Create', 'POST', fd);
         },
 
         updateDecorations: async (itemData) => {
-
-            const payload = JSON.parse(JSON.stringify(itemData)); // Deep copy to handle complex objects
-
-            if (itemData.media) {
-                const newMediaFiles = [];
-
-                for (const media of itemData.media) {
-                    if (media.fileObject) {
-                        newMediaFiles.push(media.fileObject);
-                    }
-                }
-                payload.existingDecorationsMediaPaths = itemData.media
-                    .filter(item => item.filePath && !item.fileObject)
-                    .map(item => item.filePath);
-                payload.DecorationsMediaFiles = await Promise.all(
-                    newMediaFiles.map(file => fileToBase64Dto(file))
-                );
-                delete payload.media;
+            const { media, ...rest } = itemData;
+            const fd = new FormData();
+            appendFields(fd, rest);
+            if (media) {
+                media.filter(m => m.filePath && !m.fileObject).forEach(m => fd.append('ExistingDecorationsMediaPaths', m.filePath));
+                media.filter(m => m.fileObject).forEach(m => fd.append('DecorationsMediaFiles', m.fileObject));
             }
-
-            return fetchApi('/Owner/Decorations/Udpate', 'POST', payload);
+            return fetchApi('/Owner/Decorations/Udpate', 'POST', fd);
         },
 
         deleteDecorations: async (itemId) => fetchApi('/Owner/Decorations/Delete', 'POST', itemId),
@@ -233,92 +194,23 @@ export const ownerApiService = {
         getStaffList: async (currentPage, itemsPerPage, filterJson) => fetchApi(`/Owner/Staff/Data?page=${currentPage}&pageSize=${itemsPerPage}&filterJson=${filterJson}`),
 
         createStaffMember: async (staffData) => {
-            // Deep copy input data (avoid mutation)
-            const payload = JSON.parse(JSON.stringify(staffData));
-
-            // Handle file uploads
-            const fileConversions = [];
-
-            // Photo upload
-            if (staffData.photo.length > 0 && staffData.photo[0].fileObject) {
-                fileConversions.push(
-                    fileToBase64Dto(staffData.photo[0].fileObject).then(base64 => {
-                        payload.profile = base64;
-                    })
-                );
-                delete payload.photo;
-            }
-
-            // ID Proof upload
-            if (staffData.idProof.length > 0 && staffData.idProof[0].fileObject) {
-                fileConversions.push(
-                    fileToBase64Dto(staffData.idProof[0].fileObject).then(base64 => {
-                        payload.identityDocument = base64;
-                    })
-                );
-                delete payload.idProof;
-            }
-
-            // Resume upload
-            if (staffData.resume.length > 0 && staffData.resume[0].fileObject) {
-                fileConversions.push(
-                    fileToBase64Dto(staffData.resume[0].fileObject).then(base64 => {
-                        payload.resumeDocument = base64;
-                    })
-                );
-                delete payload.resume;
-            }
-
-            // Wait for all file conversions to complete
-            await Promise.all(fileConversions);
-
-            // Make API call
-            return fetchApi('/Owner/Staff/Create', 'POST', payload);
+            const { photo, idProof, resume, ...rest } = staffData;
+            const fd = new FormData();
+            fd.append('JsonData', JSON.stringify(rest));
+            if (photo?.[0]?.fileObject) fd.append('Profile', photo[0].fileObject);
+            if (idProof?.[0]?.fileObject) fd.append('IdentityDocument', idProof[0].fileObject);
+            if (resume?.[0]?.fileObject) fd.append('ResumeDocument', resume[0].fileObject);
+            return fetchApi('/Owner/Staff/Create', 'POST', fd);
         },
 
         updateStaffMember: async (staffData, filesToDelete = []) => {
-            const payload = JSON.parse(JSON.stringify(staffData));
-
-            // Handle file uploads
-            const fileConversions = [];
-
-            // Photo upload
-            if (staffData.photo.length > 0 && staffData.photo[0].fileObject) {
-                fileConversions.push(
-                    fileToBase64Dto(staffData.photo[0].fileObject).then(base64 => {
-                        payload.profile = base64;
-                    })
-                );
-                delete payload.photo;
-            }
-
-            // ID Proof upload
-            if (staffData.idProof.length > 0 && staffData.idProof[0].fileObject) {
-                fileConversions.push(
-                    fileToBase64Dto(staffData.idProof[0].fileObject).then(base64 => {
-                        payload.identityDocument = base64;
-                    })
-                );
-                delete payload.idProof;
-            }
-
-            // Resume upload
-            if (staffData.resume.length > 0 && staffData.resume[0].fileObject) {
-                fileConversions.push(
-                    fileToBase64Dto(staffData.resume[0].fileObject).then(base64 => {
-                        payload.resumeDocument = base64;
-                    })
-                );
-                delete payload.resume;
-            }
-
-            payload.filesToDelete = filesToDelete;
-
-            // Wait for all file conversions to complete
-            await Promise.all(fileConversions);
-
-            // Make API call
-            return fetchApi('/Owner/Staff/Update', 'POST', payload);
+            const { photo, idProof, resume, ...rest } = staffData;
+            const fd = new FormData();
+            fd.append('JsonData', JSON.stringify({ ...rest, filesToDelete }));
+            if (photo?.[0]?.fileObject) fd.append('Profile', photo[0].fileObject);
+            if (idProof?.[0]?.fileObject) fd.append('IdentityDocument', idProof[0].fileObject);
+            if (resume?.[0]?.fileObject) fd.append('ResumeDocument', resume[0].fileObject);
+            return fetchApi('/Owner/Staff/Update', 'POST', fd);
         },
 
         deleteStaffMember: async (itemId) => fetchApi('/Owner/Staff/Delete', 'POST', itemId),
@@ -352,9 +244,21 @@ export const ownerApiService = {
 
         getBannersList: async (currentPage, itemsPerPage, filterJson) => fetchApi(`/Owner/Banners/Data?page=${currentPage}&pageSize=${itemsPerPage}&filterJson=${filterJson}`),
 
-        createBanner: async (bannerData) => fetchApi('/Owner/Banners/Create', 'POST', bannerData),
+        createBanner: async (bannerData) => {
+            const { bannerImage, ...rest } = bannerData;
+            const fd = new FormData();
+            appendFields(fd, rest);
+            if (bannerImage) fd.append('BannerImage', bannerImage);
+            return fetchApi('/Owner/Banners/Create', 'POST', fd);
+        },
 
-        updateBanner: async (bannerData) => fetchApi('/Owner/Banners/Update', 'POST', bannerData),
+        updateBanner: async (bannerData) => {
+            const { bannerImage, ...rest } = bannerData;
+            const fd = new FormData();
+            appendFields(fd, rest);
+            if (bannerImage) fd.append('BannerImage', bannerImage);
+            return fetchApi('/Owner/Banners/Update', 'POST', fd);
+        },
 
         deleteBanner: async (bannerId) => fetchApi('/Owner/Banners/Delete', 'POST', bannerId),
 
@@ -408,6 +312,14 @@ export const ownerApiService = {
 
         // Get booking request statistics (today/week/month)
         getBookingRequestStats: async () => fetchApi('/Owner/OwnerOrders/booking-request-stats'),
+
+        // Get paginated sample tasting requests list
+        getSampleRequestsList: async (page = 1, pageSize = 20, filters = {}) =>
+            fetchApi('/Owner/OwnerOrders/sample-list', 'POST', { page, pageSize, ...filters }),
+
+        // Accept or Reject a sample tasting request
+        actionSampleRequest: async (sampleOrderId, actionData) =>
+            fetchApi(`/Owner/OwnerOrders/sample/${sampleOrderId}/action`, 'PUT', actionData),
 
     // ===================================
     // Customer Management APIs

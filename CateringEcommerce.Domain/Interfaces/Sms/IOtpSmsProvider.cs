@@ -2,10 +2,10 @@ namespace CateringEcommerce.Domain.Interfaces.Sms
 {
     /// <summary>
     /// Abstraction for SMS OTP delivery providers.
-    /// Implementations are pure delivery mechanisms — OTP lifecycle (generation,
-    /// hashing, expiry, rate-limiting) is the responsibility of the caller.
+    /// Only used for authentication OTP flows (User, Admin, Partner, Supervisor, Password Reset).
+    /// OTP lifecycle (generation, hashing, expiry, rate-limiting) is the caller's responsibility.
     /// </summary>
-    public interface ISmsOtpProvider
+    public interface IOtpSmsProvider
     {
         string ProviderName { get; }
 

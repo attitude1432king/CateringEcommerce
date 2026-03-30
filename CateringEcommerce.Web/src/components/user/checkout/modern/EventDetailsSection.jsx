@@ -1,5 +1,6 @@
 import React from 'react';
 import { getEventTypeDisplay, formatEventDate, formatEventTime } from '../../../../utils/checkoutValidator';
+import { useAppSettings } from '../../../../contexts/AppSettingsContext';
 
 const eventTypes = [
   { value: 'wedding', label: 'Wedding' },
@@ -11,7 +12,12 @@ const eventTypes = [
   { value: 'other', label: 'Other Event' }
 ];
 
-const getTodayDate = () => new Date().toISOString().split('T')[0];
+const getMinBookingDate = (minAdvanceBookingDays) => {
+  const minDate = new Date();
+  minDate.setHours(0, 0, 0, 0);
+  minDate.setDate(minDate.getDate() + minAdvanceBookingDays);
+  return minDate.toISOString().split('T')[0];
+};
 
 const StepHeader = ({ stepNumber, title, subtitle, isActive, isCompleted, onEdit }) => (
   <div className="flex items-center justify-between mb-5">
@@ -42,6 +48,8 @@ const EventDetailsSection = ({
   onComplete,
   onEdit
 }) => {
+  const { getInt } = useAppSettings();
+  const minAdvanceBookingDays = getInt('BUSINESS.MIN_ADVANCE_BOOKING_DAYS', 5);
   const updateAddressField = (field, value) => {
     updateCheckoutData('eventAddress', {
       ...checkoutData.eventAddress,
@@ -98,7 +106,7 @@ const EventDetailsSection = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">Event Date *</label>
               <input
                 type="date"
-                min={getTodayDate()}
+                min={getMinBookingDate(minAdvanceBookingDays)}
                 value={checkoutData.eventDate || ''}
                 onChange={(e) => updateCheckoutData('eventDate', e.target.value)}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent ${errors.eventDate ? 'border-red-500' : 'border-gray-300'}`}

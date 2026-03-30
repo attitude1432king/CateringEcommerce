@@ -23,6 +23,9 @@ CREATE OR ALTER PROCEDURE sp_SubmitSupervisorRegistration
     @DateOfBirth DATE,
     @IDProofType VARCHAR(20),
     @IDProofNumber VARCHAR(50),
+    @IDProofUrl NVARCHAR(500) = NULL,
+    @AddressProofUrl NVARCHAR(500) = NULL,
+    @PhotoUrl NVARCHAR(500) = NULL,
     @HasPriorExperience BIT,
     @PriorExperienceDetails NVARCHAR(500) = NULL,
     @RegistrationId BIGINT OUTPUT
@@ -80,10 +83,63 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT r.*, s.c_full_name, s.c_email, s.c_phone, s.c_date_of_birth,
-           s.c_identity_type, s.c_identity_number, s.c_identity_proof_url,
-           s.c_photo_url, s.c_current_status, s.c_authority_level,
-           s.c_address_line1, s.c_supervisor_type
+    SELECT
+        r.c_registration_id                 AS RegistrationId,
+        r.c_supervisor_id                   AS SupervisorId,
+        r.c_registration_number             AS RegistrationNumber,
+        r.c_registered_date                 AS RegisteredDate,
+        r.c_source                          AS Source,
+        r.c_referral_code                   AS ReferralCode,
+        -- Document Verification
+        r.c_document_verification_status    AS DocumentVerificationStatus,
+        r.c_document_verified_by            AS DocumentVerifiedBy,
+        r.c_document_verified_date          AS DocumentVerifiedDate,
+        r.c_document_rejection_reason       AS DocumentRejectionReason,
+        -- Interview
+        r.c_interview_scheduled             AS InterviewScheduled,
+        r.c_interview_date                  AS InterviewDate,
+        r.c_interview_mode                  AS InterviewMode,
+        r.c_interviewer_id                  AS InterviewerId,
+        r.c_interview_completed             AS InterviewCompleted,
+        r.c_interview_notes                 AS InterviewNotes,
+        r.c_interview_result                AS InterviewResult,
+        -- Training
+        r.c_training_module_assigned        AS TrainingModuleAssigned,
+        r.c_training_started_date           AS TrainingStartedDate,
+        r.c_training_completed_date         AS TrainingCompletedDate,
+        r.c_training_completion_percentage  AS TrainingCompletionPercentage,
+        r.c_training_passed                 AS TrainingPassed,
+        -- Certification
+        r.c_certification_test_assigned     AS CertificationTestAssigned,
+        r.c_certification_test_date         AS CertificationTestDate,
+        r.c_certification_test_score        AS CertificationTestScore,
+        r.c_certification_test_passed       AS CertificationTestPassed,
+        r.c_certification_certificate_url   AS CertificationCertificateUrl,
+        -- Activation
+        r.c_activation_status               AS ActivationStatus,
+        r.c_activated_date                  AS ActivatedDate,
+        r.c_activated_by                    AS ActivatedBy,
+        r.c_rejection_reason                AS RejectionReason,
+        -- Banking
+        r.c_bank_details_submitted          AS BankDetailsSubmitted,
+        r.c_bank_details_verified           AS BankDetailsVerified,
+        r.c_bank_verification_date          AS BankVerificationDate,
+        -- Audit
+        r.c_createddate                     AS CreatedDate,
+        r.c_modifieddate                    AS ModifiedDate,
+        -- From supervisor table
+        s.c_full_name                       AS FullName,
+        s.c_email                           AS Email,
+        s.c_phone                           AS Phone,
+        s.c_date_of_birth                   AS DateOfBirth,
+        s.c_identity_type                   AS IdentityType,
+        s.c_identity_number                 AS IdentityNumber,
+        s.c_identity_proof_url              AS IDProofUrl,
+        s.c_photo_url                       AS PhotoUrl,
+        s.c_current_status                  AS CurrentStatus,
+        s.c_authority_level                 AS AuthorityLevel,
+        s.c_address_line1                   AS Address,
+        s.c_supervisor_type                 AS SupervisorType
     FROM t_sys_supervisor_registration r
     INNER JOIN t_sys_supervisor s ON r.c_supervisor_id = s.c_supervisor_id
     WHERE r.c_registration_id = @RegistrationId;
@@ -96,10 +152,63 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT r.*, s.c_full_name, s.c_email, s.c_phone, s.c_date_of_birth,
-           s.c_identity_type, s.c_identity_number, s.c_identity_proof_url,
-           s.c_photo_url, s.c_current_status, s.c_authority_level,
-           s.c_address_line1, s.c_supervisor_type
+    SELECT
+        r.c_registration_id                 AS RegistrationId,
+        r.c_supervisor_id                   AS SupervisorId,
+        r.c_registration_number             AS RegistrationNumber,
+        r.c_registered_date                 AS RegisteredDate,
+        r.c_source                          AS Source,
+        r.c_referral_code                   AS ReferralCode,
+        -- Document Verification
+        r.c_document_verification_status    AS DocumentVerificationStatus,
+        r.c_document_verified_by            AS DocumentVerifiedBy,
+        r.c_document_verified_date          AS DocumentVerifiedDate,
+        r.c_document_rejection_reason       AS DocumentRejectionReason,
+        -- Interview
+        r.c_interview_scheduled             AS InterviewScheduled,
+        r.c_interview_date                  AS InterviewDate,
+        r.c_interview_mode                  AS InterviewMode,
+        r.c_interviewer_id                  AS InterviewerId,
+        r.c_interview_completed             AS InterviewCompleted,
+        r.c_interview_notes                 AS InterviewNotes,
+        r.c_interview_result                AS InterviewResult,
+        -- Training
+        r.c_training_module_assigned        AS TrainingModuleAssigned,
+        r.c_training_started_date           AS TrainingStartedDate,
+        r.c_training_completed_date         AS TrainingCompletedDate,
+        r.c_training_completion_percentage  AS TrainingCompletionPercentage,
+        r.c_training_passed                 AS TrainingPassed,
+        -- Certification
+        r.c_certification_test_assigned     AS CertificationTestAssigned,
+        r.c_certification_test_date         AS CertificationTestDate,
+        r.c_certification_test_score        AS CertificationTestScore,
+        r.c_certification_test_passed       AS CertificationTestPassed,
+        r.c_certification_certificate_url   AS CertificationCertificateUrl,
+        -- Activation
+        r.c_activation_status               AS ActivationStatus,
+        r.c_activated_date                  AS ActivatedDate,
+        r.c_activated_by                    AS ActivatedBy,
+        r.c_rejection_reason                AS RejectionReason,
+        -- Banking
+        r.c_bank_details_submitted          AS BankDetailsSubmitted,
+        r.c_bank_details_verified           AS BankDetailsVerified,
+        r.c_bank_verification_date          AS BankVerificationDate,
+        -- Audit
+        r.c_createddate                     AS CreatedDate,
+        r.c_modifieddate                    AS ModifiedDate,
+        -- From supervisor table
+        s.c_full_name                       AS FullName,
+        s.c_email                           AS Email,
+        s.c_phone                           AS Phone,
+        s.c_date_of_birth                   AS DateOfBirth,
+        s.c_identity_type                   AS IdentityType,
+        s.c_identity_number                 AS IdentityNumber,
+        s.c_identity_proof_url              AS IDProofUrl,
+        s.c_photo_url                       AS PhotoUrl,
+        s.c_current_status                  AS CurrentStatus,
+        s.c_authority_level                 AS AuthorityLevel,
+        s.c_address_line1                   AS Address,
+        s.c_supervisor_type                 AS SupervisorType
     FROM t_sys_supervisor_registration r
     INNER JOIN t_sys_supervisor s ON r.c_supervisor_id = s.c_supervisor_id
     WHERE r.c_supervisor_id = @SupervisorId;
@@ -129,7 +238,7 @@ BEGIN
     SET s.c_current_status = 'REJECTED',
         s.c_status_reason = @Reason,
         s.c_modifieddate = GETDATE(),
-        s.c_modified_by = @RejectedBy
+        s.c_modifiedby = @RejectedBy
     FROM t_sys_supervisor s
     INNER JOIN t_sys_supervisor_registration r ON s.c_supervisor_id = r.c_supervisor_id
     WHERE r.c_registration_id = @RegistrationId;
@@ -184,6 +293,7 @@ BEGIN
 
     UPDATE t_sys_supervisor_registration
     SET c_document_verification_status = CASE WHEN @Passed = 1 THEN 'VERIFIED' ELSE 'REJECTED' END,
+        c_doc_verification_status       = CASE WHEN @Passed = 1 THEN 'VERIFIED' ELSE 'REJECTED' END,
         c_document_verified_by = @VerifiedBy,
         c_document_verified_date = GETDATE(),
         c_document_rejection_reason = CASE WHEN @Passed = 0 THEN @VerificationNotes ELSE NULL END,
@@ -449,6 +559,8 @@ BEGIN
         c_bank_name = @BankName,
         c_bank_account_number = @AccountNumber,
         c_bank_ifsc = @IFSCCode,
+        c_bank_branch_name = @BranchName,
+        c_bank_account_type = @AccountType,
         c_modifieddate = GETDATE()
     WHERE c_supervisor_id = @SupervisorId;
 
@@ -473,9 +585,9 @@ BEGIN
            c_bank_name AS BankName,
            c_bank_account_number AS AccountNumber,
            c_bank_ifsc AS IFSCCode,
-           '' AS BranchName,
-           '' AS AccountType,
-           '' AS CancelledChequeUrl
+           ISNULL(c_bank_branch_name, '') AS BranchName,
+           ISNULL(c_bank_account_type, '') AS AccountType,
+           ISNULL(c_cancelled_cheque_url, '') AS CancelledChequeUrl
     FROM t_sys_supervisor
     WHERE c_supervisor_id = @SupervisorId;
 END
@@ -507,7 +619,7 @@ BEGIN
         SET s.c_current_status = 'ACTIVE',
             s.c_is_available = 1,
             s.c_modifieddate = GETDATE(),
-            s.c_modified_by = @ActivatedBy
+            s.c_modifiedby = @ActivatedBy
         FROM t_sys_supervisor s
         INNER JOIN t_sys_supervisor_registration r ON s.c_supervisor_id = r.c_supervisor_id
         WHERE r.c_registration_id = @RegistrationId;

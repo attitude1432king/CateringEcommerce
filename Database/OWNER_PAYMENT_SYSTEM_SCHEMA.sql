@@ -52,7 +52,7 @@ BEGIN
         -- Audit
         c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
         c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_created_by BIGINT NULL,
+        c_createdby BIGINT NULL,
         c_updated_by BIGINT NULL,
 
         -- Foreign keys
@@ -106,7 +106,7 @@ BEGIN
         -- Audit
         c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
         c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_created_by BIGINT NULL,
+        c_createdby BIGINT NULL,
         c_updated_by BIGINT NULL,
 
         -- Foreign key

@@ -538,9 +538,9 @@ BEGIN
 
         -- Audit
         c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
-        c_created_by BIGINT NULL,
+        c_createdby BIGINT NULL,
         c_modifieddate DATETIME NULL,
-        c_modified_by BIGINT NULL,
+        c_modifiedby BIGINT NULL,
 
         INDEX idx_priority (c_priority),
         INDEX idx_is_active (c_is_active)

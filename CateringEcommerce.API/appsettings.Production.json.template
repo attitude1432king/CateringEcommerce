@@ -14,8 +14,11 @@
   "ConnectionStrings": {
     "DefaultConnection": "${DATABASE_CONNECTION_STRING}"
   },
-  "SMS": {
-    "Provider": "${SMS_PROVIDER:MSG91}"
+  "AwsSns": {
+    "AccessKey": "${AWS_SNS_ACCESS_KEY}",
+    "SecretKey": "${AWS_SNS_SECRET_KEY}",
+    "Region": "${AWS_SNS_REGION:ap-south-1}",
+    "SenderId": "${AWS_SNS_SENDER_ID:ENYVORA}"
   },
   "AllowedHosts": "${ALLOWED_HOSTS:*}",
 
@@ -30,7 +33,10 @@
 
   "REQUIRED_ENVIRONMENT_VARIABLES": {
     "DATABASE_CONNECTION_STRING": "Full SQL Server connection string with credentials",
-    "SMS_PROVIDER": "MSG91 or TWILIO (optional, defaults to MSG91)",
+    "AWS_SNS_ACCESS_KEY": "AWS IAM Access Key ID for SNS SMS",
+    "AWS_SNS_SECRET_KEY": "AWS IAM Secret Access Key for SNS SMS",
+    "AWS_SNS_REGION": "AWS region (optional, defaults to ap-south-1)",
+    "AWS_SNS_SENDER_ID": "SMS Sender ID (optional, defaults to ENYVORA)",
     "ALLOWED_HOSTS": "Comma-separated list of allowed hosts (optional, defaults to *)"
   },
 
@@ -48,10 +54,11 @@
     "PAYMENT.RAZORPAY_KEY_ID - Razorpay production API key ID",
     "PAYMENT.RAZORPAY_KEY_SECRET - Razorpay production secret (marked as ENCRYPTED)",
     "PAYMENT.RAZORPAY_WEBHOOK_SECRET - Razorpay webhook secret (marked as ENCRYPTED)",
-    "TWILIO.ACCOUNT_SID - Twilio account SID (if using Twilio for SMS)",
-    "TWILIO.AUTH_TOKEN - Twilio auth token (if using Twilio)",
-    "TWILIO.VERIFY_SERVICE_SID - Twilio Verify service SID for OTP",
-    "MSG91.AUTH_KEY - MSG91 API key (if using MSG91 for SMS)",
+    "AWS_SNS.ACCESS_KEY - AWS SNS IAM Access Key (for order/system SMS notifications)",
+    "AWS_SNS.SECRET_KEY - AWS SNS IAM Secret Key",
+    "AWS_SNS.REGION - AWS SNS region (default: ap-south-1)",
+    "AWS_SNS.SENDER_ID - SMS Sender ID (default: ENYVORA)",
+    "MSG91.AUTH_KEY - MSG91 API key (OTP authentication only)",
     "MSG91.SENDER_ID - MSG91 sender ID",
     "MSG91.TEMPLATE_ID - MSG91 OTP template ID",
     "RABBITMQ.* - RabbitMQ connection settings (if enabled)",

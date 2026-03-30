@@ -61,6 +61,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public int[]? CuisineTypeIds { get; set; }
         public int[]? ServiceTypeIds { get; set; }
         public int MinOrderValue { get; set; }
+        public int DailyBookingCapacity { get; set; }
         public int[]? EventTypeIds { get; set; }
         public int[]? FoodTypeIds { get; set; }
         public int[]? ServingSlots { get; set; } // JSON string of available time slots

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import AdminLayout from '../../../components/admin/layout/AdminLayout';
 import MasterDataGrid from '../../../components/admin/masterdata/MasterDataGrid';
 import MasterDataForm from '../../../components/admin/masterdata/MasterDataForm';
 import { masterDataApi } from '../../../services/masterDataApi';
@@ -209,7 +210,13 @@ const CityManagement = () => {
     );
 
     return (
-        <div>
+        <AdminLayout>
+            <nav className="text-xs text-gray-400 mb-4 flex items-center gap-1.5">
+                <span>Dashboard</span><span>/</span>
+                <span>Master Data</span><span>/</span>
+                <span className="text-gray-700 font-medium">Cities</span>
+            </nav>
+
             {/* Header with Create Button */}
             <div className="mb-6 flex items-center justify-between">
                 <div>
@@ -254,7 +261,7 @@ const CityManagement = () => {
                 fields={formFields}
                 loading={formLoading}
             />
-        </div>
+        </AdminLayout>
     );
 };
 

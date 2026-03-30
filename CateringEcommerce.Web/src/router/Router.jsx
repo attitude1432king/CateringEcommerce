@@ -35,6 +35,25 @@ import TrustedDevicesPage from '../pages/TrustedDevicesPage';
 import AdminRoutes from './AdminRoutes';
 import SupervisorRoutes from './SupervisorRoutes';
 import { SupervisorAuthProvider } from '../contexts/SupervisorAuthContext';
+import { lazy, Suspense } from 'react';
+
+// Static header nav pages (lazy loaded)
+const EventsPage = lazy(() => import('../pages/static/EventsPage'));
+const CorporatePage = lazy(() => import('../pages/static/CorporatePage'));
+
+// Static footer pages (lazy loaded)
+const AboutUs = lazy(() => import('../pages/static/AboutUs'));
+const Blog = lazy(() => import('../pages/static/Blog'));
+const Careers = lazy(() => import('../pages/static/Careers'));
+const PressKit = lazy(() => import('../pages/static/PressKit'));
+const BecomePartner = lazy(() => import('../pages/static/BecomePartner'));
+const PartnerDashboardInfo = lazy(() => import('../pages/static/PartnerDashboardInfo'));
+const PartnerSupport = lazy(() => import('../pages/static/PartnerSupport'));
+const GrowthResources = lazy(() => import('../pages/static/GrowthResources'));
+const HelpCenter = lazy(() => import('../pages/static/HelpCenter'));
+const ContactUs = lazy(() => import('../pages/static/ContactUs'));
+const TermsConditions = lazy(() => import('../pages/static/TermsConditions'));
+const PrivacyPolicy = lazy(() => import('../pages/static/PrivacyPolicy'));
 
 // Wrapper for routes only accessible to logged-in clients
 const ClientProtectedRoute = () => {
@@ -59,6 +78,24 @@ export default function Router() {
                     <Route path="caterings/:id" element={<CateringDetailPage />} />
                     <Route path="cart" element={<CartPage />} />
                     <Route path="partner-registration" element={<OwnerRegistrationPage />} />
+
+                    {/* Static header nav pages */}
+                    <Route path="events" element={<Suspense fallback={null}><EventsPage /></Suspense>} />
+                    <Route path="corporate" element={<Suspense fallback={null}><CorporatePage /></Suspense>} />
+
+                    {/* Static footer pages */}
+                    <Route path="about-us" element={<Suspense fallback={null}><AboutUs /></Suspense>} />
+                    <Route path="blog" element={<Suspense fallback={null}><Blog /></Suspense>} />
+                    <Route path="careers" element={<Suspense fallback={null}><Careers /></Suspense>} />
+                    <Route path="press-kit" element={<Suspense fallback={null}><PressKit /></Suspense>} />
+                    <Route path="become-partner" element={<Suspense fallback={null}><BecomePartner /></Suspense>} />
+                    <Route path="partner-dashboard" element={<Suspense fallback={null}><PartnerDashboardInfo /></Suspense>} />
+                    <Route path="partner-support" element={<Suspense fallback={null}><PartnerSupport /></Suspense>} />
+                    <Route path="growth-resources" element={<Suspense fallback={null}><GrowthResources /></Suspense>} />
+                    <Route path="help-center" element={<Suspense fallback={null}><HelpCenter /></Suspense>} />
+                    <Route path="contact-us" element={<Suspense fallback={null}><ContactUs /></Suspense>} />
+                    <Route path="terms-and-conditions" element={<Suspense fallback={null}><TermsConditions /></Suspense>} />
+                    <Route path="privacy-policy" element={<Suspense fallback={null}><PrivacyPolicy /></Suspense>} />
 
                     <Route element={<ClientProtectedRoute />}>
                         <Route path="profile" element={<MyProfilePage />} />

@@ -236,5 +236,76 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                 return StatusCode(500, ApiResponseHelper.Failure("An error occurred while retrieving order statistics."));
             }
         }
+
+        /// <summary>
+        /// Get paginated sample tasting requests for this owner
+        /// </summary>
+        [HttpPost("sample-list")]
+        public async Task<IActionResult> GetSampleRequestsList([FromBody] SampleListFilterDto filter)
+        {
+            try
+            {
+                long ownerId = _currentUser.UserId;
+                if (ownerId <= 0)
+                    return ApiResponseHelper.Failure("Owner not authenticated.");
+
+                _logger.LogInformation($"Getting sample requests for owner {ownerId}, page: {filter.Page}");
+
+                var result = await _ownerOrderRepository.GetSampleRequestsList(
+                    ownerId, filter.Page, filter.PageSize, filter.StatusFilter, filter.SearchTerm);
+
+                return ApiResponseHelper.Success(result, "Sample requests retrieved successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting sample requests list");
+                return StatusCode(500, ApiResponseHelper.Failure("An error occurred while retrieving sample requests."));
+            }
+        }
+
+        /// <summary>
+        /// Accept or Reject a sample tasting request
+        /// </summary>
+        [HttpPut("sample/{sampleOrderId}/action")]
+        public async Task<IActionResult> ActionSampleRequest(long sampleOrderId, [FromBody] SampleRequestActionDto action)
+        {
+            try
+            {
+                long ownerId = _currentUser.UserId;
+                if (ownerId <= 0)
+                    return ApiResponseHelper.Failure("Owner not authenticated.");
+
+                if (string.IsNullOrEmpty(action.Action) ||
+                    (!action.Action.Equals("Accept", StringComparison.OrdinalIgnoreCase) &&
+                     !action.Action.Equals("Reject", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return ApiResponseHelper.Failure("Action must be 'Accept' or 'Reject'.");
+                }
+
+                if (action.Action.Equals("Reject", StringComparison.OrdinalIgnoreCase) &&
+                    string.IsNullOrWhiteSpace(action.RejectionReason))
+                {
+                    return ApiResponseHelper.Failure("Rejection reason is required.");
+                }
+
+                _logger.LogInformation($"Owner {ownerId} performing '{action.Action}' on sample order {sampleOrderId}");
+
+                var success = await _ownerOrderRepository.ActionSampleRequest(ownerId, sampleOrderId, action);
+
+                return success
+                    ? ApiResponseHelper.Success(null, $"Sample request {action.Action}ed successfully.")
+                    : ApiResponseHelper.Failure("Failed to update sample request.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning($"Unauthorized action on sample order {sampleOrderId}: {ex.Message}");
+                return ApiResponseHelper.Failure(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error actioning sample order {sampleOrderId}");
+                return StatusCode(500, ApiResponseHelper.Failure("An error occurred while processing the sample request."));
+            }
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.Domain.Models.Common;
+﻿using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Models.Owner
@@ -50,7 +50,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public bool IsSampleTaste { get; set; }
 
         public bool Status { get; set; }
-        public List<FileUploadDto>? FoodItemMediaFiles { get; set; }
+        public List<IFormFile>? FoodItemMediaFiles { get; set; }
         public List<string>? ExistingFoodItemMediaPaths { get; set; }
     }
 

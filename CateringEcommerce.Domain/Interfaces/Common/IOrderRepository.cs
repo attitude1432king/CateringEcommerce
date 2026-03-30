@@ -14,5 +14,7 @@ namespace CateringEcommerce.Domain.Interfaces.Common
         Task<bool> UpdateOrderStatusAsync(long orderId, string status, string? remarks = null);
         Task<bool> CancelOrderAsync(long orderId, long userId, string reason);
         Task<bool> CheckCateringAvailabilityAsync(long cateringId, DateTime eventDate);
+        Task<CateringAvailabilitySnapshotDto?> GetCateringAvailabilitySnapshotAsync(long cateringId, DateTime eventDate);
+        Task<List<DateTime>> GetUnavailableCateringDatesAsync(long cateringId, int year, int month, int fallbackCapacity);
     }
 }

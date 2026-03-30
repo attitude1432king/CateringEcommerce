@@ -374,10 +374,10 @@ export const getSupervisorFromLocalStorage = () => {
 };
 
 /**
- * Clear supervisor data from localStorage
+ * Clear supervisor data from localStorage.
+ * NOTE: supervisorToken is an httpOnly cookie cleared by the backend on logout.
  */
 export const clearSupervisorFromLocalStorage = () => {
   localStorage.removeItem('supervisorId');
   localStorage.removeItem('supervisorData');
-  localStorage.removeItem('supervisorToken');
 };

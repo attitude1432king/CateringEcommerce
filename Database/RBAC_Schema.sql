@@ -20,7 +20,7 @@ BEGIN
         c_is_system_role BIT DEFAULT 0,  -- Cannot be deleted if true
         c_is_active BIT DEFAULT 1,
         c_createddate DATETIME DEFAULT GETDATE(),
-        c_created_by BIGINT,
+        c_createdby BIGINT,
         c_modifieddate DATETIME,
         c_updated_by BIGINT,
 

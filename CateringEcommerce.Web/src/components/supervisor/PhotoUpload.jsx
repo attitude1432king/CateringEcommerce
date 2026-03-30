@@ -68,10 +68,9 @@ const PhotoUpload = ({ assignmentId, phase, onUploadComplete }) => {
                 continue;
             }
 
-            const base64 = await fileToBase64(file);
             newPhotos.push({
+                _file: file,
                 Type: 'PHOTO',
-                Url: base64,
                 Timestamp: new Date().toISOString(),
                 GPSLocation: gpsLocation,
                 Description: '',
@@ -84,16 +83,6 @@ const PhotoUpload = ({ assignmentId, phase, onUploadComplete }) => {
 
         // Reset input
         if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-
-    /** Convert file to base64 */
-    const fileToBase64 = (file) => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
     };
 
     /** Update photo description */
@@ -121,15 +110,17 @@ const PhotoUpload = ({ assignmentId, phase, onUploadComplete }) => {
 
         setUploading(true);
         try {
-            const evidence = photos.map(({ Type, Url, Timestamp, GPSLocation, Description }) => ({
-                Type,
-                Url,
-                Timestamp,
-                GPSLocation,
-                Description,
-            }));
+            const fd = new FormData();
+            fd.append('AssignmentId', String(assignmentId));
+            fd.append('Phase', phase);
+            photos.forEach((photo, i) => {
+                fd.append(`Photos`, photo._file);
+                fd.append(`Timestamps[${i}]`, photo.Timestamp);
+                fd.append(`GPSLocations[${i}]`, photo.GPSLocation);
+                fd.append(`Descriptions[${i}]`, photo.Description);
+            });
 
-            const result = await uploadTimestampedEvidence(assignmentId, evidence, phase);
+            const result = await uploadTimestampedEvidence(fd);
 
             if (result.success) {
                 toast.success(`${photos.length} photos uploaded successfully!`);

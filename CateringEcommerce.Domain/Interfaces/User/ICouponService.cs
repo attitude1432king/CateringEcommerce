@@ -43,5 +43,13 @@ namespace CateringEcommerce.Domain.Interfaces.User
         /// <param name="discountId">The discount ID</param>
         /// <returns>Usage count</returns>
         Task<int> GetUserCouponUsageCountAsync(long userId, long discountId);
+
+        /// <summary>
+        /// Gets platform-wide featured active offers for the home page
+        /// Returns the most recently created active, non-expired discounts across all caterers
+        /// </summary>
+        /// <param name="limit">Maximum number of offers to return (default 6)</param>
+        /// <returns>List of active discount offers</returns>
+        Task<List<DiscountModel>> GetFeaturedOffersAsync(int limit = 6);
     }
 }

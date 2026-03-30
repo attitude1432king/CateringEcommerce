@@ -100,18 +100,19 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Month", month)
                 };
 
-                using var reader = await _dbHelper.ExecuteReaderAsync(query, sqlParameter);
+                var dataTable = await _dbHelper.ExecuteAsync(query, sqlParameter);
 
-                while (await reader.ReadAsync())
+                foreach (System.Data.DataRow row in dataTable.Rows)
                 {
-                    var date = ((DateTime)reader["c_date"]).ToString("yyyy-MM-dd");
+                    var date = ((DateTime)row["c_date"]).ToString("yyyy-MM-dd");
+                    var statusValue = row["c_status"] == DBNull.Value ? 0 : Convert.ToInt32(row["c_status"]);
 
                     result[date] = new DateAvailabilityPayload
                     {
-                        Status = Enum.TryParse<AvailabilityStatus>(reader["c_status"].ToString(), out var status)
-                            ? status
-                            : throw new Exception($"Invalid status value: {reader["c_status"]}"),
-                        Note = reader["c_note"] as string
+                        Status = Enum.IsDefined(typeof(AvailabilityStatus), statusValue)
+                            ? (AvailabilityStatus)statusValue
+                            : throw new Exception($"Invalid status value: {row["c_status"]}"),
+                        Note = row["c_note"] == DBNull.Value ? null : row["c_note"].ToString()
                     };
                 }
 

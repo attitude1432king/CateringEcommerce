@@ -162,7 +162,7 @@ BEGIN
         c_can_approve_refund = CASE WHEN @NewAuthorityLevel IN ('ADVANCED', 'FULL') THEN 1 ELSE 0 END,
         c_can_mentor_others = CASE WHEN @NewAuthorityLevel IN ('ADVANCED', 'FULL') THEN 1 ELSE 0 END,
         c_modifieddate = GETDATE(),
-        c_modified_by = @UpdatedBy
+        c_modifiedby = @UpdatedBy
     WHERE c_supervisor_id = @SupervisorId;
 
     -- Log the authority change
@@ -245,7 +245,7 @@ BEGIN
     SET c_current_status = @NewStatus,
         c_status_reason = @Notes,
         c_modifieddate = GETDATE(),
-        c_modified_by = @UpdatedBy
+        c_modifiedby = @UpdatedBy
     WHERE c_supervisor_id = @SupervisorId;
 
     INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_action_type, c_action_description, c_action_result)
@@ -266,7 +266,7 @@ BEGIN
     SET c_current_status = 'ACTIVE',
         c_is_available = 1,
         c_modifieddate = GETDATE(),
-        c_modified_by = @ActivatedBy
+        c_modifiedby = @ActivatedBy
     WHERE c_supervisor_id = @SupervisorId;
 
     INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_action_type, c_action_description, c_action_result)
@@ -292,7 +292,7 @@ BEGIN
         c_suspension_reason = @Reason,
         c_status_reason = @Reason,
         c_modifieddate = GETDATE(),
-        c_modified_by = @SuspendedBy
+        c_modifiedby = @SuspendedBy
     WHERE c_supervisor_id = @SupervisorId;
 
     INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_action_type, c_action_description, c_action_result)
@@ -315,7 +315,7 @@ BEGIN
         c_is_available = 0,
         c_status_reason = @Reason,
         c_modifieddate = GETDATE(),
-        c_modified_by = @TerminatedBy
+        c_modifiedby = @TerminatedBy
     WHERE c_supervisor_id = @SupervisorId;
 
     INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_action_type, c_action_description, c_action_result)

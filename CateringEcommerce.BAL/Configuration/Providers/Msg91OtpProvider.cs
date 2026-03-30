@@ -13,7 +13,7 @@ namespace CateringEcommerce.BAL.Configuration.Providers
     ///
     /// API Reference: https://docs.msg91.com/reference/send-otp
     /// </summary>
-    public class Msg91OtpProvider : ISmsOtpProvider
+    public class Msg91OtpProvider : IOtpSmsProvider
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<Msg91OtpProvider> _logger;

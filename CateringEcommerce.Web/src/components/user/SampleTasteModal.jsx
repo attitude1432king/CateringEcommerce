@@ -5,8 +5,11 @@ File: src/components/user/SampleTasteModal.jsx
 Modal for selecting sample taste items from a package.
 Features: Category-wise grouping, quantity validation, checkbox selection
 */
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import VegNonVegIcon from '../common/VegNonVegIcon';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
 export default function SampleTasteModal({
     isOpen,
@@ -18,16 +21,19 @@ export default function SampleTasteModal({
     const [selectedItems, setSelectedItems] = useState({});
     const [validationErrors, setValidationErrors] = useState({});
     const [sampleItemsByCategory, setSampleItemsByCategory] = useState({});
+    const standaloneSampleItems = useMemo(
+        () => (foodItems || []).filter(item => item.isSampleTasted && !item.isIncludedInPackage),
+        [foodItems]
+    );
 
     // Group sample items by category and set allowed quantities
     useEffect(() => {
-        if (!foodItems || foodItems.length === 0) {
+        if (!standaloneSampleItems || standaloneSampleItems.length === 0) {
             setSampleItemsByCategory({});
             return;
         }
 
-        const grouped = foodItems
-            .filter(item => item.isSampleTasted)
+        const grouped = standaloneSampleItems
             .reduce((acc, item) => {
                 const category = item.categoryName || 'Others';
                 if (!acc[category]) {
@@ -54,7 +60,7 @@ export default function SampleTasteModal({
         }
 
         setSampleItemsByCategory(grouped);
-    }, [foodItems, packageData]);
+    }, [standaloneSampleItems, packageData]);
 
     // Toggle item selection
     const toggleItem = (categoryName, foodItemId) => {
@@ -116,7 +122,7 @@ export default function SampleTasteModal({
                 categoryId: category.categoryId,
                 categoryName: categoryName,
                 selectedItems: foodIds.map(foodId => {
-                    const item = foodItems.find(f => f.foodItemId === foodId);
+                    const item = standaloneSampleItems.find(f => f.foodItemId === foodId);
                     return {
                         foodItemId: item.foodItemId,
                         name: item.name,
@@ -142,7 +148,7 @@ export default function SampleTasteModal({
         <AnimatePresence>
             <div className="fixed inset-0 z-[200] overflow-hidden">
                 {/* Backdrop */}
-                <motion.div
+                <Motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -151,7 +157,7 @@ export default function SampleTasteModal({
                 />
 
                 {/* Modal */}
-                <motion.div
+                <Motion.div
                     initial={{ y: '100%' }}
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
@@ -206,7 +212,7 @@ export default function SampleTasteModal({
                                     <div className="flex items-start gap-3">
                                         <div className="bg-blue-500 text-white rounded-full p-2 flex-shrink-0">
                                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                             </svg>
                                         </div>
                                         <div className="flex-1">
@@ -221,122 +227,123 @@ export default function SampleTasteModal({
                                 </div>
 
                                 <div className="space-y-6">
-                                {Object.entries(sampleItemsByCategory).map(([categoryName, categoryData]) => {
-                                    const selectedCount = getSelectedCount(categoryName);
-                                    const allowedQty = categoryData.allowedQuantity;
-                                    const hasError = validationErrors[categoryName];
+                                    {Object.entries(sampleItemsByCategory).map(([categoryName, categoryData]) => {
+                                        const selectedCount = getSelectedCount(categoryName);
+                                        const allowedQty = categoryData.allowedQuantity;
+                                        const hasError = validationErrors[categoryName];
 
-                                    return (
-                                        <div key={categoryName} className="border-2 border-neutral-200 rounded-xl overflow-hidden">
-                                            {/* Category Header */}
-                                            <div className={`px-4 py-3 border-b border-neutral-200 ${
-                                                hasError ? 'bg-red-50' : 'bg-neutral-50'
-                                            }`}>
-                                                <div className="flex items-center justify-between">
-                                                    <h3 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
-                                                        <span className="w-1 h-6 bg-catering-primary rounded"></span>
-                                                        {categoryName}
-                                                    </h3>
-                                                    <div className={`text-sm font-semibold px-3 py-1 rounded-full transition-all ${
-                                                        selectedCount > allowedQty
-                                                            ? 'bg-red-100 text-red-700 ring-2 ring-red-300'
-                                                            : selectedCount === allowedQty
-                                                                ? 'bg-green-100 text-green-700'
-                                                                : selectedCount > 0
-                                                                    ? 'bg-blue-100 text-blue-700'
-                                                                    : 'bg-neutral-200 text-neutral-700'
+                                        return (
+                                            <div key={categoryName} className="border-2 border-neutral-200 rounded-xl overflow-hidden">
+                                                {/* Category Header */}
+                                                <div className={`px-4 py-3 border-b border-neutral-200 ${hasError ? 'bg-red-50' : 'bg-neutral-50'
                                                     }`}>
-                                                        {selectedCount} / {allowedQty} selected {selectedCount === allowedQty && '✓'}
-                                                    </div>
-                                                </div>
-                                                <div className="mt-2 text-xs text-neutral-600">
-                                                    {selectedCount === 0 && (
-                                                        <span>Select up to {allowedQty} item{allowedQty !== 1 ? 's' : ''} from this category</span>
-                                                    )}
-                                                    {selectedCount > 0 && selectedCount < allowedQty && (
-                                                        <span className="text-blue-600">You can select {allowedQty - selectedCount} more item{(allowedQty - selectedCount) !== 1 ? 's' : ''}</span>
-                                                    )}
-                                                    {selectedCount === allowedQty && (
-                                                        <span className="text-green-600">Maximum items selected for this category</span>
-                                                    )}
-                                                </div>
-                                                {hasError && (
-                                                    <p className="text-xs text-red-700 mt-2 flex items-center gap-1 bg-red-100 px-2 py-1 rounded">
-                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                                        </svg>
-                                                        {hasError}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            {/* Items Grid */}
-                                            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {categoryData.items.map(item => {
-                                                    const isSelected = isItemSelected(categoryName, item.foodItemId);
-
-                                                    return (
-                                                        <div
-                                                            key={item.foodItemId}
-                                                            onClick={() => toggleItem(categoryName, item.foodItemId)}
-                                                            className={`flex gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
-                                                                isSelected
-                                                                    ? 'border-catering-primary bg-orange-50'
-                                                                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                                                            }`}
-                                                        >
-                                                            {/* Checkbox */}
-                                                            <div className="flex-shrink-0 pt-1">
-                                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
-                                                                    isSelected
-                                                                        ? 'bg-catering-primary border-catering-primary'
-                                                                        : 'border-neutral-300'
-                                                                }`}>
-                                                                    {isSelected && (
-                                                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                                        </svg>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Item Image */}
-                                                            <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-100">
-                                                                {item.imageUrls && item.imageUrls.length > 0 ? (
-                                                                    <img
-                                                                        src={item.imageUrls[0]}
-                                                                        alt={item.name}
-                                                                        className="w-full h-full object-cover"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center text-2xl">
-                                                                        {item.isVegetarian ? '🥗' : '🍖'}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Item Details */}
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-start gap-2 mb-1">
-                                                                    <h4 className="font-semibold text-sm text-neutral-800 flex-1 line-clamp-1">
-                                                                        {item.name}
-                                                                    </h4>
-                                                                    {item.isVegetarian && (
-                                                                        <span className="text-[10px] border border-green-600 text-green-600 px-1 rounded flex-shrink-0">VEG</span>
-                                                                    )}
-                                                                </div>
-                                                                <p className="text-xs text-neutral-500 line-clamp-2 mb-1">
-                                                                    {item.description}
-                                                                </p>
-                                                                <p className="text-xs font-bold text-neutral-700">₹{item.price}</p>
-                                                            </div>
+                                                    <div className="flex items-center justify-between">
+                                                        <h3 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
+                                                            <span className="w-1 h-6 bg-catering-primary rounded"></span>
+                                                            {categoryName}
+                                                        </h3>
+                                                        <div className={`text-sm font-semibold px-3 py-1 rounded-full transition-all ${selectedCount > allowedQty
+                                                                ? 'bg-red-100 text-red-700 ring-2 ring-red-300'
+                                                                : selectedCount === allowedQty
+                                                                    ? 'bg-green-100 text-green-700'
+                                                                    : selectedCount > 0
+                                                                        ? 'bg-blue-100 text-blue-700'
+                                                                        : 'bg-neutral-200 text-neutral-700'
+                                                            }`}>
+                                                            {selectedCount} / {allowedQty} selected {selectedCount === allowedQty && '✓'}
                                                         </div>
-                                                    );
-                                                })}
+                                                    </div>
+                                                    <div className="mt-2 text-xs text-neutral-600">
+                                                        {selectedCount === 0 && (
+                                                            <span>Select up to {allowedQty} item{allowedQty !== 1 ? 's' : ''} from this category</span>
+                                                        )}
+                                                        {selectedCount > 0 && selectedCount < allowedQty && (
+                                                            <span className="text-blue-600">You can select {allowedQty - selectedCount} more item{(allowedQty - selectedCount) !== 1 ? 's' : ''}</span>
+                                                        )}
+                                                        {selectedCount === allowedQty && (
+                                                            <span className="text-green-600">Maximum items selected for this category</span>
+                                                        )}
+                                                    </div>
+                                                    {hasError && (
+                                                        <p className="text-xs text-red-700 mt-2 flex items-center gap-1 bg-red-100 px-2 py-1 rounded">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                            </svg>
+                                                            {hasError}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {/* Items Grid */}
+                                                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {categoryData.items.map(item => {
+                                                        const isSelected = isItemSelected(categoryName, item.foodItemId);
+
+                                                        return (
+                                                            <div
+                                                                key={item.foodItemId}
+                                                                onClick={() => toggleItem(categoryName, item.foodItemId)}
+                                                                className={`flex gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${isSelected
+                                                                        ? 'border-catering-primary bg-orange-50'
+                                                                        : 'border-neutral-200 hover:border-neutral-300 bg-white'
+                                                                    }`}
+                                                            >
+                                                                {/* Checkbox */}
+                                                                <div className="flex-shrink-0 pt-1">
+                                                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected
+                                                                            ? 'bg-catering-primary border-catering-primary'
+                                                                            : 'border-neutral-300'
+                                                                        }`}>
+                                                                        {isSelected && (
+                                                                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                                            </svg>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Item Image */}
+                                                                <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-100">
+                                                                    {item.imageUrls && item.imageUrls.length > 0 ? (
+                                                                        <img
+                                                                            src={item.imageUrls[0].startsWith('http') ? item.imageUrls[0] : `${API_BASE_URL}${item.imageUrls[0]}`}
+                                                                            alt={item.name}
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    ) : item.videoUrl ? (
+                                                                        <video
+                                                                            src={item.videoUrl.startsWith('http') ? item.videoUrl : `${API_BASE_URL}${item.videoUrl}`}
+                                                                            className="w-full h-full object-cover"
+                                                                            muted
+                                                                            playsInline
+                                                                        />
+                                                                    ) : (
+                                                                        <VegNonVegIcon isVeg={item.isVegetarian} placeholder />
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Item Details */}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-start gap-2 mb-1">
+                                                                        <h4 className="font-semibold text-sm text-neutral-800 flex-1 line-clamp-1">
+                                                                            {item.name}
+                                                                        </h4>
+                                                                        {item.isVegetarian && (
+                                                                            <span className="text-[10px] border border-green-600 text-green-600 px-1 rounded flex-shrink-0">VEG</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-xs text-neutral-500 line-clamp-2 mb-1">
+                                                                        {item.description}
+                                                                    </p>
+                                                                    <p className="text-xs font-bold text-neutral-700">₹{item.price}</p>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
                                 </div>
                             </>
                         )}
@@ -354,17 +361,16 @@ export default function SampleTasteModal({
                             <button
                                 onClick={handleConfirm}
                                 disabled={getTotalSelected() === 0}
-                                className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
-                                    getTotalSelected() > 0
+                                className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${getTotalSelected() > 0
                                         ? 'bg-gradient-catering text-white hover:shadow-lg'
                                         : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
-                                }`}
+                                    }`}
                             >
                                 Confirm Selection ({getTotalSelected()})
                             </button>
                         </div>
                     </div>
-                </motion.div>
+                </Motion.div>
             </div>
         </AnimatePresence>
     );

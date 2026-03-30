@@ -4,6 +4,8 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { createOrder } from '../services/orderApi';
+import { createRazorpayOrder, verifyRazorpayPayment } from '../services/paymentApi';
+import { loadRazorpayScript } from '../utils/razorpayLoader';
 import AccountSection from '../components/user/checkout/modern/AccountSection';
 import EventDetailsSection from '../components/user/checkout/modern/EventDetailsSection';
 import DeliveryTypeSection from '../components/user/checkout/modern/DeliveryTypeSection';
@@ -30,6 +32,51 @@ const ModernCheckoutPage = () => {
     const [createdOrder, setCreatedOrder] = useState(null);
     const [errors, setErrors] = useState({});
 
+    const buildPackageSelectionPayload = () => {
+        if (!cart?.packageSelections && !cart?.sampleTasteSelections) {
+            return null;
+        }
+
+        return {
+            ...(cart.packageSelections || {}),
+            sampleTasteSelections: cart.sampleTasteSelections || [],
+            sampleTasteMeta: cart.sampleTasteSelections?.length
+                ? {
+                    source: 'package',
+                    status: 'SAMPLE_REQUESTED',
+                    selectedItemCount: cart.sampleTasteSelections.reduce(
+                        (total, category) => total + (category?.selectedItems?.length || 0),
+                        0
+                    )
+                }
+                : null
+        };
+    };
+
+    const buildIndividualSamplePayload = (item) => {
+        const matchingCategory = (cart.sampleTasteSelections || []).find(category =>
+            (category?.selectedItems || []).some(selectedItem => selectedItem.foodItemId === item.foodId)
+        );
+
+        if (!matchingCategory) {
+            return null;
+        }
+
+        const selectedItem = matchingCategory.selectedItems.find(sampleItem => sampleItem.foodItemId === item.foodId);
+
+        return {
+            sampleTasteSelections: [{
+                categoryId: matchingCategory.categoryId,
+                categoryName: matchingCategory.categoryName,
+                selectedItems: selectedItem ? [selectedItem] : []
+            }],
+            sampleTasteMeta: {
+                source: 'individual',
+                status: 'SAMPLE_REQUESTED'
+            }
+        };
+    };
+
     const [checkoutData, setCheckoutData] = useState({
         // Account (Step 1)
         isGuest: false,
@@ -38,7 +85,7 @@ const ModernCheckoutPage = () => {
 
         // Event Details (Step 2)
         eventType: '',
-        eventDate: null,
+        eventDate: cart?.eventDate || null,
         eventTime: null,
         guestCount: cart?.guestCount || 50,
         eventLocation: '',
@@ -56,8 +103,7 @@ const ModernCheckoutPage = () => {
         scheduledDispatchTime: null,
 
         // Payment (Step 4)
-        paymentMethod: 'online', // 'online', 'partial', 'cod'
-        advanceAmount: 0,
+        paymentMethod: 'online', // 'online' | 'split' | 'cod'
         termsAccepted: false
     });
 
@@ -68,7 +114,7 @@ const ModernCheckoutPage = () => {
         }
     }, [cart, navigate]);
 
-    // Auto-advance to step 2 if authenticated
+    // Auto-advance to step 2 if already authenticated
     useEffect(() => {
         if (isAuthenticated && currentStep === 1) {
             markStepComplete(1);
@@ -76,17 +122,22 @@ const ModernCheckoutPage = () => {
         }
     }, [isAuthenticated]);
 
+    useEffect(() => {
+        if (cart?.eventDate) {
+            setCheckoutData(prev => ({
+                ...prev,
+                eventDate: prev.eventDate || cart.eventDate
+            }));
+        }
+    }, [cart?.eventDate]);
+
     const updateCheckoutData = (field, value) => {
-        setCheckoutData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-        // Clear error for this field
+        setCheckoutData(prev => ({ ...prev, [field]: value }));
         if (errors[field]) {
             setErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[field];
-                return newErrors;
+                const next = { ...prev };
+                delete next[field];
+                return next;
             });
         }
     };
@@ -99,15 +150,13 @@ const ModernCheckoutPage = () => {
 
     const validateStep = (step) => {
         const validation = validateCheckoutData(checkoutData, cart, step, {
-            minAdvancePaymentPercent: getInt('BUSINESS.MIN_ADVANCE_PAYMENT_PERCENT', 30),
-            minAdvanceBookingDays: getInt('BUSINESS.MIN_ADVANCE_BOOKING_DAYS', 3),
+            minAdvancePaymentPercent: getInt('BUSINESS.MIN_ADVANCE_PAYMENT_PERCENT', 40),
+            minAdvanceBookingDays: getInt('BUSINESS.MIN_ADVANCE_BOOKING_DAYS', 5),
         });
-
         if (!validation.isValid) {
             setErrors(validation.errors);
             return false;
         }
-
         setErrors({});
         return true;
     };
@@ -122,105 +171,232 @@ const ModernCheckoutPage = () => {
         }
     };
 
-    const handleSubmitOrder = async () => {
-        // Final validation
-        if (!validateStep(4)) {
-            return;
+    // ── Razorpay payment flow ────────────────────────────────────────────────
+
+    const initiateRazorpayPayment = async (order, stageType) => {
+        try {
+            await loadRazorpayScript();
+
+            const total    = order.totalAmount || cart.totalAmount || 0;
+            const amount   = stageType === 'PreBooking' ? Math.round(total * 0.40) : total;
+            const receipt  = `rcpt_${order.orderId}`.slice(0, 40);
+            const userId   = user?.userId || user?.id || 0;
+
+            const rzpRes = await createRazorpayOrder({
+                Amount:    amount,
+                Receipt:   receipt,
+                OrderId:   order.orderId,
+                UserId:    userId,
+                StageType: stageType,
+            });
+
+            if (!rzpRes?.result) {
+                setErrors({ submit: rzpRes?.message || 'Could not initiate payment. Please try again.' });
+                setIsSubmitting(false);
+                return;
+            }
+
+            const rzpData = rzpRes.data;
+
+            const options = {
+                key:         rzpData.key,
+                amount:      rzpData.amount,          // in paise (set by server)
+                currency:    rzpData.currency || 'INR',
+                name:        cart.cateringName || 'CateringEcommerce',
+                description: `Order #${order.orderNumber}`,
+                order_id:    rzpData.razorpayOrderId,
+
+                handler: async (paymentResponse) => {
+                    try {
+                        const verifyRes = await verifyRazorpayPayment({
+                            RazorpayOrderId:    paymentResponse.razorpay_order_id,
+                            RazorpayPaymentId:  paymentResponse.razorpay_payment_id,
+                            RazorpaySignature:  paymentResponse.razorpay_signature,
+                            OrderId:            order.orderId,
+                            StageType:          stageType,
+                        });
+
+                        if (verifyRes?.result) {
+                            clearCart();
+                            setCreatedOrder(order);
+                            setShowConfirmation(true);
+                        } else {
+                            setErrors({
+                                submit: verifyRes?.message ||
+                                    'Payment verification failed. Please contact support with your Payment ID.'
+                            });
+                        }
+                    } catch (err) {
+                        console.error('Payment verification error:', err);
+                        setErrors({
+                            submit: 'Payment verification error. Contact support with your Payment ID: ' +
+                                    paymentResponse.razorpay_payment_id
+                        });
+                    } finally {
+                        setIsSubmitting(false);
+                    }
+                },
+
+                prefill: {
+                    name:    checkoutData.isGuest ? 'Guest' : (user?.name || ''),
+                    email:   checkoutData.isGuest ? checkoutData.guestEmail  : (user?.email || ''),
+                    contact: checkoutData.isGuest ? checkoutData.guestPhone  : (user?.phone || ''),
+                },
+
+                theme: { color: '#e11d48' },
+
+                modal: {
+                    ondismiss: () => {
+                        setErrors({
+                            submit: 'Payment cancelled. Your order has been saved — you can retry payment from your Orders page.'
+                        });
+                        setIsSubmitting(false);
+                    }
+                }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+
+        } catch (err) {
+            console.error('Razorpay error:', err);
+            setErrors({ submit: 'Failed to load payment gateway. Please try again.' });
+            setIsSubmitting(false);
         }
+    };
+
+    // ── Order submission ─────────────────────────────────────────────────────
+
+    const handleSubmitOrder = async () => {
+        if (!validateStep(4)) return;
 
         if (!checkoutData.termsAccepted) {
-            setErrors({ termsAccepted: 'Please accept terms and conditions' });
+            setErrors({ termsAccepted: 'Please accept the terms and conditions.' });
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            // Prepare order items
+            // ── Build order items ────────────────────────────────────────────
             const orderItems = [];
 
             if (cart.packageId) {
+                const packageSelectionsPayload = buildPackageSelectionPayload();
                 orderItems.push({
-                    itemType: 'Package',
-                    itemId: cart.packageId,
-                    itemName: cart.packageName,
-                    quantity: 1,
-                    unitPrice: cart.packagePrice,
-                    totalPrice: cart.packagePrice * checkoutData.guestCount,
-                    packageSelections: cart.packageSelections ? JSON.stringify(cart.packageSelections) : null
+                    ItemType:          'Package',
+                    ItemId:            cart.packageId,
+                    ItemName:          cart.packageName,
+                    Quantity:          1,
+                    UnitPrice:         cart.packagePrice,
+                    TotalPrice:        cart.packagePrice * checkoutData.guestCount,
+                    PackageSelections: packageSelectionsPayload
+                        ? JSON.stringify(packageSelectionsPayload)
+                        : null,
                 });
             }
 
             if (cart.decorationId) {
                 orderItems.push({
-                    itemType: 'Decoration',
-                    itemId: cart.decorationId,
-                    itemName: cart.decorationName,
-                    quantity: 1,
-                    unitPrice: cart.decorationPrice,
-                    totalPrice: cart.decorationPrice,
-                    packageSelections: null
+                    ItemType:          'Decoration',
+                    ItemId:            cart.decorationId,
+                    ItemName:          cart.decorationName,
+                    Quantity:          1,
+                    UnitPrice:         cart.decorationPrice,
+                    TotalPrice:        cart.decorationPrice,
+                    PackageSelections: null,
                 });
             }
 
-            if (cart.additionalItems && cart.additionalItems.length > 0) {
-                cart.additionalItems.forEach(item => {
-                    orderItems.push({
-                        itemType: 'FoodItem',
-                        itemId: item.foodId,
-                        itemName: item.foodName || item.name,
-                        quantity: item.quantity || 1,
-                        unitPrice: item.price,
-                        totalPrice: item.price * (item.quantity || 1),
-                        packageSelections: null
-                    });
+            (cart.additionalItems || []).forEach(item => {
+                const individualSamplePayload = buildIndividualSamplePayload(item);
+                orderItems.push({
+                    ItemType:          'FoodItem',
+                    ItemId:            item.foodId,
+                    ItemName:          item.foodName || item.name,
+                    Quantity:          item.quantity || 1,
+                    UnitPrice:         item.price,
+                    TotalPrice:        item.price * (item.quantity || 1),
+                    PackageSelections: individualSamplePayload
+                        ? JSON.stringify(individualSamplePayload)
+                        : null,
                 });
-            }
+            });
 
-            // Prepare order data
+            // ── Map payment method to backend values ─────────────────────────
+            const method      = checkoutData.paymentMethod; // 'online' | 'split' | 'cod'
+            const isSplit     = method === 'split';
+            const isCOD       = method === 'cod';
+            const total       = cart.totalAmount || 0;
+
+            const backendPaymentMethod = isCOD ? 'COD' : 'Online';
+            const enableSplitPayment   = isSplit;
+            const preBookingAmount     = isSplit ? Math.round(total * 0.40) : undefined;
+            const postEventAmount      = isSplit ? Math.round(total * 0.60) : undefined;
+
+            // ── Build full event location string ─────────────────────────────
+            const addr = checkoutData.eventAddress;
+            const eventLocation = [addr.street, addr.city, addr.state, addr.pincode]
+                .filter(Boolean).join(', ');
+
+            // ── Contact info: authenticated user or guest ─────────────────────
+            const contactPerson = checkoutData.isGuest ? 'Guest' : (user?.name || 'Guest');
+            const contactPhone  = checkoutData.isGuest ? checkoutData.guestPhone  : user?.phone;
+            const contactEmail  = checkoutData.isGuest ? checkoutData.guestEmail  : user?.email;
+
             const orderData = {
-                cateringId: cart.cateringId,
-                eventDate: checkoutData.eventDate,
-                eventTime: checkoutData.eventTime,
-                eventType: checkoutData.eventType,
-                eventLocation: `${checkoutData.eventAddress.street}, ${checkoutData.eventAddress.city}, ${checkoutData.eventAddress.state} - ${checkoutData.eventAddress.pincode}`,
-                guestCount: checkoutData.guestCount,
-                specialInstructions: checkoutData.specialInstructions || null,
-                deliveryAddress: `${checkoutData.eventAddress.street}, ${checkoutData.eventAddress.city}`,
-                contactPerson: user?.name || 'Guest',
-                contactPhone: checkoutData.isGuest ? checkoutData.guestPhone : user?.phone,
-                contactEmail: checkoutData.isGuest ? checkoutData.guestEmail : user?.email,
-                baseAmount: cart.baseAmount || 0,
-                taxAmount: cart.taxAmount || 0,
-                deliveryCharges: 0,
-                discountAmount: cart.discountAmount || 0,
-                totalAmount: cart.totalAmount,
-                paymentMethod: checkoutData.paymentMethod,
-                deliveryType: checkoutData.deliveryType,
-                scheduledDispatchTime: checkoutData.scheduledDispatchTime,
-                orderItems: orderItems
+                CateringId:          cart.cateringId,
+                EventDate:           checkoutData.eventDate,
+                EventTime:           checkoutData.eventTime,
+                EventType:           checkoutData.eventType,
+                EventLocation:       eventLocation,
+                GuestCount:          checkoutData.guestCount,
+                SpecialInstructions: checkoutData.specialInstructions || null,
+                DeliveryAddress:     eventLocation,
+                ContactPerson:       contactPerson,
+                ContactPhone:        contactPhone,
+                ContactEmail:        contactEmail,
+                BaseAmount:          cart.baseAmount   || 0,
+                TaxAmount:           cart.taxAmount    || 0,
+                DeliveryCharges:     0,
+                DiscountAmount:      cart.discountAmount || 0,
+                TotalAmount:         total,
+                PaymentMethod:       backendPaymentMethod,
+                EnableSplitPayment:  enableSplitPayment,
+                ...(isSplit && { PreBookingAmount: preBookingAmount, PostEventAmount: postEventAmount }),
+                OrderItems:          orderItems,
             };
 
             const response = await createOrder(orderData);
 
-            if (response.result) {
-                setCreatedOrder(response.data);
+            if (!response?.result) {
+                setErrors({ submit: response?.message || 'Failed to create order. Please try again.' });
+                setIsSubmitting(false);
+                return;
+            }
+
+            const order = response.data;
+            setCreatedOrder(order);
+
+            if (isCOD) {
+                // COD: no payment gateway needed — show confirmation immediately
                 clearCart();
                 setShowConfirmation(true);
+                setIsSubmitting(false);
             } else {
-                setErrors({ submit: response.message || 'Failed to create order' });
+                // Online / Split: initiate Razorpay (manages isSubmitting internally)
+                const stageType = isSplit ? 'PreBooking' : 'Full';
+                await initiateRazorpayPayment(order, stageType);
             }
+
         } catch (error) {
             console.error('Error submitting order:', error);
-            setErrors({ submit: 'An error occurred. Please try again.' });
-        } finally {
+            setErrors({ submit: 'An unexpected error occurred. Please try again.' });
             setIsSubmitting(false);
         }
     };
 
-    if (!cart) {
-        return null;
-    }
+    if (!cart) return null;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -231,7 +407,7 @@ const ModernCheckoutPage = () => {
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="text-gray-600 hover:text-gray-900"
+                                className="text-gray-600 hover:text-gray-900 transition-colors"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -255,9 +431,9 @@ const ModernCheckoutPage = () => {
             {/* Main Content - Two Column Layout */}
             <div className="max-w-7xl mx-auto px-4 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
                     {/* LEFT COLUMN - Checkout Steps */}
                     <div className="lg:col-span-7 space-y-4">
-                        {/* Account Section */}
                         <AccountSection
                             stepNumber={1}
                             isActive={currentStep === 1}
@@ -269,7 +445,6 @@ const ModernCheckoutPage = () => {
                             onEdit={() => setCurrentStep(1)}
                         />
 
-                        {/* Event Details Section */}
                         <EventDetailsSection
                             stepNumber={2}
                             isActive={currentStep === 2}
@@ -282,7 +457,6 @@ const ModernCheckoutPage = () => {
                             cart={cart}
                         />
 
-                        {/* Delivery Type Section */}
                         <DeliveryTypeSection
                             stepNumber={3}
                             isActive={currentStep === 3}
@@ -294,7 +468,6 @@ const ModernCheckoutPage = () => {
                             onEdit={() => setCurrentStep(3)}
                         />
 
-                        {/* Payment Section */}
                         <PaymentSection
                             stepNumber={4}
                             isActive={currentStep === 4}

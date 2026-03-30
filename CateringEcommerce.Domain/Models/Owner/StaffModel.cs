@@ -1,6 +1,5 @@
 ﻿using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Models.APIModels.Owner;
-using CateringEcommerce.Domain.Models.Common;
 using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Models.Owner
@@ -45,9 +44,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public int? Experience { get; set; }
         public string? salaryType { get; set; }
         public decimal SalaryAmount { get; set; }
-        public FileUploadDto? Profile { get; set; }
-        public FileUploadDto? IdentityDocument { get; set; }
-        public FileUploadDto? ResumeDocument { get; set; }   
+        // Files received as separate [FromForm] IFormFile params in the controller: Profile, IdentityDocument, ResumeDocument
         public bool Availability { get; set; }
         // This list will contain the relative paths of any files
         // the user explicitly removed.

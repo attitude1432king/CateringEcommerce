@@ -44,7 +44,6 @@ namespace CateringEcommerce.API.Controllers.User
             }
             catch (Exception)
             {
-                // Log the exception or handle it appropriately
                 return StatusCode(500, "An error occurred while fetching location data.");
             }
         }
@@ -84,7 +83,10 @@ namespace CateringEcommerce.API.Controllers.User
         }
 
         [HttpPost("UploadProfilePhoto")]
-        public async Task<IActionResult> UploadProfilePhoto([FromBody] string profilePhoto)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 2 * 1024 * 1024)]
+        [RequestSizeLimit(2 * 1024 * 1024)]
+        public async Task<IActionResult> UploadProfilePhoto([FromForm] IFormFile profilePhoto)
         {
             try
             {
@@ -94,10 +96,18 @@ namespace CateringEcommerce.API.Controllers.User
                     return ApiResponseHelper.Failure("Invalid user.");
                 }
 
-                if (string.IsNullOrEmpty(profilePhoto))
+                if (profilePhoto == null || profilePhoto.Length == 0)
                 {
                     return BadRequest(new { message = "Profile photo is required." });
                 }
+
+                var validation = FileValidationHelper.ValidateFile(
+                    profilePhoto,
+                    new[] { ".jpg", ".jpeg", ".png" },
+                    2 * 1024 * 1024
+                );
+                if (!validation.IsValid)
+                    return BadRequest(new { message = validation.ErrorMessage });
 
                 // Delete old profile photo if it exists
                 var oldPhotoPath = _profileSetting.GetUserProfilePicture(userPKID);
@@ -106,10 +116,12 @@ namespace CateringEcommerce.API.Controllers.User
                     _fileStorageService.DeleteFilePath(oldPhotoPath);
                 }
 
-                // Save new profile photo
-                var profilePath = await _fileStorageService.SaveUserFileAsync(
+                // Save new profile photo via role-based storage
+                var profilePath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                     profilePhoto,
                     userPKID,
+                    "User",
+                    false,
                     DocumentType.UserProfilePhoto.GetDisplayName()
                 );
 
@@ -118,7 +130,7 @@ namespace CateringEcommerce.API.Controllers.User
                 {
                     { "pictureUrl", profilePath }
                 };
-                 await _profileSetting.UpdateUserDetails(userPKID, userData);
+                await _profileSetting.UpdateUserDetails(userPKID, userData);
 
                 return Ok(new
                 {
@@ -131,6 +143,5 @@ namespace CateringEcommerce.API.Controllers.User
                 return StatusCode(500, new { message = "Error uploading profile photo.", error = ex.Message });
             }
         }
-
     }
 }

@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     Search, RefreshCw, Filter, X, ChevronLeft, ChevronRight,
     CheckCircle, XCircle, Clock, FileSearch, AlertTriangle,
-    Users, ClipboardCheck, MapPin
+    Users, ClipboardCheck, MapPin, Eye
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/layout/AdminLayout';
 import { supervisorManagementApi } from '../../services/adminApi';
 import { useConfirmation } from '../../contexts/ConfirmationContext';
 import { toast } from 'react-hot-toast';
+import PartnerStatusBadge from '../../components/admin/partner-requests/PartnerStatusBadge';
+import SupervisorDetailDrawer from '../../components/admin/supervisor/SupervisorDetailDrawer';
 
 // Centralized status enum (matches SupervisorApprovalStatus C# enum: 0-4)
 const SUPERVISOR_STATUS = Object.freeze({
@@ -43,6 +45,7 @@ const PendingSupervisorRequests = () => {
     const [sortBy, setSortBy] = useState('CreatedDate');
     const [sortOrder, setSortOrder] = useState('DESC');
     const [reasonModal, setReasonModal] = useState({ open: false, supervisor: null, action: null, reason: '' });
+    const [detailDrawer, setDetailDrawer] = useState({ open: false, supervisorId: null });
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -303,6 +306,7 @@ const PendingSupervisorRequests = () => {
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Mobile</th>
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">City</th>
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">State</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Experience</th>
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:text-gray-900" onClick={() => handleSort('CreatedDate')}>Requested Date <SortIcon column="CreatedDate" /></th>
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Status</th>
                                             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
@@ -335,17 +339,30 @@ const PendingSupervisorRequests = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3 text-sm text-gray-600">{reg.state || '-'}</td>
+                                                    <td className="px-4 py-3">
+                                                        {reg.hasPriorExperience ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                                                                Experienced
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">Fresher</span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-4 py-3 text-sm text-gray-500">
                                                         {new Date(reg.createdDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                                                            <StatusIcon className="w-3 h-3" />
-                                                            {statusInfo.label}
-                                                        </span>
+                                                        <PartnerStatusBadge statusId={reg.status} statusName={statusInfo.label} size="sm" />
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center justify-end gap-1">
+                                                            <button
+                                                                onClick={() => setDetailDrawer({ open: true, supervisorId: reg.supervisorId })}
+                                                                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                                title="View Details"
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                            </button>
                                                             {isPendingStatus(reg.status) && (
                                                                 <button onClick={() => handleApprove(reg)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Approve">
                                                                     <CheckCircle className="w-4 h-4" />
@@ -437,6 +454,24 @@ const PendingSupervisorRequests = () => {
                     </div>
                 )}
             </div>
+
+            {/* Supervisor Detail Drawer */}
+            {detailDrawer.open && (
+                <SupervisorDetailDrawer
+                    supervisorId={detailDrawer.supervisorId}
+                    onClose={() => setDetailDrawer({ open: false, supervisorId: null })}
+                    onStatusUpdate={async (id, status, reason) => {
+                        const result = await supervisorManagementApi.updateStatus(id, status, reason);
+                        if (result?.result) {
+                            toast.success('Supervisor status updated successfully');
+                            setDetailDrawer({ open: false, supervisorId: null });
+                            fetchData();
+                        } else {
+                            toast.error(result?.message || 'Failed to update status');
+                        }
+                    }}
+                />
+            )}
         </AdminLayout>
     );
 };

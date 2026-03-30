@@ -2,9 +2,10 @@ import { Navigate } from 'react-router-dom';
 import { useAdminAuth } from '../../../contexts/AdminAuthContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
+import TempPasswordChangeModal from '../auth/TempPasswordChangeModal';
 
 const AdminLayout = ({ children }) => {
-  const { isAuthenticated, loading } = useAdminAuth();
+  const { isAuthenticated, loading, requirePasswordChange } = useAdminAuth();
 
   if (loading) {
     return (
@@ -23,6 +24,8 @@ const AdminLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Force-change modal renders over the entire layout when temp password is active */}
+      {requirePasswordChange && <TempPasswordChangeModal />}
       <AdminSidebar />
       <div className="ml-64 transition-all duration-300">
         <AdminHeader />

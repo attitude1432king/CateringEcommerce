@@ -65,15 +65,8 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result);
-                setImageFile({
-                    name: file.name,
-                    base64: reader.result
-                });
-            };
-            reader.readAsDataURL(file);
+            setImagePreview(URL.createObjectURL(file));
+            setImageFile(file);
         }
     };
 

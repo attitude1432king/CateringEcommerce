@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { fetchApi } from '../../services/apiUtils';
-import SampleTasteModal from './SampleTasteModal';
+import SampleTasteSelectionPanel from './SampleTasteSelectionPanel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
@@ -62,7 +62,6 @@ const getMediaType = (url) => {
 
     const extension = url.split('.').pop().toLowerCase();
 
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'tiff'];
     const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'ogg', 'm4v', '3gp'];
 
     if (videoExtensions.includes(extension)) {
@@ -89,7 +88,8 @@ export default function PackageSelectionModal({
     cateringId,
     packageId,
     packageName,
-    onSelectionComplete
+    onSelectionComplete,
+    sampleItems = []
 }) {
     const [packageData, setPackageData] = useState(null);
     const [selections, setSelections] = useState({}); // { categoryId: [foodId1, foodId2, ...] }
@@ -107,10 +107,8 @@ export default function PackageSelectionModal({
         foodName: ''
     });
 
-    // Sample Taste Modal state
-    const [showSampleTasteModal, setShowSampleTasteModal] = useState(false);
-    const [sampleTasteItems, setSampleTasteItems] = useState([]);
-    const [pendingPackageSelection, setPendingPackageSelection] = useState(null);
+    const [activeTab, setActiveTab] = useState('menu');
+    const [sampleTasteSelections, setSampleTasteSelections] = useState([]);
 
     // Refs for scrolling to invalid categories
     const categoryRefs = useRef({});
@@ -121,6 +119,13 @@ export default function PackageSelectionModal({
             loadPackageData();
         }
     }, [isOpen, packageId, cateringId]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setActiveTab('menu');
+            setSampleTasteSelections([]);
+        }
+    }, [isOpen, packageId]);
 
     // Search with debounce
     useEffect(() => {
@@ -301,6 +306,7 @@ export default function PackageSelectionModal({
             packageId: packageData.packageId,
             packageName: packageData.packageName,
             price: packageData.price,
+            sampleTasteSelections,
             selections: packageData.categories.map(cat => ({
                 categoryId: cat.categoryId,
                 categoryName: cat.categoryName,
@@ -311,53 +317,25 @@ export default function PackageSelectionModal({
             }))
         };
 
-        // Check if any selected items have sample tasting available
-        const allSelectedItems = [];
-        packageData.categories.forEach(category => {
-            const selectedItems = category.foodItems.filter(item =>
-                (selections[category.categoryId] || []).includes(item.foodId)
-            );
-            allSelectedItems.push(...selectedItems);
-        });
-
-        const itemsWithSampleTaste = allSelectedItems.filter(item => item.isSampleTasted === true);
-
-        if (itemsWithSampleTaste.length > 0) {
-            // Show Sample Taste Modal
-            setSampleTasteItems(itemsWithSampleTaste);
-            setPendingPackageSelection(selectionData);
-            setShowSampleTasteModal(true);
-        } else {
-            // No sample taste items, complete selection directly
-            onSelectionComplete(selectionData);
-            onClose();
-        }
-    };
-
-    // Handle Sample Taste Modal completion
-    const handleSampleTasteComplete = (sampleTasteSelection) => {
-        setShowSampleTasteModal(false);
-
-        // Combine package selection with sample taste selection
-        const finalSelectionData = {
-            ...pendingPackageSelection,
-            sampleTasteItems: sampleTasteSelection || []
-        };
-
-        onSelectionComplete(finalSelectionData);
+        onSelectionComplete(selectionData);
         onClose();
     };
 
-    // Handle Sample Taste Modal close (skip sample tasting)
-    const handleSampleTasteClose = () => {
-        setShowSampleTasteModal(false);
+    const selectedCategoryIds = useMemo(
+        () => Object.entries(selections)
+            .filter(([, selectedIds]) => (selectedIds || []).length > 0)
+            .map(([categoryId]) => Number(categoryId)),
+        [selections]
+    );
 
-        // Complete package selection without sample tasting
-        if (pendingPackageSelection) {
-            onSelectionComplete(pendingPackageSelection);
-            onClose();
-        }
-    };
+    const standaloneSampleCandidates = useMemo(
+        () => (sampleItems || []).filter(item =>
+            item.isSampleTasted === true &&
+            item.isIncludedInPackage === false &&
+            selectedCategoryIds.includes(item.categoryId)
+        ),
+        [sampleItems, selectedCategoryIds]
+    );
 
     if (!isOpen) return null;
 
@@ -430,6 +408,35 @@ export default function PackageSelectionModal({
                                 </p>
                             )}
                         </div>
+
+                        {!isLoading && !error && packageData && (
+                            <div className="mt-4 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('menu')}
+                                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                                        activeTab === 'menu'
+                                            ? 'bg-white text-orange-700 shadow-sm'
+                                            : 'bg-white/15 text-white hover:bg-white/20'
+                                    }`}
+                                >
+                                    Package Menu
+                                </button>
+                                {standaloneSampleCandidates.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('sample')}
+                                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                                            activeTab === 'sample'
+                                                ? 'bg-white text-orange-700 shadow-sm'
+                                                : 'bg-white/15 text-white hover:bg-white/20'
+                                        }`}
+                                    >
+                                        Sample Taste
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Content */}
@@ -457,7 +464,7 @@ export default function PackageSelectionModal({
                             </div>
                         )}
 
-                        {!isLoading && !error && packageData && (
+                        {!isLoading && !error && packageData && activeTab === 'menu' && (
                             <div className="p-6 space-y-8">
                                 {/* Instructions */}
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
@@ -710,6 +717,18 @@ export default function PackageSelectionModal({
                                 })}
                             </div>
                         )}
+
+                        {!isLoading && !error && packageData && activeTab === 'sample' && (
+                            <div className="p-6">
+                                <SampleTasteSelectionPanel
+                                    foodItems={standaloneSampleCandidates}
+                                    packageData={packageData}
+                                    initialSelections={sampleTasteSelections}
+                                    onConfirm={(selectionsData) => setSampleTasteSelections(selectionsData || [])}
+                                    confirmLabel="Save Sample Taste Selection"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -764,16 +783,6 @@ export default function PackageSelectionModal({
                 mediaType={mediaViewer.mediaType}
                 foodName={mediaViewer.foodName}
             />
-
-            {/* Sample Taste Modal - Conditionally shown when selected items have sample tasting */}
-            {showSampleTasteModal && (
-                <SampleTasteModal
-                    isOpen={showSampleTasteModal}
-                    onClose={handleSampleTasteClose}
-                    foodItems={sampleTasteItems}
-                    onConfirm={handleSampleTasteComplete}
-                />
-            )}
         </>
     );
 }

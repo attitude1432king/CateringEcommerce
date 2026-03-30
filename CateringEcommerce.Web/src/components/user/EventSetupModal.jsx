@@ -8,13 +8,21 @@
 import React, { useState, useEffect } from 'react';
 import { useEvent, GUEST_CATEGORIES, CATEGORY_CONFIG } from '../../contexts/EventContext';
 import { fetchApi } from '../../services/apiUtils';
+import { useAppSettings } from '../../contexts/AppSettingsContext';
+
+const getMinBookingDate = (minAdvanceBookingDays) => {
+    const minDate = new Date();
+    minDate.setHours(0, 0, 0, 0);
+    minDate.setDate(minDate.getDate() + minAdvanceBookingDays);
+    return minDate.toISOString().split('T')[0];
+};
 
 export default function EventSetupModal({ isOpen, onClose, onComplete, cateringId }) {
+    const { getInt } = useAppSettings();
     const {
         eventData,
         updateEventDetails,
         updateGuestCategory,
-        validateGuestTotals,
         completeEventSetup
     } = useEvent();
 
@@ -31,6 +39,8 @@ export default function EventSetupModal({ isOpen, onClose, onComplete, cateringI
 
     const [guestBreakdown, setGuestBreakdown] = useState({});
     const [errors, setErrors] = useState({});
+    const minAdvanceBookingDays = getInt('BUSINESS.MIN_ADVANCE_BOOKING_DAYS', 5);
+    const minBookingDate = getMinBookingDate(minAdvanceBookingDays);
 
     // Fetch available categories from backend when modal opens
     useEffect(() => {
@@ -115,7 +125,7 @@ export default function EventSetupModal({ isOpen, onClose, onComplete, cateringI
                 const firstCategoryId = availableCategories[0].categoryId;
                 const otherCategoriesTotal = Object.entries(guestBreakdown)
                     .filter(([key]) => key != firstCategoryId)
-                    .reduce((sum, [_, count]) => sum + count, 0);
+                    .reduce((sum, [, count]) => sum + count, 0);
 
                 setGuestBreakdown(prev => ({
                     ...prev,
@@ -150,6 +160,11 @@ export default function EventSetupModal({ isOpen, onClose, onComplete, cateringI
         // Validate minimum guests
         if (formData.totalGuests < minGuests) {
             setErrors({ totalGuests: `Minimum ${minGuests} guests required for event catering` });
+            return;
+        }
+
+        if (!formData.eventDate || formData.eventDate < minBookingDate) {
+            setErrors({ eventDate: `Event date must be at least ${minAdvanceBookingDays} days in advance` });
             return;
         }
 
@@ -242,10 +257,11 @@ export default function EventSetupModal({ isOpen, onClose, onComplete, cateringI
                                     type="date"
                                     value={formData.eventDate}
                                     onChange={(e) => handleFormChange('eventDate', e.target.value)}
-                                    min={new Date().toISOString().split('T')[0]}
+                                    min={minBookingDate}
                                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500"
                                     required
                                 />
+                                {errors.eventDate && <p className="text-xs text-red-600 mt-2">{errors.eventDate}</p>}
                             </div>
                         </div>
                     </div>

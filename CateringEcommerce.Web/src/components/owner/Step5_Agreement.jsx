@@ -33,11 +33,18 @@ const SignaturePad = ({ onSignatureChange, signature }) => {
         // If signature exists, load it
         if (signature) {
             const img = new Image();
+            let objectUrl = null;
             img.onload = () => {
                 ctx.drawImage(img, 0, 0, rect.width, rect.height);
                 setIsEmpty(false);
+                if (objectUrl) URL.revokeObjectURL(objectUrl);
             };
-            img.src = signature;
+            if (signature instanceof Blob) {
+                objectUrl = URL.createObjectURL(signature);
+                img.src = objectUrl;
+            } else {
+                img.src = signature;
+            }
         }
     }, [signature]);
 
@@ -72,8 +79,9 @@ const SignaturePad = ({ onSignatureChange, signature }) => {
     const stopDrawing = () => {
         if (isDrawing) {
             const canvas = canvasRef.current;
-            const signatureData = canvas.toDataURL('image/png');
-            onSignatureChange(signatureData);
+            canvas.toBlob((blob) => {
+                onSignatureChange(blob);
+            }, 'image/png');
             setIsDrawing(false);
         }
     };
@@ -188,20 +196,11 @@ export default function Step5_Agreement({ formData, setFormData, errors }) {
             ALLOWED_ATTR: []
         });
 
-        // SECURITY: Validate signature is a valid data URL
         let signatureHTML = '<p style="color: #ef4444; font-style: italic;">No signature provided</p>';
-        if (formData.signature) {
-            // Validate it's a data URL for image
-            if (formData.signature.startsWith('data:image/')) {
-                // Additional sanitization: ensure it's a safe data URL
-                const sanitizedSignature = DOMPurify.sanitize(formData.signature, {
-                    ALLOWED_TAGS: [],
-                    ALLOWED_ATTR: []
-                });
-                signatureHTML = `<img src="${sanitizedSignature}" alt="Partner Signature" class="signature-image" />`;
-            } else {
-                signatureHTML = '<p style="color: #ef4444; font-style: italic;">Invalid signature format</p>';
-            }
+        if (formData.signature instanceof Blob) {
+            const sigUrl = URL.createObjectURL(formData.signature);
+            signatureHTML = `<img src="${sigUrl}" alt="Partner Signature" class="signature-image" />`;
+            setTimeout(() => URL.revokeObjectURL(sigUrl), 2000);
         }
 
         // Build the print content with sanitized data

@@ -132,7 +132,7 @@ BEGIN
     SET s.c_current_status = 'REJECTED',
         s.c_status_reason = @Reason,
         s.c_modifieddate = GETDATE(),
-        s.c_modified_by = @RejectedBy
+        s.c_modifiedby = @RejectedBy
     FROM t_sys_supervisor s
     INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
     WHERE a.c_application_id = @ApplicationId;
@@ -641,7 +641,7 @@ BEGIN
             s.c_authority_level = 'INTERMEDIATE',
             s.c_is_available = 1,
             s.c_modifieddate = GETDATE(),
-            s.c_modified_by = @ActivatedBy
+            s.c_modifiedby = @ActivatedBy
         FROM t_sys_supervisor s
         INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
         WHERE a.c_application_id = @ApplicationId;
