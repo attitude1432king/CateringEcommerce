@@ -214,6 +214,8 @@ export default function AuthModal({ isOpen, onClose, isPartnerLogin = false }) {
                     name: user.fullName ?? user.cateringName,
                     role: role,
                     token: token,
+                    phone: user.phone,
+                    email: user.email,
                     profilePhoto: (user.profilePhoto ? `${API_BASE_URL}${user.profilePhoto}` : undefined)
                 });
                 handleClose();

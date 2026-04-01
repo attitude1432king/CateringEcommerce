@@ -342,7 +342,16 @@ const ModernCheckoutPage = () => {
             // ── Contact info: authenticated user or guest ─────────────────────
             const contactPerson = checkoutData.isGuest ? 'Guest' : (user?.name || 'Guest');
             const contactPhone  = checkoutData.isGuest ? checkoutData.guestPhone  : user?.phone;
-            const contactEmail  = checkoutData.isGuest ? checkoutData.guestEmail  : user?.email;
+            const contactEmail = checkoutData.isGuest ? checkoutData.guestEmail : user?.email;
+
+
+            if (!contactPhone || !contactEmail) {
+                setErrors({
+                    submit: 'Contact phone and email are required. Please update your profile for checkout.'
+                });
+                setIsSubmitting(false);
+                return;
+            }
 
             const orderData = {
                 CateringId:          cart.cateringId,

@@ -30,33 +30,59 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var query = new StringBuilder();
                 var countQuery = new StringBuilder();
 
-                // Base query
                 var baseQuery = $@"
-                    FROM {Table.SysOrders} o
-                    INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
-                    OUTER APPLY (
-                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
-                        FROM {Table.SysOrderPayments} p
-                        WHERE p.c_orderid = o.c_orderid
-                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
-                    ) pay
-                    OUTER APPLY (
-                        SELECT STUFF((
-                            SELECT TOP 6 ', ' + ISNULL(f.c_foodname, '')
-                            FROM {Table.SysOrderItems} oi2
-                            INNER JOIN {Table.SysFoodItems} f ON oi2.c_foodid = f.c_foodid
-                            WHERE oi2.c_orderid = o.c_orderid AND f.c_is_deleted = 0
-                            FOR XML PATH(''), TYPE
-                        ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS MenuItemNames
-                    ) menu
-                    WHERE o.c_ownerid = @OwnerId";
+            FROM {Table.SysOrders} o
+            INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
+
+            OUTER APPLY (
+                SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                FROM {Table.SysOrderPayments} p
+                WHERE p.c_orderid = o.c_orderid
+                  AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+            ) pay
+
+            OUTER APPLY (
+                SELECT STUFF((
+                    SELECT TOP 6 ', ' + src.FoodName
+                    FROM (
+
+                        -- Source 1: Direct FoodItem rows
+                        SELECT f.c_foodname AS FoodName
+                        FROM {Table.SysOrderItems} oi
+                        INNER JOIN {Table.SysFoodItems} f ON oi.c_item_id = f.c_foodid
+                        WHERE oi.c_orderid   = o.c_orderid
+                          AND oi.c_item_type = 'FoodItem'
+                          AND f.c_is_deleted = 0
+
+                        UNION ALL
+
+                        -- Source 2: Food names inside Package JSON
+                        -- JSON path: $.selections[*].selectedItems[*].foodName
+                        SELECT JSON_VALUE(si.value, '$.foodName') AS FoodName
+                        FROM {Table.SysOrderItems} oi
+                        CROSS APPLY OPENJSON(
+                            TRY_CAST(oi.c_package_selections AS NVARCHAR(MAX)),
+                            '$.selections'
+                        ) sel
+                        CROSS APPLY OPENJSON(sel.value, '$.selectedItems') si
+                        WHERE oi.c_orderid   = o.c_orderid
+                          AND oi.c_item_type = 'Package'
+                          AND oi.c_package_selections IS NOT NULL
+                          AND JSON_VALUE(si.value, '$.foodName') IS NOT NULL
+
+                    ) src
+                    FOR XML PATH(''), TYPE
+                ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS MenuItemNames
+            ) menu
+
+            WHERE o.c_ownerid = @OwnerId";
 
                 var parameters = new List<SqlParameter>
-                {
-                    new SqlParameter("@OwnerId", ownerId)
-                };
+        {
+            new SqlParameter("@OwnerId", ownerId)
+        };
 
-                // Apply filters
+                // ── Filters ───────────────────────────────────────────────────────────
                 if (!string.IsNullOrEmpty(filter.OrderStatus) && filter.OrderStatus.ToLower() != "all")
                 {
                     baseQuery += " AND o.c_order_status = @OrderStatus";
@@ -96,8 +122,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (!string.IsNullOrEmpty(filter.SearchTerm))
                 {
                     baseQuery += @" AND (o.c_order_number LIKE @SearchTerm
-                                    OR u.c_name LIKE @SearchTerm
-                                    OR u.c_mobile LIKE @SearchTerm)";
+                            OR u.c_name           LIKE @SearchTerm
+                            OR u.c_mobile         LIKE @SearchTerm)";
                     parameters.Add(new SqlParameter("@SearchTerm", $"%{filter.SearchTerm}%"));
                 }
 
@@ -112,63 +138,57 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     baseQuery += $" AND o.c_order_status NOT IN ({placeholders})";
                 }
 
-                // Count query
+                // ── Count query ───────────────────────────────────────────────────────
                 countQuery.Append($"SELECT COUNT(*) AS TotalCount {baseQuery}");
 
-                // Data query with pagination
+                // ── Data query ────────────────────────────────────────────────────────
                 query.Append($@"
-                    SELECT
-                        o.c_orderid AS OrderId,
-                        o.c_order_number AS OrderNumber,
-                        u.c_name AS CustomerName,
-                        u.c_mobile AS CustomerPhone,
-                        o.c_event_type AS EventType,
-                        o.c_event_date AS EventDate,
-                        o.c_createddate AS OrderDate,
-                        o.c_total_amount AS TotalAmount,
-                        ISNULL(pay.PaidAmount, 0) AS PaidAmount,
-                        (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) AS BalanceAmount,
-                        o.c_order_status AS OrderStatus,
-                        o.c_payment_status AS PaymentStatus,
-                        o.c_guest_count AS GuestCount,
-                        DATEDIFF(DAY, GETDATE(), o.c_event_date) AS DaysUntilEvent,
-                        ISNULL(o.c_event_time, '') AS EventTime,
-                        ISNULL(o.c_event_location, ISNULL(o.c_delivery_address, '')) AS VenueAddress,
-                        ISNULL(menu.MenuItemNames, '') AS MenuItemNames
-                    {baseQuery}
-                    ORDER BY ");
+            SELECT
+                o.c_orderid                                                    AS OrderId,
+                o.c_order_number                                               AS OrderNumber,
+                u.c_name                                                       AS CustomerName,
+                u.c_mobile                                                     AS CustomerPhone,
+                o.c_event_type                                                 AS EventType,
+                o.c_event_date                                                 AS EventDate,
+                o.c_createddate                                                AS OrderDate,
+                o.c_total_amount                                               AS TotalAmount,
+                ISNULL(pay.PaidAmount, 0)                                      AS PaidAmount,
+                (o.c_total_amount - ISNULL(pay.PaidAmount, 0))                AS BalanceAmount,
+                o.c_order_status                                               AS OrderStatus,
+                o.c_payment_status                                             AS PaymentStatus,
+                o.c_guest_count                                                AS GuestCount,
+                DATEDIFF(DAY, GETDATE(), o.c_event_date)                      AS DaysUntilEvent,
+                ISNULL(o.c_event_time, '')                                    AS EventTime,
+                ISNULL(o.c_event_location, ISNULL(o.c_delivery_address, '')) AS VenueAddress,
+                ISNULL(menu.MenuItemNames, '')                                AS MenuItemNames
+            {baseQuery}
+            ORDER BY ");
 
-                // Apply sorting
+                // ── Sorting ───────────────────────────────────────────────────────────
                 switch (filter.SortBy?.ToLower())
                 {
-                    case "eventdate":
-                        query.Append("o.c_event_date");
-                        break;
-                    case "amount":
-                        query.Append("o.c_total_amount");
-                        break;
+                    case "eventdate": query.Append("o.c_event_date"); break;
+                    case "amount": query.Append("o.c_total_amount"); break;
                     case "orderdate":
-                    default:
-                        query.Append("o.c_createddate");
-                        break;
+                    default: query.Append("o.c_createddate"); break;
                 }
 
                 query.Append(filter.SortOrder?.ToUpper() == "ASC" ? " ASC" : " DESC");
 
-                // Add pagination
+                // ── Pagination ────────────────────────────────────────────────────────
                 int offset = (filter.Page - 1) * filter.PageSize;
                 query.Append($" OFFSET {offset} ROWS FETCH NEXT {filter.PageSize} ROWS ONLY");
 
-                // Execute count query
+                // ── Execute count ─────────────────────────────────────────────────────
                 var totalCount = 0;
-                var countResult = await Task.Run(() => _dbHelper.ExecuteScalar(countQuery.ToString(), CloneParameters(parameters)));
+                var countResult = await Task.Run(() =>
+                    _dbHelper.ExecuteScalar(countQuery.ToString(), CloneParameters(parameters)));
                 if (countResult != null)
-                {
                     totalCount = Convert.ToInt32(countResult);
-                }
 
-                // Execute data query
-                var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query.ToString(), CloneParameters(parameters)));
+                // ── Execute data ──────────────────────────────────────────────────────
+                var dataTable = await Task.Run(() =>
+                    _dbHelper.ExecuteAsync(query.ToString(), CloneParameters(parameters)));
 
                 var orders = new List<OrderListItemDto>();
                 foreach (DataRow row in dataTable.Rows)
@@ -194,7 +214,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         DaysUntilEvent = row.GetValue<int>("DaysUntilEvent"),
                         MenuItems = string.IsNullOrEmpty(rawMenuItems)
                             ? []
-                            : rawMenuItems.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            : rawMenuItems
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries)
                                 .Select(s => s.Trim())
                                 .Where(s => !string.IsNullOrEmpty(s))
                                 .ToList()

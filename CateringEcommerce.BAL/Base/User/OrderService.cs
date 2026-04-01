@@ -441,7 +441,7 @@ namespace CateringEcommerce.BAL.Base.User
                     FROM {Table.SysMenuPackage}
                     WHERE c_packageid = @PackageId
                       AND c_ownerid = @CateringId
-                      AND c_isactive = 1
+                      AND c_is_active = 1
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]

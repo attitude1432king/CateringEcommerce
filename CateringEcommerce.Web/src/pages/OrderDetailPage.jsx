@@ -13,6 +13,8 @@ import ReviewSubmissionModal from '../components/user/review/ReviewSubmissionMod
 import StarRating from '../components/common/StarRating';
 import toast from 'react-hot-toast'; // P2 FIX: Add toast for better UX
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const OrderDetailPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -242,7 +244,7 @@ const OrderDetailPage = () => {
           <div className="flex items-center gap-4">
             {order.cateringLogo && (
               <img
-                src={order.cateringLogo}
+                src={`${API_BASE_URL}${ order.cateringLogo }`}
                 alt={order.cateringName}
                 className="w-20 h-20 rounded-lg object-cover"
               />

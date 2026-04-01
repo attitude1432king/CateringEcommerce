@@ -71,24 +71,6 @@ ELSE
 GO
 
 -- ==========================================
--- Table: t_sys_order_items
--- ==========================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_order_items')
-BEGIN
-    CREATE TABLE t_sys_order_items (
-        c_order_itemid BIGINT PRIMARY KEY IDENTITY(1,1),
-        c_orderid BIGINT NOT NULL,
-        c_foodid BIGINT NOT NULL,
-        c_quantity INT NOT NULL,
-        c_price DECIMAL(10,2) NOT NULL
-    );
-    PRINT 'Created table: t_sys_order_items';
-END
-ELSE
-    PRINT 'Table already exists: t_sys_order_items';
-GO
-
--- ==========================================
 -- Table: t_sys_payment
 -- ==========================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_payment')

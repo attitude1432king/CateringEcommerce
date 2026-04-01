@@ -877,14 +877,6 @@ CREATE TABLE t_sys_order (
     c_createddate DATETIME NULL 
 );
 
--- Order Items Table – stores which items are in an order
-CREATE TABLE t_sys_order_items (
-    c_order_itemid BIGINT PRIMARY KEY IDENTITY(1,1),
-    c_orderid BIGINT NOT NULL,
-    c_foodid BIGINT NOT NULL,
-    c_quantity INT NOT NULL,
-    c_price DECIMAL(10,2) NOT NULL,
-);
 
 -- Payment Table – stores payment details
 CREATE TABLE t_sys_payment (

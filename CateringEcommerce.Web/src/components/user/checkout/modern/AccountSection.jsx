@@ -5,7 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
  * Account Section - Step 1 of Modern Checkout
  * Shows logged-in user info or guest checkout option
  */
-const AccountSection = ({ checkoutData, onUpdate, onNext, errors = {} }) => {
+const AccountSection = ({ checkoutData, onUpdate, onComplete, errors = {} }) => {
   const { user, isAuthenticated } = useAuth();
 
   const handleGuestCheckout = () => {
@@ -30,7 +30,7 @@ const AccountSection = ({ checkoutData, onUpdate, onNext, errors = {} }) => {
       }
     }
 
-    onNext();
+      onComplete();
   };
 
   return (
