@@ -129,26 +129,27 @@ namespace CateringEcommerce.API.Controllers.Admin
 
                 Response.Cookies.Append("adminToken", token, cookieOptions);
 
-                Console.WriteLine("Response cookies set:");
-                foreach (var h in Response.Headers["Set-Cookie"])
-                {
-                    Console.WriteLine(h);
-                }
+                // Check if the account has a temporary password that must be changed
+                bool requirePasswordChange = _adminAuthRepository.IsTemporaryPassword(admin.AdminId);
 
                 // SECURITY: Do NOT include token in response body
-                var response = new AdminLoginResponse
+                var response = new
                 {
-                    AdminId = admin.AdminId,
-                    Username = admin.Username,
-                    Email = admin.Email,
-                    FullName = admin.FullName,
-                    Role = admin.Role,
-                    // Token removed from response (now in httpOnly cookie)
-                    LastLogin = admin.LastLogin ?? DateTime.UtcNow,
-                    ProfilePhoto = admin.ProfilePhoto
+                    adminId = admin.AdminId,
+                    username = admin.Username,
+                    email = admin.Email,
+                    fullName = admin.FullName,
+                    role = admin.Role,
+                    lastLogin = admin.LastLogin ?? DateTime.UtcNow,
+                    profilePhoto = admin.ProfilePhoto,
+                    requirePasswordChange   // Frontend must show force-change modal when true
                 };
 
-                return ApiResponseHelper.Success(response, "Login successful.");
+                string loginMessage = requirePasswordChange
+                    ? "Login successful. Please change your temporary password to continue."
+                    : "Login successful.";
+
+                return ApiResponseHelper.Success(response, loginMessage);
             }
             catch (Exception ex)
             {
@@ -218,6 +219,71 @@ namespace CateringEcommerce.API.Controllers.Admin
                 Console.WriteLine($"[ERROR] Admin Auth operation failed: {ex.Message}");
                 return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
             }
+        }
+
+        /// <summary>
+        /// Change temporary password — must be called by a logged-in admin whose
+        /// c_is_temporary_password = 1. Validates current password, enforces strength
+        /// requirements, then clears the temporary flag.
+        /// </summary>
+        [HttpPost("change-temporary-password")]
+        [AdminAuthorize]
+        public IActionResult ChangeTempPassword([FromBody] ChangeTempPasswordDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ApiResponseHelper.Failure("Invalid request data."));
+
+                if (dto.NewPassword != dto.ConfirmPassword)
+                    return BadRequest(ApiResponseHelper.Failure("New password and confirmation do not match."));
+
+                if (!IsStrongPassword(dto.NewPassword))
+                    return BadRequest(ApiResponseHelper.Failure(
+                        "Password must be at least 10 characters and include uppercase, lowercase, a digit, and a special character."));
+
+                var adminIdClaim = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier);
+                if (adminIdClaim == null || !long.TryParse(adminIdClaim.Value, out long adminId))
+                    return ApiResponseHelper.Failure("Invalid admin session.");
+
+                var admin = _adminAuthRepository.GetAdminById(adminId);
+                if (admin == null)
+                    return ApiResponseHelper.Failure("Admin not found.");
+
+                if (!HashHelper.VerifyPassword(dto.CurrentPassword, admin.PasswordHash))
+                    return BadRequest(ApiResponseHelper.Failure("Current password is incorrect."));
+
+                if (dto.CurrentPassword == dto.NewPassword)
+                    return BadRequest(ApiResponseHelper.Failure("New password must be different from the current password."));
+
+                var newHash = HashHelper.HashPassword(dto.NewPassword);
+                bool updated = _adminAuthRepository.ChangeTempPassword(adminId, newHash);
+
+                if (!updated)
+                    return StatusCode(500, ApiResponseHelper.Failure("Failed to update password. Please try again."));
+
+                _adminAuthRepository.LogAdminActivity(adminId, "CHANGE_TEMP_PASSWORD", "Admin changed temporary password");
+
+                return ApiResponseHelper.Success(null, "Password changed successfully. Welcome!");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ChangeTempPassword failed: {ex.Message}");
+                return StatusCode(500, ApiResponseHelper.Failure("An internal error occurred. Please try again later."));
+            }
+        }
+
+        private static bool IsStrongPassword(string password)
+        {
+            if (string.IsNullOrEmpty(password) || password.Length < 10)
+                return false;
+
+            bool hasUpper   = password.Any(char.IsUpper);
+            bool hasLower   = password.Any(char.IsLower);
+            bool hasDigit   = password.Any(char.IsDigit);
+            bool hasSpecial = password.Any(c => !char.IsLetterOrDigit(c));
+
+            return hasUpper && hasLower && hasDigit && hasSpecial;
         }
 
         /// <summary>

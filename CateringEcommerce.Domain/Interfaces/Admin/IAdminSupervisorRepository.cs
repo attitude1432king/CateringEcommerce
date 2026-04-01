@@ -6,6 +6,7 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
     {
         // Tab 1: Pending Supervisor Requests
         AdminSupervisorRegistrationListResponse GetRegistrationRequests(AdminSupervisorRegistrationListRequest request);
+        AdminSupervisorDetailResponse? GetSupervisorDetails(long supervisorId);
         bool UpdateSupervisorStatus(AdminSupervisorStatusUpdate request);
 
         // Tab 2: Approved Supervisors

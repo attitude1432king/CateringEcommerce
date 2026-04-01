@@ -46,9 +46,10 @@ namespace CateringEcommerce.BAL.Base.Admin
         public AdminModel? GetAdminById(long adminId)
         {
             string query = $@"
-                SELECT c_adminid, c_username, c_email, c_fullname, c_role,
+                SELECT c_adminid, c_username, c_passwordhash, c_email, c_fullname, c_role,
                        c_profilephoto, c_isactive, c_failedloginattempts,
-                       c_islocked, c_lockeduntil, c_createddate, c_lastlogin
+                       c_islocked, c_lockeduntil, c_createddate, c_lastlogin,
+                       c_is_temporary_password
                 FROM {Table.SysAdmin}
                 WHERE c_adminid = @AdminId";
 
@@ -71,7 +72,8 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT c_adminid, c_username, c_passwordhash, c_email, c_fullname, c_role,
                        c_profilephoto, c_isactive, c_failedloginattempts,
-                       c_islocked, c_lockeduntil, c_createddate, c_lastlogin
+                       c_islocked, c_lockeduntil, c_createddate, c_lastlogin,
+                       c_is_temporary_password
                 FROM {Table.SysAdmin}
                 WHERE c_username = @Username
                   AND c_isactive = 1";
@@ -167,6 +169,39 @@ namespace CateringEcommerce.BAL.Base.Admin
             return Convert.ToBoolean(result);
         }
 
+        public bool IsTemporaryPassword(long adminId)
+        {
+            string query = $@"
+                SELECT c_is_temporary_password
+                FROM {Table.SysAdmin}
+                WHERE c_adminid = @AdminId AND c_isactive = 1";
+
+            SqlParameter[] parameters = {
+                new SqlParameter("@AdminId", adminId)
+            };
+
+            var result = _dbHelper.ExecuteScalar(query, parameters);
+            return result != null && result != DBNull.Value && Convert.ToBoolean(result);
+        }
+
+        public bool ChangeTempPassword(long adminId, string newPasswordHash)
+        {
+            string query = $@"
+                UPDATE {Table.SysAdmin}
+                SET c_passwordhash = @NewHash,
+                    c_is_temporary_password = 0,
+                    c_lastmodified = GETDATE()
+                WHERE c_adminid = @AdminId";
+
+            SqlParameter[] parameters = {
+                new SqlParameter("@AdminId", adminId),
+                new SqlParameter("@NewHash", newPasswordHash)
+            };
+
+            int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
+            return rowsAffected > 0;
+        }
+
         public void LogAdminActivity(long adminId, string action, string? details = null)
         {
             string query = $@"
@@ -202,7 +237,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 IsLocked = Convert.ToBoolean(row["c_islocked"]),
                 LockedUntil = row["c_lockeduntil"] != DBNull.Value ? Convert.ToDateTime(row["c_lockeduntil"]) : null,
                 CreatedDate = Convert.ToDateTime(row["c_createddate"]),
-                LastLogin = row["c_lastlogin"] != DBNull.Value ? Convert.ToDateTime(row["c_lastlogin"]) : null
+                LastLogin = row["c_lastlogin"] != DBNull.Value ? Convert.ToDateTime(row["c_lastlogin"]) : null,
+                IsTemporaryPassword = row.Table.Columns.Contains("c_is_temporary_password") && row["c_is_temporary_password"] != DBNull.Value && Convert.ToBoolean(row["c_is_temporary_password"])
             };
         }
     }

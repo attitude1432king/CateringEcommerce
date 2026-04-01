@@ -132,35 +132,22 @@ namespace CateringEcommerce.BAL.Services
         }
 
         // ===================================
-        // SEND SMS (MSG91/Twilio)
+        // SEND SMS (MSG91 — OTP only via SmsService; AWS SNS for notifications)
         // ===================================
         public async Task SendSMSAsync(string phoneNumber, string message)
         {
             try
             {
-                string provider = _settings.GetString("SMS.PROVIDER", "MSG91");
                 string apiKey = _settings.GetString("SMS.API_KEY");
-                string senderId = _settings.GetString("SMS.SENDER_ID", "ENVORA");
+                string senderId = _settings.GetString("SMS.SENDER_ID", "ENYVORA");
 
-                // Skip if no API key configured
                 if (string.IsNullOrEmpty(apiKey))
                 {
                     Console.WriteLine("SMS API key not configured. Skipping SMS send.");
                     return;
                 }
 
-                if (provider.Equals("MSG91", StringComparison.OrdinalIgnoreCase))
-                {
-                    await SendViaMSG91(phoneNumber, message, apiKey, senderId);
-                }
-                else if (provider.Equals("Twilio", StringComparison.OrdinalIgnoreCase))
-                {
-                    await SendViaTwilio(phoneNumber, message, apiKey, senderId);
-                }
-                else
-                {
-                    Console.WriteLine($"Unknown SMS provider: {provider}");
-                }
+                await SendViaMSG91(phoneNumber, message, apiKey, senderId);
             }
             catch (Exception ex)
             {
@@ -224,32 +211,7 @@ namespace CateringEcommerce.BAL.Services
             }
         }
 
-        // ===================================
-        // SEND VIA TWILIO
-        // ===================================
-        private async Task SendViaTwilio(string phoneNumber, string message, string apiKey, string senderId)
-        {
-            try
-            {
-                // Twilio implementation
-                // This is a placeholder - you'll need to install Twilio NuGet package for full implementation
-                Console.WriteLine($"Twilio SMS to {phoneNumber}: {message}");
-
-                // TODO: Implement Twilio integration
-                // Install-Package Twilio
-                // TwilioClient.Init(accountSid, authToken);
-                // var messageResource = await MessageResource.CreateAsync(...);
-
-                await Task.CompletedTask;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error sending SMS via Twilio: {ex.Message}");
-                throw;
-            }
-        }
-
-        // ===================================
+// ===================================
         // GENERATE ORDER CONFIRMATION EMAIL HTML
         // ===================================
         private string GenerateOrderConfirmationEmail(OrderDto order)

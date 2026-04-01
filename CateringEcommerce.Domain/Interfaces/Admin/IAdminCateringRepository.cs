@@ -10,5 +10,6 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
         bool DeleteCatering(long cateringId, long deletedBy);
         bool RestoreCatering(long cateringId, long restoredBy);
         List<AdminCateringExportItem> GetCateringsForExport(AdminCateringListRequest request);
+        bool ToggleFeaturedStatus(long cateringId, bool isFeatured);
     }
 }

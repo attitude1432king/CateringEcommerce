@@ -92,10 +92,22 @@ namespace CateringEcommerce.Domain.Models.Admin
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string? Mobile { get; set; }
-        public string Password { get; set; } = string.Empty; // Client sends pre-hashed password
+        // Password is no longer accepted from client — server auto-generates a secure temporary password
         public long RoleId { get; set; }
         public bool IsActive { get; set; } = true;
-        public bool ForcePasswordReset { get; set; } = true; // Default to force password reset
+    }
+
+    public class CreateAdminResponseDto
+    {
+        public long AdminId { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        /// <summary>
+        /// Plain-text temporary password — shown once to the creating admin.
+        /// Never stored in plain text; stored as BCrypt hash in the database.
+        /// </summary>
+        public string TemporaryPassword { get; set; } = string.Empty;
     }
 
     #endregion

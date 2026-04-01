@@ -1,5 +1,4 @@
-﻿using CateringEcommerce.Domain.Models.Common;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace CateringEcommerce.Domain.Models.APIModels.Owner
 {
@@ -10,7 +9,7 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         public string CateringName { get; set; }
         [Required]
         public string OwnerName { get; set; }
-        public string? CateringLogo { get; set; } // Will be a Base64 string
+        // CateringLogo received as [FromForm] IFormFile in the controller
         [Required]
         public string Mobile { get; set; }
         [Required]
@@ -58,26 +57,22 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
 
         // Step 4: Legal & Payment (many are optional)
         public string? FssaiNumber { get; set; }
-        public string? FssaiExpiry { get; set; } // Optional, if FSSAI is applicable
-        public FileUploadDto? FssaiCertificate { get; set; } // Base64 PDF
+        public string? FssaiExpiry { get; set; }
+        // FssaiCertificate, GstCertificate, PanCard, ChequeCopy, Signature — received as [FromForm] IFormFile params in the controller
         public string? GstNumber { get; set; }
         public bool IsGstApplicable { get; set; }
-        public FileUploadDto? GstCertificate { get; set; } // Base64 PDF
         public string? PanHolderName { get; set; }
         public string? PanNumber { get; set; }
-        public FileUploadDto? PanCard { get; set; } // Base64 Image/PDF
         [Required]
         public string? BankAccountName { get; set; }
         [Required]
         public string? BankAccountNumber { get; set; }
         [Required]
         public string? IfscCode { get; set; }
-        public string? ChequePath { get; set; } // Base64 Image of Cheque
-        public string? UpiId { get; set; } // Optional, for UPI payments
+        public string? UpiId { get; set; }
 
         // Step 5: Agreement & Signature
         [Required]
         public bool AgreementAccepted { get; set; }
-        public string? Signature { get; set; } // Base64 PNG signature
     }
 }

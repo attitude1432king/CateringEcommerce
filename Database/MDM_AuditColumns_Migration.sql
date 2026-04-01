@@ -16,9 +16,9 @@ BEGIN
     ALTER TABLE t_sys_city ADD c_createddate DATETIME NULL;
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_city') AND name = 'c_created_by')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_city') AND name = 'c_createdby')
 BEGIN
-    ALTER TABLE t_sys_city ADD c_created_by BIGINT NULL;
+    ALTER TABLE t_sys_city ADD c_createdby BIGINT NULL;
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_city') AND name = 'c_modifieddate')
@@ -26,9 +26,9 @@ BEGIN
     ALTER TABLE t_sys_city ADD c_modifieddate DATETIME NULL;
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_city') AND name = 'c_modified_by')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_city') AND name = 'c_modifiedby')
 BEGIN
-    ALTER TABLE t_sys_city ADD c_modified_by BIGINT NULL;
+    ALTER TABLE t_sys_city ADD c_modifiedby BIGINT NULL;
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_city') AND name = 'c_is_deleted')
@@ -59,9 +59,9 @@ BEGIN
     ALTER TABLE t_sys_food_category ADD c_modifieddate DATETIME NULL;
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_food_category') AND name = 'c_modified_by')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_food_category') AND name = 'c_modifiedby')
 BEGIN
-    ALTER TABLE t_sys_food_category ADD c_modified_by BIGINT NULL;
+    ALTER TABLE t_sys_food_category ADD c_modifiedby BIGINT NULL;
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_food_category') AND name = 'c_is_deleted')
@@ -92,9 +92,9 @@ BEGIN
     ALTER TABLE t_sys_catering_type_master ADD c_createddate DATETIME NULL;
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_type_master') AND name = 'c_created_by')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_type_master') AND name = 'c_createdby')
 BEGIN
-    ALTER TABLE t_sys_catering_type_master ADD c_created_by BIGINT NULL;
+    ALTER TABLE t_sys_catering_type_master ADD c_createdby BIGINT NULL;
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_type_master') AND name = 'c_modifieddate')
@@ -102,9 +102,9 @@ BEGIN
     ALTER TABLE t_sys_catering_type_master ADD c_modifieddate DATETIME NULL;
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_type_master') AND name = 'c_modified_by')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_type_master') AND name = 'c_modifiedby')
 BEGIN
-    ALTER TABLE t_sys_catering_type_master ADD c_modified_by BIGINT NULL;
+    ALTER TABLE t_sys_catering_type_master ADD c_modifiedby BIGINT NULL;
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_type_master') AND name = 'c_is_deleted')
@@ -135,9 +135,9 @@ BEGIN
     ALTER TABLE t_sys_catering_theme_types ADD c_createddate DATETIME NULL;
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_theme_types') AND name = 'c_created_by')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_theme_types') AND name = 'c_createdby')
 BEGIN
-    ALTER TABLE t_sys_catering_theme_types ADD c_created_by BIGINT NULL;
+    ALTER TABLE t_sys_catering_theme_types ADD c_createdby BIGINT NULL;
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_theme_types') AND name = 'c_modifieddate')
@@ -145,9 +145,9 @@ BEGIN
     ALTER TABLE t_sys_catering_theme_types ADD c_modifieddate DATETIME NULL;
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_theme_types') AND name = 'c_modified_by')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_theme_types') AND name = 'c_modifiedby')
 BEGIN
-    ALTER TABLE t_sys_catering_theme_types ADD c_modified_by BIGINT NULL;
+    ALTER TABLE t_sys_catering_theme_types ADD c_modifiedby BIGINT NULL;
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_catering_theme_types') AND name = 'c_is_deleted')
@@ -172,22 +172,22 @@ PRINT 'Verifying t_sys_city columns:';
 SELECT name, TYPE_NAME(system_type_id) as data_type, is_nullable
 FROM sys.columns
 WHERE object_id = OBJECT_ID('t_sys_city')
-AND name IN ('c_display_order', 'c_createddate', 'c_created_by', 'c_modifieddate', 'c_modified_by', 'c_is_deleted');
+AND name IN ('c_display_order', 'c_createddate', 'c_createdby', 'c_modifieddate', 'c_modifiedby', 'c_is_deleted');
 
 PRINT 'Verifying t_sys_food_category columns:';
 SELECT name, TYPE_NAME(system_type_id) as data_type, is_nullable
 FROM sys.columns
 WHERE object_id = OBJECT_ID('t_sys_food_category')
-AND name IN ('c_display_order', 'c_modifieddate', 'c_modified_by', 'c_is_deleted');
+AND name IN ('c_display_order', 'c_modifieddate', 'c_modifiedby', 'c_is_deleted');
 
 PRINT 'Verifying t_sys_catering_type_master columns:';
 SELECT name, TYPE_NAME(system_type_id) as data_type, is_nullable
 FROM sys.columns
 WHERE object_id = OBJECT_ID('t_sys_catering_type_master')
-AND name IN ('c_display_order', 'c_createddate', 'c_created_by', 'c_modifieddate', 'c_modified_by', 'c_is_deleted');
+AND name IN ('c_display_order', 'c_createddate', 'c_createdby', 'c_modifieddate', 'c_modifiedby', 'c_is_deleted');
 
 PRINT 'Verifying t_sys_catering_theme_types columns:';
 SELECT name, TYPE_NAME(system_type_id) as data_type, is_nullable
 FROM sys.columns
 WHERE object_id = OBJECT_ID('t_sys_catering_theme_types')
-AND name IN ('c_display_order', 'c_createddate', 'c_created_by', 'c_modifieddate', 'c_modified_by', 'c_is_deleted');
+AND name IN ('c_display_order', 'c_createddate', 'c_createdby', 'c_modifieddate', 'c_modifiedby', 'c_is_deleted');

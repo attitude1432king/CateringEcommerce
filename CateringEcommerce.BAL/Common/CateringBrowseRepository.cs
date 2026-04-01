@@ -576,7 +576,26 @@ namespace CateringEcommerce.BAL.Common
                         CASE WHEN f.c_isveg = 1 THEN 1 ELSE 0 END AS IsVegetarian,
                         CASE WHEN f.c_ispackage_item = 1 THEN 1 ELSE 0 END AS IsIncludedInPackage,
                         CASE WHEN f.c_issample_tasted = 1 THEN 1 ELSE 0 END AS IsSampleTasted,
-                        f.c_status AS IsAvailable
+                        f.c_status AS IsAvailable,
+                        STUFF((
+                            SELECT ',' + m.c_file_path
+                            FROM {Table.SysCateringMediaUploads} m
+                            WHERE m.c_reference_id = f.c_foodid
+                                AND m.c_document_type_id = 1
+                                AND m.c_is_deleted = 0
+                                AND m.c_extension NOT IN ('mp4','mov','avi','webm','mkv')
+                            ORDER BY m.c_uploaded_at DESC
+                            FOR XML PATH('')
+                        ), 1, 1, '') AS ImagePaths,
+                        (
+                            SELECT TOP 1 m.c_file_path
+                            FROM {Table.SysCateringMediaUploads} m
+                            WHERE m.c_reference_id = f.c_foodid
+                                AND m.c_document_type_id = 1
+                                AND m.c_is_deleted = 0
+                                AND m.c_extension IN ('mp4','mov','avi','webm','mkv')
+                            ORDER BY m.c_uploaded_at DESC
+                        ) AS VideoUrl
                     FROM {Table.SysFoodItems} f
                     LEFT JOIN {Table.SysFoodCategory} cat ON cat.c_categoryid = f.c_categoryid
                     WHERE f.c_ownerid = @CateringId
@@ -628,6 +647,24 @@ namespace CateringEcommerce.BAL.Common
                         d.c_description AS Description,
                         d.c_theme_id AS ThemeId,
                         t.c_theme_name AS ThemeName,
+                        (
+                            SELECT TOP 1 m.c_file_path
+                            FROM {Table.SysCateringMediaUploads} m
+                            WHERE m.c_reference_id = d.c_decoration_id
+                                AND m.c_document_type_id = 3
+                                AND m.c_is_deleted = 0
+                                AND m.c_extension NOT IN ('mp4','mov','avi','webm','mkv')
+                            ORDER BY m.c_uploaded_at DESC
+                        ) AS ThumbnailUrl,
+                        (
+                            SELECT TOP 1 m.c_file_path
+                            FROM {Table.SysCateringMediaUploads} m
+                            WHERE m.c_reference_id = d.c_decoration_id
+                                AND m.c_document_type_id = 3
+                                AND m.c_is_deleted = 0
+                                AND m.c_extension IN ('mp4','mov','avi','webm','mkv')
+                            ORDER BY m.c_uploaded_at DESC
+                        ) AS VideoUrl,
                         t.c_description AS ThemeDescription,
                         d.c_price AS Price,
                         d.c_packageids AS IncludedInPackageIds,
@@ -719,7 +756,7 @@ namespace CateringEcommerce.BAL.Common
                         ON f.c_categoryid = c.c_categoryid
                         AND f.c_is_deleted = 0
                         AND f.c_status = 1
-                    WHERE c.c_is_active = 1
+                    WHERE c.c_isactive = 1
                         AND c.c_is_global = 1
                     GROUP BY c.c_categoryid, c.c_categoryname, c.c_description
                     ORDER BY c.c_categoryname";
@@ -789,9 +826,13 @@ namespace CateringEcommerce.BAL.Common
                         : (int?)null,
                     Price = Convert.ToDecimal(row["Price"] ?? 0),
                     IsVegetarian = Convert.ToBoolean(row["IsVegetarian"] ?? false),
+                    IsIncludedInPackage = Convert.ToBoolean(row["IsIncludedInPackage"] ?? false),
                     IsSampleTasted = Convert.ToBoolean(row["IsSampleTasted"] ?? false),
                     IsAvailable = Convert.ToBoolean(row["IsAvailable"] ?? false),
-                    ImageUrls = new List<string>() // Will be populated separately if needed
+                    ImageUrls = string.IsNullOrEmpty(row["ImagePaths"]?.ToString())
+                        ? new List<string>()
+                        : row["ImagePaths"].ToString()!.Split(',').Select(p => p.Trim()).Where(p => !string.IsNullOrEmpty(p)).ToList(),
+                    VideoUrl = row["VideoUrl"]?.ToString()
                 });
             }
 
@@ -820,7 +861,9 @@ namespace CateringEcommerce.BAL.Common
                     ThemeDescription = row["ThemeDescription"]?.ToString(),
                     Price = Convert.ToDecimal(row["Price"] ?? 0),
                     IncludedInPackageIds = row["IncludedInPackageIds"]?.ToString(),
-                    IsAvailable = Convert.ToBoolean(row["IsAvailable"] ?? false)
+                    IsAvailable = Convert.ToBoolean(row["IsAvailable"] ?? false),
+                    ThumbnailUrl = row["ThumbnailUrl"]?.ToString(),
+                    VideoUrl = row["VideoUrl"]?.ToString()
                 });
             }
 
@@ -1164,7 +1207,7 @@ namespace CateringEcommerce.BAL.Common
                     FROM {Table.SysMenuPackageItems} pi
                     INNER JOIN {Table.SysFoodCategory} fc ON fc.c_categoryid = pi.c_categoryid
                     WHERE pi.c_packageid = @PackageId
-                        AND fc.c_is_active = 1
+                        AND fc.c_isactive = 1
                     ORDER BY fc.c_categoryname";
 
                 var categoryParams = new[] { new SqlParameter("@PackageId", packageId) };
@@ -1280,7 +1323,7 @@ namespace CateringEcommerce.BAL.Common
                         AND p.c_ownerid = @CateringId
                         AND p.c_is_active = 1
                         AND p.c_is_deleted = 0
-                        AND fc.c_is_active = 1
+                        AND fc.c_isactive = 1
                     ORDER BY fc.c_categoryname";
 
                 var parameters = new[]

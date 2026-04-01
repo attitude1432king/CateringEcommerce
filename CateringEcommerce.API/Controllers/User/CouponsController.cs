@@ -91,6 +91,44 @@ namespace CateringEcommerce.API.Controllers.User
         }
 
         /// <summary>
+        /// GET /api/User/Coupons/Featured
+        /// Gets platform-wide active offers for the home page (no cateringId needed)
+        /// Public endpoint - no authentication required
+        /// </summary>
+        [HttpGet("Featured")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetFeaturedOffers([FromQuery] int limit = 6)
+        {
+            try
+            {
+                if (limit <= 0 || limit > 20) limit = 6;
+
+                var offers = await _couponService.GetFeaturedOffersAsync(limit);
+
+                var response = offers.Select(c => new
+                {
+                    discountId = c.ID,
+                    couponCode = c.Code,
+                    name = c.Name,
+                    description = c.Description,
+                    discountType = ((DiscountMode)c.Mode).ToString(),
+                    discountValue = c.Value,
+                    minOrderValue = c.MinOrderValue,
+                    maxDiscount = c.MaxDiscount,
+                    validFrom = c.StartDate,
+                    validTo = c.EndDate
+                }).ToList();
+
+                return ApiResponseHelper.Success(response, "Featured offers fetched successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetFeaturedOffers failed");
+                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
+            }
+        }
+
+        /// <summary>
         /// Validates a coupon code for a specific order
         /// Checks all conditions: active status, date validity, min order value, usage limits
         /// Public endpoint - no authentication required (validation happens at checkout)

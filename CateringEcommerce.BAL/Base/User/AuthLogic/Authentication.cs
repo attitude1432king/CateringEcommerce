@@ -83,7 +83,7 @@ namespace CateringEcommerce.BAL.Base.User.AuthLogic
                 {
                     PkID = row["c_userid"] == DBNull.Value ? 0 : Convert.ToInt64(row["c_userid"]),
                     FullName = row["c_name"] == DBNull.Value ? string.Empty : row["c_name"].ToString(),
-                    Phone = row["c_mobile"] == DBNull.Value ? string.Empty : row["c_mobile"].ToString().Substring(3),
+                    Phone = row["c_mobile"] == DBNull.Value ? string.Empty : row["c_mobile"].ToString(),
                     Email = row["c_email"] == DBNull.Value ? string.Empty : row["c_email"].ToString(),
                     IsEmailVerified = row["c_isemailverified"] == DBNull.Value ? false : row.GetBoolean("c_isemailverified"),
                     IsPhoneVerified = row["c_isphoneverified"] == DBNull.Value ? false : row.GetBoolean("c_isphoneverified"),

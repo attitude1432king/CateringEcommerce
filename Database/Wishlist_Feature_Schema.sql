@@ -19,7 +19,7 @@ BEGIN
     CREATE TABLE t_sys_user_favorites (
         c_favorite_id BIGINT PRIMARY KEY IDENTITY(1,1),
         c_userid BIGINT NOT NULL,
-        c_catering_id BIGINT NOT NULL,
+        c_ownerid BIGINT NOT NULL,
 
         -- Tracking
         c_added_date DATETIME NOT NULL DEFAULT GETDATE(),
@@ -32,15 +32,15 @@ BEGIN
         -- Foreign Keys
         CONSTRAINT FK_favorites_user FOREIGN KEY (c_userid)
             REFERENCES t_sys_user(c_userid) ON DELETE CASCADE,
-        CONSTRAINT FK_favorites_catering FOREIGN KEY (c_catering_id)
+        CONSTRAINT FK_favorites_catering FOREIGN KEY (c_ownerid)
             REFERENCES t_sys_catering_owner(c_ownerid),
 
         -- Unique Constraint: One user can favorite one catering only once
-        CONSTRAINT UQ_user_catering_favorite UNIQUE (c_userid, c_catering_id),
+        CONSTRAINT UQ_user_catering_favorite UNIQUE (c_userid, c_ownerid),
 
         -- Indexes for performance
         INDEX idx_user (c_userid),
-        INDEX idx_catering (c_catering_id),
+        INDEX idx_catering (c_ownerid),
         INDEX idx_active (c_is_active),
         INDEX idx_added_date (c_added_date DESC)
     );
@@ -68,7 +68,7 @@ BEGIN
     -- Check if already exists
     IF EXISTS (
         SELECT 1 FROM t_sys_user_favorites
-        WHERE c_userid = @UserId AND c_catering_id = @CateringId
+        WHERE c_userid = @UserId AND c_ownerid = @CateringId
     )
     BEGIN
         -- If exists but inactive, reactivate
@@ -77,7 +77,7 @@ BEGIN
             c_added_date = GETDATE(),
             c_removed_date = NULL
         WHERE c_userid = @UserId
-          AND c_catering_id = @CateringId
+          AND c_ownerid = @CateringId
           AND c_is_active = 0;
 
         SELECT @UserId AS UserId, @CateringId AS CateringId, 'Reactivated' AS Action;
@@ -85,7 +85,7 @@ BEGIN
     ELSE
     BEGIN
         -- Insert new favorite
-        INSERT INTO t_sys_user_favorites (c_userid, c_catering_id)
+        INSERT INTO t_sys_user_favorites (c_userid, c_ownerid)
         VALUES (@UserId, @CateringId);
 
         SELECT @UserId AS UserId, @CateringId AS CateringId, 'Added' AS Action;
@@ -112,7 +112,7 @@ BEGIN
     SET c_is_active = 0,
         c_removed_date = GETDATE()
     WHERE c_userid = @UserId
-      AND c_catering_id = @CateringId
+      AND c_ownerid = @CateringId
       AND c_is_active = 1;
 
     SELECT @@ROWCOUNT AS RowsAffected;
@@ -140,7 +140,7 @@ BEGIN
     -- Get favorites with catering details
     SELECT
         f.c_favorite_id AS FavoriteId,
-        f.c_catering_id AS CateringId,
+        f.c_ownerid AS CateringId,
         c.c_catering_name AS CateringName,
         c.c_logo_path AS LogoUrl,
         c.c_cityid AS CityId,
@@ -154,7 +154,7 @@ BEGIN
         (
             SELECT ISNULL(AVG(CAST(r.c_rating AS FLOAT)), 0)
             FROM t_sys_reviews r
-            WHERE r.c_catering_id = c.c_ownerid
+            WHERE r.c_ownerid = c.c_ownerid
               AND r.c_is_approved = 1
         ) AS AverageRating,
 
@@ -162,7 +162,7 @@ BEGIN
         (
             SELECT COUNT(*)
             FROM t_sys_reviews r
-            WHERE r.c_catering_id = c.c_ownerid
+            WHERE r.c_ownerid = c.c_ownerid
               AND r.c_is_approved = 1
         ) AS ReviewCount,
 
@@ -175,7 +175,7 @@ BEGIN
         ) AS CompletedOrders
 
     FROM t_sys_user_favorites f
-    INNER JOIN t_sys_catering_owner c ON f.c_catering_id = c.c_ownerid
+    INNER JOIN t_sys_catering_owner c ON f.c_ownerid = c.c_ownerid
     LEFT JOIN t_sys_city city ON c.c_cityid = city.c_cityid
     WHERE f.c_userid = @UserId
       AND f.c_is_active = 1
@@ -187,7 +187,7 @@ BEGIN
     -- Get total count
     SELECT COUNT(*) AS TotalCount
     FROM t_sys_user_favorites f
-    INNER JOIN t_sys_catering_owner c ON f.c_catering_id = c.c_ownerid
+    INNER JOIN t_sys_catering_owner c ON f.c_ownerid = c.c_ownerid
     WHERE f.c_userid = @UserId
       AND f.c_is_active = 1
       AND c.c_is_active = 1;
@@ -213,7 +213,7 @@ BEGIN
         CASE WHEN EXISTS (
             SELECT 1 FROM t_sys_user_favorites
             WHERE c_userid = @UserId
-              AND c_catering_id = @CateringId
+              AND c_ownerid = @CateringId
               AND c_is_active = 1
         ) THEN 1 ELSE 0 END AS IsFavorite;
 END
@@ -270,7 +270,7 @@ BEGIN
     FROM @CateringIdTable c
     LEFT JOIN t_sys_user_favorites f
         ON f.c_userid = @UserId
-        AND f.c_catering_id = c.CateringId
+        AND f.c_ownerid = c.CateringId
         AND f.c_is_active = 1;
 END
 GO

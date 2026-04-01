@@ -94,7 +94,10 @@ namespace CateringEcommerce.API.Controllers.Owner
         }
 
         [HttpPost("Create")]
-        public async Task<IActionResult> CreateBanner([FromBody] BannerDto banner)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 5 * 1024 * 1024)]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        public async Task<IActionResult> CreateBanner([FromForm] BannerDto banner, [FromForm] IFormFile? BannerImage)
         {
             try
             {
@@ -112,13 +115,12 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 var bannerService = _bannerService;
 
-                // Check if title already exists
                 bool titleExists = await bannerService.IsBannerTitleExists(ownerPKID, banner.Title);
                 if (titleExists)
                 {
                     return ApiResponseHelper.Failure("Banner title already exists.", "warning");
                 }
-                
+
                 long bannerId = await bannerService.AddBanner(ownerPKID, banner);
 
                 if (bannerId <= 0)
@@ -127,22 +129,26 @@ namespace CateringEcommerce.API.Controllers.Owner
                 }
 
                 // Upload banner image
-                if (banner.BannerImage != null && !string.IsNullOrEmpty(banner.BannerImage.Base64))
+                if (BannerImage != null && BannerImage.Length > 0)
                 {
-                    var imagePath = await _fileStorageService.SaveFileAsync(
-                        banner.BannerImage.Base64,
+                    var validation = FileValidationHelper.ValidateFile(BannerImage, new[] { ".jpg", ".jpeg", ".png", ".webp" }, 5 * 1024 * 1024);
+                    if (!validation.IsValid)
+                        return ApiResponseHelper.Failure(validation.ErrorMessage, "warning");
+
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(BannerImage.FileName);
+                    var imagePath = await _fileStorageService.SaveFormFileAsync(
+                        BannerImage,
                         ownerPKID,
                         DocumentType.Banner.GetDisplayName(),
                         false,
-                        banner.BannerImage.Name);
+                        safeFilename);
 
                     banner.ImagePath = imagePath;
 
-                    // Save to media uploads table
                     await _ownerRepository.SaveFilePath(
                         imagePath,
                         ownerPKID,
-                        banner.BannerImage.Name,
+                        BannerImage.FileName,
                         DocumentType.Banner,
                         bannerId);
                 }
@@ -158,7 +164,10 @@ namespace CateringEcommerce.API.Controllers.Owner
         }
 
         [HttpPost("Update")]
-        public async Task<IActionResult> UpdateBanner([FromBody] BannerDto banner)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 5 * 1024 * 1024)]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        public async Task<IActionResult> UpdateBanner([FromForm] BannerDto banner, [FromForm] IFormFile? BannerImage)
         {
             try
             {
@@ -176,7 +185,6 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 var bannerService = _bannerService;
 
-                // Check if title already exists (excluding current banner)
                 bool titleExists = await bannerService.IsBannerTitleExists(ownerPKID, banner.Title, banner.Id);
                 if (titleExists)
                 {
@@ -190,24 +198,28 @@ namespace CateringEcommerce.API.Controllers.Owner
                 }
 
                 // Upload new image if provided
-                if (banner.BannerImage != null && !string.IsNullOrEmpty(banner.BannerImage.Base64))
+                if (BannerImage != null && BannerImage.Length > 0)
                 {
+                    var validation = FileValidationHelper.ValidateFile(BannerImage, new[] { ".jpg", ".jpeg", ".png", ".webp" }, 5 * 1024 * 1024);
+                    if (!validation.IsValid)
+                        return ApiResponseHelper.Failure(validation.ErrorMessage, "warning");
+
                     // Delete old image if exists
                     if (!string.IsNullOrEmpty(banner.ImagePath))
                     {
                         _fileStorageService.DeleteFilePath(banner.ImagePath);
                     }
 
-                    var imagePath = await _fileStorageService.SaveFileAsync(
-                        banner.BannerImage.Base64,
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(BannerImage.FileName);
+                    var imagePath = await _fileStorageService.SaveFormFileAsync(
+                        BannerImage,
                         ownerPKID,
                         DocumentType.Banner.GetDisplayName(),
                         false,
-                        banner.BannerImage.Name);
+                        safeFilename);
 
                     banner.ImagePath = imagePath;
 
-                    // Update media uploads table
                     await _ownerRepository.UpdateDocumentFilePath(
                         banner.Id.Value,
                         DocumentType.Banner,
@@ -244,7 +256,6 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Failed to delete banner.");
                 }
 
-                // Soft delete media uploads table
                 await _ownerRepository.SoftDeleteByReferenceID(bannerId, DocumentType.Banner);
 
                 _logger.LogInformation("Banner deleted with ID: {BannerId}", bannerId);

@@ -42,6 +42,7 @@ namespace CateringEcommerce.Domain.Models.Admin
         public DateTime? LockedUntil { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? LastLogin { get; set; }
+        public bool IsTemporaryPassword { get; set; }
     }
 
     public class AdminRefreshTokenRequest
@@ -49,6 +50,23 @@ namespace CateringEcommerce.Domain.Models.Admin
         [Required(ErrorMessage = "Refresh token is required")]
         [StringLength(500, ErrorMessage = "Invalid refresh token format")]
         public string RefreshToken { get; set; } = string.Empty;
+    }
+
+    #endregion
+
+    #region Temporary Password Change
+
+    public class ChangeTempPasswordDto
+    {
+        [Required(ErrorMessage = "Current password is required")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required")]
+        [MinLength(10, ErrorMessage = "New password must be at least 10 characters")]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your new password")]
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 
     #endregion

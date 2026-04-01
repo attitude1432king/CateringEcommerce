@@ -9,6 +9,7 @@ using System.Dynamic;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Models.Supervisor;
+using System.Data;
 using Microsoft.CSharp.RuntimeBinder;
 
 namespace CateringEcommerce.BAL.Base.Supervisor
@@ -57,6 +58,28 @@ namespace CateringEcommerce.BAL.Base.Supervisor
 
             return await _dbHelper.ExecuteStoredProcedureAsync<SupervisorModel>(
                 "sp_GetSupervisorByPhone", parameters);
+        }
+
+        public async Task<SupervisorLoginInfo> GetSupervisorForLoginAsync(string identifier)
+        {
+            var parameters = new[]
+            {
+                new SqlParameter("@Identifier", identifier)
+            };
+
+            return await _dbHelper.ExecuteStoredProcedureAsync<SupervisorLoginInfo>(
+                "sp_GetSupervisorForLogin", parameters);
+        }
+
+        public async Task UpdateLastLoginAsync(long supervisorId)
+        {
+            var parameters = new[]
+            {
+                new SqlParameter("@SupervisorId", supervisorId)
+            };
+
+            await _dbHelper.ExecuteNonQueryAsync(
+                "sp_UpdateSupervisorLastLogin", parameters, CommandType.StoredProcedure);
         }
 
         public async Task<List<SupervisorModel>> GetAllSupervisorsAsync(SupervisorType? type = null, string status = null)
@@ -309,10 +332,10 @@ namespace CateringEcommerce.BAL.Base.Supervisor
                 new SqlParameter("@Email", email)
             };
 
-            var result = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>(
+            var result = await _dbHelper.ExecuteStoredProcedureAsync<ExistsCheckResult>(
                 "sp_CheckEmailExists", parameters);
 
-            return ExtractBooleanValue(result, "Exists", false);
+            return result?.Exists ?? false;
         }
 
         public async Task<bool> PhoneExistsAsync(string phone)
@@ -322,10 +345,15 @@ namespace CateringEcommerce.BAL.Base.Supervisor
                 new SqlParameter("@Phone", phone)
             };
 
-            var result = await _dbHelper.ExecuteStoredProcedureAsync<dynamic>(
+            var result = await _dbHelper.ExecuteStoredProcedureAsync<ExistsCheckResult>(
                 "sp_CheckPhoneExists", parameters);
 
-            return ExtractBooleanValue(result, "Exists", false);
+            return result?.Exists ?? false;
+        }
+
+        private class ExistsCheckResult
+        {
+            public bool Exists { get; set; }
         }
 
         /// <summary>

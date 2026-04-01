@@ -1,5 +1,7 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Enums;
+using CateringEcommerce.Domain.Enums.Admin;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Owner;
@@ -654,53 +656,141 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                // Check global availability
-                string globalQuery = $@"
-                    SELECT c_global_status
-                    FROM {Table.SysCateringAvailabilityGlobal}
-                    WHERE c_ownerid = @CateringId
-                ";
+                var snapshot = await GetCateringAvailabilitySnapshotAsync(cateringId, eventDate);
+                if (snapshot == null || !snapshot.Exists || !snapshot.IsApproved || !snapshot.IsActive)
+                    return false;
 
-                SqlParameter[] globalParams = new SqlParameter[]
-                {
-                    new SqlParameter("@CateringId", cateringId)
-                };
+                if (snapshot.GlobalStatus == AvailabilityStatus.CLOSED)
+                    return false;
 
-                DataTable globalDt = await _dbHelper.ExecuteAsync(globalQuery, globalParams);
-                if (globalDt.Rows.Count > 0)
-                {
-                    string globalStatus = globalDt.Rows[0]["c_global_status"].ToString() ?? "";
-                    if (globalStatus.Equals("Unavailable", StringComparison.OrdinalIgnoreCase))
-                        return false;
-                }
+                if (snapshot.DateStatus == AvailabilityStatus.CLOSED ||
+                    snapshot.DateStatus == AvailabilityStatus.FULLY_BOOKED)
+                    return false;
 
-                // Check date-specific availability
-                string dateQuery = $@"
-                    SELECT c_status
-                    FROM {Table.SysCateringAvailabilityDate}
-                    WHERE c_ownerid = @CateringId
-                    AND CAST(c_date AS DATE) = CAST(@EventDate AS DATE)
-                ";
-
-                SqlParameter[] dateParams = new SqlParameter[]
-                {
-                    new SqlParameter("@CateringId", cateringId),
-                    new SqlParameter("@EventDate", eventDate)
-                };
-
-                DataTable dateDt = await _dbHelper.ExecuteAsync(dateQuery, dateParams);
-                if (dateDt.Rows.Count > 0)
-                {
-                    string dateStatus = dateDt.Rows[0]["c_status"].ToString() ?? "";
-                    if (dateStatus.Equals("Unavailable", StringComparison.OrdinalIgnoreCase))
-                        return false;
-                }
-
-                return true;
+                return snapshot.ExistingBookingCount < snapshot.DailyBookingCapacity;
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException("Error checking catering availability.", ex);
+            }
+        }
+
+        public async Task<CateringAvailabilitySnapshotDto?> GetCateringAvailabilitySnapshotAsync(long cateringId, DateTime eventDate)
+        {
+            try
+            {
+                string query = $@"
+                    SELECT
+                        o.c_ownerid AS CateringId,
+                        CAST(CASE WHEN o.c_ownerid IS NULL THEN 0 ELSE 1 END AS BIT) AS ExistsFlag,
+                        CAST(ISNULL(o.c_isactive, 0) AS BIT) AS IsActive,
+                        CAST(CASE WHEN o.c_approval_status = @ApprovedStatus THEN 1 ELSE 0 END AS BIT) AS IsApproved,
+                        ISNULL(ag.c_global_status, @OpenStatus) AS GlobalStatus,
+                        ad.c_status AS DateStatus,
+                        ISNULL(op.c_daily_booking_capacity, 0) AS DailyBookingCapacity,
+                        (
+                            SELECT COUNT(1)
+                            FROM {Table.SysOrders} ord
+                            WHERE ord.c_ownerid = o.c_ownerid
+                              AND CAST(ord.c_event_date AS DATE) = CAST(@EventDate AS DATE)
+                              AND ISNULL(ord.c_order_status, '') NOT IN ('Cancelled', 'Rejected')
+                        ) AS ExistingBookingCount
+                    FROM {Table.SysCateringOwner} o
+                    LEFT JOIN {Table.SysCateringAvailabilityGlobal} ag ON ag.c_ownerid = o.c_ownerid
+                    LEFT JOIN {Table.SysCateringAvailabilityDate} ad
+                        ON ad.c_ownerid = o.c_ownerid
+                       AND CAST(ad.c_date AS DATE) = CAST(@EventDate AS DATE)
+                    LEFT JOIN {Table.SysCateringOwnerService} op ON op.c_ownerid = o.c_ownerid
+                    WHERE o.c_ownerid = @CateringId";
+
+                var parameters = new[]
+                {
+                    new SqlParameter("@CateringId", cateringId),
+                    new SqlParameter("@EventDate", eventDate.Date),
+                    new SqlParameter("@ApprovedStatus", ApprovalStatus.Approved.GetHashCode()),
+                    new SqlParameter("@OpenStatus", (int)AvailabilityStatus.OPEN)
+                };
+
+                var dt = await _dbHelper.ExecuteAsync(query, parameters);
+                if (dt.Rows.Count == 0)
+                {
+                    return null;
+                }
+
+                var row = dt.Rows[0];
+                return new CateringAvailabilitySnapshotDto
+                {
+                    CateringId = Convert.ToInt64(row["CateringId"]),
+                    Exists = row["ExistsFlag"] != DBNull.Value && Convert.ToBoolean(row["ExistsFlag"]),
+                    IsActive = row["IsActive"] != DBNull.Value && Convert.ToBoolean(row["IsActive"]),
+                    IsApproved = row["IsApproved"] != DBNull.Value && Convert.ToBoolean(row["IsApproved"]),
+                    GlobalStatus = row["GlobalStatus"] != DBNull.Value
+                        ? (AvailabilityStatus)Convert.ToInt32(row["GlobalStatus"])
+                        : AvailabilityStatus.OPEN,
+                    DateStatus = row["DateStatus"] == DBNull.Value
+                        ? null
+                        : (AvailabilityStatus?)Convert.ToInt32(row["DateStatus"]),
+                    DailyBookingCapacity = row["DailyBookingCapacity"] != DBNull.Value ? Convert.ToInt32(row["DailyBookingCapacity"]) : 0,
+                    ExistingBookingCount = row["ExistingBookingCount"] != DBNull.Value ? Convert.ToInt32(row["ExistingBookingCount"]) : 0
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Error loading catering availability snapshot.", ex);
+            }
+        }
+
+        public async Task<List<DateTime>> GetUnavailableCateringDatesAsync(long cateringId, int year, int month, int fallbackCapacity)
+        {
+            try
+            {
+                string query = $@"
+                    WITH DateOverrides AS (
+                        SELECT CAST(c_date AS DATE) AS BlockedDate
+                        FROM {Table.SysCateringAvailabilityDate}
+                        WHERE c_ownerid = @CateringId
+                          AND YEAR(c_date) = @Year
+                          AND MONTH(c_date) = @Month
+                          AND c_status IN (@ClosedStatus, @FullyBookedStatus)
+                    ),
+                    CapacityBlocked AS (
+                        SELECT CAST(ord.c_event_date AS DATE) AS BlockedDate
+                        FROM {Table.SysOrders} ord
+                        INNER JOIN {Table.SysCateringOwnerService} ops ON ops.c_ownerid = ord.c_ownerid
+                        WHERE ord.c_ownerid = @CateringId
+                          AND YEAR(ord.c_event_date) = @Year
+                          AND MONTH(ord.c_event_date) = @Month
+                          AND ISNULL(ord.c_order_status, '') NOT IN ('Cancelled', 'Rejected')
+                        GROUP BY CAST(ord.c_event_date AS DATE), ISNULL(ops.c_daily_booking_capacity, @FallbackCapacity)
+                        HAVING COUNT(1) >= ISNULL(ops.c_daily_booking_capacity, @FallbackCapacity)
+                    )
+                    SELECT DISTINCT BlockedDate
+                    FROM (
+                        SELECT BlockedDate FROM DateOverrides
+                        UNION ALL
+                        SELECT BlockedDate FROM CapacityBlocked
+                    ) blocked
+                    ORDER BY BlockedDate";
+
+                var parameters = new[]
+                {
+                    new SqlParameter("@CateringId", cateringId),
+                    new SqlParameter("@Year", year),
+                    new SqlParameter("@Month", month),
+                    new SqlParameter("@FallbackCapacity", fallbackCapacity),
+                    new SqlParameter("@ClosedStatus", (int)AvailabilityStatus.CLOSED),
+                    new SqlParameter("@FullyBookedStatus", (int)AvailabilityStatus.FULLY_BOOKED)
+                };
+
+                var dt = await _dbHelper.ExecuteAsync(query, parameters);
+                return dt.Rows
+                    .Cast<DataRow>()
+                    .Select(row => Convert.ToDateTime(row["BlockedDate"]).Date)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Error loading unavailable catering dates.", ex);
             }
         }
 

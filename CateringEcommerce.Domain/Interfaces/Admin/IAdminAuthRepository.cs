@@ -13,5 +13,7 @@ namespace CateringEcommerce.Domain.Interfaces.Admin
         void LockAccount(string username, DateTime lockUntil);
         bool IsAccountLocked(string username);
         void LogAdminActivity(long adminId, string action, string? details = null);
+        bool IsTemporaryPassword(long adminId);
+        bool ChangeTempPassword(long adminId, string newPasswordHash);
     }
 }

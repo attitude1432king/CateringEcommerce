@@ -4,6 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts\**;**\artifacts\**</DefaultItemExcludes>
+    <NoWarn>$(NoWarn);NU1608</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,7 +16,6 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.6" />
     <PackageReference Include="RabbitMQ.Client" Version="6.8.0" />
     <PackageReference Include="Razorpay" Version="3.3.2" />
-    <PackageReference Include="Twilio" Version="7.14.3" />
   </ItemGroup>
 
   <ItemGroup>

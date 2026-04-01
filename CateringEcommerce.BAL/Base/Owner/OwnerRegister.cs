@@ -129,13 +129,14 @@ namespace CateringEcommerce.BAL.Base.Owner
             string foodTypes = dicData.ContainsKey("FoodTypes") ? dicData["FoodTypes"].ToString() : null;
             int minOrderValue = dicData.ContainsKey("MinOrderValue") ? Convert.ToInt32(dicData["MinOrderValue"]) : 0;
             int deliveryRediusKM = dicData.ContainsKey("DeliveryRediusKM") ? Convert.ToInt32(dicData["DeliveryRediusKM"]) : 0;
+            int dailyBookingCapacity = dicData.ContainsKey("DailyBookingCapacity") ? Convert.ToInt32(dicData["DailyBookingCapacity"]) : 0;
             string servingTimeSlots = dicData.ContainsKey("ServingTimeSlots") ? dicData["ServingTimeSlots"].ToString() : null;
             #endregion
             try
             {
                 query.Append($@"INSERT INTO {Table.SysCateringOwnerService} 
-                    (c_ownerid, c_cuisine_types, c_service_types, c_event_types, c_food_types, c_min_dish_order, c_delivery_radius_km, c_serving_time_slots, c_createddate) 
-                    VALUES (@OwnerId, @CuisineType, @ServiceTypes, @EventTypes, @FoodTypes, @MinDishOrder, @RadiusKm, @ServingSlots, @Createddate)");
+                    (c_ownerid, c_cuisine_types, c_service_types, c_event_types, c_food_types, c_min_dish_order, c_delivery_radius_km, c_daily_booking_capacity, c_serving_time_slots, c_createddate) 
+                    VALUES (@OwnerId, @CuisineType, @ServiceTypes, @EventTypes, @FoodTypes, @MinDishOrder, @RadiusKm, @DailyBookingCapacity, @ServingSlots, @Createddate)");
                 List<SqlParameter> parameters = new()
                 {
                     new SqlParameter("@OwnerId", ownerId),
@@ -145,6 +146,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@FoodTypes", foodTypes),
                     new SqlParameter("@MinDishOrder", minOrderValue),
                     new SqlParameter("@RadiusKm", deliveryRediusKM > 0 ? deliveryRediusKM : DBNull.Value),
+                    new SqlParameter("@DailyBookingCapacity", dailyBookingCapacity > 0 ? dailyBookingCapacity : DBNull.Value),
                     new SqlParameter("@ServingSlots", !string.IsNullOrEmpty(servingTimeSlots) ? servingTimeSlots : DBNull.Value),
                     new SqlParameter("@Createddate", DateTime.Now)
                 };

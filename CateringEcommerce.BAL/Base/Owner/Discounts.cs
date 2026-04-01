@@ -8,7 +8,6 @@ using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
-using Org.BouncyCastle.Crypto.Modes.Gcm;
 using System.Data;
 using System.Text;
 
@@ -51,11 +50,11 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new SqlParameter("@Type", discount.Type),
                     new SqlParameter("@Mode", discount.Mode),
                     new SqlParameter("@DiscountValue", discount.Value),
-                    new SqlParameter("@MinOrderValue", discount.MinOrderValue > 0 ? discount.MinOrderValue : DBNull.Value),
-                    new SqlParameter("@MaxDiscountValue", discount.MaxDiscount),
+                    new SqlParameter("@MinOrderValue", discount.MinOrderValue ?? (object)DBNull.Value),
+                    new SqlParameter("@MaxDiscountValue", discount.MaxDiscount ?? (object)DBNull.Value),
                     new SqlParameter("@Code", discountCode),
-                    new SqlParameter("@MaxUsesPerOrder", discount.MaxUsesPerOrder),
-                    new SqlParameter("@MaxUsesPerUser", discount.MaxUsesPerUser),
+                    new SqlParameter("@MaxUsesPerOrder", discount.MaxUsesPerOrder ?? (object)DBNull.Value),
+                    new SqlParameter("@MaxUsesPerUser", discount.MaxUsesPerUser ?? (object)DBNull.Value),
                     new SqlParameter("@IsStackable", discount.IsStackable.ToBinary()),
                     new SqlParameter("@Startdate", discount.StartDate),
                     new SqlParameter("@Enddate", discount.EndDate),
@@ -70,10 +69,9 @@ namespace CateringEcommerce.BAL.Base.Owner
                 int newDiscountId = result != null ? Convert.ToInt32(result) : 0;
                 return newDiscountId;
             }
-            catch (Exception)
-            {
-
-                throw;
+            catch (Exception ex)
+            {    
+                throw new Exception(ex.Message);
             }
         }
 

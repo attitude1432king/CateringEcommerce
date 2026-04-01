@@ -33,6 +33,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     ISNULL(co.c_isactive, 0) AS IsActive,
                     ISNULL(co.c_isblocked, 0) AS IsBlocked,
                     ISNULL(co.c_isdeleted, 0) AS IsDeleted,
+                    ISNULL(co.c_isfeatured, 0) AS IsFeatured,
                     ISNULL(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
                     COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
@@ -53,7 +54,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             queryBuilder.Append(@"
                 GROUP BY co.c_ownerid, co.c_catering_name, co.c_owner_name, co.c_mobile,
                          co.c_email, c.c_cityname, s.c_statename, co.c_approval_status, co.c_verified_by_admin,
-                         co.c_isactive, co.c_isblocked, co.c_isdeleted,
+                         co.c_isactive, co.c_isblocked, co.c_isdeleted, co.c_isfeatured,
                          co.c_createddate, co.c_approved_date");
 
             // Sorting
@@ -107,17 +108,20 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT
                     co.c_ownerid, co.c_catering_name, co.c_owner_name, co.c_mobile, co.c_email,
-                    co.c_catering_number, co.c_gst_number, co.c_fssai_license, co.c_pan_number,
-                    addr.c_address_line1, addr.c_address_line2, c.c_cityname, s.c_statename, addr.c_pincode,
+                    co.c_catering_number,
+                    legal.c_gst_number, legal.c_fssai_number, legal.c_pan_number,
+                    addr.c_building AS c_address_line1, addr.c_street AS c_address_line2,
+                    c.c_cityname, s.c_statename, addr.c_pincode,
                     co.c_approval_status, ISNULL(co.c_verified_by_admin, 0) AS c_verified_by_admin,
                     ISNULL(co.c_isactive, 0) AS c_isactive, ISNULL(co.c_isblocked, 0) AS c_isblocked,
                     co.c_block_reason,
-                    bank.c_bank_name, bank.c_account_number, bank.c_ifsc_code, bank.c_account_holder_name,
+                    bank.c_account_number, bank.c_ifsc_code, bank.c_account_holder_name,
                     co.c_createddate, co.c_approved_date, co.c_modifieddate
                 FROM {Table.SysCateringOwner} co
                 LEFT JOIN {Table.SysCateringOwnerAddress} addr ON co.c_ownerid = addr.c_ownerid
                 LEFT JOIN {Table.City} c ON addr.c_cityid = c.c_cityid
                 LEFT JOIN {Table.State} s ON addr.c_stateid = s.c_stateid
+                LEFT JOIN {Table.SysCateringOwnerLegal} legal ON co.c_ownerid = legal.c_ownerid
                 LEFT JOIN {Table.SysCateringOwnerBankDetails} bank ON co.c_ownerid = bank.c_ownerid
                 WHERE co.c_ownerid = @CateringId";
 
@@ -139,7 +143,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 Email = row["c_email"]?.ToString() ?? string.Empty,
                 AlternatePhone = row["c_catering_number"]?.ToString(),
                 GstNumber = row["c_gst_number"]?.ToString(),
-                FssaiNumber = row["c_fssai_license"]?.ToString(),
+                FssaiNumber = row["c_fssai_number"]?.ToString(),
                 PanNumber = row["c_pan_number"]?.ToString(),
                 AddressLine1 = row["c_address_line1"]?.ToString() ?? string.Empty,
                 AddressLine2 = row["c_address_line2"]?.ToString(),
@@ -156,7 +160,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 TotalOrders = stats.TotalOrders,
                 TotalEarnings = stats.TotalEarnings,
                 PlatformCommission = stats.PlatformCommission,
-                BankName = row["c_bank_name"]?.ToString(),
+                BankName = null, // c_bank_name does not exist in t_sys_catering_owner_bankdetails
                 AccountNumber = row["c_account_number"]?.ToString(),
                 IfscCode = row["c_ifsc_code"]?.ToString(),
                 AccountHolderName = row["c_account_holder_name"]?.ToString(),
@@ -368,6 +372,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 IsActive = Convert.ToBoolean(row["IsActive"]),
                 IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
                 IsDeleted = Convert.ToBoolean(row["IsDeleted"]),
+                IsFeatured = Convert.ToBoolean(row["IsFeatured"]),
                 Rating = row["Rating"] != DBNull.Value ? Convert.ToDecimal(row["Rating"]) : null,
                 TotalReviews = Convert.ToInt32(row["TotalReviews"]),
                 TotalOrders = Convert.ToInt32(row["TotalOrders"]),
@@ -412,10 +417,10 @@ namespace CateringEcommerce.BAL.Base.Admin
         private List<string> GetCateringImages(long cateringId)
         {
             string query = $@"
-                SELECT c_image_url
-                FROM {Table.SysCateringOwnerImages}
-                WHERE c_ownerid = @CateringId
-                ORDER BY c_createddate DESC";
+                SELECT c_file_path
+                FROM {Table.SysCateringMediaUploads}
+                WHERE c_ownerid = @CateringId AND ISNULL(c_is_deleted, 0) = 0
+                ORDER BY c_uploaded_at DESC";
 
             SqlParameter[] parameters = { new SqlParameter("@CateringId", cateringId) };
             var dt = _dbHelper.Execute(query, parameters);
@@ -423,12 +428,28 @@ namespace CateringEcommerce.BAL.Base.Admin
             var images = new List<string>();
             foreach (DataRow row in dt.Rows)
             {
-                images.Add(row["c_image_url"]?.ToString() ?? string.Empty);
+                images.Add(row["c_file_path"]?.ToString() ?? string.Empty);
             }
 
             return images;
         }
 
         #endregion
+
+        public bool ToggleFeaturedStatus(long cateringId, bool isFeatured)
+        {
+            string query = $@"
+                UPDATE {Table.SysCateringOwner}
+                SET c_isfeatured = @IsFeatured,
+                    c_modifieddate = GETDATE()
+                WHERE c_ownerid = @CateringId";
+
+            int rows = _dbHelper.ExecuteNonQuery(query, new[]
+            {
+                new SqlParameter("@IsFeatured", isFeatured ? 1 : 0),
+                new SqlParameter("@CateringId", cateringId)
+            });
+            return rows > 0;
+        }
     }
 }

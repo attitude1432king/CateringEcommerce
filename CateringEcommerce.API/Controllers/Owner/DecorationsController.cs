@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.API.Controllers.Owner.Menu;
+using CateringEcommerce.API.Controllers.Owner.Menu;
 using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner;
@@ -91,7 +91,10 @@ namespace CateringEcommerce.API.Controllers.Owner
         }
 
         [HttpPost("Create")]
-        public async Task<IActionResult> AddDeorationsSetup([FromBody] DecorationsDto decoration)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)]
+        [RequestSizeLimit(50 * 1024 * 1024)]
+        public async Task<IActionResult> AddDeorationsSetup([FromForm] DecorationsDto decoration)
         {
             try
             {
@@ -119,17 +122,25 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Failed to create decoration setup.");
                 }
 
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".mp4" };
                 if (decoration.DecorationsMediaFiles != null)
                 {
                     foreach (var file in decoration.DecorationsMediaFiles)
                     {
-                        if (file == null || string.IsNullOrEmpty(file.Base64) || string.IsNullOrEmpty(file.Name))
+                        if (file == null || file.Length == 0)
                         {
-                            _logger.LogWarning("Skipping invalid media file for decoration item ID: {0}", decoratinosID);
+                            _logger.LogWarning("Skipping empty media file for decoration item ID: {0}", decoratinosID);
                             continue;
                         }
-                        var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPKID, DocumentType.EventSetup.GetDisplayName(), false, file.Name);
-                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.EventSetup, decoratinosID);
+                        var validation = FileValidationHelper.ValidateFile(file, allowedExtensions, 10 * 1024 * 1024);
+                        if (!validation.IsValid)
+                        {
+                            _logger.LogWarning("Skipping invalid file {Name}: {Error}", file.FileName, validation.ErrorMessage);
+                            continue;
+                        }
+                        var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
+                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPKID, DocumentType.EventSetup.GetDisplayName(), false, safeFilename);
+                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.FileName, DocumentType.EventSetup, decoratinosID);
                     }
                 }
                 _logger.LogInformation("Decoration setup added with ID: {0}", decoratinosID);
@@ -152,7 +163,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 _logger.LogInformation("Fetching Theme Type.");
                 var decorations = _decorationsRepository;
                 var listDecorations = await decorations.GetDecorationThemes();
-              
+
                 _logger.LogInformation("Fetched {Count} Theme Type.", listDecorations?.Count ?? 0);
                 return Ok(listDecorations);
             }
@@ -164,7 +175,10 @@ namespace CateringEcommerce.API.Controllers.Owner
         }
 
         [HttpPost("Udpate")]
-        public async Task<IActionResult> UpdateDecoratoinsSetup([FromBody] DecorationsDto decoration)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)]
+        [RequestSizeLimit(50 * 1024 * 1024)]
+        public async Task<IActionResult> UpdateDecoratoinsSetup([FromForm] DecorationsDto decoration)
         {
             try
             {
@@ -192,29 +206,35 @@ namespace CateringEcommerce.API.Controllers.Owner
                     List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPKID, DocumentType.EventSetup, decoration.Id ?? 0);
                     var filesToDelete = currentMediaPathsInDb
                         .Where(dbPath => !decoration.ExistingDecorationsMediaPaths
-                            .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase)) // optional case-insensitive compare
+                            .Contains(dbPath.FilePath, StringComparer.OrdinalIgnoreCase))
                         .ToList();
 
-                    // Delete the identified files from storage and the database.
                     foreach (var pathToDelete in filesToDelete)
                     {
                         _fileStorageService.DeleteFilePath(pathToDelete.FilePath);
                         await _ownerRepository.DeleteDocumentFile(pathToDelete.Id);
                     }
-
                 }
 
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".mp4" };
                 if (decoration?.DecorationsMediaFiles != null)
                 {
                     foreach (var file in decoration.DecorationsMediaFiles)
                     {
-                        if (file == null || string.IsNullOrEmpty(file.Base64) || string.IsNullOrEmpty(file.Name))
+                        if (file == null || file.Length == 0)
                         {
-                            _logger.LogWarning("Skipping invalid media file for decoration setup ID: {0}", decoration.Id);
+                            _logger.LogWarning("Skipping empty media file for decoration setup ID: {0}", decoration.Id);
                             continue;
                         }
-                        var path = await _fileStorageService.SaveFileAsync(file.Base64, ownerPKID, DocumentType.EventSetup.GetDisplayName(), false, file.Name);
-                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.Name, DocumentType.EventSetup, decoration.Id ?? 0);
+                        var validation = FileValidationHelper.ValidateFile(file, allowedExtensions, 10 * 1024 * 1024);
+                        if (!validation.IsValid)
+                        {
+                            _logger.LogWarning("Skipping invalid file {Name}: {Error}", file.FileName, validation.ErrorMessage);
+                            continue;
+                        }
+                        var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
+                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPKID, DocumentType.EventSetup.GetDisplayName(), false, safeFilename);
+                        await _ownerRepository.SaveFilePath(path, ownerPKID, file.FileName, DocumentType.EventSetup, decoration.Id ?? 0);
                     }
                 }
 
@@ -250,7 +270,6 @@ namespace CateringEcommerce.API.Controllers.Owner
                 _logger.LogInformation("Delteing Food Item MediaFiles");
                 List<MediaFileModel> currentMediaPathsInDb = await _mediaRepository.GetMediaFiles(ownerPKID, DocumentType.EventSetup, decorationId);
 
-                // Delete the identified files from storage and the database.
                 foreach (var pathToDelete in currentMediaPathsInDb)
                 {
                     await _ownerRepository.SoftDeleteDocumentFile(pathToDelete.Id);

@@ -100,47 +100,70 @@ namespace CateringEcommerce.API.Controllers.Owner
         }
 
         [HttpPost("Create")]
-        public async Task<IActionResult> AddStaffAsync([FromBody] StaffDto staff)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 25 * 1024 * 1024)]
+        [RequestSizeLimit(25 * 1024 * 1024)]
+        public async Task<IActionResult> AddStaffAsync(
+            [FromForm] string JsonData,
+            [FromForm] IFormFile? Profile,
+            [FromForm] IFormFile? IdentityDocument,
+            [FromForm] IFormFile? ResumeDocument)
         {
             try
             {
                 var ownerPKID = _currentUser.UserId;
                 if (ownerPKID <= 0)
-                {
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
-                }
+
+                StaffDto staff;
+                try { staff = JsonSerializer.Deserialize<StaffDto>(JsonData ?? "{}"); }
+                catch { return ApiResponseHelper.Failure("Invalid staff data.", "warning"); }
+
+                if (staff == null || string.IsNullOrEmpty(staff.Contact))
+                    return ApiResponseHelper.Failure("Invalid staff data.", "warning");
+
                 var staffService = _staffRepository;
                 bool numberExists = await staffService.IsStaffNumberExistsAsync(ownerPKID, staff.Contact);
                 if (numberExists)
-                {
                     return ApiResponseHelper.Failure("Staff contact number already exists.", "warning");
-                }
+
                 long? staffPKID = await staffService.AddStaffAsync(ownerPKID, staff);
                 if (staffPKID <= 0)
-                {
                     return ApiResponseHelper.Failure("Failed to add staff.");
+
+                var profileExtensions = new[] { ".jpg", ".jpeg", ".png" };
+                var docExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf" };
+                Dictionary<string, string> dicPath = new Dictionary<string, string>();
+
+                if (Profile != null && Profile.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(Profile, profileExtensions, 5 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(Profile.FileName);
+                    var profilePath = await _fileStorageService.SaveFormFileAsync(Profile, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
+                    dicPath.Add("ProfilePath", profilePath);
                 }
 
-                if(staff.Profile != null || staff.IdentityDocument != null || staff.ResumeDocument != null)
+                if (IdentityDocument != null && IdentityDocument.Length > 0)
                 {
-                    Dictionary<string, string> dicPath = new Dictionary<string, string>();
-                    if (staff.Profile != null)
-                    {
-                        var profilePath = await _fileStorageService.SaveFileAsync(staff.Profile.Base64, ownerPKID, DocumentType.Staff.GetDisplayName(), true, staff.Profile.Name, staffPKID);
-                        dicPath.Add("ProfilePath", profilePath);
-                    }
-                    if (staff.IdentityDocument != null)
-                    {
-                        var identityPath = await _fileStorageService.SaveFileAsync(staff.IdentityDocument.Base64, ownerPKID, DocumentType.Staff.GetDisplayName(), true, staff.IdentityDocument.Name, staffPKID);
-                        dicPath.Add("IdentityDocumentPath", identityPath);
-                    }
-                    if (staff.ResumeDocument != null)
-                    {
-                        var resumePath = await _fileStorageService.SaveFileAsync(staff.ResumeDocument.Base64, ownerPKID, DocumentType.Staff.GetDisplayName(), true, staff.ResumeDocument.Name, staffPKID);
-                        dicPath.Add("ResumeDocumentPath", resumePath);
-                    }
-                    await staffService.UpdateStaffDocumentPath(ownerPKID, staffPKID, dicPath);
+                    var v = FileValidationHelper.ValidateFile(IdentityDocument, docExtensions, 10 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(IdentityDocument.FileName);
+                    var identityPath = await _fileStorageService.SaveFormFileAsync(IdentityDocument, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
+                    dicPath.Add("IdentityDocumentPath", identityPath);
                 }
+
+                if (ResumeDocument != null && ResumeDocument.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(ResumeDocument, docExtensions, 10 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(ResumeDocument.FileName);
+                    var resumePath = await _fileStorageService.SaveFormFileAsync(ResumeDocument, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
+                    dicPath.Add("ResumeDocumentPath", resumePath);
+                }
+
+                if (dicPath.Count > 0)
+                    await staffService.UpdateStaffDocumentPath(ownerPKID, staffPKID, dicPath);
 
                 return ApiResponseHelper.Success(null, $"{staff.Name} added successfully!");
             }
@@ -152,60 +175,78 @@ namespace CateringEcommerce.API.Controllers.Owner
         }
 
         [HttpPost("Update")]
-        public async Task<IActionResult> UpdateStaffAsync([FromBody] StaffDto staff)
+        [Consumes("multipart/form-data")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 25 * 1024 * 1024)]
+        [RequestSizeLimit(25 * 1024 * 1024)]
+        public async Task<IActionResult> UpdateStaffAsync(
+            [FromForm] string JsonData,
+            [FromForm] IFormFile? Profile,
+            [FromForm] IFormFile? IdentityDocument,
+            [FromForm] IFormFile? ResumeDocument)
         {
             try
             {
                 var ownerPKID = _currentUser.UserId;
                 if (ownerPKID <= 0)
-                {
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
-                }
+
+                StaffDto staff;
+                try { staff = JsonSerializer.Deserialize<StaffDto>(JsonData ?? "{}"); }
+                catch { return ApiResponseHelper.Failure("Invalid staff data.", "warning"); }
 
                 if (staff == null || staff.ID <= 0 || string.IsNullOrEmpty(staff.Contact))
-                {
                     return ApiResponseHelper.Failure("Invalid staff ID.");
-                }
+
                 var staffService = _staffRepository;
                 bool numberExists = await staffService.IsStaffNumberExistsAsync(ownerPKID, staff.Contact, staff.ID);
                 if (numberExists)
-                {
                     return ApiResponseHelper.Failure("Staff contact number already exists.", "warning");
-                }
+
                 await staffService.UpdateStaffAsync(ownerPKID, staff);
 
-                if (staff.FilesToDelete != null) 
-                { 
+                if (staff.FilesToDelete != null)
+                {
                     foreach (var filePath in staff.FilesToDelete)
                     {
                         bool canDelete = await staffService.TryClearStaffFilePathAsync(ownerPKID, staff.ID, filePath);
                         if (canDelete)
-                        {
                             _fileStorageService.DeleteFilePath(filePath);
-                        }
                     }
                 }
 
-                if (staff.Profile != null || staff.IdentityDocument != null || staff.ResumeDocument != null)
+                var profileExtensions = new[] { ".jpg", ".jpeg", ".png" };
+                var docExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf" };
+                Dictionary<string, string> dicPath = new Dictionary<string, string>();
+
+                if (Profile != null && Profile.Length > 0)
                 {
-                    Dictionary<string, string> dicPath = new Dictionary<string, string>();
-                    if (staff.Profile != null)
-                    {
-                        var profilePath = await _fileStorageService.SaveFileAsync(staff.Profile.Base64, ownerPKID, DocumentType.Staff.GetDisplayName(), true, staff.Profile.Name, staff.ID);
-                        dicPath.Add("ProfilePath", profilePath);
-                    }
-                    if (staff.IdentityDocument != null)
-                    {
-                        var identityPath = await _fileStorageService.SaveFileAsync(staff.IdentityDocument.Base64, ownerPKID, DocumentType.Staff.GetDisplayName(), true, staff.IdentityDocument.Name, staff.ID);
-                        dicPath.Add("IdentityDocumentPath", identityPath);
-                    }
-                    if (staff.ResumeDocument != null)
-                    {
-                        var resumePath = await _fileStorageService.SaveFileAsync(staff.ResumeDocument.Base64, ownerPKID, DocumentType.Staff.GetDisplayName(), true, staff.ResumeDocument.Name, staff.ID);
-                        dicPath.Add("ResumeDocumentPath", resumePath);
-                    }
-                    await staffService.UpdateStaffDocumentPath(ownerPKID, staff.ID, dicPath);
+                    var v = FileValidationHelper.ValidateFile(Profile, profileExtensions, 5 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(Profile.FileName);
+                    var profilePath = await _fileStorageService.SaveFormFileAsync(Profile, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
+                    dicPath.Add("ProfilePath", profilePath);
                 }
+
+                if (IdentityDocument != null && IdentityDocument.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(IdentityDocument, docExtensions, 10 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(IdentityDocument.FileName);
+                    var identityPath = await _fileStorageService.SaveFormFileAsync(IdentityDocument, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
+                    dicPath.Add("IdentityDocumentPath", identityPath);
+                }
+
+                if (ResumeDocument != null && ResumeDocument.Length > 0)
+                {
+                    var v = FileValidationHelper.ValidateFile(ResumeDocument, docExtensions, 10 * 1024 * 1024);
+                    if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
+                    var safeFilename = FileValidationHelper.GenerateSafeFilename(ResumeDocument.FileName);
+                    var resumePath = await _fileStorageService.SaveFormFileAsync(ResumeDocument, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
+                    dicPath.Add("ResumeDocumentPath", resumePath);
+                }
+
+                if (dicPath.Count > 0)
+                    await staffService.UpdateStaffDocumentPath(ownerPKID, staff.ID, dicPath);
 
                 return ApiResponseHelper.Success(null, $"{staff.Name} updated successfully!");
             }
@@ -227,7 +268,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     return ApiResponseHelper.Failure("Invalid owner PKID or access denied.");
                 }
                 var staffService = _staffRepository;
-                
+
                 bool isValidStaff = await staffService.IsValidStaffId(ownerPKID, staffId);
 
                 if(!isValidStaff)

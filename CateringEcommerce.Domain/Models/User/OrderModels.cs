@@ -1,4 +1,4 @@
-using CateringEcommerce.Domain.Models.Common;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -70,7 +70,7 @@ namespace CateringEcommerce.Domain.Models.User
         [MaxLength(50)]
         public string PaymentMethod { get; set; } = "COD"; // COD, BankTransfer
 
-        public FileUploadDto? PaymentProof { get; set; }
+        public IFormFile? PaymentProof { get; set; }
 
         // Split Payment fields
         public bool EnableSplitPayment { get; set; } = false;

@@ -1,12 +1,15 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
 using Microsoft.Data.SqlClient;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -27,24 +30,59 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var query = new StringBuilder();
                 var countQuery = new StringBuilder();
 
-                // Base query
                 var baseQuery = $@"
-                    FROM {Table.SysOrders} o
-                    INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
-                    OUTER APPLY (
-                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
-                        FROM {Table.SysOrderPayments} p
-                        WHERE p.c_orderid = o.c_orderid
-                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
-                    ) pay
-                    WHERE o.c_ownerid = @OwnerId";
+            FROM {Table.SysOrders} o
+            INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
+
+            OUTER APPLY (
+                SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                FROM {Table.SysOrderPayments} p
+                WHERE p.c_orderid = o.c_orderid
+                  AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+            ) pay
+
+            OUTER APPLY (
+                SELECT STUFF((
+                    SELECT TOP 6 ', ' + src.FoodName
+                    FROM (
+
+                        -- Source 1: Direct FoodItem rows
+                        SELECT f.c_foodname AS FoodName
+                        FROM {Table.SysOrderItems} oi
+                        INNER JOIN {Table.SysFoodItems} f ON oi.c_item_id = f.c_foodid
+                        WHERE oi.c_orderid   = o.c_orderid
+                          AND oi.c_item_type = 'FoodItem'
+                          AND f.c_is_deleted = 0
+
+                        UNION ALL
+
+                        -- Source 2: Food names inside Package JSON
+                        -- JSON path: $.selections[*].selectedItems[*].foodName
+                        SELECT JSON_VALUE(si.value, '$.foodName') AS FoodName
+                        FROM {Table.SysOrderItems} oi
+                        CROSS APPLY OPENJSON(
+                            TRY_CAST(oi.c_package_selections AS NVARCHAR(MAX)),
+                            '$.selections'
+                        ) sel
+                        CROSS APPLY OPENJSON(sel.value, '$.selectedItems') si
+                        WHERE oi.c_orderid   = o.c_orderid
+                          AND oi.c_item_type = 'Package'
+                          AND oi.c_package_selections IS NOT NULL
+                          AND JSON_VALUE(si.value, '$.foodName') IS NOT NULL
+
+                    ) src
+                    FOR XML PATH(''), TYPE
+                ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS MenuItemNames
+            ) menu
+
+            WHERE o.c_ownerid = @OwnerId";
 
                 var parameters = new List<SqlParameter>
-                {
-                    new SqlParameter("@OwnerId", ownerId)
-                };
+        {
+            new SqlParameter("@OwnerId", ownerId)
+        };
 
-                // Apply filters
+                // ── Filters ───────────────────────────────────────────────────────────
                 if (!string.IsNullOrEmpty(filter.OrderStatus) && filter.OrderStatus.ToLower() != "all")
                 {
                     baseQuery += " AND o.c_order_status = @OrderStatus";
@@ -84,85 +122,103 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (!string.IsNullOrEmpty(filter.SearchTerm))
                 {
                     baseQuery += @" AND (o.c_order_number LIKE @SearchTerm
-                                    OR u.c_name LIKE @SearchTerm
-                                    OR u.c_mobile LIKE @SearchTerm)";
+                            OR u.c_name           LIKE @SearchTerm
+                            OR u.c_mobile         LIKE @SearchTerm)";
                     parameters.Add(new SqlParameter("@SearchTerm", $"%{filter.SearchTerm}%"));
                 }
 
-                // Count query
+                if (filter.ExcludeStatuses?.Count > 0)
+                {
+                    var placeholders = string.Join(",", filter.ExcludeStatuses
+                        .Select((s, i) =>
+                        {
+                            parameters.Add(new SqlParameter($"@ExclStatus{i}", s));
+                            return $"@ExclStatus{i}";
+                        }));
+                    baseQuery += $" AND o.c_order_status NOT IN ({placeholders})";
+                }
+
+                // ── Count query ───────────────────────────────────────────────────────
                 countQuery.Append($"SELECT COUNT(*) AS TotalCount {baseQuery}");
 
-                // Data query with pagination
+                // ── Data query ────────────────────────────────────────────────────────
                 query.Append($@"
-                    SELECT
-                        o.c_orderid AS OrderId,
-                        o.c_order_number AS OrderNumber,
-                        u.c_name AS CustomerName,
-                        u.c_mobile AS CustomerPhone,
-                        o.c_event_type AS EventType,
-                        o.c_event_date AS EventDate,
-                        o.c_createddate AS OrderDate,
-                        o.c_total_amount AS TotalAmount,
-                        ISNULL(pay.PaidAmount, 0) AS PaidAmount,
-                        (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) AS BalanceAmount,
-                        o.c_order_status AS OrderStatus,
-                        o.c_payment_status AS PaymentStatus,
-                        o.c_guest_count AS GuestCount,
-                        DATEDIFF(DAY, GETDATE(), o.c_event_date) AS DaysUntilEvent
-                    {baseQuery}
-                    ORDER BY ");
+            SELECT
+                o.c_orderid                                                    AS OrderId,
+                o.c_order_number                                               AS OrderNumber,
+                u.c_name                                                       AS CustomerName,
+                u.c_mobile                                                     AS CustomerPhone,
+                o.c_event_type                                                 AS EventType,
+                o.c_event_date                                                 AS EventDate,
+                o.c_createddate                                                AS OrderDate,
+                o.c_total_amount                                               AS TotalAmount,
+                ISNULL(pay.PaidAmount, 0)                                      AS PaidAmount,
+                (o.c_total_amount - ISNULL(pay.PaidAmount, 0))                AS BalanceAmount,
+                o.c_order_status                                               AS OrderStatus,
+                o.c_payment_status                                             AS PaymentStatus,
+                o.c_guest_count                                                AS GuestCount,
+                DATEDIFF(DAY, GETDATE(), o.c_event_date)                      AS DaysUntilEvent,
+                ISNULL(o.c_event_time, '')                                    AS EventTime,
+                ISNULL(o.c_event_location, ISNULL(o.c_delivery_address, '')) AS VenueAddress,
+                ISNULL(menu.MenuItemNames, '')                                AS MenuItemNames
+            {baseQuery}
+            ORDER BY ");
 
-                // Apply sorting
+                // ── Sorting ───────────────────────────────────────────────────────────
                 switch (filter.SortBy?.ToLower())
                 {
-                    case "eventdate":
-                        query.Append("o.c_event_date");
-                        break;
-                    case "amount":
-                        query.Append("o.c_total_amount");
-                        break;
+                    case "eventdate": query.Append("o.c_event_date"); break;
+                    case "amount": query.Append("o.c_total_amount"); break;
                     case "orderdate":
-                    default:
-                        query.Append("o.c_createddate");
-                        break;
+                    default: query.Append("o.c_createddate"); break;
                 }
 
                 query.Append(filter.SortOrder?.ToUpper() == "ASC" ? " ASC" : " DESC");
 
-                // Add pagination
+                // ── Pagination ────────────────────────────────────────────────────────
                 int offset = (filter.Page - 1) * filter.PageSize;
                 query.Append($" OFFSET {offset} ROWS FETCH NEXT {filter.PageSize} ROWS ONLY");
 
-                // Execute count query
+                // ── Execute count ─────────────────────────────────────────────────────
                 var totalCount = 0;
-                var countResult = await Task.Run(() => _dbHelper.ExecuteScalar(countQuery.ToString(), CloneParameters(parameters)));
+                var countResult = await Task.Run(() =>
+                    _dbHelper.ExecuteScalar(countQuery.ToString(), CloneParameters(parameters)));
                 if (countResult != null)
-                {
                     totalCount = Convert.ToInt32(countResult);
-                }
 
-                // Execute data query
-                var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query.ToString(), CloneParameters(parameters)));
+                // ── Execute data ──────────────────────────────────────────────────────
+                var dataTable = await Task.Run(() =>
+                    _dbHelper.ExecuteAsync(query.ToString(), CloneParameters(parameters)));
 
                 var orders = new List<OrderListItemDto>();
                 foreach (DataRow row in dataTable.Rows)
                 {
+                    var rawMenuItems = row.GetValue<string>("MenuItemNames", string.Empty);
                     orders.Add(new OrderListItemDto
                     {
-                        OrderId = Convert.ToInt64(row["OrderId"]),
-                        OrderNumber = row["OrderNumber"].ToString(),
-                        CustomerName = row["CustomerName"].ToString(),
-                        CustomerPhone = row["CustomerPhone"].ToString(),
-                        EventType = row["EventType"].ToString(),
-                        EventDate = Convert.ToDateTime(row["EventDate"]),
-                        OrderDate = Convert.ToDateTime(row["OrderDate"]),
-                        TotalAmount = Convert.ToDecimal(row["TotalAmount"]),
-                        PaidAmount = Convert.ToDecimal(row["PaidAmount"]),
-                        BalanceAmount = Convert.ToDecimal(row["BalanceAmount"]),
-                        OrderStatus = row["OrderStatus"].ToString(),
-                        PaymentStatus = row["PaymentStatus"].ToString(),
-                        GuestCount = Convert.ToInt32(row["GuestCount"]),
-                        DaysUntilEvent = Convert.ToInt32(row["DaysUntilEvent"])
+                        OrderId = row.GetValue<long>("OrderId"),
+                        OrderNumber = row.GetValue<string>("OrderNumber", string.Empty),
+                        CustomerName = row.GetValue<string>("CustomerName", string.Empty),
+                        CustomerPhone = row.GetValue<string>("CustomerPhone", string.Empty),
+                        EventType = row.GetValue<string>("EventType", string.Empty),
+                        EventDate = row.GetValue<DateTime>("EventDate"),
+                        EventTime = row.GetValue<string>("EventTime", string.Empty),
+                        VenueAddress = row.GetValue<string>("VenueAddress", string.Empty),
+                        OrderDate = row.GetValue<DateTime>("OrderDate"),
+                        TotalAmount = row.GetValue<decimal>("TotalAmount"),
+                        PaidAmount = row.GetValue<decimal>("PaidAmount"),
+                        BalanceAmount = row.GetValue<decimal>("BalanceAmount"),
+                        OrderStatus = row.GetValue<string>("OrderStatus", string.Empty),
+                        PaymentStatus = row.GetValue<string>("PaymentStatus", string.Empty),
+                        GuestCount = row.GetValue<int>("GuestCount"),
+                        DaysUntilEvent = row.GetValue<int>("DaysUntilEvent"),
+                        MenuItems = string.IsNullOrEmpty(rawMenuItems)
+                            ? []
+                            : rawMenuItems
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                .Select(s => s.Trim())
+                                .Where(s => !string.IsNullOrEmpty(s))
+                                .ToList()
                     });
                 }
 
@@ -244,6 +300,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         oi.c_item_total AS TotalPrice,
                         '' AS ImageUrl,
                         oi.c_special_request AS SpecialRequest,
+                        oi.c_package_selections AS PackageSelections,
                         CASE
                             WHEN f.c_ispackage_item = 1 THEN 'Package'
                             ELSE 'Individual Item'
@@ -270,31 +327,31 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var row = dataSet.Tables[0].Rows[0];
                 var orderDetail = new OrderDetailDto
                 {
-                    OrderId = Convert.ToInt64(row["OrderId"]),
-                    OrderNumber = row["OrderNumber"].ToString(),
-                    CustomerId = Convert.ToInt64(row["CustomerId"]),
-                    CustomerName = row["CustomerName"].ToString(),
-                    CustomerEmail = row["CustomerEmail"].ToString(),
-                    CustomerPhone = row["CustomerPhone"].ToString(),
-                    EventType = row["EventType"].ToString(),
-                    EventDate = Convert.ToDateTime(row["EventDate"]),
-                    EventTime = row["EventTime"].ToString(),
-                    GuestCount = Convert.ToInt32(row["GuestCount"]),
-                    VenueAddress = row["VenueAddress"].ToString(),
-                    VenueCity = row["VenueCity"] != DBNull.Value ? row["VenueCity"].ToString() : "",
-                    VenueState = row["VenueState"] != DBNull.Value ? row["VenueState"].ToString() : "",
-                    VenuePincode = row["VenuePincode"] != DBNull.Value ? row["VenuePincode"].ToString() : "",
-                    OrderDate = Convert.ToDateTime(row["OrderDate"]),
-                    OrderStatus = row["OrderStatus"].ToString(),
-                    PaymentStatus = row["PaymentStatus"].ToString(),
-                    SpecialInstructions = row["SpecialInstructions"] != DBNull.Value ? row["SpecialInstructions"].ToString() : "",
-                    SubTotal = Convert.ToDecimal(row["SubTotal"]),
-                    TaxAmount = Convert.ToDecimal(row["TaxAmount"]),
-                    DiscountAmount = Convert.ToDecimal(row["DiscountAmount"]),
-                    DeliveryCharges = Convert.ToDecimal(row["DeliveryCharges"]),
-                    TotalAmount = Convert.ToDecimal(row["TotalAmount"]),
-                    PaidAmount = Convert.ToDecimal(row["PaidAmount"]),
-                    BalanceAmount = Convert.ToDecimal(row["BalanceAmount"])
+                    OrderId = row.GetValue<long>("OrderId"),
+                    OrderNumber = row.GetValue<string>("OrderNumber", string.Empty),
+                    CustomerId = row.GetValue<long>("CustomerId"),
+                    CustomerName = row.GetValue<string>("CustomerName", string.Empty),
+                    CustomerEmail = row.GetValue<string>("CustomerEmail", string.Empty),
+                    CustomerPhone = row.GetValue<string>("CustomerPhone", string.Empty),
+                    EventType = row.GetValue<string>("EventType", string.Empty),
+                    EventDate = row.GetValue<DateTime>("EventDate"),
+                    EventTime = row.GetValue<string>("EventTime", string.Empty),
+                    GuestCount = row.GetValue<int>("GuestCount"),
+                    VenueAddress = row.GetValue<string>("VenueAddress", string.Empty),
+                    VenueCity = row.GetValue<string>("VenueCity", string.Empty),
+                    VenueState = row.GetValue<string>("VenueState", string.Empty),
+                    VenuePincode = row.GetValue<string>("VenuePincode", string.Empty),
+                    OrderDate = row.GetValue<DateTime>("OrderDate"),
+                    OrderStatus = row.GetValue<string>("OrderStatus", string.Empty),
+                    PaymentStatus = row.GetValue<string>("PaymentStatus", string.Empty),
+                    SpecialInstructions = row.GetValue<string>("SpecialInstructions", string.Empty),
+                    SubTotal = row.GetValue<decimal>("SubTotal"),
+                    TaxAmount = row.GetValue<decimal>("TaxAmount"),
+                    DiscountAmount = row.GetValue<decimal>("DiscountAmount"),
+                    DeliveryCharges = row.GetValue<decimal>("DeliveryCharges"),
+                    TotalAmount = row.GetValue<decimal>("TotalAmount"),
+                    PaidAmount = row.GetValue<decimal>("PaidAmount"),
+                    BalanceAmount = row.GetValue<decimal>("BalanceAmount")
                 };
 
                 // Add order items
@@ -304,15 +361,16 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     {
                         orderDetail.Items.Add(new OrderItemDetailDto
                         {
-                            OrderItemId = Convert.ToInt64(itemRow["OrderItemId"]),
-                            MenuItemId = Convert.ToInt64(itemRow["MenuItemId"]),
-                            MenuItemName = itemRow["MenuItemName"].ToString(),
-                            Category = itemRow["Category"].ToString(),
-                            Quantity = Convert.ToInt32(itemRow["Quantity"]),
-                            UnitPrice = Convert.ToDecimal(itemRow["UnitPrice"]),
-                            TotalPrice = Convert.ToDecimal(itemRow["TotalPrice"]),
-                            ImageUrl = itemRow["ImageUrl"] != DBNull.Value ? itemRow["ImageUrl"].ToString() : "",
-                            SpecialRequest = itemRow["SpecialRequest"] != DBNull.Value ? itemRow["SpecialRequest"].ToString() : ""
+                            OrderItemId = itemRow.GetValue<long>("OrderItemId"),
+                            MenuItemId = itemRow.GetValue<long>("MenuItemId"),
+                            MenuItemName = itemRow.GetValue<string>("MenuItemName", string.Empty),
+                            Category = itemRow.GetValue<string>("Category", string.Empty),
+                            Quantity = itemRow.GetValue<int>("Quantity"),
+                            UnitPrice = itemRow.GetValue<decimal>("UnitPrice"),
+                            TotalPrice = itemRow.GetValue<decimal>("TotalPrice"),
+                            ImageUrl = itemRow.GetValue<string>("ImageUrl", string.Empty),
+                            SpecialRequest = itemRow.GetValue<string>("SpecialRequest", string.Empty),
+                            PackageSelections = itemRow.GetValue<string>("PackageSelections", string.Empty)
                         });
                     }
                 }
@@ -402,11 +460,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     history.Add(new OrderStatusHistoryDto
                     {
-                        StatusId = Convert.ToInt64(row["StatusId"]),
-                        Status = row["Status"].ToString(),
-                        ChangedDate = Convert.ToDateTime(row["ChangedDate"]),
-                        ChangedBy = row["ChangedBy"].ToString(),
-                        Comments = row["Comments"] != DBNull.Value ? row["Comments"].ToString() : ""
+                        StatusId = row.GetValue<long>("StatusId"),
+                        Status = row.GetValue<string>("Status", string.Empty),
+                        ChangedDate = row.GetValue<DateTime>("ChangedDate"),
+                        ChangedBy = row.GetValue<string>("ChangedBy", string.Empty),
+                        Comments = row.GetValue<string>("Comments", string.Empty)
                     });
                 }
 
@@ -443,13 +501,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     var row = dataTable.Rows[0];
                     return new OrderStatsDto
                     {
-                        TotalOrders = Convert.ToInt32(row["TotalOrders"]),
-                        PendingOrders = Convert.ToInt32(row["PendingOrders"]),
-                        ConfirmedOrders = Convert.ToInt32(row["ConfirmedOrders"]),
-                        CompletedOrders = Convert.ToInt32(row["CompletedOrders"]),
-                        CancelledOrders = Convert.ToInt32(row["CancelledOrders"]),
-                        TotalRevenue = Convert.ToDecimal(row["TotalRevenue"]),
-                        AverageOrderValue = Convert.ToDecimal(row["AverageOrderValue"])
+                        TotalOrders = row.GetValue<int>("TotalOrders"),
+                        PendingOrders = row.GetValue<int>("PendingOrders"),
+                        ConfirmedOrders = row.GetValue<int>("ConfirmedOrders"),
+                        CompletedOrders = row.GetValue<int>("CompletedOrders"),
+                        CancelledOrders = row.GetValue<int>("CancelledOrders"),
+                        TotalRevenue = row.GetValue<decimal>("TotalRevenue"),
+                        AverageOrderValue = row.GetValue<decimal>("AverageOrderValue")
                     };
                 }
 
@@ -487,12 +545,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     var row = dataTable.Rows[0];
                     return new BookingRequestStatsDto
                     {
-                        TodayRequests = Convert.ToInt32(row["TodayRequests"]),
-                        WeekRequests = Convert.ToInt32(row["WeekRequests"]),
-                        MonthRequests = Convert.ToInt32(row["MonthRequests"]),
-                        TotalPending = Convert.ToInt32(row["TotalPending"]),
-                        TotalConfirmed = Convert.ToInt32(row["TotalConfirmed"]),
-                        TotalRejected = Convert.ToInt32(row["TotalRejected"])
+                        TodayRequests = row.GetValue<int>("TodayRequests"),
+                        WeekRequests = row.GetValue<int>("WeekRequests"),
+                        MonthRequests = row.GetValue<int>("MonthRequests"),
+                        TotalPending = row.GetValue<int>("TotalPending"),
+                        TotalConfirmed = row.GetValue<int>("TotalConfirmed"),
+                        TotalRejected = row.GetValue<int>("TotalRejected")
                     };
                 }
 
@@ -525,6 +583,329 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             {
                 throw new Exception($"Error validating order ownership: {ex.Message}", ex);
             }
+        }
+
+        // ===================================
+        // GET SAMPLE REQUESTS LIST
+        // ===================================
+        public async Task<PaginatedSampleRequestsDto> GetSampleRequestsList(long ownerId, int page, int pageSize, string? statusFilter, string? searchTerm)
+        {
+            try
+            {
+                var whereClause = "WHERE so.c_ownerid = @OwnerId AND so.c_is_deleted = 0";
+                var parameters = new List<SqlParameter> { new SqlParameter("@OwnerId", ownerId) };
+
+                if (!string.IsNullOrEmpty(statusFilter))
+                {
+                    whereClause += " AND so.c_status = @StatusFilter";
+                    parameters.Add(new SqlParameter("@StatusFilter", statusFilter));
+                }
+
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    whereClause += " AND (u.c_name LIKE @SearchTerm OR CAST(so.c_sample_order_id AS NVARCHAR) LIKE @SearchTerm)";
+                    parameters.Add(new SqlParameter("@SearchTerm", $"%{searchTerm}%"));
+                }
+
+                var dataQuery = $@"
+                    SELECT
+                        so.c_sample_order_id   AS SampleOrderID,
+                        CAST(NULL AS BIGINT)   AS LinkedOrderId,
+                        CAST(NULL AS BIGINT)   AS LinkedOrderItemId,
+                        'sample-order'         AS SourceType,
+                        CAST(NULL AS NVARCHAR(100)) AS ParentOrderNumber,
+                        u.c_name               AS CustomerName,
+                        u.c_mobile             AS CustomerPhone,
+                        so.c_sample_price_total AS SamplePriceTotal,
+                        so.c_delivery_charge   AS DeliveryCharge,
+                        so.c_total_amount      AS TotalAmount,
+                        so.c_status            AS Status,
+                        so.c_payment_status    AS PaymentStatus,
+                        so.c_pickup_address    AS PickupAddress,
+                        so.c_createddate       AS RequestedDate,
+                        so.c_rejection_reason  AS RejectionReason,
+                        ISNULL(items.ItemNames, '') AS ItemNames
+                    FROM {Table.SysSampleOrders} so
+                    INNER JOIN {Table.SysUser} u ON so.c_userid = u.c_userid
+                    OUTER APPLY (
+                        SELECT STUFF((
+                            SELECT TOP 6 ', ' + ISNULL(soi.c_menu_item_name, '')
+                            FROM {Table.SysSampleOrderItems} soi
+                            WHERE soi.c_sample_order_id = so.c_sample_order_id
+                            FOR XML PATH(''), TYPE
+                        ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS ItemNames
+                    ) items
+                    {whereClause}
+                    ORDER BY so.c_createddate DESC";
+
+                var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(dataQuery, CloneParameters(parameters)));
+
+                var requests = new List<SampleRequestListItemDto>();
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    var rawItems = row.GetValue<string>("ItemNames", string.Empty);
+                    requests.Add(new SampleRequestListItemDto
+                    {
+                        SampleOrderId = row.GetValue<long>("SampleOrderID"),
+                        LinkedOrderId = row.GetValue<long?>("LinkedOrderId"),
+                        LinkedOrderItemId = row.GetValue<long?>("LinkedOrderItemId"),
+                        SourceType = row.GetValue<string>("SourceType", "sample-order"),
+                        ParentOrderNumber = row.GetValue<string>("ParentOrderNumber", string.Empty),
+                        CustomerName = row.GetValue<string>("CustomerName", string.Empty),
+                        CustomerPhone = row.GetValue<string>("CustomerPhone", string.Empty),
+                        SamplePriceTotal = row.GetValue<decimal>("SamplePriceTotal"),
+                        DeliveryCharge = row.GetValue<decimal>("DeliveryCharge"),
+                        TotalAmount = row.GetValue<decimal>("TotalAmount"),
+                        Status = row.GetValue<string>("Status", string.Empty),
+                        PaymentStatus = row.GetValue<string>("PaymentStatus", string.Empty),
+                        PickupAddress = row.GetValue<string>("PickupAddress", string.Empty),
+                        RequestedDate = row.GetValue<DateTime>("RequestedDate"),
+                        RejectionReason = row.GetValue<string>("RejectionReason", string.Empty),
+                        SampleItems = string.IsNullOrEmpty(rawItems)
+                            ? []
+                            : rawItems.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                .Select(s => s.Trim())
+                                .Where(s => !string.IsNullOrEmpty(s))
+                                .ToList()
+                    });
+                }
+
+                requests.AddRange(await GetOrderLinkedSampleRequests(ownerId, statusFilter, searchTerm));
+
+                var mergedRequests = requests
+                    .OrderByDescending(request => request.RequestedDate)
+                    .ToList();
+
+                int totalCount = mergedRequests.Count;
+                int totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+                var pagedRequests = mergedRequests
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                return new PaginatedSampleRequestsDto
+                {
+                    Requests = pagedRequests,
+                    TotalCount = totalCount,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalPages = totalPages,
+                    HasNextPage = page < totalPages,
+                    HasPreviousPage = page > 1
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error getting sample requests list: {ex.Message}", ex);
+            }
+        }
+
+        // ===================================
+        // ACTION SAMPLE REQUEST (Accept / Reject)
+        // ===================================
+        public async Task<bool> ActionSampleRequest(long ownerId, long sampleOrderId, SampleRequestActionDto action)
+        {
+            try
+            {
+                if (string.Equals(action.SourceType, "event-order", StringComparison.OrdinalIgnoreCase))
+                {
+                    return await ActionOrderLinkedSampleRequest(ownerId, sampleOrderId, action);
+                }
+
+                // Validate ownership
+                var validateQuery = $"SELECT COUNT(*) FROM {Table.SysSampleOrders} WHERE c_sample_order_id = @SampleOrderId AND c_ownerid = @OwnerId AND c_is_deleted = 0";
+                var validateParams = new[]
+                {
+                    new SqlParameter("@SampleOrderId", sampleOrderId),
+                    new SqlParameter("@OwnerId", ownerId)
+                };
+                var validateResult = await Task.Run(() => _dbHelper.ExecuteScalar(validateQuery, validateParams));
+                if (validateResult == null || Convert.ToInt32(validateResult) == 0)
+                    throw new UnauthorizedAccessException("Sample order does not belong to this owner.");
+
+                string newStatus;
+                string updateQuery;
+                SqlParameter[] updateParams;
+
+                if (action.Action?.Equals("Accept", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    newStatus = "SAMPLE_ACCEPTED";
+                    updateQuery = $@"
+                        UPDATE {Table.SysSampleOrders}
+                        SET c_status = @Status,
+                            c_partner_response_date = GETDATE(),
+                            c_modifieddate = GETDATE()
+                        WHERE c_sample_order_id = @SampleOrderId";
+                    updateParams = new[]
+                    {
+                        new SqlParameter("@Status", newStatus),
+                        new SqlParameter("@SampleOrderId", sampleOrderId)
+                    };
+                }
+                else
+                {
+                    newStatus = "SAMPLE_REJECTED";
+                    updateQuery = $@"
+                        UPDATE {Table.SysSampleOrders}
+                        SET c_status = @Status,
+                            c_rejection_reason = @RejectionReason,
+                            c_partner_response_date = GETDATE(),
+                            c_modifieddate = GETDATE()
+                        WHERE c_sample_order_id = @SampleOrderId";
+                    updateParams = new[]
+                    {
+                        new SqlParameter("@Status", newStatus),
+                        new SqlParameter("@RejectionReason", action.RejectionReason ?? string.Empty),
+                        new SqlParameter("@SampleOrderId", sampleOrderId)
+                    };
+                }
+
+                var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(updateQuery, updateParams));
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error actioning sample request: {ex.Message}", ex);
+            }
+        }
+
+        private async Task<List<SampleRequestListItemDto>> GetOrderLinkedSampleRequests(long ownerId, string? statusFilter, string? searchTerm)
+        {
+            var query = $@"
+                SELECT
+                    o.c_orderid AS OrderId,
+                    o.c_order_number AS OrderNumber,
+                    oi.c_order_item_id AS OrderItemId,
+                    u.c_name AS CustomerName,
+                    u.c_mobile AS CustomerPhone,
+                    o.c_delivery_address AS PickupAddress,
+                    o.c_createddate AS RequestedDate,
+                    oi.c_package_selections AS PackageSelections,
+                    oi.c_total_price AS ItemTotal
+                FROM {Table.SysOrders} o
+                INNER JOIN {Table.SysOrderItems} oi ON o.c_orderid = oi.c_orderid
+                INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
+                WHERE o.c_ownerid = @OwnerId
+                  AND ISNULL(oi.c_package_selections, '') <> ''
+                  AND oi.c_package_selections LIKE '%sampleTasteSelections%'";
+
+            var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, new[] { new SqlParameter("@OwnerId", ownerId) }));
+            var results = new List<SampleRequestListItemDto>();
+
+            foreach (DataRow row in dataTable.Rows)
+            {
+                var packageSelectionsJson = row.GetValue<string>("PackageSelections", string.Empty);
+                if (string.IsNullOrWhiteSpace(packageSelectionsJson))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var payload = JObject.Parse(packageSelectionsJson);
+                    var sampleSelections = payload["sampleTasteSelections"] as JArray;
+                    if (sampleSelections == null || sampleSelections.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    var sampleStatus = payload["sampleTasteMeta"]?["status"]?.ToString();
+                    if (!string.IsNullOrEmpty(statusFilter) && !string.Equals(statusFilter, sampleStatus, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var sampleItemNames = sampleSelections
+                        .SelectMany(category => (category["selectedItems"] as JArray ?? new JArray())
+                            .Select(item => item?["name"]?.ToString()))
+                        .Where(name => !string.IsNullOrWhiteSpace(name))
+                        .ToList();
+
+                    var customerName = row.GetValue<string>("CustomerName", string.Empty);
+                    var orderNumber = row.GetValue<string>("OrderNumber", string.Empty);
+                    var searchMatches = string.IsNullOrWhiteSpace(searchTerm)
+                        || customerName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+                        || orderNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+                        || sampleItemNames.Any(name => name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+                    if (!searchMatches)
+                    {
+                        continue;
+                    }
+
+                    results.Add(new SampleRequestListItemDto
+                    {
+                        SampleOrderId = row.GetValue<long>("OrderItemId"),
+                        LinkedOrderId = row.GetValue<long>("OrderId"),
+                        LinkedOrderItemId = row.GetValue<long>("OrderItemId"),
+                        SourceType = "event-order",
+                        ParentOrderNumber = orderNumber,
+                        CustomerName = customerName,
+                        CustomerPhone = row.GetValue<string>("CustomerPhone", string.Empty),
+                        SamplePriceTotal = 0,
+                        DeliveryCharge = 0,
+                        TotalAmount = row.GetValue<decimal>("ItemTotal"),
+                        Status = sampleStatus ?? "SAMPLE_REQUESTED",
+                        PaymentStatus = "Included In Event Order",
+                        PickupAddress = row.GetValue<string>("PickupAddress", string.Empty),
+                        RequestedDate = row.GetValue<DateTime>("RequestedDate"),
+                        RejectionReason = payload["sampleTasteMeta"]?["rejectionReason"]?.ToString(),
+                        SampleItems = sampleItemNames
+                    });
+                }
+                catch
+                {
+                    // Ignore malformed historical payloads
+                }
+            }
+
+            return results;
+        }
+
+        private async Task<bool> ActionOrderLinkedSampleRequest(long ownerId, long sampleOrderId, SampleRequestActionDto action)
+        {
+            var query = $@"
+                SELECT TOP 1
+                    oi.c_order_item_id AS OrderItemId,
+                    oi.c_package_selections AS PackageSelections
+                FROM {Table.SysOrderItems} oi
+                INNER JOIN {Table.SysOrders} o ON oi.c_orderid = o.c_orderid
+                WHERE o.c_ownerid = @OwnerId
+                  AND oi.c_order_item_id = @OrderItemId";
+
+            var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, new[]
+            {
+                new SqlParameter("@OwnerId", ownerId),
+                new SqlParameter("@OrderItemId", action.LinkedOrderItemId ?? sampleOrderId)
+            }));
+
+            if (dataTable.Rows.Count == 0)
+            {
+                throw new UnauthorizedAccessException("Sample request does not belong to this owner.");
+            }
+
+            var payload = JObject.Parse(dataTable.Rows[0].GetValue<string>("PackageSelections", "{}") ?? "{}");
+            payload["sampleTasteMeta"] ??= new JObject();
+            payload["sampleTasteMeta"]!["status"] = string.Equals(action.Action, "Accept", StringComparison.OrdinalIgnoreCase)
+                ? "SAMPLE_ACCEPTED"
+                : "SAMPLE_REJECTED";
+            payload["sampleTasteMeta"]!["rejectionReason"] = string.Equals(action.Action, "Reject", StringComparison.OrdinalIgnoreCase)
+                ? action.RejectionReason ?? string.Empty
+                : null;
+            payload["sampleTasteMeta"]!["respondedAt"] = DateTime.UtcNow;
+
+            var updateQuery = $@"
+                UPDATE {Table.SysOrderItems}
+                SET c_package_selections = @PackageSelections
+                WHERE c_order_item_id = @OrderItemId";
+
+            var updated = await Task.Run(() => _dbHelper.ExecuteNonQuery(updateQuery, new[]
+            {
+                new SqlParameter("@PackageSelections", payload.ToString()),
+                new SqlParameter("@OrderItemId", action.LinkedOrderItemId ?? sampleOrderId)
+            }));
+
+            return updated > 0;
         }
 
         private static SqlParameter[] CloneParameters(List<SqlParameter> parameters)

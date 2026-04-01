@@ -62,11 +62,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Creating order for user {userId}, catering {orderData.CateringId}");
 
-                // Create service using new NotificationHelper
-                var orderService = _orderService;
-
                 // Create order
-                OrderDto order = await orderService.CreateOrderAsync(userId, orderData);
+                OrderDto order = await _orderService.CreateOrderAsync(userId, orderData);
 
                 _logger.LogInformation($"Order created successfully: {order.OrderNumber}");
 
@@ -108,11 +105,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Fetching orders for user {userId}, page {pageNumber}, size {pageSize}");
 
-                // Create service using new NotificationHelper
-                var orderService = _orderService;
-
                 // Get orders
-                List<OrderListItemDto> orders = await orderService.GetUserOrdersAsync(userId, pageNumber, pageSize);
+                List<OrderListItemDto> orders = await _orderService.GetUserOrdersAsync(userId, pageNumber, pageSize);
 
                 return ApiResponseHelper.Success(new
                 {
@@ -152,11 +146,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Fetching order details for order {orderId}, user {userId}");
 
-                // Create service using new NotificationHelper
-                var orderService = _orderService;
-
                 // Get order details
-                OrderDto? order = await orderService.GetOrderDetailsAsync(userId, orderId);
+                OrderDto? order = await _orderService.GetOrderDetailsAsync(userId, orderId);
 
                 if (order == null)
                 {
@@ -206,11 +197,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                 _logger.LogInformation($"Cancelling order {orderId} for user {userId}");
 
-                // Create service using new NotificationHelper
-                var orderService = _orderService;
-
                 // Cancel order
-                bool cancelled = await orderService.CancelOrderAsync(userId, orderId, cancelData.Reason);
+                bool cancelled = await _orderService.CancelOrderAsync(userId, orderId, cancelData.Reason);
 
                 if (cancelled)
                 {

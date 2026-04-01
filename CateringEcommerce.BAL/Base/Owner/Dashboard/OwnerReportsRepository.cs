@@ -1,5 +1,6 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
@@ -99,13 +100,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (dataSet.Tables.Count > 0 && dataSet.Tables[0].Rows.Count > 0)
                 {
                     var row = dataSet.Tables[0].Rows[0];
-                    report.TotalOrders = Convert.ToInt32(row["TotalOrders"]);
-                    report.CompletedOrders = Convert.ToInt32(row["CompletedOrders"]);
-                    report.PendingOrders = Convert.ToInt32(row["PendingOrders"]);
-                    report.CancelledOrders = Convert.ToInt32(row["CancelledOrders"]);
-                    report.TotalRevenue = Convert.ToDecimal(row["TotalRevenue"]);
-                    report.AverageOrderValue = Convert.ToDecimal(row["AverageOrderValue"]);
-                    report.TotalGuestsServed = Convert.ToInt32(row["TotalGuestsServed"]);
+                    report.TotalOrders = row.GetValue<int>("TotalOrders");
+                    report.CompletedOrders = row.GetValue<int>("CompletedOrders");
+                    report.PendingOrders = row.GetValue<int>("PendingOrders");
+                    report.CancelledOrders = row.GetValue<int>("CancelledOrders");
+                    report.TotalRevenue = row.GetValue<decimal>("TotalRevenue");
+                    report.AverageOrderValue = row.GetValue<decimal>("AverageOrderValue");
+                    report.TotalGuestsServed = row.GetValue<int>("TotalGuestsServed");
                 }
 
                 // Event type breakdown
@@ -114,13 +115,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     var totalRevenue = report.TotalRevenue;
                     foreach (DataRow row in dataSet.Tables[1].Rows)
                     {
-                        var eventType = row["EventType"].ToString();
-                        var revenue = Convert.ToDecimal(row["TotalRevenue"]);
+                        var eventType = row.GetValue<string>("EventType", "Unknown");
+                        var revenue = row.GetValue<decimal>("TotalRevenue");
                         report.EventTypeBreakdown[eventType] = new SalesBreakdownDto
                         {
-                            OrderCount = Convert.ToInt32(row["OrderCount"]),
+                            OrderCount = row.GetValue<int>("OrderCount"),
                             TotalRevenue = revenue,
-                            AverageOrderValue = Convert.ToDecimal(row["AverageOrderValue"]),
+                            AverageOrderValue = row.GetValue<decimal>("AverageOrderValue"),
                             Percentage = totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0
                         };
                     }
@@ -133,10 +134,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     {
                         report.TimeSeries.Add(new SalesTimeSeriesDto
                         {
-                            Period = row["Period"].ToString(),
-                            OrderCount = Convert.ToInt32(row["OrderCount"]),
-                            Revenue = Convert.ToDecimal(row["Revenue"]),
-                            GuestsServed = Convert.ToInt32(row["GuestsServed"])
+                            Period = row.GetValue<string>("Period"),
+                            OrderCount = row.GetValue<int>("OrderCount"),
+                            Revenue = row.GetValue<decimal>("Revenue"),
+                            GuestsServed = row.GetValue<int>("GuestsServed")
                         });
                     }
                 }
@@ -145,8 +146,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (dataSet.Tables.Count > 3 && dataSet.Tables[3].Rows.Count > 0)
                 {
                     var row = dataSet.Tables[3].Rows[0];
-                    var previousRevenue = Convert.ToDecimal(row["PreviousRevenue"]);
-                    var previousOrders = Convert.ToInt32(row["PreviousOrders"]);
+                    var previousRevenue = row.GetValue<decimal>("PreviousRevenue");
+                    var previousOrders = row.GetValue<int>("PreviousOrders");
 
                     report.RevenueGrowth = CalculatePercentageChange(report.TotalRevenue, previousRevenue);
                     report.OrderGrowth = CalculatePercentageChange(report.TotalOrders, previousOrders);
@@ -255,12 +256,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (dataSet.Tables.Count > 0 && dataSet.Tables[0].Rows.Count > 0)
                 {
                     var row = dataSet.Tables[0].Rows[0];
-                    report.GrossRevenue = Convert.ToDecimal(row["GrossRevenue"]);
-                    report.NetRevenue = Convert.ToDecimal(row["NetRevenue"]);
-                    report.TotalTax = Convert.ToDecimal(row["TotalTax"]);
-                    report.TotalDiscounts = Convert.ToDecimal(row["TotalDiscounts"]);
-                    report.DeliveryCharges = Convert.ToDecimal(row["DeliveryCharges"]);
-                    report.PendingPayments = Convert.ToDecimal(row["PendingPayments"]);
+                    report.GrossRevenue = row.GetValue<decimal>("GrossRevenue");
+                    report.NetRevenue = row.GetValue<decimal>("NetRevenue");
+                    report.TotalTax = row.GetValue<decimal>("TotalTax");
+                    report.TotalDiscounts = row.GetValue<decimal>("TotalDiscounts");
+                    report.DeliveryCharges = row.GetValue<decimal>("DeliveryCharges");
+                    report.PendingPayments = row.GetValue<decimal>("PendingPayments");
                     report.ProfitMargin = report.GrossRevenue > 0
                         ? (report.NetRevenue / report.GrossRevenue) * 100
                         : 0;
@@ -271,7 +272,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     foreach (DataRow row in dataSet.Tables[1].Rows)
                     {
-                        report.PaymentMethodBreakdown[row["PaymentMethod"].ToString()] = Convert.ToDecimal(row["Amount"]);
+                        report.PaymentMethodBreakdown[row.GetValue<string>("PaymentMethod", "Unknown")] = row.GetValue<decimal>("Amount");
                     }
                 }
 
@@ -280,7 +281,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     foreach (DataRow row in dataSet.Tables[2].Rows)
                     {
-                        report.PaymentStatusBreakdown[row["PaymentStatus"].ToString()] = Convert.ToDecimal(row["Amount"]);
+                        report.PaymentStatusBreakdown[row.GetValue<string>("PaymentStatus", "Unknown")] = row.GetValue<decimal>("Amount");
                     }
                 }
 
@@ -291,13 +292,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     {
                         report.MonthlyRevenue.Add(new MonthlyRevenueDto
                         {
-                            Month = row["Month"].ToString(),
-                            Year = Convert.ToInt32(row["Year"]),
-                            GrossRevenue = Convert.ToDecimal(row["GrossRevenue"]),
-                            NetRevenue = Convert.ToDecimal(row["NetRevenue"]),
-                            TaxAmount = Convert.ToDecimal(row["TaxAmount"]),
-                            DiscountAmount = Convert.ToDecimal(row["DiscountAmount"]),
-                            OrderCount = Convert.ToInt32(row["OrderCount"])
+                            Month = row.GetValue<string>("Month"),
+                            Year = row.GetValue<int>("Year"),
+                            GrossRevenue = row.GetValue<decimal>("GrossRevenue"),
+                            NetRevenue = row.GetValue<decimal>("NetRevenue"),
+                            TaxAmount = row.GetValue<decimal>("TaxAmount"),
+                            DiscountAmount = row.GetValue<decimal>("DiscountAmount"),
+                            OrderCount = row.GetValue<int>("OrderCount")
                         });
                     }
                 }
@@ -307,7 +308,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     foreach (DataRow row in dataSet.Tables[4].Rows)
                     {
-                        report.RevenueByEventType[row["EventType"].ToString()] = Convert.ToDecimal(row["Revenue"]);
+                        report.RevenueByEventType[row.GetValue<string>("EventType", "Unknown")] = row.GetValue<decimal>("Revenue");
                     }
                 }
 
@@ -413,10 +414,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (dataSet.Tables.Count > 0 && dataSet.Tables[0].Rows.Count > 0)
                 {
                     var row = dataSet.Tables[0].Rows[0];
-                    report.TotalCustomers = Convert.ToInt32(row["TotalCustomers"]);
-                    report.NewCustomers = Convert.ToInt32(row["NewCustomers"]);
-                    report.ReturningCustomers = Convert.ToInt32(row["ReturningCustomers"]);
-                    report.AverageLifetimeValue = Convert.ToDecimal(row["AverageLifetimeValue"]);
+                    report.TotalCustomers = row.GetValue<int>("TotalCustomers");
+                    report.NewCustomers = row.GetValue<int>("NewCustomers");
+                    report.ReturningCustomers = row.GetValue<int>("ReturningCustomers");
+                    report.AverageLifetimeValue = row.GetValue<decimal>("AverageLifetimeValue");
                     report.CustomerRetentionRate = report.TotalCustomers > 0
                         ? (report.ReturningCustomers * 100.0m / report.TotalCustomers)
                         : 0;
@@ -425,7 +426,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 // Customer satisfaction
                 if (dataSet.Tables.Count > 1 && dataSet.Tables[1].Rows.Count > 0)
                 {
-                    report.CustomerSatisfactionScore = Convert.ToDecimal(dataSet.Tables[1].Rows[0]["CustomerSatisfactionScore"]);
+                    report.CustomerSatisfactionScore = dataSet.Tables[1].Rows[0].GetValue<decimal>("CustomerSatisfactionScore");
                 }
 
                 // Top customers
@@ -435,13 +436,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     {
                         report.TopCustomers.Add(new TopCustomerDto
                         {
-                            CustomerId = Convert.ToInt64(row["CustomerId"]),
-                            CustomerName = row["CustomerName"].ToString(),
-                            Email = row["Email"].ToString(),
-                            Phone = row["Phone"].ToString(),
-                            TotalOrders = Convert.ToInt32(row["TotalOrders"]),
-                            LifetimeValue = Convert.ToDecimal(row["LifetimeValue"]),
-                            LastOrderDate = Convert.ToDateTime(row["LastOrderDate"])
+                            CustomerId = row.GetValue<long>("CustomerId"),
+                            CustomerName = row.GetValue<string>("CustomerName"),
+                            Email = row.GetValue<string>("Email"),
+                            Phone = row.GetValue<string>("Phone"),
+                            TotalOrders = row.GetValue<int>("TotalOrders"),
+                            LifetimeValue = row.GetValue<decimal>("LifetimeValue"),
+                            LastOrderDate = row.GetValue<DateTime>("LastOrderDate")
                         });
                     }
                 }
@@ -453,9 +454,9 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     {
                         report.CustomerAcquisition.Add(new CustomerAcquisitionDto
                         {
-                            Month = row["Month"].ToString(),
-                            NewCustomers = Convert.ToInt32(row["NewCustomers"]),
-                            ReturningCustomers = Convert.ToInt32(row["ReturningCustomers"])
+                            Month = row.GetValue<string>("Month"),
+                            NewCustomers = row.GetValue<int>("NewCustomers"),
+                            ReturningCustomers = row.GetValue<int>("ReturningCustomers")
                         });
                     }
                 }
@@ -565,19 +566,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     foreach (DataRow row in dataSet.Tables[0].Rows)
                     {
-                        var revenue = Convert.ToDecimal(row["TotalRevenue"]);
+                        var revenue = row.GetValue<decimal>("TotalRevenue");
                         totalRevenue += revenue;
 
                         var item = new MenuItemPerformanceDto
                         {
-                            MenuItemId = Convert.ToInt64(row["MenuItemId"]),
-                            MenuItemName = row["MenuItemName"].ToString(),
-                            Category = row["Category"].ToString(),
-                            OrderCount = Convert.ToInt32(row["OrderCount"]),
-                            TotalQuantitySold = Convert.ToInt32(row["TotalQuantitySold"]),
+                            MenuItemId = row.GetValue<long>("MenuItemId"),
+                            MenuItemName = row.GetValue<string>("MenuItemName"),
+                            Category = row.GetValue<string>("Category"),
+                            OrderCount = row.GetValue<int>("OrderCount"),
+                            TotalQuantitySold = row.GetValue<int>("TotalQuantitySold"),
                             TotalRevenue = revenue,
-                            AverageRating = Convert.ToDecimal(row["AverageRating"]),
-                            Price = Convert.ToDecimal(row["Price"])
+                            AverageRating = row.GetValue<decimal>("AverageRating"),
+                            Price = row.GetValue<decimal>("Price")
                         };
 
                         allItems.Add(item);
@@ -606,14 +607,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 {
                     foreach (DataRow row in dataSet.Tables[1].Rows)
                     {
-                        var categoryRevenue = Convert.ToDecimal(row["TotalRevenue"]);
-                        report.CategoryPerformance[row["CategoryName"].ToString()] = new CategoryPerformanceDto
+                        var categoryRevenue = row.GetValue<decimal>("TotalRevenue");
+                        report.CategoryPerformance[row.GetValue<string>("CategoryName", "Uncategorized")] = new CategoryPerformanceDto
                         {
-                            CategoryName = row["CategoryName"].ToString(),
-                            ItemCount = Convert.ToInt32(row["ItemCount"]),
-                            TotalOrders = Convert.ToInt32(row["TotalOrders"]),
+                            CategoryName = row.GetValue<string>("CategoryName", "Uncategorized"),
+                            ItemCount = row.GetValue<int>("ItemCount"),
+                            TotalOrders = row.GetValue<int>("TotalOrders"),
                             TotalRevenue = categoryRevenue,
-                            AverageRating = Convert.ToDecimal(row["AverageRating"]),
+                            AverageRating = row.GetValue<decimal>("AverageRating"),
                             RevenuePercentage = totalRevenue > 0 ? (categoryRevenue / totalRevenue) * 100 : 0
                         };
                     }
@@ -623,12 +624,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (dataSet.Tables.Count > 2 && dataSet.Tables[2].Rows.Count > 0)
                 {
                     var statsRow = dataSet.Tables[2].Rows[0];
-                    report.TotalMenuItems = Convert.ToInt32(statsRow["TotalItems"]);
+                    report.TotalMenuItems = statsRow.GetValue<int>("TotalItems");
                     report.ActiveItems = report.TotalMenuItems;
 
                     // Additional package vs individual item stats
-                    var totalPackages = Convert.ToInt32(statsRow["TotalPackages"]);
-                    var totalIndividualItems = Convert.ToInt32(statsRow["TotalIndividualItems"]);
+                    var totalPackages = statsRow.GetValue<int>("TotalPackages");
+                    var totalIndividualItems = statsRow.GetValue<int>("TotalIndividualItems");
                 }
 
                 // Generate recommendations
@@ -704,11 +705,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (dataSet.Tables.Count > 0 && dataSet.Tables[0].Rows.Count > 0)
                 {
                     var row = dataSet.Tables[0].Rows[0];
-                    report.TotalIncome = Convert.ToDecimal(row["TotalIncome"]);
-                    report.FoodRevenue = Convert.ToDecimal(row["FoodRevenue"]);
-                    report.DecorationRevenue = Convert.ToDecimal(row["DecorationRevenue"]);
-                    report.StaffRevenue = Convert.ToDecimal(row["StaffRevenue"]);
-                    report.OtherRevenue = Convert.ToDecimal(row["OtherRevenue"]);
+                    report.TotalIncome = row.GetValue<decimal>("TotalIncome");
+                    report.FoodRevenue = row.GetValue<decimal>("FoodRevenue");
+                    report.DecorationRevenue = row.GetValue<decimal>("DecorationRevenue");
+                    report.StaffRevenue = row.GetValue<decimal>("StaffRevenue");
+                    report.OtherRevenue = row.GetValue<decimal>("OtherRevenue");
                     report.NetProfit = report.TotalIncome - report.TotalExpenses;
                     report.ProfitMargin = report.TotalIncome > 0
                         ? (report.NetProfit / report.TotalIncome) * 100
@@ -722,14 +723,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     {
                         var outstanding = new OutstandingPaymentDto
                         {
-                            OrderId = Convert.ToInt64(row["OrderId"]),
-                            OrderNumber = row["OrderNumber"].ToString(),
-                            CustomerName = row["CustomerName"].ToString(),
-                            EventDate = Convert.ToDateTime(row["EventDate"]),
-                            TotalAmount = Convert.ToDecimal(row["TotalAmount"]),
-                            PaidAmount = Convert.ToDecimal(row["PaidAmount"]),
-                            BalanceAmount = Convert.ToDecimal(row["BalanceAmount"]),
-                            DaysOverdue = Convert.ToInt32(row["DaysOverdue"])
+                            OrderId = row.GetValue<long>("OrderId"),
+                            OrderNumber = row.GetValue<string>("OrderNumber"),
+                            CustomerName = row.GetValue<string>("CustomerName"),
+                            EventDate = row.GetValue<DateTime>("EventDate"),
+                            TotalAmount = row.GetValue<decimal>("TotalAmount"),
+                            PaidAmount = row.GetValue<decimal>("PaidAmount"),
+                            BalanceAmount = row.GetValue<decimal>("BalanceAmount"),
+                            DaysOverdue = row.GetValue<int>("DaysOverdue")
                         };
 
                         report.OutstandingPayments.Add(outstanding);
@@ -858,3 +859,4 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         }
     }
 }
+

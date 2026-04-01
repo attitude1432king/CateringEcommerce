@@ -1,4 +1,5 @@
 using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
@@ -204,32 +205,43 @@ namespace CateringEcommerce.BAL.Base.Admin
         // CRUD OPERATIONS
         // ==========================================
 
-        public async Task<long> CreateAdminAsync(CreateAdminRequest request, long createdBy)
+        public async Task<CreateAdminResponseDto> CreateAdminAsync(CreateAdminRequest request, long createdBy)
         {
+            // Server generates a secure temporary password — client never sends one
+            var plainTextPassword = TempPasswordGenerator.Generate();
+            var hashedPassword = HashHelper.HashPassword(plainTextPassword);
+
             var query = $@"
                 INSERT INTO {Table.SysAdmin}
                 (c_username, c_passwordhash, c_email, c_fullname, c_mobile, c_role_id,
-                 c_isactive, c_force_password_reset, c_createddate, c_createdby)
+                 c_isactive, c_is_temporary_password, c_createddate, c_createdby)
                 VALUES
                 (@Username, @PasswordHash, @Email, @FullName, @Mobile, @RoleId,
-                 @IsActive, @ForcePasswordReset, GETDATE(), @CreatedBy);
+                 @IsActive, 1, GETDATE(), @CreatedBy);
                 SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
 
             var parameters = new SqlParameter[]
             {
                 new SqlParameter("@Username", request.Username),
-                new SqlParameter("@PasswordHash", request.Password),
+                new SqlParameter("@PasswordHash", hashedPassword),
                 new SqlParameter("@Email", request.Email),
                 new SqlParameter("@FullName", request.FullName),
                 new SqlParameter("@Mobile", request.Mobile ?? (object)DBNull.Value),
                 new SqlParameter("@RoleId", request.RoleId),
                 new SqlParameter("@IsActive", request.IsActive),
-                new SqlParameter("@ForcePasswordReset", request.ForcePasswordReset),
                 new SqlParameter("@CreatedBy", createdBy)
             };
 
             var newAdminId = Convert.ToInt64(await _dbHelper.ExecuteScalarAsync(query, parameters));
-            return newAdminId;
+
+            return new CreateAdminResponseDto
+            {
+                AdminId = newAdminId,
+                Username = request.Username,
+                Email = request.Email,
+                FullName = request.FullName,
+                TemporaryPassword = plainTextPassword   // Returned once; never stored plain-text
+            };
         }
 
         public async Task<bool> UpdateAdminAsync(UpdateAdminRequest request, long updatedBy)

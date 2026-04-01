@@ -80,6 +80,10 @@ namespace CateringEcommerce.BAL.Configuration
         public const string SysPaymentSchedule = "t_sys_payment_schedule";
         public const string SysInvoiceAuditLog = "t_sys_invoice_audit_log";
 
+        // Sample Tasting Orders
+        public const string SysSampleOrders = "t_sys_sample_orders";
+        public const string SysSampleOrderItems = "t_sys_sample_order_items";
+
         // Delivery Management
         public const string SysSampleDelivery = "t_sys_sample_delivery";
         public const string SysEventDelivery = "t_sys_event_delivery";

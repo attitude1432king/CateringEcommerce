@@ -4,6 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts\**;**\artifacts\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +14,10 @@
 
   <ItemGroup>
     <Folder Include="Models\APIModels\User\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Program.cs" />
   </ItemGroup>
 
 </Project>

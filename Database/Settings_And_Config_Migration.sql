@@ -714,34 +714,34 @@ PRINT 'JWT settings seeded successfully';
 GO
 
 -- =============================================
--- SECTION 13: Seed Data - TWILIO Settings
+-- SECTION 13: Seed Data - AWS SNS Settings
 -- =============================================
 
-IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'TWILIO.ACCOUNT_SID')
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'AWS_SNS.ACCESS_KEY')
 BEGIN
     INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-    VALUES ('TWILIO.ACCOUNT_SID', 'ACa0e64157a3eeacc75d11d3ca0a45dc58', 'TWILIO', 'STRING', 'Twilio Account SID', 'Twilio account identifier', 1, '', 1);
+    VALUES ('AWS_SNS.ACCESS_KEY', '', 'NOTIFICATION', 'ENCRYPTED', 'AWS SNS Access Key', 'AWS SNS IAM Access Key ID', 1, '', 1);
 END
 
-IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'TWILIO.AUTH_TOKEN')
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'AWS_SNS.SECRET_KEY')
 BEGIN
     INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-    VALUES ('TWILIO.AUTH_TOKEN', '32d72da8576aab7007b38891731caf34', 'TWILIO', 'STRING', 'Twilio Auth Token', 'Twilio authentication token', 2, '', 1);
+    VALUES ('AWS_SNS.SECRET_KEY', '', 'NOTIFICATION', 'ENCRYPTED', 'AWS SNS Secret Key', 'AWS SNS IAM Secret Access Key', 2, '', 1);
 END
 
-IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'TWILIO.FROM_PHONE_NUMBER')
-BEGIN
-    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
-    VALUES ('TWILIO.FROM_PHONE_NUMBER', '+918160182327', 'TWILIO', 'STRING', 'Twilio From Phone Number', 'Phone number used for sending SMS', 3, '');
-END
-
-IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'TWILIO.VERIFY_SERVICE_SID')
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'AWS_SNS.REGION')
 BEGIN
     INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-    VALUES ('TWILIO.VERIFY_SERVICE_SID', 'VA36c73036f1c116da2e88220cdcf48834', 'TWILIO', 'STRING', 'Twilio Verify Service SID', 'Twilio Verify service identifier for OTP', 4, '', 1);
+    VALUES ('AWS_SNS.REGION', 'ap-south-1', 'NOTIFICATION', 'STRING', 'AWS SNS Region', 'AWS SNS Region (e.g. ap-south-1 for India)', 3, 'ap-south-1', 0);
 END
 
-PRINT 'TWILIO settings seeded successfully';
+IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'AWS_SNS.SENDER_ID')
+BEGIN
+    INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
+    VALUES ('AWS_SNS.SENDER_ID', 'ENYVORA', 'NOTIFICATION', 'STRING', 'AWS SNS Sender ID', 'AWS SNS SMS Sender ID (alphanumeric, max 11 chars)', 4, 'ENYVORA', 0);
+END
+
+PRINT 'AWS SNS settings seeded successfully';
 GO
 
 -- =============================================
@@ -1039,7 +1039,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'SMS.PROVIDER')
 BEGIN
     INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value)
-    VALUES ('SMS.PROVIDER', 'MSG91', 'SMS', 'STRING', 0, 'Active SMS Provider', 'Active OTP SMS provider: MSG91 or TWILIO. Requires app restart to take effect.', 1, 'MSG91');
+    VALUES ('SMS.PROVIDER', 'MSG91', 'SMS', 'STRING', 0, 'Active SMS Provider', 'OTP SMS provider: MSG91 (fixed). Order/system SMS uses AWS SNS.', 1, 'MSG91');
 END
 
 IF NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'OTP.LENGTH')
@@ -1111,7 +1111,7 @@ PRINT '  - PAYMENT: 10 settings';
 PRINT '  - BUSINESS: 16 settings';
 PRINT '  - NOTIFICATION: 12 settings';
 PRINT '  - JWT: 4 settings';
-PRINT '  - TWILIO: 4 settings';
+PRINT '  - AWS_SNS: 4 settings';
 PRINT '  - SECURITY: 12 settings';
 PRINT '  - RABBITMQ: 5 settings';
 PRINT '  - APP: 7 settings';

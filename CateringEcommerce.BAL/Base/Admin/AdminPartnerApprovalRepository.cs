@@ -588,6 +588,14 @@ namespace CateringEcommerce.BAL.Base.Admin
 
                 _dbHelper.ExecuteNonQuery(updateQuery, parameters);
 
+                // Initialize global availability for the newly approved partner (status=1 = OPEN)
+                var availabilityQuery = $@"
+                    IF NOT EXISTS (SELECT 1 FROM {Table.SysCateringAvailabilityGlobal} WHERE c_ownerid = @OwnerId)
+                        INSERT INTO {Table.SysCateringAvailabilityGlobal} (c_ownerid, c_global_status, c_modifieddate)
+                        VALUES (@OwnerId, 1, GETDATE())";
+
+                _dbHelper.ExecuteNonQuery(availabilityQuery, new[] { new SqlParameter("@OwnerId", ownerId) });
+
                 result.Success = true;
                 result.Message = "Partner request approved successfully";
                 result.NewStatusId = (int)ApprovalStatus.Approved;

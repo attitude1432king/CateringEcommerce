@@ -43,5 +43,15 @@ namespace CateringEcommerce.Domain.Interfaces.Owner
         /// cref="BookingRequestStatsDto"/> object with the aggregated booking request statistics for the specified
         /// owner.</returns>
         Task<BookingRequestStatsDto> GetBookingRequestStats(long ownerId);
+
+        /// <summary>
+        /// Get paginated sample tasting requests for this owner
+        /// </summary>
+        Task<PaginatedSampleRequestsDto> GetSampleRequestsList(long ownerId, int page, int pageSize, string? statusFilter, string? searchTerm);
+
+        /// <summary>
+        /// Accept or Reject a sample tasting request
+        /// </summary>
+        Task<bool> ActionSampleRequest(long ownerId, long sampleOrderId, SampleRequestActionDto action);
     }
 }
