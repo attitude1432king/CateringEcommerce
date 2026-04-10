@@ -38,7 +38,21 @@ CREATE TABLE t_sys_cart_food_items (
     CONSTRAINT FK_CartItem_Food FOREIGN KEY (c_foodid) REFERENCES t_sys_fooditems(c_foodid)
 );
 
+-- Cart Decorations Table
+-- Stores one or more selected decoration themes for a cart
+CREATE TABLE t_sys_cart_decorations (
+    c_cart_decoration_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    c_cartid BIGINT NOT NULL,
+    c_decoration_id BIGINT NOT NULL,
+    c_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    c_createddate DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_CartDecoration_Cart FOREIGN KEY (c_cartid) REFERENCES t_sys_user_cart(c_cartid) ON DELETE CASCADE,
+    CONSTRAINT FK_CartDecoration_Decoration FOREIGN KEY (c_decoration_id) REFERENCES t_sys_catering_decorations(c_decoration_id),
+    CONSTRAINT UQ_CartDecoration UNIQUE (c_cartid, c_decoration_id)
+);
+
 -- Add indexes for better performance
 CREATE INDEX IX_Cart_UserID ON t_sys_user_cart(c_userid);
 CREATE INDEX IX_Cart_OwnerID ON t_sys_user_cart(c_ownerid);
 CREATE INDEX IX_CartItem_CartID ON t_sys_cart_food_items(c_cartid);
+CREATE INDEX IX_CartDecoration_CartID ON t_sys_cart_decorations(c_cartid);

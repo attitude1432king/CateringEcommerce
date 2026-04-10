@@ -1,58 +1,9 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { fetchApi } from '../../services/apiUtils';
 import SampleTasteSelectionPanel from './SampleTasteSelectionPanel';
+import MediaViewer from '../admin/ui/MediaViewer';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
-
-/**
- * Media Viewer Modal - Full Screen Image/Video Viewer
- */
-const MediaViewerModal = ({ isOpen, onClose, mediaUrl, mediaType, foodName }) => {
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-            <button
-                onClick={onClose}
-                className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full p-3 transition-colors z-10"
-            >
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-
-            {/* Food Name Title */}
-            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm text-white px-6 py-3 rounded-xl">
-                <h3 className="text-xl font-bold">{foodName}</h3>
-            </div>
-
-            {/* Media Content */}
-            <div className="max-w-7xl max-h-[90vh] w-full" onClick={(e) => e.stopPropagation()}>
-                {mediaType === 'video' ? (
-                    <video
-                        src={`${API_BASE_URL}${mediaUrl}`}
-                        controls
-                        autoPlay
-                        className="w-full h-full max-h-[90vh] object-contain rounded-xl"
-                    >
-                        Your browser does not support the video tag.
-                    </video>
-                ) : (
-                    <img
-                        src={`${API_BASE_URL}${mediaUrl}`}
-                        alt={foodName}
-                        className="w-full h-full max-h-[90vh] object-contain rounded-xl"
-                    />
-                )}
-            </div>
-
-            {/* Navigation hint */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm text-white px-6 py-2 rounded-full text-sm">
-                Click anywhere to close
-            </div>
-        </div>
-    );
-};
 
 /**
  * Utility function to detect media type based on file extension
@@ -70,6 +21,15 @@ const getMediaType = (url) => {
 
     return 'image';
 };
+
+const buildMediaItems = (mediaUrls = [], label = 'Media') =>
+    (mediaUrls || [])
+        .filter(Boolean)
+        .map((mediaUrl, index) => ({
+            filePath: mediaUrl,
+            fileName: `${label} ${index + 1}`,
+            label
+        }));
 
 /**
  * Package Selection Modal Component - Swiggy/Zomato Style
@@ -102,13 +62,13 @@ export default function PackageSelectionModal({
     // Media viewer state
     const [mediaViewer, setMediaViewer] = useState({
         isOpen: false,
-        mediaUrl: null,
-        mediaType: 'image',
-        foodName: ''
+        currentIndex: 0,
+        mediaItems: []
     });
 
     const [activeTab, setActiveTab] = useState('menu');
     const [sampleTasteSelections, setSampleTasteSelections] = useState([]);
+    const [selectedDecorationId, setSelectedDecorationId] = useState(null);
 
     // Refs for scrolling to invalid categories
     const categoryRefs = useRef({});
@@ -124,6 +84,9 @@ export default function PackageSelectionModal({
         if (isOpen) {
             setActiveTab('menu');
             setSampleTasteSelections([]);
+            setSelectedDecorationId(null);
+            setSearchQuery('');
+            setValidationErrors({});
         }
     }, [isOpen, packageId]);
 
@@ -195,14 +158,12 @@ export default function PackageSelectionModal({
     };
 
     // Open media viewer
-    const openMediaViewer = (mediaUrl, foodName, e) => {
+    const openMediaViewer = (mediaItems, startIndex, e) => {
         e.stopPropagation(); // Prevent food item selection when clicking media
-        const mediaType = getMediaType(mediaUrl);
         setMediaViewer({
             isOpen: true,
-            mediaUrl,
-            mediaType,
-            foodName
+            currentIndex: startIndex,
+            mediaItems
         });
     };
 
@@ -210,9 +171,8 @@ export default function PackageSelectionModal({
     const closeMediaViewer = () => {
         setMediaViewer({
             isOpen: false,
-            mediaUrl: null,
-            mediaType: 'image',
-            foodName: ''
+            currentIndex: 0,
+            mediaItems: []
         });
     };
 
@@ -307,6 +267,9 @@ export default function PackageSelectionModal({
             packageName: packageData.packageName,
             price: packageData.price,
             sampleTasteSelections,
+            selectedDecoration: packageData.decorations?.find(
+                decoration => decoration.decorationId === selectedDecorationId
+            ) || null,
             selections: packageData.categories.map(cat => ({
                 categoryId: cat.categoryId,
                 categoryName: cat.categoryName,
@@ -433,6 +396,19 @@ export default function PackageSelectionModal({
                                         }`}
                                     >
                                         Sample Taste
+                                    </button>
+                                )}
+                                {packageData.decorations?.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('decorations')}
+                                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                                            activeTab === 'decorations'
+                                                ? 'bg-white text-orange-700 shadow-sm'
+                                                : 'bg-white/15 text-white hover:bg-white/20'
+                                        }`}
+                                    >
+                                        Decorations
                                     </button>
                                 )}
                             </div>
@@ -604,6 +580,7 @@ export default function PackageSelectionModal({
                                                             const hasMedia = food.imageUrls && food.imageUrls.length > 0;
                                                             const mediaUrl = hasMedia ? food.imageUrls[0] : null;
                                                             const mediaType = hasMedia ? getMediaType(mediaUrl) : 'image';
+                                                            const mediaItems = buildMediaItems(food.imageUrls, food.foodName);
 
                                                             return (
                                                                 <button
@@ -637,7 +614,7 @@ export default function PackageSelectionModal({
 
                                                                                 {/* View Full Screen Button */}
                                                                                 <button
-                                                                                    onClick={(e) => openMediaViewer(mediaUrl, food.foodName, e)}
+                                                                                    onClick={(e) => openMediaViewer(mediaItems, 0, e)}
                                                                                     className="absolute inset-0 bg-black/0 hover:bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-all"
                                                                                 >
                                                                                     <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 transform scale-90 hover:scale-100 transition-transform">
@@ -729,6 +706,135 @@ export default function PackageSelectionModal({
                                 />
                             </div>
                         )}
+
+                        {!isLoading && !error && packageData && activeTab === 'decorations' && (
+                            <div className="p-6 space-y-6">
+                                <div className="bg-gradient-to-r from-rose-50 to-orange-50 border border-orange-200 rounded-xl p-5">
+                                    <h3 className="font-bold text-orange-900 mb-2 text-lg">Choose one decoration theme</h3>
+                                    <p className="text-sm text-orange-800">
+                                        Select one package decoration here. You can add extra standalone decorations later from the main Decorations section.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                    <label
+                                        className={`rounded-2xl border-2 p-5 bg-white cursor-pointer transition-all ${
+                                            selectedDecorationId === null
+                                                ? 'border-orange-500 ring-4 ring-orange-100 shadow-lg'
+                                                : 'border-neutral-200 hover:border-neutral-300 shadow-sm'
+                                        }`}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <input
+                                                type="radio"
+                                                name="package-decoration"
+                                                checked={selectedDecorationId === null}
+                                                onChange={() => setSelectedDecorationId(null)}
+                                                className="mt-1 h-5 w-5 text-orange-600"
+                                            />
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-lg text-neutral-900">No decoration</h4>
+                                                <p className="text-sm text-neutral-600 mt-1">
+                                                    Continue with the package only and do not add a decoration.
+                                                </p>
+                                                <p className="mt-3 text-sm font-semibold text-green-700">₹0</p>
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    {packageData.decorations.map((decoration) => {
+                                        const previewMedia = decoration.mediaItems?.[0];
+                                        const hasMedia = (decoration.mediaItems || []).length > 0;
+                                        const isSelected = selectedDecorationId === decoration.decorationId;
+
+                                        return (
+                                            <label
+                                                key={decoration.decorationId}
+                                                className={`rounded-2xl overflow-hidden border-2 bg-white cursor-pointer transition-all ${
+                                                    isSelected
+                                                        ? 'border-orange-500 ring-4 ring-orange-100 shadow-lg'
+                                                        : 'border-neutral-200 hover:border-neutral-300 shadow-sm hover:shadow-md'
+                                                }`}
+                                            >
+                                                <div className="relative h-56 bg-gradient-to-br from-rose-100 via-orange-50 to-amber-100 overflow-hidden">
+                                                    {hasMedia ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => openMediaViewer(decoration.mediaItems, 0, e)}
+                                                            className="block w-full h-full text-left"
+                                                        >
+                                                            {previewMedia.mediaType === 'video' ? (
+                                                                <video
+                                                                    src={previewMedia.filePath.startsWith('http') ? previewMedia.filePath : `${API_BASE_URL}${previewMedia.filePath}`}
+                                                                    className="w-full h-full object-cover"
+                                                                    muted
+                                                                    playsInline
+                                                                />
+                                                            ) : (
+                                                                <img
+                                                                    src={previewMedia.filePath.startsWith('http') ? previewMedia.filePath : `${API_BASE_URL}${previewMedia.filePath}`}
+                                                                    alt={decoration.name}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            )}
+                                                            <div className="absolute inset-0 bg-black/10 hover:bg-black/30 transition-colors flex items-center justify-center">
+                                                                <div className="bg-white/90 px-4 py-2 rounded-full text-sm font-semibold text-neutral-900 shadow">
+                                                                    View Gallery
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-6xl text-orange-400">
+                                                            🎨
+                                                        </div>
+                                                    )}
+                                                    {previewMedia?.mediaType === 'video' && (
+                                                        <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                                                            VIDEO
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="p-5">
+                                                    <div className="flex items-start gap-4">
+                                                        <input
+                                                            type="radio"
+                                                            name="package-decoration"
+                                                            checked={isSelected}
+                                                            onChange={() => setSelectedDecorationId(decoration.decorationId)}
+                                                            className="mt-1 h-5 w-5 text-orange-600 flex-shrink-0"
+                                                        />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div>
+                                                                    <h4 className="font-bold text-lg text-neutral-900">{decoration.name}</h4>
+                                                                    {decoration.themeName && (
+                                                                        <p className="text-sm text-neutral-600 mt-1">{decoration.themeName}</p>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <div className="text-lg font-bold text-orange-600">₹{decoration.price}</div>
+                                                                    {isSelected && (
+                                                                        <div className="mt-2 text-xs font-semibold text-green-700">
+                                                                            SELECTED
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            {decoration.description && (
+                                                                <p className="text-sm text-neutral-600 mt-3 leading-relaxed">
+                                                                    {decoration.description}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -776,13 +882,14 @@ export default function PackageSelectionModal({
             </div>
 
             {/* Media Viewer Modal */}
-            <MediaViewerModal
-                isOpen={mediaViewer.isOpen}
-                onClose={closeMediaViewer}
-                mediaUrl={mediaViewer.mediaUrl}
-                mediaType={mediaViewer.mediaType}
-                foodName={mediaViewer.foodName}
-            />
+            {mediaViewer.isOpen && (
+                <MediaViewer
+                    mediaItems={mediaViewer.mediaItems}
+                    currentIndex={mediaViewer.currentIndex}
+                    onClose={closeMediaViewer}
+                    onNavigate={(index) => setMediaViewer(prev => ({ ...prev, currentIndex: index }))}
+                />
+            )}
         </>
     );
 }

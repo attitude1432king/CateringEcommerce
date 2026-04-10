@@ -21,7 +21,7 @@ import { validateCheckoutData } from '../utils/checkoutValidator';
  */
 const ModernCheckoutPage = () => {
     const navigate = useNavigate();
-    const { cart, clearCart } = useCart();
+    const { cart, clearCart, updateCart } = useCart();
     const { user, isAuthenticated } = useAuth();
     const { getInt } = useAppSettings();
 
@@ -300,13 +300,25 @@ const ModernCheckoutPage = () => {
                 orderItems.push({
                     ItemType:          'Decoration',
                     ItemId:            cart.decorationId,
-                    ItemName:          cart.decorationName,
+                    ItemName:          cart.decorationName || 'Package Decoration',
                     Quantity:          1,
-                    UnitPrice:         cart.decorationPrice,
-                    TotalPrice:        cart.decorationPrice,
+                    UnitPrice:         cart.decorationPrice || 0,
+                    TotalPrice:        cart.decorationPrice || 0,
                     PackageSelections: null,
                 });
             }
+
+            ((cart.standaloneDecorations || cart.decorations || [])).forEach((decoration) => {
+                orderItems.push({
+                    ItemType:          'Decoration',
+                    ItemId:            decoration.decorationId,
+                    ItemName:          decoration.name,
+                    Quantity:          1,
+                    UnitPrice:         decoration.price,
+                    TotalPrice:        decoration.price,
+                    PackageSelections: null,
+                });
+            });
 
             (cart.additionalItems || []).forEach(item => {
                 const individualSamplePayload = buildIndividualSamplePayload(item);
@@ -365,13 +377,15 @@ const ModernCheckoutPage = () => {
                 ContactPerson:       contactPerson,
                 ContactPhone:        contactPhone,
                 ContactEmail:        contactEmail,
-                BaseAmount:          cart.baseAmount   || 0,
+                BaseAmount:          cart.subtotal || cart.baseAmount || 0,
                 TaxAmount:           cart.taxAmount    || 0,
                 DeliveryCharges:     0,
                 DiscountAmount:      cart.discountAmount || 0,
                 TotalAmount:         total,
                 PaymentMethod:       backendPaymentMethod,
                 EnableSplitPayment:  enableSplitPayment,
+                DecorationId:        cart.decorationId || null,
+                DecorationIds:       (cart.standaloneDecorations || cart.decorations || []).map(item => item.decorationId),
                 ...(isSplit && { PreBookingAmount: preBookingAmount, PostEventAmount: postEventAmount }),
                 OrderItems:          orderItems,
             };
@@ -460,6 +474,7 @@ const ModernCheckoutPage = () => {
                             isCompleted={completedSteps.includes(2)}
                             checkoutData={checkoutData}
                             updateCheckoutData={updateCheckoutData}
+                            updateCart={updateCart}
                             errors={errors}
                             onComplete={() => handleStepComplete(2)}
                             onEdit={() => setCurrentStep(2)}

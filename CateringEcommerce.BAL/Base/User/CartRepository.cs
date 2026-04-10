@@ -6,6 +6,7 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace CateringEcommerce.BAL.Base.User
@@ -23,6 +24,8 @@ namespace CateringEcommerce.BAL.Base.User
         {
             try
             {
+                long? primaryDecorationId = cartDto.DecorationId;
+
                 // First, check if cart exists and delete it (only one cart per user)
                 await ClearCartAsync(userId);
 
@@ -48,7 +51,7 @@ namespace CateringEcommerce.BAL.Base.User
                     new SqlParameter("@EventType", (object?)cartDto.EventType ?? DBNull.Value),
                     new SqlParameter("@EventLocation", (object?)cartDto.EventLocation ?? DBNull.Value),
                     new SqlParameter("@SpecialRequirements", (object?)cartDto.SpecialRequirements ?? DBNull.Value),
-                    new SqlParameter("@DecorationId", (object?)cartDto.DecorationId ?? DBNull.Value),
+                    new SqlParameter("@DecorationId", (object?)primaryDecorationId ?? DBNull.Value),
                     new SqlParameter("@BaseAmount", cartDto.BaseAmount),
                     new SqlParameter("@DecorationAmount", cartDto.DecorationAmount),
                     new SqlParameter("@TaxAmount", cartDto.TaxAmount),
@@ -65,6 +68,11 @@ namespace CateringEcommerce.BAL.Base.User
                     foreach (var item in cartDto.AdditionalItems)
                     {
                         await AddAdditionalItemInternalAsync(cartId, item);
+                    }
+
+                    foreach (var decoration in cartDto.StandaloneDecorations)
+                    {
+                        await AddDecorationInternalAsync(cartId, decoration);
                     }
 
                     return cartId;
@@ -87,12 +95,10 @@ namespace CateringEcommerce.BAL.Base.User
                         c.*,
                         co.c_restaurant_name as CateringName,
                         co.c_logo as CateringLogo,
-                        p.c_package_name as PackageName,
-                        d.c_name as DecorationName
+                        p.c_package_name as PackageName
                     FROM {Table.SysUserCart} c
                     LEFT JOIN {Table.SysCateringOwner} co ON c.c_ownerid = co.c_ownerid
                     LEFT JOIN {Table.SysMenuPackage} p ON c.c_packageid = p.c_packageid
-                    LEFT JOIN {Table.SysCateringDecorations} d ON c.c_decoration_id = d.c_decoartionid
                     WHERE c.c_userid = @UserId";
 
                 var parameters = new[]
@@ -122,8 +128,6 @@ namespace CateringEcommerce.BAL.Base.User
                     EventType = row["c_event_type"] != DBNull.Value ? row["c_event_type"]?.ToString() : null,
                     EventLocation = row["c_event_location"] != DBNull.Value ? row["c_event_location"]?.ToString() : null,
                     SpecialRequirements = row["c_special_requirements"] != DBNull.Value ? row["c_special_requirements"]?.ToString() : null,
-                    DecorationId = row["c_decoration_id"] != DBNull.Value ? Convert.ToInt64(row["c_decoration_id"]) : null,
-                    DecorationName = row["DecorationName"] != DBNull.Value ? row["DecorationName"]?.ToString() : null,
                     BaseAmount = Convert.ToDecimal(row["c_base_amount"]),
                     DecorationAmount = Convert.ToDecimal(row["c_decoration_amount"]),
                     TaxAmount = Convert.ToDecimal(row["c_tax_amount"]),
@@ -134,6 +138,15 @@ namespace CateringEcommerce.BAL.Base.User
 
                 // Get additional items
                 cart.AdditionalItems = await GetCartAdditionalItemsAsync(cartId);
+                cart.StandaloneDecorations = await GetCartDecorationsAsync(cartId);
+                cart.DecorationId = row["c_decoration_id"] != DBNull.Value ? Convert.ToInt64(row["c_decoration_id"]) : null;
+
+                if (cart.DecorationId.HasValue)
+                {
+                    var primaryDecoration = await GetPrimaryDecorationAsync(cart.DecorationId.Value);
+                    cart.DecorationName = primaryDecoration?.Name;
+                    cart.DecorationPrice = primaryDecoration?.Price ?? 0;
+                }
 
                 return cart;
             }
@@ -271,6 +284,83 @@ namespace CateringEcommerce.BAL.Base.User
             }
         }
 
+        private async Task<List<CartDecorationDto>> GetCartDecorationsAsync(long cartId)
+        {
+            try
+            {
+                var query = $@"
+                    SELECT
+                        cd.c_decoration_id,
+                        d.c_decoration_name,
+                        cd.c_price
+                    FROM {Table.SysCartDecorations} cd
+                    INNER JOIN {Table.SysCateringDecorations} d ON cd.c_decoration_id = d.c_decoration_id
+                    WHERE cd.c_cartid = @CartId";
+
+                var parameters = new[]
+                {
+                    new SqlParameter("@CartId", cartId)
+                };
+
+                var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
+                var decorations = new List<CartDecorationDto>();
+
+                foreach (DataRow row in dt.Rows)
+                {
+                    decorations.Add(new CartDecorationDto
+                    {
+                        DecorationId = Convert.ToInt64(row["c_decoration_id"]),
+                        Name = row["c_decoration_name"]?.ToString(),
+                        Price = Convert.ToDecimal(row["c_price"])
+                    });
+                }
+
+                return decorations;
+            }
+            catch
+            {
+                return new List<CartDecorationDto>();
+            }
+        }
+
+        private async Task<CartDecorationDto?> GetPrimaryDecorationAsync(long decorationId)
+        {
+            try
+            {
+                var query = $@"
+                    SELECT TOP 1
+                        d.c_decoration_id,
+                        d.c_decoration_name,
+                        d.c_price
+                    FROM {Table.SysCateringDecorations} d
+                    WHERE d.c_decoration_id = @DecorationId";
+
+                var parameters = new[]
+                {
+                    new SqlParameter("@DecorationId", decorationId)
+                };
+
+                var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
+
+                if (dt.Rows.Count == 0)
+                {
+                    return null;
+                }
+
+                var row = dt.Rows[0];
+                return new CartDecorationDto
+                {
+                    DecorationId = Convert.ToInt64(row["c_decoration_id"]),
+                    Name = row["c_decoration_name"]?.ToString(),
+                    Price = row["c_price"] != DBNull.Value ? Convert.ToDecimal(row["c_price"]) : 0
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private async Task<bool> AddAdditionalItemInternalAsync(long cartId, CartAdditionalItemDto item)
         {
             try
@@ -290,6 +380,31 @@ namespace CateringEcommerce.BAL.Base.User
 
                 var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(query, parameters));
 
+                return result > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> AddDecorationInternalAsync(long cartId, CartDecorationDto decoration)
+        {
+            try
+            {
+                var query = $@"
+                    INSERT INTO {Table.SysCartDecorations}
+                    (c_cartid, c_decoration_id, c_price, c_createddate)
+                    VALUES (@CartId, @DecorationId, @Price, GETDATE())";
+
+                var parameters = new[]
+                {
+                    new SqlParameter("@CartId", cartId),
+                    new SqlParameter("@DecorationId", decoration.DecorationId),
+                    new SqlParameter("@Price", decoration.Price)
+                };
+
+                var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(query, parameters));
                 return result > 0;
             }
             catch

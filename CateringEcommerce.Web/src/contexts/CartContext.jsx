@@ -7,8 +7,61 @@ Cart is event-based - only one caterer allowed per cart.
 */
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { calculateCartTotals, normalizeDecorationOrNull, normalizeDecorations } from '../utils/cartPricing';
 
 const CartContext = createContext(null);
+
+const buildCartState = (cartData, existingCart = null) => {
+    const guestCount = cartData.guestCount ?? existingCart?.guestCount ?? 50;
+    const additionalItems = cartData.additionalItems ?? existingCart?.additionalItems ?? [];
+    const primaryDecoration = normalizeDecorationOrNull(
+        cartData.decorationId != null
+            ? {
+                decorationId: cartData.decorationId,
+                decorationName: cartData.decorationName,
+                decorationPrice: cartData.decorationPrice,
+            }
+            : existingCart?.decorationId != null
+                ? {
+                    decorationId: existingCart.decorationId,
+                    decorationName: existingCart.decorationName,
+                    decorationPrice: existingCart.decorationPrice,
+                }
+                : null
+    );
+    const standaloneDecorations = normalizeDecorations(
+        cartData.standaloneDecorations ?? cartData.decorations ?? existingCart?.standaloneDecorations ?? existingCart?.decorations
+    );
+
+    const totals = calculateCartTotals({
+        packagePrice: cartData.packagePrice ?? existingCart?.packagePrice ?? 0,
+        guestCount,
+        additionalItems,
+        primaryDecoration,
+        standaloneDecorations,
+    });
+
+    return {
+        ...existingCart,
+        ...cartData,
+        guestCount: totals.guestCount,
+        additionalItems: totals.additionalItems,
+        standaloneDecorations: totals.standaloneDecorations,
+        decorations: totals.standaloneDecorations,
+        decorationIds: totals.standaloneDecorations.map(item => item.decorationId),
+        decorationId: totals.primaryDecoration?.decorationId ?? null,
+        decorationName: totals.primaryDecoration?.name ?? null,
+        decorationPrice: totals.primaryDecorationTotal,
+        baseAmount: totals.packageTotal,
+        additionalItemsTotal: totals.additionalItemsTotal,
+        decorationAmount: totals.decorationAmount,
+        standaloneDecorationAmount: totals.standaloneDecorationAmount,
+        subtotal: totals.subtotal,
+        taxAmount: totals.taxAmount,
+        totalAmount: totals.totalAmount,
+        updatedAt: new Date().toISOString()
+    };
+};
 
 export const CartProvider = ({ children }) => {
     const { user, isAuthenticated } = useAuth();
@@ -22,7 +75,7 @@ export const CartProvider = ({ children }) => {
             const savedCart = localStorage.getItem(`cart_${user.pkid}`);
             if (savedCart) {
                 try {
-                    setCart(JSON.parse(savedCart));
+                    setCart(buildCartState(JSON.parse(savedCart)));
                 } catch (error) {
                     console.error('Error loading cart:', error);
                     localStorage.removeItem(`cart_${user.pkid}`);
@@ -80,41 +133,12 @@ export const CartProvider = ({ children }) => {
             };
         }
 
-        // Calculate amounts
-        const baseAmount = (packagePrice || 0) * guestCount;
-        const additionalItemsTotal = additionalItems.reduce(
-            (sum, item) => sum + (item.price * item.quantity * guestCount),
-            0
-        );
-        const decorationAmount = decorationPrice || 0;
-        const subtotal = baseAmount + additionalItemsTotal + decorationAmount;
-        const taxAmount = subtotal * 0.18; // 18% GST
-        const totalAmount = subtotal + taxAmount;
-
-        const newCart = {
+        const newCart = buildCartState({
+            ...cateringData,
             cateringId,
             cateringName,
-            cateringLogo,
-            packageId,
-            packageName,
-            packagePrice,
-            guestCount,
-            eventDate,
-            eventType,
-            eventLocation,
-            decorationId,
-            decorationName,
-            decorationPrice,
-            additionalItems,
-            packageSelections,
-            sampleTasteSelections,
-            baseAmount,
-            additionalItemsTotal,
-            decorationAmount,
-            taxAmount,
-            totalAmount,
-            updatedAt: new Date().toISOString()
-        };
+            cateringLogo
+        });
 
         setCart(newCart);
         setIsCartOpen(true);
@@ -127,30 +151,7 @@ export const CartProvider = ({ children }) => {
     const updateCart = (updates) => {
         if (!cart) return;
 
-        const updatedCart = { ...cart, ...updates };
-
-        // Recalculate amounts if guest count or items changed
-        if (updates.guestCount || updates.additionalItems) {
-            const guestCount = updates.guestCount || cart.guestCount;
-            const additionalItems = updates.additionalItems || cart.additionalItems;
-
-            const baseAmount = (cart.packagePrice || 0) * guestCount;
-            const additionalItemsTotal = additionalItems.reduce(
-                (sum, item) => sum + (item.price * item.quantity * guestCount),
-                0
-            );
-            const subtotal = baseAmount + additionalItemsTotal + (cart.decorationAmount || 0);
-            const taxAmount = subtotal * 0.18;
-            const totalAmount = subtotal + taxAmount;
-
-            updatedCart.baseAmount = baseAmount;
-            updatedCart.additionalItemsTotal = additionalItemsTotal;
-            updatedCart.taxAmount = taxAmount;
-            updatedCart.totalAmount = totalAmount;
-        }
-
-        updatedCart.updatedAt = new Date().toISOString();
-        setCart(updatedCart);
+        setCart(buildCartState(updates, cart));
     };
 
     /**

@@ -6,6 +6,8 @@ Booking Management — Two-Tab: Event Order Requests + Sample Taste Requests
 */
 import { useState, useEffect, useCallback } from 'react';
 import { ownerApiService } from '../../../services/ownerApi';
+import { useConfirmation } from '../../../contexts/ConfirmationContext';
+import OwnerOrderDetailDrawer from './OwnerOrderDetailDrawer';
 
 // ===================================
 // Shared: Stat Card
@@ -395,12 +397,14 @@ const SampleRequestCard = ({ request, onAccept, onReject, isProcessing }) => {
 // Main BookingRequests Component
 // ===================================
 export default function BookingRequests() {
+    const confirm = useConfirmation();
     // ── Request type tab ─────────────────────────────
     const [requestType, setRequestType] = useState('events'); // 'events' | 'samples'
 
     // ── Shared ───────────────────────────────────────
     const [isProcessing, setIsProcessing] = useState(false);
     const [rejectModal, setRejectModal]   = useState({ open: false, id: null, payload: null });
+    const [detailOrderId, setDetailOrderId] = useState(null);
 
     // ── Event tab state ──────────────────────────────
     const [eventFilter, setEventFilter]   = useState('all');
@@ -531,7 +535,14 @@ export default function BookingRequests() {
     // Event tab: accept / reject handlers
     // ─────────────────────────────────────────────────
     const handleAcceptEvent = async (orderId) => {
-        if (!confirm('Are you sure you want to accept this booking?')) return;
+        const confirmed = await confirm({
+            type: 'info',
+            title: 'Accept Booking',
+            message: 'Are you sure you want to accept this booking?',
+            confirmText: 'Accept',
+            cancelText: 'Cancel',
+        });
+        if (!confirmed) return;
         setIsProcessing(true);
         try {
             const response = await ownerApiService.updateOrderStatus(orderId, {
@@ -572,7 +583,14 @@ export default function BookingRequests() {
     // Sample tab: accept / reject handlers
     // ─────────────────────────────────────────────────
     const handleAcceptSample = async (request) => {
-        if (!confirm('Are you sure you want to accept this sample request?')) return;
+        const confirmed = await confirm({
+            type: 'info',
+            title: 'Accept Sample Request',
+            message: 'Are you sure you want to accept this sample request?',
+            confirmText: 'Accept',
+            cancelText: 'Cancel',
+        });
+        if (!confirmed) return;
         setIsProcessing(true);
         try {
             const response = await ownerApiService.actionSampleRequest(request.sampleOrderId, {
@@ -615,7 +633,7 @@ export default function BookingRequests() {
     };
 
     const handleViewEventDetails = (orderId) => {
-        console.log('View event order details:', orderId);
+        setDetailOrderId(orderId);
     };
 
     // ─────────────────────────────────────────────────
@@ -920,6 +938,12 @@ export default function BookingRequests() {
                 placeholder={requestType === 'events'
                     ? 'e.g., Fully booked on this date, Not in service area, etc.'
                     : 'e.g., Cannot prepare samples this week, Items unavailable, etc.'}
+            />
+
+            <OwnerOrderDetailDrawer
+                isOpen={Boolean(detailOrderId)}
+                orderId={detailOrderId}
+                onClose={() => setDetailOrderId(null)}
             />
         </div>
     );

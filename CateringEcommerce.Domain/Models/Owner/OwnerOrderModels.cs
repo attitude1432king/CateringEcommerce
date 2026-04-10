@@ -59,6 +59,8 @@ namespace CateringEcommerce.Domain.Models.Owner
         public DateTime EventDate { get; set; }
         public string? EventTime { get; set; }
         public int GuestCount { get; set; }
+        public string? EventLocation { get; set; }
+        public string? DeliveryAddress { get; set; }
         public string? VenueAddress { get; set; }
         public string? VenueCity { get; set; }
         public string? VenueState { get; set; }
@@ -67,8 +69,17 @@ namespace CateringEcommerce.Domain.Models.Owner
         // Order Info
         public DateTime OrderDate { get; set; }
         public string? OrderStatus { get; set; }
+        public string? PaymentMethod { get; set; }
         public string? PaymentStatus { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? ContactPhone { get; set; }
+        public string? ContactEmail { get; set; }
         public string? SpecialInstructions { get; set; }
+        public bool PaymentSplitEnabled { get; set; }
+        public decimal? PreBookingAmount { get; set; }
+        public decimal? PostEventAmount { get; set; }
+        public string? PreBookingStatus { get; set; }
+        public string? PostEventStatus { get; set; }
 
         // Financial Info
         public decimal SubTotal { get; set; }
@@ -99,6 +110,7 @@ namespace CateringEcommerce.Domain.Models.Owner
         public long MenuItemId { get; set; }
         public string? MenuItemName { get; set; }
         public string? Category { get; set; }
+        public string? ItemType { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }

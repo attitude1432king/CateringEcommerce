@@ -14,7 +14,7 @@ import AuthModal from './AuthModal';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
 export default function EnhancedCartDrawer() {
-    const { cart, clearCart, updateGuestCount, isCartOpen, setIsCartOpen } = useCart();
+    const { cart, clearCart, isCartOpen, setIsCartOpen } = useCart();
     const { requireAuth, showAuthModal, handleAuthClose, isAuthenticated } = useAuthGuard();
     const navigate = useNavigate();
     const [isClosing, setIsClosing] = useState(false);
@@ -47,15 +47,36 @@ export default function EnhancedCartDrawer() {
         return () => window.removeEventListener('keydown', handleEscape);
     }, [isCartOpen]);
 
-    // Handle auth success - redirect to checkout
-    const handleAuthSuccess = () => {
-        handleAuthClose();
-        // Navigate to checkout after successful auth
-        setTimeout(() => {
-            navigate('/checkout');
-        }, 300);
-    };
+    // Lock page scroll while cart drawer or confirmation modal is open
+    useEffect(() => {
+        if (!isCartOpen && !showClearConfirm) {
+            return undefined;
+        }
 
+        const scrollY = window.scrollY;
+        const originalBodyOverflow = document.body.style.overflow;
+        const originalBodyPosition = document.body.style.position;
+        const originalBodyTop = document.body.style.top;
+        const originalBodyWidth = document.body.style.width;
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+        document.documentElement.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = originalBodyOverflow;
+            document.body.style.position = originalBodyPosition;
+            document.body.style.top = originalBodyTop;
+            document.body.style.width = originalBodyWidth;
+            document.documentElement.style.overflow = originalHtmlOverflow;
+            window.scrollTo(0, scrollY);
+        };
+    }, [isCartOpen, showClearConfirm]);
+
+    
     /**
      * Handle "Proceed to Checkout" click
      * Check authentication first, then navigate
@@ -354,8 +375,11 @@ export default function EnhancedCartDrawer() {
 
             {/* Clear Cart Confirmation Modal */}
             {showClearConfirm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-fade-in">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10001] flex items-center justify-center p-4">
+                    <div
+                        className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="text-center mb-6">
                             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
                                 <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

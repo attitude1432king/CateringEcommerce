@@ -6,6 +6,7 @@ Event Order Management — Live API Integration
 */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ownerApiService } from '../../../services/ownerApi';
+import OwnerOrderDetailDrawer from './OwnerOrderDetailDrawer';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -793,9 +794,11 @@ export default function EventOrders() {
             </div>
                 
             {/* Modals */}
-            {detailOrderId && (
-                <DetailModal orderId={detailOrderId} onClose={() => setDetailOrderId(null)} />
-            )}
+            <OwnerOrderDetailDrawer
+                isOpen={Boolean(detailOrderId)}
+                orderId={detailOrderId}
+                onClose={() => setDetailOrderId(null)}
+            />
             {manageOrder && (
                 <ManageModal order={manageOrder} onClose={() => setManageOrder(null)} onSuccess={handleManageSuccess} />
             )}

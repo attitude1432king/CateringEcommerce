@@ -1,7 +1,8 @@
 import React from 'react';
 import { formatEventDate, formatEventTime, getEventTypeDisplay } from '../../../../utils/checkoutValidator';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+import { calculateCartTotals, normalizeDecorationOrNull, normalizeDecorations } from '../../../../utils/cartPricing';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
 
 /**
  * Cart Summary Component - Sticky Right Column
@@ -11,32 +12,39 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
     if (!cart) return null;
 
     const calculateTotals = () => {
-        // Use the guest count from checkoutData if available, otherwise use cart's guest count
-        const guestCount = checkoutData?.guestCount || cart.guestCount || 50;
+        const primaryDecoration = normalizeDecorationOrNull(
+            cart.decorationId != null
+                ? {
+                    decorationId: cart.decorationId,
+                    decorationName: cart.decorationName,
+                    decorationPrice: cart.decorationPrice,
+                }
+                : null
+        );
 
-        const packageTotal = (cart.packagePrice || 0) * guestCount;
-        const decorationTotal = cart.decorationPrice || 0;
-        const additionalTotal = cart.additionalItems?.reduce(
-            (sum, item) => sum + (item.price * (item.quantity || 1) * guestCount),
-            0
-        ) || 0;
+        const standaloneDecorations = normalizeDecorations(
+            cart.standaloneDecorations || cart.decorations
+        );
 
-        const subtotal = packageTotal + decorationTotal + additionalTotal;
+        const totals = calculateCartTotals({
+            packagePrice: cart.packagePrice,
+            guestCount: checkoutData?.guestCount ?? cart.guestCount,
+            additionalItems: cart.additionalItems || [],
+            primaryDecoration,
+            standaloneDecorations,
+        });
 
-        // Prefer server-computed tax; fall back to 18% local estimate
-        const gst = cart.taxAmount != null ? Number(cart.taxAmount) : subtotal * 0.18;
-
-        // Prefer server-computed total; fall back to local sum
-        const total = cart.totalAmount != null ? Number(cart.totalAmount) : subtotal + gst;
-
-        return { packageTotal, decorationTotal, additionalTotal, subtotal, gst, platformFee: 0, total };
+        return {
+            ...totals,
+            gst: totals.taxAmount,
+            total: totals.totalAmount,
+        };
     };
 
     const totals = calculateTotals();
 
     return (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            {/* Caterer Header */}
             <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 text-white">
                 <div className="flex items-center gap-3">
                     {cart.cateringLogo && (
@@ -50,11 +58,11 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                         <h3 className="font-bold text-lg">{cart.cateringName}</h3>
                         <div className="flex items-center gap-2 mt-1">
                             <span className="bg-white bg-opacity-20 text-xs px-2 py-0.5 rounded-full">
-                                ✓ Verified
+                                Verified
                             </span>
                             {(cart.catererRating ?? cart.rating) != null && (
                                 <span className="bg-white bg-opacity-20 text-xs px-2 py-0.5 rounded-full">
-                                    ⭐ {Number(cart.catererRating ?? cart.rating).toFixed(1)}
+                                    {Number(cart.catererRating ?? cart.rating).toFixed(1)}
                                 </span>
                             )}
                         </div>
@@ -62,18 +70,16 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                 </div>
             </div>
 
-            {/* Cart Items */}
             <div className="p-4 border-b">
                 <h4 className="font-semibold text-gray-900 mb-3">Order Summary</h4>
 
-                {/* Package */}
                 {cart.packageName && (
                     <div className="mb-4 pb-4 border-b">
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
                                 <div className="font-medium text-gray-900">{cart.packageName}</div>
                                 <div className="text-xs text-gray-500 mt-1">
-                                    ₹{cart.packagePrice} × {totals.guestCount} guests
+                                    {`\u20B9${cart.packagePrice} � ${totals.guestCount} guests`}
                                 </div>
                                 {cart.packageCategory && (
                                     <span className="inline-block mt-1 text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded">
@@ -82,50 +88,60 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                                 )}
                             </div>
                             <div className="font-semibold text-gray-900">
-                                ₹{totals.packageTotal.toLocaleString('en-IN')}
+                                {`\u20B9${totals.packageTotal.toLocaleString('en-IN')}`}
                             </div>
                         </div>
                         {cart.packageSelections && (
                             <div className="mt-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                                ✓ Package customized
+                                Package customized
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* Decoration */}
-                {cart.decorationName && (
+                {totals.primaryDecoration && (
                     <div className="mb-3 flex justify-between items-center">
                         <div>
-                            <div className="font-medium text-gray-900">🎨 {cart.decorationName}</div>
-                            <div className="text-xs text-gray-500">Decoration & Setup</div>
+                            <div className="font-medium text-gray-900">{cart.decorationName || 'Package Decoration'}</div>
+                            <div className="text-xs text-gray-500">Package decoration</div>
                         </div>
                         <div className="font-semibold text-gray-900">
-                            ₹{totals.decorationTotal.toLocaleString('en-IN')}
+                            {`\u20B9${totals.primaryDecorationTotal.toLocaleString('en-IN')}`}
                         </div>
                     </div>
                 )}
 
-                {/* Additional Items */}
-                {cart.additionalItems?.length > 0 && (
+                {totals.standaloneDecorations.length > 0 && (
+                    <div className="mt-3 pt-3 border-t">
+                        <div className="text-xs font-semibold text-gray-700 mb-2">
+                            Additional Decorations
+                        </div>
+                        {totals.standaloneDecorations.map((decoration, index) => (
+                            <div key={`${decoration.decorationId ?? decoration.name}_${index}`} className="flex justify-between items-center mb-2 text-sm">
+                                <div className="text-gray-700">{decoration.name}</div>
+                                <div className="text-gray-900">
+                                    {`\u20B9${decoration.totalPrice.toLocaleString('en-IN')}`}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {totals.additionalItems.length > 0 && (
                     <div className="mt-3 pt-3 border-t">
                         <div className="text-xs font-semibold text-gray-700 mb-2">
                             Additional Items
                         </div>
-                        {cart.additionalItems.map((item, index) => (
-                            <div key={index} className="flex justify-between items-center mb-2 text-sm">
+                        {totals.additionalItems.map((item, index) => (
+                            <div key={`${item.foodId ?? item.foodName}_${index}`} className="flex justify-between items-center mb-2 text-sm">
                                 <div className="text-gray-700">
-                                    {item.foodName || item.name}
+                                    {item.foodName}
                                     <span className="text-xs text-gray-500 ml-1">
-                                        (×{item.quantity || 1} × {totals.guestCount})
+                                        {`(�${item.quantity || 1} � ${totals.guestCount})`}
                                     </span>
                                 </div>
                                 <div className="text-gray-900">
-                                    ₹{(
-                                        item.price *
-                                        (item.quantity || 1) *
-                                        totals.guestCount
-                                    ).toLocaleString('en-IN')}
+                                    {`\u20B9${item.totalPrice.toLocaleString('en-IN')}`}
                                 </div>
                             </div>
                         ))}
@@ -133,7 +149,6 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                 )}
             </div>
 
-            {/* Event Info (if available) */}
             {checkoutData.eventDate && (
                 <div className="p-4 bg-orange-50 border-b">
                     <div className="flex items-start gap-2">
@@ -163,25 +178,24 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                 </div>
             )}
 
-            {/* Bill Details */}
             <div className="p-4">
                 <h4 className="font-semibold text-gray-900 mb-3">Bill Details</h4>
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                         <span>Item Total</span>
                         <span>
-                            ₹{totals.subtotal.toLocaleString('en-IN', {
+                            {`\u20B9${totals.subtotal.toLocaleString('en-IN', {
                                 minimumFractionDigits: 2,
-                            })}
+                            })}`}
                         </span>
                     </div>
 
                     <div className="flex justify-between text-sm">
                         <span>GST &amp; Taxes</span>
                         <span>
-                            ₹{totals.gst.toLocaleString('en-IN', {
+                            {`\u20B9${totals.gst.toLocaleString('en-IN', {
                                 minimumFractionDigits: 2,
-                            })}
+                            })}`}
                         </span>
                     </div>
                 </div>
@@ -191,14 +205,13 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                 <div className="flex justify-between items-center">
                     <span className="font-bold">Total Amount</span>
                     <span className="text-2xl font-bold text-red-600">
-                        ₹{totals.total.toLocaleString('en-IN', {
+                        {`\u20B9${totals.total.toLocaleString('en-IN', {
                             minimumFractionDigits: 2,
-                        })}
+                        })}`}
                     </span>
                 </div>
             </div>
 
-            {/* Place Order */}
             {canPlaceOrder && (
                 <div className="p-4 bg-gray-50 border-t">
                     <button
@@ -206,11 +219,11 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                         disabled={isSubmitting}
                         className="w-full bg-orange-500 text-white py-3 rounded-lg font-bold disabled:opacity-50"
                     >
-                        {isSubmitting ? 'Processing...' : `Place Order - ₹${totals.total.toLocaleString('en-IN')}`}
+                        {isSubmitting ? 'Processing...' : `Place Order - \u20B9${totals.total.toLocaleString('en-IN')}`}
                     </button>
                     <div className="text-center mt-2">
                         <span className="text-xs text-gray-500">
-                            🔒 Safe and secure payments
+                            Safe and secure payments
                         </span>
                     </div>
                 </div>

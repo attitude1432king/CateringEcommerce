@@ -43,6 +43,7 @@ BEGIN
         [c_event_longitude] [decimal](10, 7) NULL,
         [c_event_place_id] [varchar](200) NULL,
         [c_saved_address_id] [bigint] NULL,
+        [c_decoration_id] [bigint] NULL,
         [c_platform_commission] DECIMAL(18,2) NOT NULL DEFAULT 0,
         [c_commission_rate] DECIMAL(5,2) NOT NULL DEFAULT 10.00,
         [c_payment_status] [varchar](20) NOT NULL DEFAULT 'Pending',
@@ -53,7 +54,8 @@ BEGIN
         CONSTRAINT [PK_t_sys_orders] PRIMARY KEY CLUSTERED ([c_orderid] ASC),
         CONSTRAINT [UQ_t_sys_orders_order_number] UNIQUE NONCLUSTERED ([c_order_number] ASC),
         CONSTRAINT [FK_t_sys_orders_user] FOREIGN KEY([c_userid]) REFERENCES [dbo].[t_sys_user] ([c_userid]),
-        CONSTRAINT [FK_t_sys_orders_catering] FOREIGN KEY([c_ownerid]) REFERENCES [dbo].[t_sys_catering_owner] ([c_ownerid])
+        CONSTRAINT [FK_t_sys_orders_catering] FOREIGN KEY([c_ownerid]) REFERENCES [dbo].[t_sys_catering_owner] ([c_ownerid]),
+        CONSTRAINT [FK_t_sys_orders_decoration] FOREIGN KEY([c_decoration_id]) REFERENCES [dbo].[t_sys_catering_decorations] ([c_decoration_id])
     ) ON [PRIMARY]
 
     PRINT 'Table t_sys_orders created successfully.'
@@ -61,6 +63,26 @@ END
 ELSE
 BEGIN
     PRINT 'Table t_sys_orders already exists.'
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_orders]') AND name = 'c_decoration_id')
+BEGIN
+    ALTER TABLE [dbo].[t_sys_orders]
+    ADD [c_decoration_id] [bigint] NULL;
+
+    PRINT 'Column c_decoration_id added to t_sys_orders.';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_t_sys_orders_decoration')
+AND EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_orders]') AND name = 'c_decoration_id')
+BEGIN
+    ALTER TABLE [dbo].[t_sys_orders] WITH CHECK
+    ADD CONSTRAINT [FK_t_sys_orders_decoration]
+    FOREIGN KEY([c_decoration_id]) REFERENCES [dbo].[t_sys_catering_decorations] ([c_decoration_id]);
+
+    PRINT 'Foreign key FK_t_sys_orders_decoration created successfully.';
 END
 GO
 
@@ -198,6 +220,17 @@ BEGIN
     )
     INCLUDE([c_ownerid], [c_order_status])
     PRINT 'Index IX_t_sys_orders_event_date created successfully.'
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_t_sys_orders_decorationid' AND object_id = OBJECT_ID('t_sys_orders'))
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_t_sys_orders_decorationid] ON [dbo].[t_sys_orders]
+    (
+        [c_decoration_id] ASC
+    )
+    INCLUDE([c_order_number], [c_ownerid], [c_event_date])
+    PRINT 'Index IX_t_sys_orders_decorationid created successfully.'
 END
 GO
 
