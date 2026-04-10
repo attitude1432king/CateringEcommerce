@@ -6,7 +6,7 @@ Premium Catering Detail Page - Following Zomato/Airbnb Best Practices
 User mindset: "Can this caterer handle my event, and what food experience will my guests get?"
 Structure: Banner+Logo Hero → Packages → À La Carte Menu → Sample Tasting → Decorations → Reviews → Kitchen
 */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'framer-motion';
 import { cateringApi, extractData, isSuccessResponse } from '../services/cateringApi';
@@ -14,6 +14,7 @@ import { useCart } from '../contexts/CartContext';
 import { useEvent } from '../contexts/EventContext';
 import { useToast } from '../contexts/ToastContext';
 import Loader from '../components/common/Loader';
+import MediaViewer from '../components/admin/ui/MediaViewer';
 import PackageSelectionModal from '../components/user/PackageSelectionModal';
 import SampleTasteModal from '../components/user/SampleTasteModal';
 import EventSetupModal from '../components/user/EventSetupModal';
@@ -96,6 +97,7 @@ export default function CateringDetailPage() {
 
     // Individual food items selection (À la carte)
     const [selectedIndividualItems, setSelectedIndividualItems] = useState([]);
+    const [selectedStandaloneDecorations, setSelectedStandaloneDecorations] = useState([]);
 
     // Media Viewer for Food Items
     const [foodMediaViewer, setFoodMediaViewer] = useState({
@@ -104,6 +106,10 @@ export default function CateringDetailPage() {
         mediaType: 'image',
         foodName: '',
         allMedia: []
+    });
+    const [kitchenMediaViewer, setKitchenMediaViewer] = useState({
+        isOpen: false,
+        currentIndex: 0
     });
 
     // Tooltip state for package categories
@@ -116,6 +122,30 @@ export default function CateringDetailPage() {
     const [scrollLeft, setScrollLeft] = useState(0);
     const minAdvanceBookingDays = getInt('BUSINESS.MIN_ADVANCE_BOOKING_DAYS', 5);
     const minSelectableDate = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + minAdvanceBookingDays);
+    const kitchenMediaItems = [
+        ...(cateringDetail?.kitchenPhotos || []).map((media, index) => ({
+            filePath: media.mediaUrl,
+            fileName: media.caption || `Kitchen Photo ${index + 1}`,
+            label: media.caption || 'Kitchen Photo'
+        })),
+        ...(cateringDetail?.kitchenVideos || []).map((media, index) => ({
+            filePath: media.mediaUrl,
+            fileName: media.caption || `Kitchen Video ${index + 1}`,
+            label: media.caption || 'Kitchen Video'
+        }))
+    ];
+    const standaloneDecorations = useMemo(() => {
+        const packageIds = new Set((packages || []).map(pkg => String(pkg.packageId)));
+
+        return (decorations || []).filter((decoration) => {
+            const linkedPackageIds = (decoration.includedInPackageIds || '')
+                .split(',')
+                .map(value => value.trim())
+                .filter(Boolean);
+
+            return !linkedPackageIds.some(linkedPackageId => packageIds.has(linkedPackageId));
+        });
+    }, [decorations, packages]);
 
     // Mouse drag scroll handlers
     const handleMouseDown = (e) => {
@@ -436,7 +466,7 @@ export default function CateringDetailPage() {
             return;
         }
 
-        if (!selectedPackage && selectedIndividualItems.length === 0) {
+        if (!selectedPackage && selectedIndividualItems.length === 0 && selectedStandaloneDecorations.length === 0) {
             showToast('Please select a package or add individual items to cart', 'error');
             return;
         }
@@ -458,9 +488,10 @@ export default function CateringDetailPage() {
                 eventDate: eventData?.eventDate || (selectedAvailabilityDate ? formatDateToYmd(selectedAvailabilityDate) : null),
                 eventType: null,
                 eventLocation: null,
-                decorationId: null,
-                decorationName: null,
-                decorationPrice: 0,
+                decorationId: packageSelectedItems?.selectedDecoration?.decorationId ?? null,
+                decorationName: packageSelectedItems?.selectedDecoration?.name ?? null,
+                decorationPrice: packageSelectedItems?.selectedDecoration?.price ?? 0,
+                standaloneDecorations: selectedStandaloneDecorations,
                 additionalItems: selectedIndividualItems,
                 packageSelections: packageSelectedItems || null,
                 sampleTasteSelections: selectedSampleItems.length > 0 ? selectedSampleItems : null
@@ -468,7 +499,7 @@ export default function CateringDetailPage() {
 
             const result = addToCart(cartData);
             processAddToCartResult(result, cartData, 'Package added to cart successfully!');
-        } else if (selectedIndividualItems.length > 0) {
+        } else if (selectedIndividualItems.length > 0 || selectedStandaloneDecorations.length > 0) {
             // Check if any selected individual items have sample tasting available
             const selectedFoodIds = selectedIndividualItems.map(item => item.foodId);
 
@@ -498,6 +529,7 @@ export default function CateringDetailPage() {
                     decorationId: null,
                     decorationName: null,
                     decorationPrice: 0,
+                    standaloneDecorations: selectedStandaloneDecorations,
                     additionalItems: selectedIndividualItems,
                     packageSelections: null,
                     sampleTasteSelections: null
@@ -522,6 +554,7 @@ export default function CateringDetailPage() {
                     decorationId: null,
                     decorationName: null,
                     decorationPrice: 0,
+                    standaloneDecorations: selectedStandaloneDecorations,
                     additionalItems: selectedIndividualItems,
                     packageSelections: null,
                     sampleTasteSelections: null
@@ -611,6 +644,32 @@ export default function CateringDetailPage() {
 
     const isItemSelected = (foodItemId) => {
         return selectedIndividualItems.some(item => item.foodId === foodItemId);
+    };
+
+    const toggleStandaloneDecoration = (decoration) => {
+        const existing = selectedStandaloneDecorations.some(item => item.decorationId === decoration.decorationId);
+
+        if (existing) {
+            setSelectedStandaloneDecorations(prev =>
+                prev.filter(item => item.decorationId !== decoration.decorationId)
+            );
+            showToast(`${decoration.name} removed from selection`, 'info');
+            return;
+        }
+
+        setSelectedStandaloneDecorations(prev => [
+            ...prev,
+            {
+                decorationId: decoration.decorationId,
+                name: decoration.name,
+                price: decoration.price,
+            }
+        ]);
+        showToast(`${decoration.name} added to selection`, 'success');
+    };
+
+    const isStandaloneDecorationSelected = (decorationId) => {
+        return selectedStandaloneDecorations.some(item => item.decorationId === decorationId);
     };
 
     const handleBack = () => {
@@ -1529,17 +1588,24 @@ export default function CateringDetailPage() {
                         <p className="text-sm text-neutral-600 mt-1">Transform your event with stunning decorations</p>
                     </div>
 
-                    {decorations.length === 0 ? (
+                    {standaloneDecorations.length === 0 ? (
                         <div className="text-center py-16 text-neutral-500 bg-neutral-50 rounded-2xl">
                             <div className="text-6xl mb-4">🎨</div>
-                            <p className="text-lg">No decorations available</p>
+                            <p className="text-lg">No standalone decorations available</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            {decorations.map(decor => (
+                            {standaloneDecorations.map(decor => {
+                                const isSelected = isStandaloneDecorationSelected(decor.decorationId);
+
+                                return (
                                 <div
                                     key={decor.decorationId}
-                                    className="group rounded-2xl overflow-hidden border-2 border-neutral-200 shadow-lg bg-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+                                    className={`group rounded-2xl overflow-hidden border-2 shadow-lg bg-white transition-all duration-300 hover:-translate-y-1 ${
+                                        isSelected
+                                            ? 'border-orange-500 ring-4 ring-orange-100'
+                                            : 'border-neutral-200 hover:shadow-2xl'
+                                    }`}
                                 >
                                     {/* Decoration Image/Video */}
                                     <div className="h-56 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
@@ -1569,13 +1635,26 @@ export default function CateringDetailPage() {
                                         <p className="text-sm text-neutral-600 mb-3">{decor.themeName}</p>
                                         <div className="flex items-center justify-between">
                                             <span className="text-xl font-bold text-catering-primary">₹{decor.price}</span>
-                                            {decor.isAvailable && (
-                                                <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">Available</span>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                                {decor.isAvailable && (
+                                                    <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">Available</span>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleStandaloneDecoration(decor)}
+                                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-md ${
+                                                        isSelected
+                                                            ? 'bg-red-500 text-white hover:bg-red-600'
+                                                            : 'bg-gradient-to-r from-catering-primary to-orange-600 text-white hover:shadow-lg'
+                                                    }`}
+                                                >
+                                                    {isSelected ? 'âœ“ Added' : '+ Add'}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     )}
                 </section>
@@ -1660,26 +1739,53 @@ export default function CateringDetailPage() {
                             {cateringDetail.kitchenPhotos?.map(media => (
                                 <div
                                     key={media.mediaId}
-                                    className="aspect-square rounded-xl overflow-hidden bg-neutral-100 shadow-md hover:shadow-xl transition-shadow border-2 border-neutral-200"
+                                    className="aspect-square rounded-xl overflow-hidden bg-neutral-100 shadow-md hover:shadow-xl transition-shadow border-2 border-neutral-200 cursor-pointer group relative"
+                                    onClick={() => {
+                                        const clickedIndex = kitchenMediaItems.findIndex(item => item.filePath === media.mediaUrl);
+                                        setKitchenMediaViewer({
+                                            isOpen: true,
+                                            currentIndex: clickedIndex >= 0 ? clickedIndex : 0
+                                        });
+                                    }}
                                 >
                                     <img
                                         src={`${API_BASE_URL}${media.mediaUrl}`}
                                         alt={media.caption || 'Kitchen'}
                                         className="w-full h-full object-cover"
                                     />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                        <span className="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-full bg-white/90 text-neutral-900 text-sm font-semibold transition-opacity">
+                                            View Image
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                             {/* Videos */}
                             {cateringDetail.kitchenVideos?.map(media => (
                                 <div
                                     key={media.mediaId}
-                                    className="aspect-square rounded-xl overflow-hidden bg-neutral-100 shadow-md hover:shadow-xl transition-shadow border-2 border-neutral-200"
+                                    className="aspect-square rounded-xl overflow-hidden bg-neutral-100 shadow-md hover:shadow-xl transition-shadow border-2 border-neutral-200 cursor-pointer group relative"
+                                    onClick={() => {
+                                        const clickedIndex = kitchenMediaItems.findIndex(item => item.filePath === media.mediaUrl);
+                                        setKitchenMediaViewer({
+                                            isOpen: true,
+                                            currentIndex: clickedIndex >= 0 ? clickedIndex : 0
+                                        });
+                                    }}
                                 >
                                     <video
                                         src={`${API_BASE_URL}${media.mediaUrl}`}
                                         className="w-full h-full object-cover"
-                                        controls
+                                        muted
+                                        playsInline
                                     />
+                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 transition-colors flex items-center justify-center">
+                                        <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                                            <svg className="w-6 h-6 text-neutral-900 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -1705,33 +1811,38 @@ export default function CateringDetailPage() {
                                                 + {selectedIndividualItems.length} add-ons
                                             </span>
                                         )}
+                                        {selectedStandaloneDecorations.length > 0 && (
+                                            <span className="ml-2 text-orange-600 font-bold">
+                                                + {selectedStandaloneDecorations.length} decorations
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
-                            ) : selectedIndividualItems.length > 0 ? (
+                            ) : selectedIndividualItems.length > 0 || selectedStandaloneDecorations.length > 0 ? (
                                 <div>
                                     <div className="text-base font-bold text-neutral-900">
                                         Custom Order
                                     </div>
                                     <div className="text-sm text-neutral-600 mt-1">
-                                        {selectedIndividualItems.length} items selected
+                                        {selectedIndividualItems.length} items and {selectedStandaloneDecorations.length} decorations selected
                                     </div>
                                 </div>
                             ) : (
                                 <div className="text-sm text-neutral-500">
-                                    Select a package or add items to cart
+                                    Select a package or add items and decorations to cart
                                 </div>
                             )}
                         </div>
                         <button
                             onClick={handleAddToCart}
-                            disabled={!selectedPackage && selectedIndividualItems.length === 0}
+                            disabled={!selectedPackage && selectedIndividualItems.length === 0 && selectedStandaloneDecorations.length === 0}
                             className={`px-10 py-4 rounded-xl font-bold text-white text-base transition-all shadow-lg ${
-                                selectedPackage || selectedIndividualItems.length > 0
+                                selectedPackage || selectedIndividualItems.length > 0 || selectedStandaloneDecorations.length > 0
                                     ? 'bg-gradient-to-r from-catering-primary to-orange-600 hover:shadow-2xl hover:scale-105'
                                     : 'bg-neutral-300 cursor-not-allowed'
                             }`}
                         >
-                            {selectedPackage || selectedIndividualItems.length > 0 ? '🛒 Add to Cart' : 'Select Items'}
+                            {selectedPackage || selectedIndividualItems.length > 0 || selectedStandaloneDecorations.length > 0 ? 'Add to Cart' : 'Select Items'}
                         </button>
                     </div>
                 </div>
@@ -1901,6 +2012,15 @@ export default function CateringDetailPage() {
             onClose={handleAuthClose}
             onSuccess={handleAuthSuccessCart}
         />
+
+        {kitchenMediaViewer.isOpen && kitchenMediaItems.length > 0 && (
+            <MediaViewer
+                mediaItems={kitchenMediaItems}
+                currentIndex={kitchenMediaViewer.currentIndex}
+                onClose={() => setKitchenMediaViewer({ isOpen: false, currentIndex: 0 })}
+                onNavigate={(index) => setKitchenMediaViewer({ isOpen: true, currentIndex: index })}
+            />
+        )}
 
         </Motion.div>
     );

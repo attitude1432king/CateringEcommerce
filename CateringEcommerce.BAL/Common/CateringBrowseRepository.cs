@@ -171,13 +171,13 @@ namespace CateringEcommerce.BAL.Common
             {
                 string mediaQuery = $@"
                     SELECT
-                        c_mediaid AS MediaId,
+                        c_media_id AS MediaId,
                         c_file_path AS FilePath,
-                        c_file_type AS FileType,
+                        c_extension AS FileType,
                         c_uploaded_at AS UploadedAt
                     FROM {Table.SysCateringMediaUploads}
-                    WHERE c_reference_id = @CateringId
-                        AND c_document_type_id = 2  -- Kitchen document type
+                    WHERE c_ownerid = @CateringId
+                        AND c_document_type_id = {DocumentType.Kitchen.GetHashCode()}
                         AND c_is_deleted = 0
                     ORDER BY c_uploaded_at DESC";
 
@@ -196,7 +196,7 @@ namespace CateringEcommerce.BAL.Common
                         {
                             MediaId = Convert.ToInt64(mediaRow["MediaId"]),
                             MediaUrl = mediaRow["FilePath"]?.ToString(),
-                            MediaType = fileType.Contains("image") ? "Image" : "Video",
+                            MediaType = mediaRow["FileType"]?.ToString(),
                             Caption = null,
                             DisplayOrder = 0
                         };
@@ -924,6 +924,11 @@ namespace CateringEcommerce.BAL.Common
             return categories;
         }
 
+        private static bool IsVideoExtension(string extension)
+        {
+            return extension is "mp4" or "mov" or "avi" or "webm" or "mkv" or "ogg" or "m4v";
+        }
+
         #endregion
 
         #region Comprehensive Search
@@ -1194,7 +1199,8 @@ namespace CateringEcommerce.BAL.Common
                     PackageName = packageRow["PackageName"]?.ToString(),
                     Description = packageRow["Description"]?.ToString(),
                     Price = Convert.ToDecimal(packageRow["Price"] ?? 0),
-                    Categories = new List<PackageCategoryDto>()
+                    Categories = new List<PackageCategoryDto>(),
+                    Decorations = new List<PackageDecorationDto>()
                 };
 
                 // Step 2: Get Categories with Allowed Quantities
@@ -1292,12 +1298,123 @@ namespace CateringEcommerce.BAL.Common
                     packageDto.Categories.Add(categoryDto);
                 }
 
+                packageDto.Decorations = await GetPackageDecorationsAsync(packageId, cateringId);
+
                 return packageDto;
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Error fetching package selection details for package ID {packageId}.", ex);
             }
+        }
+
+        private async Task<List<PackageDecorationDto>> GetPackageDecorationsAsync(long packageId, long cateringId)
+        {
+            string decorationsQuery = $@"
+                SELECT
+                    d.c_decoration_id AS DecorationId,
+                    d.c_decoration_name AS Name,
+                    d.c_description AS Description,
+                    t.c_theme_name AS ThemeName,
+                    d.c_price AS Price,
+                    d.c_status AS IsAvailable,
+                    d.c_packageids AS IncludedInPackageIds,
+                    (
+                        SELECT TOP 1 m.c_file_path
+                        FROM {Table.SysCateringMediaUploads} m
+                        WHERE m.c_reference_id = d.c_decoration_id
+                            AND m.c_document_type_id = 3
+                            AND m.c_is_deleted = 0
+                            AND LOWER(ISNULL(m.c_extension, '')) NOT IN ('mp4', 'mov', 'avi', 'webm', 'mkv')
+                        ORDER BY m.c_uploaded_at DESC
+                    ) AS ThumbnailUrl,
+                    (
+                        SELECT TOP 1 m.c_file_path
+                        FROM {Table.SysCateringMediaUploads} m
+                        WHERE m.c_reference_id = d.c_decoration_id
+                            AND m.c_document_type_id = 3
+                            AND m.c_is_deleted = 0
+                            AND LOWER(ISNULL(m.c_extension, '')) IN ('mp4', 'mov', 'avi', 'webm', 'mkv')
+                        ORDER BY m.c_uploaded_at DESC
+                    ) AS VideoUrl
+                FROM {Table.SysCateringDecorations} d
+                LEFT JOIN {Table.SysCateringThemeTypes} t ON t.c_theme_id = d.c_theme_id
+                WHERE d.c_ownerid = @CateringId
+                    AND d.c_status = 1
+                    AND d.c_is_deleted = 0
+                    AND EXISTS (
+                        SELECT 1
+                        FROM STRING_SPLIT(ISNULL(d.c_packageids, ''), ',') linked
+                        WHERE TRY_CAST(LTRIM(RTRIM(linked.value)) AS BIGINT) = @PackageId
+                    )
+                ORDER BY d.c_price ASC, d.c_decoration_name ASC";
+
+            var decorationParams = new[]
+            {
+                new SqlParameter("@CateringId", cateringId),
+                new SqlParameter("@PackageId", packageId)
+            };
+
+            var decorationsResult = await _dbHelper.ExecuteAsync(decorationsQuery, decorationParams);
+            var decorations = new List<PackageDecorationDto>();
+
+            if (decorationsResult == null || decorationsResult.Rows.Count == 0)
+            {
+                return decorations;
+            }
+
+            foreach (DataRow decorationRow in decorationsResult.Rows)
+            {
+                long decorationId = Convert.ToInt64(decorationRow["DecorationId"]);
+                var decoration = new PackageDecorationDto
+                {
+                    DecorationId = decorationId,
+                    Name = decorationRow["Name"]?.ToString() ?? string.Empty,
+                    Description = decorationRow["Description"]?.ToString(),
+                    ThemeName = decorationRow["ThemeName"]?.ToString(),
+                    Price = Convert.ToDecimal(decorationRow["Price"] ?? 0),
+                    IsAvailable = Convert.ToBoolean(decorationRow["IsAvailable"] ?? false),
+                    IncludedInPackageIds = decorationRow["IncludedInPackageIds"]?.ToString(),
+                    ThumbnailUrl = decorationRow["ThumbnailUrl"]?.ToString(),
+                    VideoUrl = decorationRow["VideoUrl"]?.ToString(),
+                    MediaItems = new List<PackageDecorationMediaDto>()
+                };
+
+                string mediaQuery = $@"
+                    SELECT
+                        m.c_file_path AS FilePath,
+                        m.c_file_name AS FileName,
+                        m.c_extension AS FileExtension
+                    FROM {Table.SysCateringMediaUploads} m
+                    WHERE m.c_reference_id = @DecorationId
+                        AND m.c_document_type_id = 3
+                        AND m.c_is_deleted = 0
+                    ORDER BY m.c_uploaded_at DESC";
+
+                var mediaResult = await _dbHelper.ExecuteAsync(
+                    mediaQuery,
+                    new[] { new SqlParameter("@DecorationId", decorationId) }
+                );
+
+                if (mediaResult != null && mediaResult.Rows.Count > 0)
+                {
+                    foreach (DataRow mediaRow in mediaResult.Rows)
+                    {
+                        var extension = mediaRow["FileExtension"]?.ToString()?.Trim().ToLowerInvariant() ?? string.Empty;
+                        decoration.MediaItems.Add(new PackageDecorationMediaDto
+                        {
+                            FilePath = mediaRow["FilePath"]?.ToString() ?? string.Empty,
+                            FileName = mediaRow["FileName"]?.ToString(),
+                            Label = decoration.Name,
+                            MediaType = IsVideoExtension(extension) ? "video" : "image"
+                        });
+                    }
+                }
+
+                decorations.Add(decoration);
+            }
+
+            return decorations;
         }
 
         /// <summary>

@@ -29,8 +29,6 @@ namespace CateringEcommerce.Domain.Models.User
         [MaxLength(2000)]
         public string? SpecialRequirements { get; set; }
 
-        public long? DecorationId { get; set; }
-
         public decimal BaseAmount { get; set; }
 
         public decimal DecorationAmount { get; set; }
@@ -39,7 +37,28 @@ namespace CateringEcommerce.Domain.Models.User
 
         public decimal TotalAmount { get; set; }
 
+        public long? DecorationId { get; set; }
+
+        [MaxLength(200)]
+        public string? DecorationName { get; set; }
+
+        public decimal DecorationPrice { get; set; }
+
+        public List<CartDecorationDto> StandaloneDecorations { get; set; } = new List<CartDecorationDto>();
+
         public List<CartAdditionalItemDto> AdditionalItems { get; set; } = new List<CartAdditionalItemDto>();
+    }
+
+    public class CartDecorationDto
+    {
+        [Required]
+        public long DecorationId { get; set; }
+
+        [MaxLength(200)]
+        public string? Name { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public decimal Price { get; set; }
     }
 
     /// <summary>
@@ -76,14 +95,16 @@ namespace CateringEcommerce.Domain.Models.User
         public string? EventType { get; set; }
         public string? EventLocation { get; set; }
         public string? SpecialRequirements { get; set; }
-        public long? DecorationId { get; set; }
-        public string? DecorationName { get; set; }
         public decimal BaseAmount { get; set; }
         public decimal DecorationAmount { get; set; }
         public decimal TaxAmount { get; set; }
         public decimal TotalAmount { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? ModifiedDate { get; set; }
+        public long? DecorationId { get; set; }
+        public string? DecorationName { get; set; }
+        public decimal DecorationPrice { get; set; }
+        public List<CartDecorationDto> StandaloneDecorations { get; set; } = new List<CartDecorationDto>();
         public List<CartAdditionalItemResponseDto> AdditionalItems { get; set; } = new List<CartAdditionalItemResponseDto>();
     }
 

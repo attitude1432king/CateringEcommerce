@@ -264,19 +264,30 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         o.c_event_date AS EventDate,
                         o.c_event_time AS EventTime,
                         o.c_guest_count AS GuestCount,
-                        o.c_delivery_address AS VenueAddress,
+                        o.c_event_location AS EventLocation,
+                        o.c_delivery_address AS DeliveryAddress,
+                        ISNULL(o.c_event_location, ISNULL(o.c_delivery_address, '')) AS VenueAddress,
                         '' AS VenueCity,
                         '' AS VenueState,
                         '' AS VenuePincode,
                         o.c_createddate AS OrderDate,
                         o.c_order_status AS OrderStatus,
+                        o.c_payment_method AS PaymentMethod,
                         o.c_payment_status AS PaymentStatus,
+                        o.c_contact_person AS ContactPerson,
+                        o.c_contact_phone AS ContactPhone,
+                        o.c_contact_email AS ContactEmail,
                         o.c_special_instructions AS SpecialInstructions,
-                        o.c_subtotal AS SubTotal,
+                        ISNULL(o.c_base_amount, 0) AS SubTotal,
                         ISNULL(o.c_tax_amount, 0) AS TaxAmount,
                         ISNULL(o.c_discount_amount, 0) AS DiscountAmount,
                         ISNULL(o.c_delivery_charges, 0) AS DeliveryCharges,
                         o.c_total_amount AS TotalAmount,
+                        ISNULL(o.c_payment_split_enabled, 0) AS PaymentSplitEnabled,
+                        o.c_prebooking_amount AS PreBookingAmount,
+                        o.c_postevent_amount AS PostEventAmount,
+                        o.c_prebooking_status AS PreBookingStatus,
+                        o.c_postevent_status AS PostEventStatus,
                         ISNULL(pay.PaidAmount, 0) AS PaidAmount,
                         (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) AS BalanceAmount
                     FROM {Table.SysOrders} o
@@ -292,29 +303,28 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- Order Items (Food Items and Packages)
                     SELECT
                         oi.c_order_item_id AS OrderItemId,
-                        oi.c_foodid AS MenuItemId,
-                        ISNULL(f.c_foodname, p.c_packagename) AS MenuItemName,
-                        ISNULL(fc.c_categoryname, 'Package') AS Category,
+                        oi.c_item_id AS MenuItemId,
+                        oi.c_item_name AS MenuItemName,
+                        CASE
+                            WHEN oi.c_item_type = 'FoodItem' THEN ISNULL(fc.c_categoryname, 'Food Item')
+                            WHEN oi.c_item_type = 'Package' THEN 'Package'
+                            WHEN oi.c_item_type = 'Decoration' THEN 'Decoration'
+                            ELSE ISNULL(oi.c_item_type, 'Item')
+                        END AS Category,
+                        oi.c_item_type AS ItemType,
                         oi.c_quantity AS Quantity,
                         oi.c_unit_price AS UnitPrice,
-                        oi.c_item_total AS TotalPrice,
+                        oi.c_total_price AS TotalPrice,
                         '' AS ImageUrl,
-                        oi.c_special_request AS SpecialRequest,
-                        oi.c_package_selections AS PackageSelections,
-                        CASE
-                            WHEN f.c_ispackage_item = 1 THEN 'Package'
-                            ELSE 'Individual Item'
-                        END AS ItemType
+                        CAST(NULL AS NVARCHAR(MAX)) AS SpecialRequest,
+                        oi.c_package_selections AS PackageSelections
                     FROM {Table.SysOrderItems} oi
-                    INNER JOIN {Table.SysFoodItems} f ON oi.c_foodid = f.c_foodid
+                    LEFT JOIN {Table.SysFoodItems} f
+                        ON oi.c_item_type = 'FoodItem'
+                       AND oi.c_item_id = f.c_foodid
                     LEFT JOIN {Table.SysFoodCategory} fc ON f.c_categoryid = fc.c_categoryid
-                    LEFT JOIN {Table.SysMenuPackage} p ON f.c_ispackage_item = 1
-                        AND EXISTS (
-                            SELECT 1 FROM {Table.SysMenuPackageItems} pi
-                            WHERE pi.c_packageid = p.c_packageid
-                        )
                     WHERE oi.c_orderid = @OrderId
-                        AND f.c_is_deleted = 0;";
+                    ORDER BY oi.c_order_item_id ASC;";
 
                 var parameters = new[] { new SqlParameter("@OrderId", orderId) };
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -337,14 +347,25 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     EventDate = row.GetValue<DateTime>("EventDate"),
                     EventTime = row.GetValue<string>("EventTime", string.Empty),
                     GuestCount = row.GetValue<int>("GuestCount"),
+                    EventLocation = row.GetValue<string>("EventLocation", string.Empty),
+                    DeliveryAddress = row.GetValue<string>("DeliveryAddress", string.Empty),
                     VenueAddress = row.GetValue<string>("VenueAddress", string.Empty),
                     VenueCity = row.GetValue<string>("VenueCity", string.Empty),
                     VenueState = row.GetValue<string>("VenueState", string.Empty),
                     VenuePincode = row.GetValue<string>("VenuePincode", string.Empty),
                     OrderDate = row.GetValue<DateTime>("OrderDate"),
                     OrderStatus = row.GetValue<string>("OrderStatus", string.Empty),
+                    PaymentMethod = row.GetValue<string>("PaymentMethod", string.Empty),
                     PaymentStatus = row.GetValue<string>("PaymentStatus", string.Empty),
+                    ContactPerson = row.GetValue<string>("ContactPerson", string.Empty),
+                    ContactPhone = row.GetValue<string>("ContactPhone", string.Empty),
+                    ContactEmail = row.GetValue<string>("ContactEmail", string.Empty),
                     SpecialInstructions = row.GetValue<string>("SpecialInstructions", string.Empty),
+                    PaymentSplitEnabled = row["PaymentSplitEnabled"] != DBNull.Value && Convert.ToBoolean(row["PaymentSplitEnabled"]),
+                    PreBookingAmount = row["PreBookingAmount"] != DBNull.Value ? Convert.ToDecimal(row["PreBookingAmount"]) : null,
+                    PostEventAmount = row["PostEventAmount"] != DBNull.Value ? Convert.ToDecimal(row["PostEventAmount"]) : null,
+                    PreBookingStatus = row.GetValue<string>("PreBookingStatus", string.Empty),
+                    PostEventStatus = row.GetValue<string>("PostEventStatus", string.Empty),
                     SubTotal = row.GetValue<decimal>("SubTotal"),
                     TaxAmount = row.GetValue<decimal>("TaxAmount"),
                     DiscountAmount = row.GetValue<decimal>("DiscountAmount"),
@@ -365,6 +386,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                             MenuItemId = itemRow.GetValue<long>("MenuItemId"),
                             MenuItemName = itemRow.GetValue<string>("MenuItemName", string.Empty),
                             Category = itemRow.GetValue<string>("Category", string.Empty),
+                            ItemType = itemRow.GetValue<string>("ItemType", string.Empty),
                             Quantity = itemRow.GetValue<int>("Quantity"),
                             UnitPrice = itemRow.GetValue<decimal>("UnitPrice"),
                             TotalPrice = itemRow.GetValue<decimal>("TotalPrice"),

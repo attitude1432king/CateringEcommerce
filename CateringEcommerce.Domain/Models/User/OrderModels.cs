@@ -90,6 +90,10 @@ namespace CateringEcommerce.Domain.Models.User
         // Saved Address reference
         public long? SavedAddressId { get; set; }
 
+        public long? DecorationId { get; set; }
+
+        public List<long> DecorationIds { get; set; } = new List<long>();
+
         [Required]
         public List<CreateOrderItemDto> OrderItems { get; set; } = new List<CreateOrderItemDto>();
     }
@@ -167,6 +171,10 @@ namespace CateringEcommerce.Domain.Models.User
 
         // Saved Address reference
         public long? SavedAddressId { get; set; }
+
+        public long? DecorationId { get; set; }
+
+        public List<long> DecorationIds { get; set; } = new List<long>();
 
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }

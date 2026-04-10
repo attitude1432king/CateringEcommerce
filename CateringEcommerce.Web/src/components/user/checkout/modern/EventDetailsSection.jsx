@@ -44,12 +44,21 @@ const EventDetailsSection = ({
   isCompleted,
   checkoutData,
   updateCheckoutData,
+  updateCart,
   errors = {},
   onComplete,
   onEdit
 }) => {
   const { getInt } = useAppSettings();
   const minAdvanceBookingDays = getInt('BUSINESS.MIN_ADVANCE_BOOKING_DAYS', 5);
+  const handleGuestCountChange = (value) => {
+    const guestCount = Number(value) || 1;
+    updateCheckoutData('guestCount', guestCount);
+    if (updateCart) {
+      updateCart({ guestCount });
+    }
+  };
+
   const updateAddressField = (field, value) => {
     updateCheckoutData('eventAddress', {
       ...checkoutData.eventAddress,
@@ -131,7 +140,7 @@ const EventDetailsSection = ({
               type="number"
               min="1"
               value={checkoutData.guestCount || 1}
-              onChange={(e) => updateCheckoutData('guestCount', Number(e.target.value) || 1)}
+              onChange={(e) => handleGuestCountChange(e.target.value)}
               className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent ${errors.guestCount ? 'border-red-500' : 'border-gray-300'}`}
             />
             {errors.guestCount && <p className="text-xs text-red-600 mt-1">{errors.guestCount}</p>}

@@ -32,6 +32,11 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
+                long? decorationId = orderData.DecorationId
+                    ?? orderData.OrderItems?
+                        .FirstOrDefault(item => string.Equals(item.ItemType, "Decoration", StringComparison.OrdinalIgnoreCase))
+                        ?.ItemId;
+
                 StringBuilder query = new StringBuilder();
                 query.Append($@"
                     INSERT INTO {Table.SysOrders} (
@@ -41,7 +46,7 @@ namespace CateringEcommerce.BAL.Common
                         c_base_amount, c_tax_amount, c_delivery_charges, c_discount_amount, c_total_amount,
                         c_payment_method, c_payment_status, c_order_status,
                         c_payment_split_enabled, c_prebooking_amount, c_postevent_amount, c_prebooking_status, c_postevent_status,
-                        c_event_latitude, c_event_longitude, c_event_place_id, c_saved_address_id,
+                        c_event_latitude, c_event_longitude, c_event_place_id, c_saved_address_id, c_decoration_id,
                         c_createddate, c_isactive
                     ) VALUES (
                         @UserId, @CateringId, @OrderNumber, @EventDate, @EventTime,
@@ -50,7 +55,7 @@ namespace CateringEcommerce.BAL.Common
                         @BaseAmount, @TaxAmount, @DeliveryCharges, @DiscountAmount, @TotalAmount,
                         @PaymentMethod, @PaymentStatus, @OrderStatus,
                         @PaymentSplitEnabled, @PreBookingAmount, @PostEventAmount, @PreBookingStatus, @PostEventStatus,
-                        @EventLatitude, @EventLongitude, @EventPlaceId, @SavedAddressId,
+                        @EventLatitude, @EventLongitude, @EventPlaceId, @SavedAddressId, @DecorationId,
                         GETDATE(), 1
                     );
                     SELECT CAST(SCOPE_IDENTITY() AS BIGINT);
@@ -91,7 +96,8 @@ namespace CateringEcommerce.BAL.Common
                     new SqlParameter("@EventLatitude", (object)orderData.EventLatitude ?? DBNull.Value),
                     new SqlParameter("@EventLongitude", (object)orderData.EventLongitude ?? DBNull.Value),
                     new SqlParameter("@EventPlaceId", (object)orderData.EventPlaceId ?? DBNull.Value),
-                    new SqlParameter("@SavedAddressId", (object)orderData.SavedAddressId ?? DBNull.Value)
+                    new SqlParameter("@SavedAddressId", (object)orderData.SavedAddressId ?? DBNull.Value),
+                    new SqlParameter("@DecorationId", (object?)decorationId ?? DBNull.Value)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
@@ -332,6 +338,7 @@ namespace CateringEcommerce.BAL.Common
                         o.c_payment_method AS PaymentMethod,
                         o.c_payment_status AS PaymentStatus,
                         o.c_order_status AS OrderStatus,
+                        o.c_decoration_id AS PrimaryDecorationId,
                         o.c_createddate AS CreatedDate,
                         o.c_modifieddate AS UpdatedDate
                     FROM {Table.SysOrders} o
@@ -353,6 +360,12 @@ namespace CateringEcommerce.BAL.Common
 
                 // Get order items
                 order.OrderItems = await GetOrderItemsAsync(orderId);
+                order.DecorationIds = order.OrderItems
+                    .Where(item => string.Equals(item.ItemType, "Decoration", StringComparison.OrdinalIgnoreCase))
+                    .Where(item => item.ItemId != order.DecorationId)
+                    .Select(item => item.ItemId)
+                    .Distinct()
+                    .ToList();
 
                 // Get payment info
                 order.Payment = await GetOrderPaymentAsync(orderId);
@@ -850,6 +863,10 @@ namespace CateringEcommerce.BAL.Common
                 PaymentMethod = row["PaymentMethod"].ToString() ?? "",
                 PaymentStatus = row["PaymentStatus"].ToString() ?? "",
                 OrderStatus = row["OrderStatus"].ToString() ?? "",
+                DecorationId = row.Table.Columns.Contains("PrimaryDecorationId") && row["PrimaryDecorationId"] != DBNull.Value
+                    ? Convert.ToInt64(row["PrimaryDecorationId"])
+                    : null,
+                DecorationIds = new List<long>(),
                 CreatedDate = Convert.ToDateTime(row["CreatedDate"]),
                 UpdatedDate = row["UpdatedDate"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedDate"]) : null
             };

@@ -505,9 +505,10 @@ namespace CateringEcommerce.BAL.Base.User
                 string query = $@"
                     SELECT COUNT(*)
                     FROM {Table.SysCateringDecorations}
-                    WHERE c_decorationid = @DecorationId
+                    WHERE c_decoration_id = @DecorationId
                       AND c_ownerid = @CateringId
-                      AND c_isactive = 1
+                      AND c_status = 1
+                      AND c_is_deleted = 0
                 ";
 
                 SqlParameter[] parameters = new SqlParameter[]

@@ -365,8 +365,10 @@ namespace CateringEcommerce.BAL.Base.User
                 {
                     PackageId = packageSelection.PackageId,
                     PackageName = packageSelection.PackageName,
+                    Description = packageSelection.Description,
                     Price = packageSelection.Price,
-                    Categories = filteredCategories
+                    Categories = filteredCategories,
+                    Decorations = packageSelection.Decorations
                 };
             }
             catch (Exception ex)

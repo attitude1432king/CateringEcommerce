@@ -21,6 +21,7 @@ namespace CateringEcommerce.BAL.Configuration
         public const string SysUserAddresses = "t_sys_user_addresses";
         public const string SysUserCart = "t_sys_user_cart";
         public const string SysCartFoodItems = "t_sys_cart_food_items";
+        public const string SysCartDecorations = "t_sys_cart_decorations";
         public const string SysUserFavorites = "t_sys_user_favorites";
         #endregion
 
