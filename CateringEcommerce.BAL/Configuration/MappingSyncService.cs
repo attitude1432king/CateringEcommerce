@@ -1,6 +1,6 @@
 ﻿using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using System.Text;
 
@@ -39,7 +39,7 @@ namespace CateringEcommerce.BAL.Configuration
 
             var existingTable = await _dbHelper.ExecuteAsync(
                 selectQuery,
-                new[] { new SqlParameter("@ParentID", parentPKID) }
+                new[] { new NpgsqlParameter("@ParentID", parentPKID) }
             );
 
             // childId -> isActive
@@ -69,13 +69,13 @@ namespace CateringEcommerce.BAL.Configuration
             {
                 string deactivateQuery = $@"
                 UPDATE {tableName}
-                SET c_isactive = 0
+                SET c_isactive = FALSE
                 WHERE {parentColumnName} = @ParentID
                   AND {childColumnName} IN ({string.Join(",", toDeactivate)})";
 
                 await _dbHelper.ExecuteNonQueryAsync(
                     deactivateQuery,
-                    new[] { new SqlParameter("@ParentID", parentPKID) }
+                    new[] { new NpgsqlParameter("@ParentID", parentPKID) }
                 );
             }
 
@@ -86,13 +86,13 @@ namespace CateringEcommerce.BAL.Configuration
             {
                 string reactivateQuery = $@"
                 UPDATE {tableName}
-                SET c_isactive = 1
+                SET c_isactive = TRUE
                 WHERE {parentColumnName} = @ParentID
                   AND {childColumnName} IN ({string.Join(",", toReactivate)})";
 
                 await _dbHelper.ExecuteNonQueryAsync(
                     reactivateQuery,
-                    new[] { new SqlParameter("@ParentID", parentPKID) }
+                    new[] { new NpgsqlParameter("@ParentID", parentPKID) }
                 );
             }
 
@@ -110,8 +110,8 @@ namespace CateringEcommerce.BAL.Configuration
                     insertQuery,
                     new[]
                     {
-                    new SqlParameter("@ParentID", parentPKID),
-                    new SqlParameter("@ChildID", childId)
+                    new NpgsqlParameter("@ParentID", parentPKID),
+                    new NpgsqlParameter("@ChildID", childId)
                     }
                 );
             }
@@ -125,7 +125,7 @@ namespace CateringEcommerce.BAL.Configuration
 
             await _dbHelper.ExecuteNonQueryAsync(
                 query,
-                new[] { new SqlParameter("@ParentID", parentPKID) }
+                new[] { new NpgsqlParameter("@ParentID", parentPKID) }
             );
         }
 
@@ -134,13 +134,13 @@ namespace CateringEcommerce.BAL.Configuration
         {
             string query = $@"
             UPDATE {tableName}
-            SET c_isactive = 0
+            SET c_isactive = FALSE
             WHERE {parentColumnName} = @ParentID
-              AND c_isactive = 1";
+              AND c_isactive = TRUE";
 
             await _dbHelper.ExecuteNonQueryAsync(
                 query,
-                new[] { new SqlParameter("@ParentID", parentPKID) }
+                new[] { new NpgsqlParameter("@ParentID", parentPKID) }
             );
         }
 
@@ -155,11 +155,11 @@ namespace CateringEcommerce.BAL.Configuration
                 WHERE {parentColumnName} = @ParentID");
 
                 if (onlyActive)
-                    query.Append(" AND c_isactive = 1");
+                    query.Append(" AND c_isactive = TRUE");
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@ParentID", parentPKID)
+                    new NpgsqlParameter("@ParentID", parentPKID)
                 };
 
                 var dataTable = await _dbHelper.ExecuteAsync(query.ToString(), parameters);

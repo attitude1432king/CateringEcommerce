@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
-using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Configuration;
 using CateringEcommerce.Domain.Models.Security;
 using CateringEcommerce.BAL.Configuration;
+using Npgsql;
 
 namespace CateringEcommerce.BAL.Base.Security
 {
@@ -153,10 +152,10 @@ namespace CateringEcommerce.BAL.Base.Security
         /// </summary>
         public async Task<TrustedDeviceModel> GetTrustedDeviceAsync(string userType, long userId, string deviceFingerprint)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 var query = $@"
-                    SELECT TOP 1
+                    SELECT
                         c_device_id AS DeviceId,
                         c_user_type AS UserType,
                         c_userid AS UserId,
@@ -175,9 +174,10 @@ namespace CateringEcommerce.BAL.Base.Security
                     WHERE c_user_type = @UserType
                       AND c_userid = @UserId
                       AND c_device_fingerprint = @DeviceFingerprint
-                      AND c_is_active = 1
-                      AND c_expires_at > GETDATE()
-                    ORDER BY c_trusted_date DESC";
+                      AND c_is_active = TRUE
+                      AND c_expires_at > NOW()
+                    ORDER BY c_trusted_date DESC
+                    LIMIT 1";
 
                 return await connection.QueryFirstOrDefaultAsync<TrustedDeviceModel>(query, new
                 {
@@ -199,7 +199,7 @@ namespace CateringEcommerce.BAL.Base.Security
                 throw new InvalidOperationException("Only users can register trusted devices. Partners and Admins must use 2FA on every login.");
             }
 
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 var deviceToken = Guid.NewGuid().ToString("N");
                 var expiresAt = DateTime.Now.AddDays(30); // 30-day trust period for users
@@ -229,12 +229,12 @@ namespace CateringEcommerce.BAL.Base.Security
                         @UserAgent,
                         @Browser,
                         @OS,
-                        1,
-                        GETDATE(),
+                        TRUE,
+                        NOW(),
                         @ExpiresAt,
-                        GETDATE()
-                    );
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
+                        NOW()
+                    )
+                    RETURNING c_device_id;";
 
                 var deviceId = await connection.QuerySingleAsync<long>(query, new
                 {
@@ -259,11 +259,11 @@ namespace CateringEcommerce.BAL.Base.Security
         /// </summary>
         public async Task UpdateDeviceLastUsedAsync(long deviceId)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 var query = $@"
                     UPDATE {Table.SysTrustedDevice}
-                    SET c_last_used = GETDATE()
+                    SET c_last_used = NOW()
                     WHERE c_device_id = @DeviceId";
 
                 await connection.ExecuteAsync(query, new { DeviceId = deviceId });
@@ -275,7 +275,7 @@ namespace CateringEcommerce.BAL.Base.Security
         /// </summary>
         public async Task<List<TrustedDeviceModel>> GetUserTrustedDevicesAsync(string userType, long userId)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 var query = $@"
                     SELECT
@@ -315,12 +315,12 @@ namespace CateringEcommerce.BAL.Base.Security
         /// </summary>
         public async Task<bool> RevokeTrustedDeviceAsync(long deviceId, string reason = null)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 var query = $@"
                     UPDATE {Table.SysTrustedDevice}
-                    SET c_is_active = 0,
-                        c_revoked_date = GETDATE(),
+                    SET c_is_active = FALSE,
+                        c_revoked_date = NOW(),
                         c_revoked_reason = @Reason
                     WHERE c_device_id = @DeviceId";
 
@@ -339,16 +339,16 @@ namespace CateringEcommerce.BAL.Base.Security
         /// </summary>
         public async Task<int> RevokeAllUserDevicesAsync(string userType, long userId, string reason = null)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 var query = $@"
                     UPDATE {Table.SysTrustedDevice}
-                    SET c_is_active = 0,
-                        c_revoked_date = GETDATE(),
+                    SET c_is_active = FALSE,
+                        c_revoked_date = NOW(),
                         c_revoked_reason = @Reason
                     WHERE c_user_type = @UserType
                       AND c_userid = @UserId
-                      AND c_is_active = 1";
+                      AND c_is_active = TRUE";
 
                 var rowsAffected = await connection.ExecuteAsync(query, new
                 {
@@ -440,7 +440,7 @@ namespace CateringEcommerce.BAL.Base.Security
         /// </summary>
         public async Task LogTwoFactorAttemptAsync(TwoFactorAttemptLog log)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 var query = $@"
                     INSERT INTO {Table.Sys2FAAttemptLog} (
@@ -460,7 +460,7 @@ namespace CateringEcommerce.BAL.Base.Security
                         @IpAddress,
                         @UserAgent,
                         @FailureReason,
-                        GETDATE()
+                        NOW()
                     )";
 
                 await connection.ExecuteAsync(query, new
@@ -481,15 +481,15 @@ namespace CateringEcommerce.BAL.Base.Security
         /// </summary>
         public async Task<int> GetRecentFailedAttemptsAsync(string userType, long userId, int minutesWindow = 15)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 var query = $@"
                     SELECT COUNT(*)
                     FROM {Table.Sys2FAAttemptLog}
                     WHERE c_user_type = @UserType
                       AND c_userid = @UserId
-                      AND c_is_successful = 0
-                      AND c_attempt_date > DATEADD(MINUTE, -@MinutesWindow, GETDATE())";
+                      AND c_is_successful = FALSE
+                      AND c_attempt_date > NOW() - (@MinutesWindow * INTERVAL '1 minute')";
 
                 return await connection.QuerySingleAsync<int>(query, new
                 {
@@ -522,3 +522,4 @@ namespace CateringEcommerce.BAL.Base.Security
 
     #endregion
 }
+

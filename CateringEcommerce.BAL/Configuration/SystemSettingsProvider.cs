@@ -1,9 +1,8 @@
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 using System.Collections.Concurrent;
-using System.Data;
 
 namespace CateringEcommerce.BAL.Configuration
 {
@@ -53,15 +52,15 @@ namespace CateringEcommerce.BAL.Configuration
             // First pass: load all settings and find the encryption key (stored as raw STRING)
             var rawSettings = new List<(string Key, string Value, string ValueType, bool IsSensitive)>();
 
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
 
                 var query = $@"SELECT c_setting_key, c_setting_value, c_value_type, c_is_sensitive
                               FROM {Table.SysSettings}
-                              WHERE c_is_active = 1";
+                              WHERE c_is_active = TRUE";
 
-                using (var command = new SqlCommand(query, connection))
+                using (var command = new NpgsqlCommand(query, connection))
                 {
                     using (var reader = await command.ExecuteReaderAsync())
                     {

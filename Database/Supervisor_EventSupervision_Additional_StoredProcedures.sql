@@ -6,366 +6,593 @@
 --   Supervisor_Photo_Validation_Migration.sql)
 -- =============================================
 
-USE [CateringDB];
-GO
-
 -- =============================================
 -- PRE-EVENT - GET & UPDATE
 -- =============================================
+DROP FUNCTION IF EXISTS sp_GetPreEventVerification;
 
-CREATE OR ALTER PROCEDURE sp_GetPreEventVerification
-    @AssignmentId BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_GetPreEventVerification(
+    p_AssignmentId BIGINT
+)
+RETURNS TABLE (
+    AssignmentId BIGINT,
+    SupervisorId BIGINT,
+    OrderId BIGINT,
+    VerificationStatus TEXT,
+    VerificationDate TIMESTAMP,
+    MenuVerified BOOLEAN,
+    MenuVsContractMatch BOOLEAN,
+    MenuVerificationNotes TEXT,
+    MenuVerificationPhotos TEXT,
+    RawMaterialVerified BOOLEAN,
+    RawMaterialQualityOK BOOLEAN,
+    RawMaterialQuantityOK BOOLEAN,
+    RawMaterialNotes TEXT,
+    RawMaterialPhotos TEXT,
+    GuestCountConfirmed BOOLEAN,
+    ConfirmedGuestCount INT,
+    LockedGuestCount INT,
+    PreEventEvidenceUrls TEXT,
+    IssuesFound BOOLEAN,
+    IssuesDescription TEXT,
+    ChecklistCompleted BOOLEAN,
+    ChecklistId BIGINT,
+    ChecklistPhotos TEXT,
+    FreshnessCheckDone BOOLEAN,
+    HygieneCheckDone BOOLEAN,
+    PackagingCheckDone BOOLEAN,
+    TemperatureCheckDone BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
-
+    RETURN QUERY
     SELECT
-        a.c_assignment_id AS AssignmentId,
-        a.c_supervisor_id AS SupervisorId,
-        a.c_order_id AS OrderId,
-        a.c_pre_event_verification_status AS VerificationStatus,
-        a.c_pre_event_verification_date AS VerificationDate,
-        a.c_menu_verified AS MenuVerified,
-        a.c_menu_vs_contract_match AS MenuVsContractMatch,
-        a.c_menu_verification_notes AS MenuVerificationNotes,
-        a.c_menu_verification_photos AS MenuVerificationPhotos,
-        a.c_raw_material_verified AS RawMaterialVerified,
-        a.c_raw_material_quality_ok AS RawMaterialQualityOK,
-        a.c_raw_material_quantity_ok AS RawMaterialQuantityOK,
-        a.c_raw_material_notes AS RawMaterialNotes,
-        a.c_raw_material_photos AS RawMaterialPhotos,
-        a.c_guest_count_confirmed AS GuestCountConfirmed,
-        a.c_confirmed_guest_count AS ConfirmedGuestCount,
-        a.c_locked_guest_count AS LockedGuestCount,
-        a.c_pre_event_evidence_urls AS PreEventEvidenceUrls,
-        a.c_pre_event_issues_found AS IssuesFound,
-        a.c_pre_event_issues_description AS IssuesDescription,
-        a.c_pre_event_checklist_completed AS ChecklistCompleted,
-        -- Checklist details
-        pc.c_checklist_id AS ChecklistId,
-        pc.c_checklist_photos AS ChecklistPhotos,
-        pc.c_freshness_check_done AS FreshnessCheckDone,
-        pc.c_hygiene_check_done AS HygieneCheckDone,
-        pc.c_packaging_check_done AS PackagingCheckDone,
-        pc.c_temperature_check_done AS TemperatureCheckDone
+        a.c_assignment_id,
+        a.c_supervisor_id,
+        a.c_orderid,
+        a.c_pre_event_verification_status,
+        a.c_pre_event_verification_date,
+        a.c_menu_verified,
+        a.c_menu_vs_contract_match,
+        a.c_menu_verification_notes,
+        a.c_menu_verification_photos,
+        a.c_raw_material_verified,
+        a.c_raw_material_quality_ok,
+        a.c_raw_material_quantity_ok,
+        a.c_raw_material_notes,
+        a.c_raw_material_photos,
+        a.c_guest_count_confirmed,
+        a.c_confirmed_guest_count,
+        a.c_locked_guest_count,
+        a.c_pre_event_evidence_urls,
+        a.c_pre_event_issues_found,
+        a.c_pre_event_issues_description,
+        a.c_pre_event_checklist_completed,
+        pc.c_checklist_id,
+        pc.c_checklist_photos,
+        pc.c_freshness_check_done,
+        pc.c_hygiene_check_done,
+        pc.c_packaging_check_done,
+        pc.c_temperature_check_done
     FROM t_sys_supervisor_assignment a
-    LEFT JOIN t_sys_pre_event_checklist pc ON a.c_assignment_id = pc.c_assignment_id
-    WHERE a.c_assignment_id = @AssignmentId;
-END
-GO
+    LEFT JOIN t_sys_pre_event_checklist pc 
+        ON a.c_assignment_id = pc.c_assignment_id
+    WHERE a.c_assignment_id = p_AssignmentId;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_UpdatePreEventChecklist
-    @ChecklistId BIGINT,
-    @MenuVerified BIT,
-    @RawMaterialVerified BIT,
-    @GuestCountConfirmed BIT,
-    @ChecklistPhotos TEXT = NULL
-AS
+DROP FUNCTION IF EXISTS sp_UpdatePreEventChecklist;
+
+CREATE OR REPLACE FUNCTION sp_UpdatePreEventChecklist(
+    p_ChecklistId BIGINT,
+    p_MenuVerified BOOLEAN,
+    p_RawMaterialVerified BOOLEAN,
+    p_GuestCountConfirmed BOOLEAN,
+    p_ChecklistPhotos TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_AssignmentId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
 
-    IF @ChecklistId > 0 AND EXISTS (SELECT 1 FROM t_sys_pre_event_checklist WHERE c_checklist_id = @ChecklistId)
-    BEGIN
+    -- Check if checklist exists
+    IF p_ChecklistId > 0 AND EXISTS (
+        SELECT 1 FROM t_sys_pre_event_checklist 
+        WHERE c_checklist_id = p_ChecklistId
+    ) THEN
+
+        -- Update checklist
         UPDATE t_sys_pre_event_checklist
-        SET c_checklist_photos = ISNULL(@ChecklistPhotos, c_checklist_photos),
-            c_freshness_check_done = @MenuVerified,
-            c_timestamp = GETDATE()
-        WHERE c_checklist_id = @ChecklistId;
+        SET c_checklist_photos = COALESCE(p_ChecklistPhotos, c_checklist_photos),
+            c_freshness_check_done = p_MenuVerified,
+            c_timestamp = NOW()
+        WHERE c_checklist_id = p_ChecklistId;
 
-        -- Also update the assignment
-        DECLARE @AssignmentId BIGINT;
-        SELECT @AssignmentId = c_assignment_id FROM t_sys_pre_event_checklist WHERE c_checklist_id = @ChecklistId;
+        -- Get assignment id
+        SELECT c_assignment_id INTO v_AssignmentId
+        FROM t_sys_pre_event_checklist
+        WHERE c_checklist_id = p_ChecklistId;
 
+        -- Update assignment
         UPDATE t_sys_supervisor_assignment
-        SET c_menu_verified = @MenuVerified,
-            c_raw_material_verified = @RawMaterialVerified,
-            c_guest_count_confirmed = @GuestCountConfirmed,
-            c_modifieddate = GETDATE()
-        WHERE c_assignment_id = @AssignmentId;
-    END
+        SET c_menu_verified = p_MenuVerified,
+            c_raw_material_verified = p_RawMaterialVerified,
+            c_guest_count_confirmed = p_GuestCountConfirmed,
+            c_modifieddate = NOW()
+        WHERE c_assignment_id = v_AssignmentId;
 
-    SELECT 1 AS Success;
-END
-GO
+    END IF;
+
+    RETURN QUERY SELECT TRUE;
+
+END;
+$$;
 
 -- =============================================
 -- DURING-EVENT - FOOD MONITORING & TRACKING
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_RecordFoodServingMonitor
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT,
-    @QualityRating INT,
-    @TemperatureOK BIT,
-    @PresentationOK BIT,
-    @Notes NVARCHAR(1000) = NULL,
-    @Photos TEXT = NULL
-AS
+DROP FUNCTION IF EXISTS sp_RecordFoodServingMonitor;
+
+CREATE OR REPLACE FUNCTION sp_RecordFoodServingMonitor(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT,
+    p_QualityRating INT,
+    p_TemperatureOK BOOLEAN,
+    p_PresentationOK BOOLEAN,
+    p_Notes TEXT DEFAULT NULL,
+    p_Photos TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_OrderId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
 
     -- Update assignment
     UPDATE t_sys_supervisor_assignment
-    SET c_food_serving_monitored = 1,
-        c_food_serving_quality_rating = @QualityRating,
-        c_food_serving_temperature_ok = @TemperatureOK,
-        c_food_serving_presentation_ok = @PresentationOK,
-        c_food_serving_notes = @Notes,
-        c_food_serving_photos = @Photos,
-        c_modifieddate = GETDATE()
-    WHERE c_assignment_id = @AssignmentId;
+    SET c_food_serving_monitored = TRUE,
+        c_food_serving_quality_rating = p_QualityRating,
+        c_food_serving_temperature_ok = p_TemperatureOK,
+        c_food_serving_presentation_ok = p_PresentationOK,
+        c_food_serving_notes = p_Notes,
+        c_food_serving_photos = p_Photos,
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId;
+
+    -- Get order id
+    SELECT c_orderid INTO v_OrderId
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
     -- Insert tracking record
     INSERT INTO t_sys_during_event_tracking (
-        c_assignment_id, c_supervisor_id, c_order_id,
-        c_tracking_type, c_tracking_description, c_tracking_data,
-        c_evidence_urls, c_timestamp
+        c_assignment_id,
+        c_supervisor_id,
+        c_orderid,
+        c_tracking_type,
+        c_tracking_description,
+        c_tracking_data,
+        c_evidence_urls,
+        c_timestamp
     )
-    SELECT
-        @AssignmentId, @SupervisorId, c_order_id,
+    VALUES (
+        p_AssignmentId,
+        p_SupervisorId,
+        v_OrderId,
         'FOOD_SERVING_CHECK',
-        'Food serving quality check: Rating ' + CAST(@QualityRating AS VARCHAR(2)) + '/5',
-        '{"qualityRating":' + CAST(@QualityRating AS VARCHAR(2)) +
-        ',"temperatureOK":' + CASE WHEN @TemperatureOK = 1 THEN 'true' ELSE 'false' END +
-        ',"presentationOK":' + CASE WHEN @PresentationOK = 1 THEN 'true' ELSE 'false' END + '}',
-        @Photos, GETDATE()
-    FROM t_sys_supervisor_assignment
-    WHERE c_assignment_id = @AssignmentId;
+        'Food serving quality check: Rating ' || p_QualityRating || '/5',
+        json_build_object(
+            'qualityRating', p_QualityRating,
+            'temperatureOK', p_TemperatureOK,
+            'presentationOK', p_PresentationOK
+        )::TEXT,
+        p_Photos,
+        NOW()
+    );
 
     -- Log action
-    INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_assignment_id, c_action_type, c_action_description, c_action_result)
-    VALUES (@SupervisorId, @AssignmentId, 'QUALITY_CHECK', 'Food serving monitored. Quality: ' + CAST(@QualityRating AS VARCHAR(2)) + '/5', 'SUCCESS');
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id,
+        c_assignment_id,
+        c_action_type,
+        c_action_description,
+        c_action_result
+    )
+    VALUES (
+        p_SupervisorId,
+        p_AssignmentId,
+        'QUALITY_CHECK',
+        'Food serving monitored. Quality: ' || p_QualityRating || '/5',
+        'SUCCESS'
+    );
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT TRUE;
 
-CREATE OR ALTER PROCEDURE sp_GetDuringEventTracking
-    @AssignmentId BIGINT
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_GetDuringEventTracking;
+
+CREATE OR REPLACE FUNCTION sp_GetDuringEventTracking(
+    p_AssignmentId BIGINT
+)
+RETURNS TABLE (
+    TrackingId BIGINT,
+    AssignmentId BIGINT,
+    SupervisorId BIGINT,
+    TrackingType TEXT,
+    Description TEXT,
+    TrackingData TEXT,
+    GuestCount INT,
+    GuestCountVariance INT,
+    ExtraItemName TEXT,
+    ExtraQuantity INT,
+    ExtraCost DECIMAL(18,2),
+    ExtraReason TEXT,
+    ApprovalMethod TEXT,
+    ApprovalStatus TEXT,
+    EvidenceUrls TEXT,
+    GPSLocation TEXT,
+    TimestampValue TIMESTAMP
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
-
+    RETURN QUERY
     SELECT
-        c_tracking_id AS TrackingId,
-        c_assignment_id AS AssignmentId,
-        c_supervisor_id AS SupervisorId,
-        c_tracking_type AS TrackingType,
-        c_tracking_description AS Description,
-        c_tracking_data AS TrackingData,
-        c_guest_count AS GuestCount,
-        c_guest_count_variance AS GuestCountVariance,
-        c_extra_item_name AS ExtraItemName,
-        c_extra_quantity AS ExtraQuantity,
-        c_extra_cost AS ExtraCost,
-        c_extra_reason AS ExtraReason,
-        c_approval_method AS ApprovalMethod,
-        c_approval_status AS ApprovalStatus,
-        c_evidence_urls AS EvidenceUrls,
-        c_gps_location AS GPSLocation,
-        c_timestamp AS Timestamp
+        c_tracking_id,
+        c_assignment_id,
+        c_supervisor_id,
+        c_tracking_type,
+        c_tracking_description,
+        c_tracking_data,
+        c_guest_count,
+        c_guest_count_variance,
+        c_extra_item_name,
+        c_extra_quantity,
+        c_extra_cost,
+        c_extra_reason,
+        c_approval_method,
+        c_approval_status,
+        c_evidence_urls,
+        c_gps_location,
+        c_timestamp
     FROM t_sys_during_event_tracking
-    WHERE c_assignment_id = @AssignmentId
+    WHERE c_assignment_id = p_AssignmentId
     ORDER BY c_timestamp ASC;
-END
-GO
+END;
+$$;
 
 -- =============================================
 -- POST-EVENT - GET, UPDATE, VERIFY
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_GetPostEventReport
-    @AssignmentId BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON;
+DROP FUNCTION IF EXISTS sp_GetPostEventReport;
 
+CREATE OR REPLACE FUNCTION sp_GetPostEventReport(
+    p_AssignmentId BIGINT
+)
+RETURNS TABLE (
+    ReportId BIGINT,
+    AssignmentId BIGINT,
+    SupervisorId BIGINT,
+    OrderId BIGINT,
+    FinalGuestCount INT,
+    EventRating INT,
+    ClientName TEXT,
+    ClientPhone TEXT,
+    ClientSatisfactionRating INT,
+    FoodQualityRating INT,
+    FoodQuantityRating INT,
+    ServiceQualityRating INT,
+    PresentationRating INT,
+    WouldRecommend BOOLEAN,
+    ClientComments TEXT,
+    ClientSignatureUrl TEXT,
+    VendorPunctualityRating INT,
+    VendorPreparationRating INT,
+    VendorCooperationRating INT,
+    VendorComments TEXT,
+    IssuesCount INT,
+    IssuesSummary TEXT,
+    FinalPayableAmount DECIMAL(18,2),
+    PaymentBreakdown TEXT,
+    CompletionPhotos TEXT,
+    CompletionVideos TEXT,
+    ReportSummary TEXT,
+    Recommendations TEXT,
+    SupervisorNotes TEXT,
+    ReportVerified BOOLEAN,
+    VerifiedBy BIGINT,
+    VerificationDate TIMESTAMP,
+    VerificationNotes TEXT,
+    CreatedDate TIMESTAMP,
+    SubmittedDate TIMESTAMP
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
     SELECT
-        r.c_report_id AS ReportId,
-        r.c_assignment_id AS AssignmentId,
-        r.c_supervisor_id AS SupervisorId,
-        r.c_order_id AS OrderId,
-        r.c_final_guest_count AS FinalGuestCount,
-        r.c_event_rating AS EventRating,
-        r.c_client_name AS ClientName,
-        r.c_client_phone AS ClientPhone,
-        r.c_client_satisfaction_rating AS ClientSatisfactionRating,
-        r.c_food_quality_rating AS FoodQualityRating,
-        r.c_food_quantity_rating AS FoodQuantityRating,
-        r.c_service_quality_rating AS ServiceQualityRating,
-        r.c_presentation_rating AS PresentationRating,
-        r.c_would_recommend AS WouldRecommend,
-        r.c_client_comments AS ClientComments,
-        r.c_client_signature_url AS ClientSignatureUrl,
-        r.c_vendor_punctuality_rating AS VendorPunctualityRating,
-        r.c_vendor_preparation_rating AS VendorPreparationRating,
-        r.c_vendor_cooperation_rating AS VendorCooperationRating,
-        r.c_vendor_comments AS VendorComments,
-        r.c_total_issues_count AS IssuesCount,
-        r.c_issues_summary AS IssuesSummary,
-        r.c_final_payable_amount AS FinalPayableAmount,
-        r.c_payment_breakdown AS PaymentBreakdown,
-        r.c_completion_photos AS CompletionPhotos,
-        r.c_completion_videos AS CompletionVideos,
-        r.c_report_summary AS ReportSummary,
-        r.c_recommendations AS Recommendations,
-        r.c_supervisor_notes AS SupervisorNotes,
-        r.c_report_verified AS ReportVerified,
-        r.c_verified_by AS VerifiedBy,
-        r.c_verification_date AS VerificationDate,
-        r.c_verification_notes AS VerificationNotes,
-        r.c_createddate AS CreatedDate,
-        r.c_submitted_date AS SubmittedDate
+        r.c_report_id,
+        r.c_assignment_id,
+        r.c_supervisor_id,
+        r.c_orderid,
+        r.c_final_guest_count,
+        r.c_event_rating,
+        r.c_client_name,
+        r.c_client_phone,
+        r.c_client_satisfaction_rating,
+        r.c_food_quality_rating,
+        r.c_food_quantity_rating,
+        r.c_service_quality_rating,
+        r.c_presentation_rating,
+        r.c_would_recommend,
+        r.c_client_comments,
+        r.c_client_signature_url,
+        r.c_vendor_punctuality_rating,
+        r.c_vendor_preparation_rating,
+        r.c_vendor_cooperation_rating,
+        r.c_vendor_comments,
+        r.c_total_issues_count,
+        r.c_issues_summary,
+        r.c_final_payable_amount,
+        r.c_payment_breakdown,
+        r.c_completion_photos,
+        r.c_completion_videos,
+        r.c_report_summary,
+        r.c_recommendations,
+        r.c_supervisor_notes,
+        r.c_report_verified,
+        r.c_verified_by,
+        r.c_verification_date,
+        r.c_verification_notes,
+        r.c_createddate,
+        r.c_submitted_date
     FROM t_sys_post_event_report r
-    WHERE r.c_assignment_id = @AssignmentId;
-END
-GO
+    WHERE r.c_assignment_id = p_AssignmentId;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_UpdatePostEventReport
-    @ReportId BIGINT,
-    @ReportSummary NVARCHAR(2000),
-    @Recommendations NVARCHAR(1000) = NULL,
-    @SupervisorNotes NVARCHAR(1000) = NULL
-AS
+DROP FUNCTION IF EXISTS sp_UpdatePostEventReport;
+
+CREATE OR REPLACE FUNCTION sp_UpdatePostEventReport(
+    p_ReportId BIGINT,
+    p_ReportSummary TEXT,
+    p_Recommendations TEXT DEFAULT NULL,
+    p_SupervisorNotes TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
     UPDATE t_sys_post_event_report
-    SET c_report_summary = @ReportSummary,
-        c_recommendations = @Recommendations,
-        c_supervisor_notes = @SupervisorNotes
-    WHERE c_report_id = @ReportId;
+    SET c_report_summary = p_ReportSummary,
+        c_recommendations = p_Recommendations,
+        c_supervisor_notes = p_SupervisorNotes
+    WHERE c_report_id = p_ReportId;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT TRUE;
 
-CREATE OR ALTER PROCEDURE sp_VerifyPostEventReport
-    @ReportId BIGINT,
-    @VerifiedBy BIGINT,
-    @VerificationNotes NVARCHAR(500) = NULL
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_VerifyPostEventReport;
+
+CREATE OR REPLACE FUNCTION sp_VerifyPostEventReport(
+    p_ReportId BIGINT,
+    p_VerifiedBy BIGINT,
+    p_VerificationNotes TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_AssignmentId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
 
+    -- Update report
     UPDATE t_sys_post_event_report
-    SET c_report_verified = 1,
-        c_verified_by = @VerifiedBy,
-        c_verification_date = GETDATE(),
-        c_verification_notes = @VerificationNotes
-    WHERE c_report_id = @ReportId;
+    SET c_report_verified = TRUE,
+        c_verified_by = p_VerifiedBy,
+        c_verification_date = NOW(),
+        c_verification_notes = p_VerificationNotes
+    WHERE c_report_id = p_ReportId;
 
-    -- Also update the assignment
-    UPDATE a
-    SET a.c_report_verified_by_admin = @VerifiedBy,
-        a.c_report_verification_date = GETDATE(),
-        a.c_modifieddate = GETDATE()
-    FROM t_sys_supervisor_assignment a
-    INNER JOIN t_sys_post_event_report r ON a.c_assignment_id = r.c_assignment_id
-    WHERE r.c_report_id = @ReportId;
+    -- Get assignment id
+    SELECT c_assignment_id INTO v_AssignmentId
+    FROM t_sys_post_event_report
+    WHERE c_report_id = p_ReportId;
 
-    SELECT 1 AS Success;
-END
-GO
+    -- Update assignment
+    UPDATE t_sys_supervisor_assignment
+    SET c_report_verified_by_admin = p_VerifiedBy,
+        c_report_verification_date = NOW(),
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = v_AssignmentId;
+
+    RETURN QUERY SELECT TRUE;
+
+END;
+$$;
 
 -- =============================================
 -- OTP MANAGEMENT
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_ResendClientOTP
-    @AssignmentId BIGINT,
-    @OTPPurpose VARCHAR(50),
-    @NewOTPCode VARCHAR(10) OUTPUT
-AS
+DROP FUNCTION IF EXISTS sp_ResendClientOTP;
+
+CREATE OR REPLACE FUNCTION sp_ResendClientOTP(
+    p_AssignmentId BIGINT,
+    p_OTPPurpose VARCHAR
+)
+RETURNS TABLE (
+    NewOTPCode VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_NewOTPCode VARCHAR(10);
+    v_OrderId BIGINT;
+    v_SupervisorId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
 
-    -- Generate a new 6-digit OTP
-    SET @NewOTPCode = RIGHT('000000' + CAST(ABS(CHECKSUM(NEWID())) % 1000000 AS VARCHAR(6)), 6);
+    -- Generate new 6-digit OTP
+    v_NewOTPCode := LPAD((floor(random() * 1000000))::TEXT, 6, '0');
 
-    -- Expire old OTPs for same assignment and purpose
+    -- Expire old OTPs
     UPDATE t_sys_client_otp_verification
     SET c_status = 'EXPIRED'
-    WHERE c_assignment_id = @AssignmentId
-      AND c_otp_purpose = @OTPPurpose
+    WHERE c_assignment_id = p_AssignmentId
+      AND c_otp_purpose = p_OTPPurpose
       AND c_status = 'SENT';
 
-    -- Get order and supervisor info
-    DECLARE @OrderId BIGINT, @SupervisorId BIGINT, @ClientPhone VARCHAR(15);
-
-    SELECT @OrderId = a.c_order_id, @SupervisorId = a.c_supervisor_id
-    FROM t_sys_supervisor_assignment a
-    WHERE a.c_assignment_id = @AssignmentId;
+    -- Get order & supervisor
+    SELECT
+        c_orderid,
+        c_supervisor_id
+    INTO
+        v_OrderId,
+        v_SupervisorId
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
     -- Insert new OTP
     INSERT INTO t_sys_client_otp_verification (
-        c_assignment_id, c_order_id, c_supervisor_id,
-        c_otp_code, c_otp_purpose, c_otp_sent_to,
-        c_otp_sent_time, c_otp_expires_at, c_status
+        c_assignment_id,
+        c_orderid,
+        c_supervisor_id,
+        c_otp_code,
+        c_otp_purpose,
+        c_otp_sent_to,
+        c_otp_sent_time,
+        c_otp_expires_at,
+        c_status
     )
     VALUES (
-        @AssignmentId, @OrderId, @SupervisorId,
-        @NewOTPCode, @OTPPurpose, '',
-        GETDATE(), DATEADD(MINUTE, 10, GETDATE()), 'SENT'
+        p_AssignmentId,
+        v_OrderId,
+        v_SupervisorId,
+        v_NewOTPCode,
+        p_OTPPurpose,
+        '',
+        NOW(),
+        NOW() + INTERVAL '10 minutes',
+        'SENT'
     );
-END
-GO
 
-CREATE OR ALTER PROCEDURE sp_GetOTPVerificationStatus
-    @OTPCode VARCHAR(10)
-AS
+    RETURN QUERY SELECT v_NewOTPCode;
+
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_GetOTPVerificationStatus;
+
+CREATE OR REPLACE FUNCTION sp_GetOTPVerificationStatus(
+    p_OTPCode VARCHAR
+)
+RETURNS TABLE (
+    OTPId BIGINT,
+    AssignmentId BIGINT,
+    OrderId BIGINT,
+    SupervisorId BIGINT,
+    OTPCode VARCHAR,
+    OTPPurpose TEXT,
+    SentTo TEXT,
+    SentTime TIMESTAMP,
+    ExpiresAt TIMESTAMP,
+    IsVerified BOOLEAN,
+    VerifiedTime TIMESTAMP,
+    VerificationAttempts INT,
+    MaxAttempts INT,
+    Status TEXT,
+    ContextData TEXT
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
+    RETURN QUERY
     SELECT
-        c_otp_id AS OTPId,
-        c_assignment_id AS AssignmentId,
-        c_order_id AS OrderId,
-        c_supervisor_id AS SupervisorId,
-        c_otp_code AS OTPCode,
-        c_otp_purpose AS OTPPurpose,
-        c_otp_sent_to AS SentTo,
-        c_otp_sent_time AS SentTime,
-        c_otp_expires_at AS ExpiresAt,
-        c_otp_verified AS IsVerified,
-        c_otp_verified_time AS VerifiedTime,
-        c_verification_attempts AS VerificationAttempts,
-        c_max_attempts AS MaxAttempts,
-        c_status AS Status,
-        c_context_data AS ContextData
+        c_otp_id,
+        c_assignment_id,
+        c_orderid,
+        c_supervisor_id,
+        c_otp_code,
+        c_otp_purpose,
+        c_otp_sent_to,
+        c_otp_sent_time,
+        c_otp_expires_at,
+        c_otp_verified,
+        c_otp_verified_time,
+        c_verification_attempts,
+        c_max_attempts,
+        c_status,
+        c_context_data
     FROM t_sys_client_otp_verification
-    WHERE c_otp_code = @OTPCode
+    WHERE c_otp_code = p_OTPCode
     ORDER BY c_otp_sent_time DESC;
-END
-GO
+
+END;
+$$;
 
 -- =============================================
 -- EVIDENCE RETRIEVAL
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_GetAssignmentEvidence
-    @AssignmentId BIGINT
-AS
+DROP FUNCTION IF EXISTS sp_GetAssignmentEvidence;
+
+CREATE OR REPLACE FUNCTION sp_GetAssignmentEvidence(
+    p_AssignmentId BIGINT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_result JSON;
 BEGIN
-    SET NOCOUNT ON;
 
-    -- Collect evidence from multiple sources
-    SELECT
-        a.c_pre_event_evidence_urls AS PreEventEvidence,
-        -- Collect during-event evidence from tracking table
-        (SELECT c_evidence_urls FROM t_sys_during_event_tracking
-         WHERE c_assignment_id = @AssignmentId AND c_evidence_urls IS NOT NULL
-         FOR JSON PATH) AS DuringEventEvidence,
-        -- Post-event evidence from report
-        r.c_completion_photos AS PostEventEvidence
+    SELECT json_build_object(
+
+        -- Pre-event evidence
+        'PreEventEvidence',
+        a.c_pre_event_evidence_urls,
+
+        -- During-event evidence (array)
+        'DuringEventEvidence',
+        (
+            SELECT COALESCE(json_agg(c_evidence_urls), '[]'::json)
+            FROM t_sys_during_event_tracking
+            WHERE c_assignment_id = p_AssignmentId
+              AND c_evidence_urls IS NOT NULL
+        ),
+
+        -- Post-event evidence
+        'PostEventEvidence',
+        r.c_completion_photos
+
+    )
+    INTO v_result
     FROM t_sys_supervisor_assignment a
-    LEFT JOIN t_sys_post_event_report r ON a.c_assignment_id = r.c_assignment_id
-    WHERE a.c_assignment_id = @AssignmentId;
-END
-GO
+    LEFT JOIN t_sys_post_event_report r
+        ON a.c_assignment_id = r.c_assignment_id
+    WHERE a.c_assignment_id = p_AssignmentId;
 
-PRINT '================================================';
-PRINT 'Event Supervision Additional Stored Procedures Created';
-PRINT '10 Stored Procedures for EventSupervisionRepository.cs';
-PRINT '================================================';
-GO
+    RETURN v_result;
+
+END;
+$$;

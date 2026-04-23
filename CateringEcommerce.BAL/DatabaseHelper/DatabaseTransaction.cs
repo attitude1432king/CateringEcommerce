@@ -1,166 +1,109 @@
-using Microsoft.Data.SqlClient;
-using System;
+using Npgsql;
 using System.Data;
-using System.Threading.Tasks;
+using System.Data.Common;
 using CateringEcommerce.Domain.Interfaces;
 
 namespace CateringEcommerce.BAL.DatabaseHelper
 {
-    /// <summary>
-    /// Represents a database transaction
-    /// Automatically rolls back on dispose if not explicitly committed
-    /// </summary>
     public class DatabaseTransaction : IDatabaseTransaction
     {
-        private readonly SqlConnection _connection;
-        private readonly SqlTransaction _transaction;
+        private readonly NpgsqlConnection _connection;
+        private readonly NpgsqlTransaction _transaction;
         private bool _committed;
         private bool _rolledBack;
         private bool _disposed;
 
-        internal DatabaseTransaction(SqlConnection connection, SqlTransaction transaction)
+        internal DatabaseTransaction(NpgsqlConnection connection, NpgsqlTransaction transaction)
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
             _transaction = transaction ?? throw new ArgumentNullException(nameof(transaction));
-            _committed = false;
-            _rolledBack = false;
-            _disposed = false;
         }
 
-        /// <summary>
-        /// Commits the transaction
-        /// </summary>
         public void Commit()
         {
             EnsureNotDisposed();
             EnsureNotCommitted();
             EnsureNotRolledBack();
-
             _transaction.Commit();
             _committed = true;
         }
 
-        /// <summary>
-        /// Commits the transaction asynchronously
-        /// </summary>
         public async Task CommitAsync()
         {
             EnsureNotDisposed();
             EnsureNotCommitted();
             EnsureNotRolledBack();
-
             await _transaction.CommitAsync();
             _committed = true;
         }
 
-        /// <summary>
-        /// Rolls back the transaction
-        /// </summary>
         public void Rollback()
         {
             EnsureNotDisposed();
             EnsureNotCommitted();
-
-            if (!_rolledBack)
+            if (_rolledBack)
             {
-                _transaction.Rollback();
-                _rolledBack = true;
+                return;
             }
+
+            _transaction.Rollback();
+            _rolledBack = true;
         }
 
-        /// <summary>
-        /// Rolls back the transaction asynchronously
-        /// </summary>
         public async Task RollbackAsync()
         {
             EnsureNotDisposed();
             EnsureNotCommitted();
-
-            if (!_rolledBack)
+            if (_rolledBack)
             {
-                await _transaction.RollbackAsync();
-                _rolledBack = true;
+                return;
             }
+
+            await _transaction.RollbackAsync();
+            _rolledBack = true;
         }
 
-        /// <summary>
-        /// Executes a non-query within this transaction
-        /// </summary>
-        public async Task<int> ExecuteNonQueryAsync(string query, SqlParameter[] parameters = null, CommandType commandType = CommandType.Text)
+        public async Task<int> ExecuteNonQueryAsync(string query, DbParameter[] parameters = null, CommandType commandType = CommandType.Text)
         {
-            EnsureNotDisposed();
-            EnsureNotCommitted();
-            EnsureNotRolledBack();
-
-            using var cmd = CreateCommand(query, parameters, commandType);
+            EnsureReady();
+            await using var cmd = CreateCommand(query, parameters, commandType);
             return await cmd.ExecuteNonQueryAsync();
         }
 
-        /// <summary>
-        /// Executes a scalar query within this transaction
-        /// </summary>
-        public async Task<TResult> ExecuteScalarAsync<TResult>(string query, SqlParameter[] parameters = null, CommandType commandType = CommandType.Text)
+        public async Task<TResult> ExecuteScalarAsync<TResult>(string query, DbParameter[] parameters = null, CommandType commandType = CommandType.Text)
         {
-            EnsureNotDisposed();
-            EnsureNotCommitted();
-            EnsureNotRolledBack();
-
-            using var cmd = CreateCommand(query, parameters, commandType);
+            EnsureReady();
+            await using var cmd = CreateCommand(query, parameters, commandType);
             var result = await cmd.ExecuteScalarAsync();
-
-            if (result == null || result == DBNull.Value)
-            {
-                return default(TResult);
-            }
-
-            return (TResult)Convert.ChangeType(result, typeof(TResult));
+            return SqlDatabaseManager.ConvertScalar<TResult>(result);
         }
 
-        /// <summary>
-        /// Executes a query within this transaction
-        /// </summary>
-        public async Task<DataTable> ExecuteAsync(string query, SqlParameter[] parameters = null, CommandType commandType = CommandType.Text)
+        public async Task<DataTable> ExecuteAsync(string query, DbParameter[] parameters = null, CommandType commandType = CommandType.Text)
         {
-            EnsureNotDisposed();
-            EnsureNotCommitted();
-            EnsureNotRolledBack();
-
-            using var cmd = CreateCommand(query, parameters, commandType);
-            using var adapter = new SqlDataAdapter(cmd);
-
+            EnsureReady();
+            await using var cmd = CreateCommand(query, parameters, commandType);
+            await using var reader = await cmd.ExecuteReaderAsync();
             var dataTable = new DataTable();
-            await Task.Run(() => adapter.Fill(dataTable));
+            dataTable.Load(reader);
             return dataTable;
         }
 
-        /// <summary>
-        /// Creates a command within this transaction
-        /// </summary>
-        private SqlCommand CreateCommand(string query, SqlParameter[] parameters, CommandType commandType)
+        private NpgsqlCommand CreateCommand(string query, DbParameter[] parameters, CommandType commandType)
         {
-            var cmd = new SqlCommand(query, _connection, _transaction)
+            var cmd = new NpgsqlCommand(SqlQueryTranslator.Normalize(query, commandType, parameters), _connection, _transaction)
             {
-                CommandType = commandType,
-                CommandTimeout = 60 // 60 seconds default
+                CommandType = SqlQueryTranslator.NormalizeCommandType(commandType),
+                CommandTimeout = 60
             };
 
-            if (parameters != null && parameters.Length > 0)
-            {
-                cmd.Parameters.AddRange(parameters);
-            }
-
+            SqlQueryTranslator.AddParameters(cmd, parameters);
             return cmd;
         }
 
-        /// <summary>
-        /// Disposes the transaction (synchronous)
-        /// Rolls back if not committed
-        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;
 
-            // Auto-rollback if not committed
             if (!_committed && !_rolledBack)
             {
                 try
@@ -169,24 +112,18 @@ namespace CateringEcommerce.BAL.DatabaseHelper
                 }
                 catch
                 {
-                    // Ignore rollback errors during dispose
                 }
             }
 
-            _transaction?.Dispose();
-            _connection?.Dispose();
+            _transaction.Dispose();
+            _connection.Dispose();
             _disposed = true;
         }
 
-        /// <summary>
-        /// Disposes the transaction asynchronously
-        /// Rolls back if not committed
-        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if (_disposed) return;
 
-            // Auto-rollback if not committed
             if (!_committed && !_rolledBack)
             {
                 try
@@ -195,24 +132,21 @@ namespace CateringEcommerce.BAL.DatabaseHelper
                 }
                 catch
                 {
-                    // Ignore rollback errors during dispose
                 }
             }
 
-            if (_transaction != null)
-            {
-                await _transaction.DisposeAsync();
-            }
-
-            if (_connection != null)
-            {
-                await _connection.DisposeAsync();
-            }
-
+            await _transaction.DisposeAsync();
+            await _connection.DisposeAsync();
             _disposed = true;
         }
 
-        // Validation helpers
+        private void EnsureReady()
+        {
+            EnsureNotDisposed();
+            EnsureNotCommitted();
+            EnsureNotRolledBack();
+        }
+
         private void EnsureNotDisposed()
         {
             if (_disposed)

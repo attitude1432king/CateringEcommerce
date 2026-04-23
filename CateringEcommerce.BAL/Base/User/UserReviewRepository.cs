@@ -8,7 +8,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace CateringEcommerce.BAL.Base.User
 {
@@ -35,10 +35,10 @@ namespace CateringEcommerce.BAL.Base.User
                     INNER JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
                     WHERE o.c_orderid = @OrderId AND o.c_userid = @UserId";
 
-                var orderCheckParams = new SqlParameter[]
+                var orderCheckParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", request.OrderId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@OrderId", request.OrderId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 var orderCheckResults = await _dbHelper.ExecuteQueryAsync<dynamic>(orderCheckSql, orderCheckParams);
@@ -52,10 +52,10 @@ namespace CateringEcommerce.BAL.Base.User
 
                 // Check if already reviewed
                 var existingSql = $"SELECT c_reviewid FROM {Table.SysCateringReview} WHERE c_orderid = @OrderId AND c_userid = @UserId";
-                var existingParams = new SqlParameter[]
+                var existingParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", request.OrderId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@OrderId", request.OrderId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 var existingResults = await _dbHelper.ExecuteQueryAsync<long?>(existingSql, existingParams);
@@ -80,23 +80,23 @@ namespace CateringEcommerce.BAL.Base.User
                         @StaffBehaviorRating, @DecorationRating, @PunctualityRating,
                         @ReviewTitle, @ReviewComment,
                         1, 1, 'Approved', 0,
-                        GETDATE()
-                    );
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
+                        NOW()
+                    )
+                    RETURNING c_reviewid;";
 
-                var insertParams = new SqlParameter[]
+                var insertParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerId", orderCheck.c_ownerid),
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@OrderId", request.OrderId),
-                    new SqlParameter("@OverallRating", request.OverallRating),
-                    new SqlParameter("@FoodQualityRating", (object)request.FoodQualityRating ?? DBNull.Value),
-                    new SqlParameter("@HygieneRating", (object)request.HygieneRating ?? DBNull.Value),
-                    new SqlParameter("@StaffBehaviorRating", (object)request.StaffBehaviorRating ?? DBNull.Value),
-                    new SqlParameter("@DecorationRating", (object)request.DecorationRating ?? DBNull.Value),
-                    new SqlParameter("@PunctualityRating", (object)request.PunctualityRating ?? DBNull.Value),
-                    new SqlParameter("@ReviewTitle", (object)request.ReviewTitle ?? DBNull.Value),
-                    new SqlParameter("@ReviewComment", (object)request.ReviewComment ?? DBNull.Value)
+                    new NpgsqlParameter("@OwnerId", orderCheck.c_ownerid),
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@OrderId", request.OrderId),
+                    new NpgsqlParameter("@OverallRating", request.OverallRating),
+                    new NpgsqlParameter("@FoodQualityRating", (object)request.FoodQualityRating ?? DBNull.Value),
+                    new NpgsqlParameter("@HygieneRating", (object)request.HygieneRating ?? DBNull.Value),
+                    new NpgsqlParameter("@StaffBehaviorRating", (object)request.StaffBehaviorRating ?? DBNull.Value),
+                    new NpgsqlParameter("@DecorationRating", (object)request.DecorationRating ?? DBNull.Value),
+                    new NpgsqlParameter("@PunctualityRating", (object)request.PunctualityRating ?? DBNull.Value),
+                    new NpgsqlParameter("@ReviewTitle", (object)request.ReviewTitle ?? DBNull.Value),
+                    new NpgsqlParameter("@ReviewComment", (object)request.ReviewComment ?? DBNull.Value)
                 };
 
                 var reviewIdResult = await _dbHelper.ExecuteScalarAsync(insertSql, insertParams);
@@ -125,10 +125,10 @@ namespace CateringEcommerce.BAL.Base.User
             {
                 // Check order status
                 var orderSql = "SELECT c_orderid, c_order_status FROM {Table.SysOrders} WHERE c_orderid = @OrderId AND c_userid = @UserId";
-                var orderParams = new SqlParameter[]
+                var orderParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 var orderResults = await _dbHelper.ExecuteQueryAsync<dynamic>(orderSql, orderParams);
@@ -142,10 +142,10 @@ namespace CateringEcommerce.BAL.Base.User
 
                 // Check if already reviewed
                 var reviewSql = $"SELECT c_reviewid FROM {Table.SysCateringReview} WHERE c_orderid = @OrderId AND c_userid = @UserId";
-                var reviewParams = new SqlParameter[]
+                var reviewParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 var reviewResults = await _dbHelper.ExecuteQueryAsync<long?>(reviewSql, reviewParams);
@@ -208,10 +208,10 @@ namespace CateringEcommerce.BAL.Base.User
                 LEFT JOIN {Table.SysCateringReviewReply} orr ON r.c_reviewid = orr.c_reviewid
                 WHERE r.c_orderid = @OrderId AND r.c_userid = @UserId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId),
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@OrderId", orderId),
+                new NpgsqlParameter("@UserId", userId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<UserReviewDetail>(sql, parameters);
@@ -242,11 +242,11 @@ namespace CateringEcommerce.BAL.Base.User
                 ORDER BY r.c_createddate DESC
                 OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@Offset", (pageNumber - 1) * pageSize),
-                new SqlParameter("@PageSize", pageSize)
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@Offset", (pageNumber - 1) * pageSize),
+                new NpgsqlParameter("@PageSize", pageSize)
             };
 
             var result = await _dbHelper.ExecuteQueryAsync<UserReviewListItem>(sql, parameters);
@@ -283,10 +283,10 @@ namespace CateringEcommerce.BAL.Base.User
                 LEFT JOIN {Table.SysCateringReviewReply} orr ON r.c_reviewid = orr.c_reviewid
                 WHERE r.c_reviewid = @ReviewId AND r.c_userid = @UserId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@ReviewId", reviewId),
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@ReviewId", reviewId),
+                new NpgsqlParameter("@UserId", userId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<UserReviewDetail>(sql, parameters);
@@ -299,10 +299,10 @@ namespace CateringEcommerce.BAL.Base.User
             {
                 // Verify ownership
                 var checkSql = $"SELECT COUNT(*) FROM {Table.SysCateringReview} WHERE c_reviewid = @ReviewId AND c_userid = @UserId";
-                var checkParams = new SqlParameter[]
+                var checkParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ReviewId", request.ReviewId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@ReviewId", request.ReviewId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 var ownsReviewResult = await _dbHelper.ExecuteScalarAsync(checkSql, checkParams);
@@ -321,20 +321,20 @@ namespace CateringEcommerce.BAL.Base.User
                         c_punctuality_rating = @PunctualityRating,
                         c_review_title = @ReviewTitle,
                         c_review_comment = @ReviewComment,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_reviewid = @ReviewId";
 
-                var updateParams = new SqlParameter[]
+                var updateParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ReviewId", request.ReviewId),
-                    new SqlParameter("@OverallRating", request.OverallRating),
-                    new SqlParameter("@FoodQualityRating", (object)request.FoodQualityRating ?? DBNull.Value),
-                    new SqlParameter("@HygieneRating", (object)request.HygieneRating ?? DBNull.Value),
-                    new SqlParameter("@StaffBehaviorRating", (object)request.StaffBehaviorRating ?? DBNull.Value),
-                    new SqlParameter("@DecorationRating", (object)request.DecorationRating ?? DBNull.Value),
-                    new SqlParameter("@PunctualityRating", (object)request.PunctualityRating ?? DBNull.Value),
-                    new SqlParameter("@ReviewTitle", (object)request.ReviewTitle ?? DBNull.Value),
-                    new SqlParameter("@ReviewComment", (object)request.ReviewComment ?? DBNull.Value)
+                    new NpgsqlParameter("@ReviewId", request.ReviewId),
+                    new NpgsqlParameter("@OverallRating", request.OverallRating),
+                    new NpgsqlParameter("@FoodQualityRating", (object)request.FoodQualityRating ?? DBNull.Value),
+                    new NpgsqlParameter("@HygieneRating", (object)request.HygieneRating ?? DBNull.Value),
+                    new NpgsqlParameter("@StaffBehaviorRating", (object)request.StaffBehaviorRating ?? DBNull.Value),
+                    new NpgsqlParameter("@DecorationRating", (object)request.DecorationRating ?? DBNull.Value),
+                    new NpgsqlParameter("@PunctualityRating", (object)request.PunctualityRating ?? DBNull.Value),
+                    new NpgsqlParameter("@ReviewTitle", (object)request.ReviewTitle ?? DBNull.Value),
+                    new NpgsqlParameter("@ReviewComment", (object)request.ReviewComment ?? DBNull.Value)
                 };
 
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateSql, updateParams);
@@ -351,10 +351,10 @@ namespace CateringEcommerce.BAL.Base.User
             try
             {
                 var deleteSql = $"DELETE FROM {Table.SysCateringReview} WHERE c_reviewid = @ReviewId AND c_userid = @UserId";
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ReviewId", reviewId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@ReviewId", reviewId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(deleteSql, parameters);
@@ -372,8 +372,8 @@ namespace CateringEcommerce.BAL.Base.User
             var reviewsSql = $@"
                 SELECT
                     r.c_reviewid AS ReviewId,
-                    COALESCE(u.c_firstname + ' ' + LEFT(u.c_lastname, 1) + '.', 'Anonymous') AS UserName,
-                    LEFT(u.c_firstname, 1) + LEFT(u.c_lastname, 1) AS UserInitials,
+                    COALESCE(u.c_firstname || ' ' || LEFT(u.c_lastname, 1) || '.', 'Anonymous') AS UserName,
+                    LEFT(u.c_firstname, 1) || LEFT(u.c_lastname, 1) AS UserInitials,
                     r.c_overall_rating AS OverallRating,
                     r.c_food_quality_rating AS FoodQualityRating,
                     r.c_hygiene_rating AS HygieneRating,
@@ -392,23 +392,23 @@ namespace CateringEcommerce.BAL.Base.User
                 INNER JOIN {Table.SysOrders} o ON r.c_orderid = o.c_orderid
                 LEFT JOIN {Table.SysCateringReviewReply} orr ON r.c_reviewid = orr.c_reviewid
                 WHERE r.c_ownerid = @CateringId
-                  AND r.c_is_visible = 1
-                  AND r.c_ishidden = 0
+                  AND r.c_is_visible = TRUE
+                  AND r.c_ishidden = FALSE
                 ORDER BY r.c_createddate DESC
                 OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-            var reviewsParams = new SqlParameter[]
+            var reviewsParams = new NpgsqlParameter[]
             {
-                new SqlParameter("@CateringId", cateringId),
-                new SqlParameter("@Offset", (pageNumber - 1) * pageSize),
-                new SqlParameter("@PageSize", pageSize)
+                new NpgsqlParameter("@CateringId", cateringId),
+                new NpgsqlParameter("@Offset", (pageNumber - 1) * pageSize),
+                new NpgsqlParameter("@PageSize", pageSize)
             };
 
             var reviews = await _dbHelper.ExecuteQueryAsync<CateringReviewDisplayDto>(reviewsSql, reviewsParams);
 
             // Get total count
-            var countSql = $"SELECT COUNT(*) FROM {Table.SysCateringReview} WHERE c_ownerid = @CateringId AND c_is_visible = 1 AND c_ishidden = 0";
-            var countParams = new SqlParameter[] { new SqlParameter("@CateringId", cateringId) };
+            var countSql = $"SELECT COUNT(*) FROM {Table.SysCateringReview} WHERE c_ownerid = @CateringId AND c_is_visible = TRUE AND c_ishidden = FALSE";
+            var countParams = new NpgsqlParameter[] { new NpgsqlParameter("@CateringId", cateringId) };
             var totalCountResult = await _dbHelper.ExecuteScalarAsync(countSql, countParams);
             var totalCount = Convert.ToInt32(totalCountResult);
 
@@ -443,9 +443,9 @@ namespace CateringEcommerce.BAL.Base.User
                     AVG(c_decoration_rating) AS AvgDecoration,
                     AVG(c_punctuality_rating) AS AvgPunctuality
                 FROM {Table.SysCateringReview}
-                WHERE c_ownerid = @CateringId AND c_is_visible = 1 AND c_ishidden = 0";
+                WHERE c_ownerid = @CateringId AND c_is_visible = TRUE AND c_ishidden = FALSE";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@CateringId", cateringId) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@CateringId", cateringId) };
 
             var statsResults = await _dbHelper.ExecuteQueryAsync<ReviewStatsDto>(sql, parameters);
             var stats = statsResults?.FirstOrDefault();

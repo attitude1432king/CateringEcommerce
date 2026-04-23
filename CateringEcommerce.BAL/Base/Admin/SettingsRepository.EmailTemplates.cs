@@ -1,6 +1,6 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Scriban;
 using System.Data;
 
@@ -15,24 +15,24 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<EmailTemplateListResponse> GetEmailTemplatesAsync(EmailTemplateListRequest request)
         {
             var conditions = new List<string>();
-            var baseParameters = new List<SqlParameter>();
+            var baseParameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrWhiteSpace(request.Category))
             {
                 conditions.Add("t.c_category = @Category");
-                baseParameters.Add(new SqlParameter("@Category", request.Category));
+                baseParameters.Add(new NpgsqlParameter("@Category", request.Category));
             }
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 conditions.Add("(t.c_template_code LIKE @SearchTerm OR t.c_template_name LIKE @SearchTerm OR t.c_description LIKE @SearchTerm)");
-                baseParameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                baseParameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
             }
 
             if (request.IsActive.HasValue)
             {
                 conditions.Add("t.c_is_active = @IsActive");
-                baseParameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                baseParameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             string whereClause = conditions.Count > 0
@@ -70,8 +70,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 .Select(CloneParameter)
                 .ToList();
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dataQuery = $@"
                 SELECT
@@ -146,7 +146,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var parameters = new[]
             {
-                new SqlParameter("@TemplateId", templateId)
+                new NpgsqlParameter("@TemplateId", templateId)
             };
 
             using (var reader = await _dbHelper.ExecuteReaderAsync(query, parameters))
@@ -187,7 +187,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var parameters = new[]
             {
-                new SqlParameter("@TemplateCode", templateCode)
+                new NpgsqlParameter("@TemplateCode", templateCode)
             };
 
             var templateTable = await _dbHelper.ExecuteAsync(query, parameters);
@@ -211,21 +211,21 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INSERT INTO {Table.SysNotificationTemplates}
                 (c_template_code, c_template_name, c_description, c_language, c_channel, c_category, c_subject, c_body, c_version, c_is_active, c_usage_count, c_createddate, c_createdby)
                 VALUES
-                (@TemplateCode, @TemplateName, @Description, @Language, @Channel, @Category, @Subject, @Body, 1, @IsActive, 0, GETDATE(), @CreatedBy);
-                SELECT SCOPE_IDENTITY();";
+                (@TemplateCode, @TemplateName, @Description, @Language, @Channel, @Category, @Subject, @Body, 1, @IsActive, 0, NOW(), @CreatedBy)
+                    RETURNING c_template_id;";
 
             var parameters = new[]
             {
-                new SqlParameter("@TemplateCode", request.TemplateCode),
-                new SqlParameter("@TemplateName", request.TemplateName),
-                new SqlParameter("@Description", (object)request.Description ?? DBNull.Value),
-                new SqlParameter("@Language", request.Language ?? "en"),
-                new SqlParameter("@Channel", request.Channel ?? "EMAIL"),
-                new SqlParameter("@Category", request.Category),
-                new SqlParameter("@Subject", (object)request.Subject ?? DBNull.Value),
-                new SqlParameter("@Body", request.Body),
-                new SqlParameter("@IsActive", request.IsActive),
-                new SqlParameter("@CreatedBy", adminId)
+                new NpgsqlParameter("@TemplateCode", request.TemplateCode),
+                new NpgsqlParameter("@TemplateName", request.TemplateName),
+                new NpgsqlParameter("@Description", (object)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@Language", request.Language ?? "en"),
+                new NpgsqlParameter("@Channel", request.Channel ?? "EMAIL"),
+                new NpgsqlParameter("@Category", request.Category),
+                new NpgsqlParameter("@Subject", (object)request.Subject ?? DBNull.Value),
+                new NpgsqlParameter("@Body", request.Body),
+                new NpgsqlParameter("@IsActive", request.IsActive),
+                new NpgsqlParameter("@CreatedBy", adminId)
             };
 
             var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -250,20 +250,20 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_body = @Body,
                     c_is_active = @IsActive,
                     c_version = c_version + 1,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @ModifiedBy
                 WHERE c_template_id = @TemplateId";
 
             var parameters = new[]
             {
-                new SqlParameter("@TemplateName", request.TemplateName),
-                new SqlParameter("@Description", (object)request.Description ?? DBNull.Value),
-                new SqlParameter("@Category", request.Category),
-                new SqlParameter("@Subject", (object)request.Subject ?? DBNull.Value),
-                new SqlParameter("@Body", request.Body),
-                new SqlParameter("@IsActive", request.IsActive),
-                new SqlParameter("@ModifiedBy", adminId),
-                new SqlParameter("@TemplateId", request.TemplateId)
+                new NpgsqlParameter("@TemplateName", request.TemplateName),
+                new NpgsqlParameter("@Description", (object)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@Category", request.Category),
+                new NpgsqlParameter("@Subject", (object)request.Subject ?? DBNull.Value),
+                new NpgsqlParameter("@Body", request.Body),
+                new NpgsqlParameter("@IsActive", request.IsActive),
+                new NpgsqlParameter("@ModifiedBy", adminId),
+                new NpgsqlParameter("@TemplateId", request.TemplateId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -274,15 +274,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                     INSERT INTO {Table.SysAdminAuditLogs}
                     (c_admin_id, c_action, c_entity_type, c_entity_id, c_old_values, c_new_values, c_change_reason, c_timestamp)
                     VALUES
-                    (@AdminId, 'UPDATE', 'EmailTemplate', @EntityId, @OldValues, @NewValues, @ChangeReason, GETDATE())";
+                    (@AdminId, 'UPDATE', 'EmailTemplate', @EntityId, @OldValues, @NewValues, @ChangeReason, NOW())";
 
                 var auditParameters = new[]
                 {
-                    new SqlParameter("@AdminId", adminId),
-                    new SqlParameter("@EntityId", request.TemplateId.ToString()),
-                    new SqlParameter("@OldValues", $"Subject: {currentTemplate.Subject}, Version: {currentTemplate.Version}"),
-                    new SqlParameter("@NewValues", $"Subject: {request.Subject}, Version: {currentTemplate.Version + 1}"),
-                    new SqlParameter("@ChangeReason", request.ChangeReason ?? "Template updated")
+                    new NpgsqlParameter("@AdminId", adminId),
+                    new NpgsqlParameter("@EntityId", request.TemplateId.ToString()),
+                    new NpgsqlParameter("@OldValues", $"Subject: {currentTemplate.Subject}, Version: {currentTemplate.Version}"),
+                    new NpgsqlParameter("@NewValues", $"Subject: {request.Subject}, Version: {currentTemplate.Version + 1}"),
+                    new NpgsqlParameter("@ChangeReason", request.ChangeReason ?? "Template updated")
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(auditQuery, auditParameters);
@@ -388,7 +388,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var parameters = new[]
             {
-                new SqlParameter("@TemplateCode", templateCode)
+                new NpgsqlParameter("@TemplateCode", templateCode)
             };
 
             var variables = new List<TemplateVariableItem>();
@@ -497,7 +497,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             };
         }
 
-        private static EmailTemplateItem MapEmailTemplateFromReader(SqlDataReader reader)
+        private static EmailTemplateItem MapEmailTemplateFromReader(System.Data.Common.DbDataReader reader)
         {
             return new EmailTemplateItem
             {

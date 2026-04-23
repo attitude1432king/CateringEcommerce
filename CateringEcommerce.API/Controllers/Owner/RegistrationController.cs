@@ -9,7 +9,6 @@ using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.APIModels.Owner;
-using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -19,7 +18,6 @@ using System.Text.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
-    [OwnerAuthorize]
     [ApiController]
     [Route("api/Auth/Owner")]
     public class RegistrationController : ControllerBase
@@ -269,64 +267,64 @@ namespace CateringEcommerce.API.Controllers.Owner
                 // Default agreement text - can be updated to fetch from database or file
                 string agreementText = @"PARTNER AGREEMENT
 
-This Partner Agreement (""Agreement"") is entered into between ENYVORA (""Company"") and the Partner (""You"" or ""Partner"").
+                    This Partner Agreement (""Agreement"") is entered into between ENYVORA (""Company"") and the Partner (""You"" or ""Partner"").
 
-1. PARTNERSHIP TERMS
-By signing this agreement, the Partner agrees to list their catering services on the ENYVORA platform and comply with all terms and conditions outlined herein.
+                    1. PARTNERSHIP TERMS
+                    By signing this agreement, the Partner agrees to list their catering services on the ENYVORA platform and comply with all terms and conditions outlined herein.
 
-2. SERVICES
-The Partner agrees to:
-- Provide accurate business information including business name, contact details, and address
-- Maintain valid FSSAI, GST, PAN, and other required licenses at all times
-- Upload authentic photographs of kitchen facilities, food items, and event setups
-- Honor all orders received through the platform within agreed delivery timelines
-- Maintain quality standards as per food safety regulations
-- Respond to customer inquiries and complaints in a timely manner
+                    2. SERVICES
+                    The Partner agrees to:
+                    - Provide accurate business information including business name, contact details, and address
+                    - Maintain valid FSSAI, GST, PAN, and other required licenses at all times
+                    - Upload authentic photographs of kitchen facilities, food items, and event setups
+                    - Honor all orders received through the platform within agreed delivery timelines
+                    - Maintain quality standards as per food safety regulations
+                    - Respond to customer inquiries and complaints in a timely manner
 
-3. QUALITY STANDARDS
-- All food items must be prepared in hygienic conditions
-- FSSAI license must be valid and displayed at business premises
-- Quality of food and service must match the descriptions provided on platform
-- Partner must inform customers of any allergens or dietary restrictions
+                    3. QUALITY STANDARDS
+                    - All food items must be prepared in hygienic conditions
+                    - FSSAI license must be valid and displayed at business premises
+                    - Quality of food and service must match the descriptions provided on platform
+                    - Partner must inform customers of any allergens or dietary restrictions
 
-4. PRICING AND PAYMENTS
-- Partner has the right to set their own pricing for services
-- Company will process payments on behalf of customers
-- Payouts will be made weekly to the Partner's registered bank account
-- Platform commission rates will be communicated separately and may be revised with prior notice
-- All taxes are the responsibility of the Partner
+                    4. PRICING AND PAYMENTS
+                    - Partner has the right to set their own pricing for services
+                    - Company will process payments on behalf of customers
+                    - Payouts will be made weekly to the Partner's registered bank account
+                    - Platform commission rates will be communicated separately and may be revised with prior notice
+                    - All taxes are the responsibility of the Partner
 
-5. CANCELLATIONS AND REFUNDS
-- Partner must honor confirmed bookings unless circumstances are beyond control
-- Any cancellations must be communicated immediately to customers and the Company
-- Refund policies must comply with platform guidelines
+                    5. CANCELLATIONS AND REFUNDS
+                    - Partner must honor confirmed bookings unless circumstances are beyond control
+                    - Any cancellations must be communicated immediately to customers and the Company
+                    - Refund policies must comply with platform guidelines
 
-6. INTELLECTUAL PROPERTY
-- Partner grants Company the right to use business name, logo, and photographs for marketing
-- All content uploaded by Partner must be owned or properly licensed
-- Partner must not use Company's intellectual property without authorization
+                    6. INTELLECTUAL PROPERTY
+                    - Partner grants Company the right to use business name, logo, and photographs for marketing
+                    - All content uploaded by Partner must be owned or properly licensed
+                    - Partner must not use Company's intellectual property without authorization
 
-7. DATA PRIVACY
-- Partner agrees to comply with data protection laws
-- Customer information must be kept confidential and used only for order fulfillment
-- Partner will not share customer data with third parties
+                    7. DATA PRIVACY
+                    - Partner agrees to comply with data protection laws
+                    - Customer information must be kept confidential and used only for order fulfillment
+                    - Partner will not share customer data with third parties
 
-8. TERMINATION
-- Either party may terminate this agreement with 30 days written notice
-- Company reserves the right to suspend or terminate accounts for violation of terms
-- Upon termination, all pending orders must be fulfilled
+                    8. TERMINATION
+                    - Either party may terminate this agreement with 30 days written notice
+                    - Company reserves the right to suspend or terminate accounts for violation of terms
+                    - Upon termination, all pending orders must be fulfilled
 
-9. LIABILITY
-- Partner is solely responsible for food quality, safety, and customer satisfaction
-- Company is not liable for any issues arising from Partner's services
-- Partner must maintain appropriate insurance coverage
+                    9. LIABILITY
+                    - Partner is solely responsible for food quality, safety, and customer satisfaction
+                    - Company is not liable for any issues arising from Partner's services
+                    - Partner must maintain appropriate insurance coverage
 
-10. ACCEPTANCE
-By signing below, the Partner acknowledges that they have read, understood, and agree to be bound by all terms and conditions of this Agreement.
+                    10. ACCEPTANCE
+                    By signing below, the Partner acknowledges that they have read, understood, and agree to be bound by all terms and conditions of this Agreement.
 
-Date: {CurrentDate}
-Platform: Feasto Partners
-Version: 1.0";
+                    Date: {CurrentDate}
+                    Platform: Feasto Partners
+                    Version: 1.0";
 
                 agreementText = agreementText.Replace("{CurrentDate}", DateTime.Now.ToString("MMMM dd, yyyy"));
 

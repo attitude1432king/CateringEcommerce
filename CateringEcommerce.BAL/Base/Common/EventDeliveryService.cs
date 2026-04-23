@@ -2,10 +2,6 @@ using CateringEcommerce.BAL.Common;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Delivery;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace CateringEcommerce.BAL.Base.Common
 {

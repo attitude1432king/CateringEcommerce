@@ -2,7 +2,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Delivery;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -34,20 +34,19 @@ namespace CateringEcommerce.BAL.Common
                      c_delivery_status, c_scheduled_dispatch_time, c_createddate)
                     VALUES
                     (@OrderId, @OwnerId, @VehicleNumber, @DriverName, @DriverPhone,
-                     @DeliveryStatus, @ScheduledDispatchTime, GETDATE());
-
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);
+                     @DeliveryStatus, @ScheduledDispatchTime, NOW())
+                    RETURNING c_event_delivery_id;
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", request.OrderId),
-                    new SqlParameter("@OwnerId", request.OwnerId),
-                    new SqlParameter("@VehicleNumber", (object?)request.VehicleNumber ?? DBNull.Value),
-                    new SqlParameter("@DriverName", (object?)request.DriverName ?? DBNull.Value),
-                    new SqlParameter("@DriverPhone", (object?)request.DriverPhone ?? DBNull.Value),
-                    new SqlParameter("@DeliveryStatus", (int)EventDeliveryStatus.PreparationStarted),
-                    new SqlParameter("@ScheduledDispatchTime", (object?)request.ScheduledDispatchTime ?? DBNull.Value)
+                    new NpgsqlParameter("@OrderId", request.OrderId),
+                    new NpgsqlParameter("@OwnerId", request.OwnerId),
+                    new NpgsqlParameter("@VehicleNumber", (object?)request.VehicleNumber ?? DBNull.Value),
+                    new NpgsqlParameter("@DriverName", (object?)request.DriverName ?? DBNull.Value),
+                    new NpgsqlParameter("@DriverPhone", (object?)request.DriverPhone ?? DBNull.Value),
+                    new NpgsqlParameter("@DeliveryStatus", (int)EventDeliveryStatus.PreparationStarted),
+                    new NpgsqlParameter("@ScheduledDispatchTime", (object?)request.ScheduledDispatchTime ?? DBNull.Value)
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -77,9 +76,9 @@ namespace CateringEcommerce.BAL.Common
                     WHERE c_event_delivery_id = @EventDeliveryId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@EventDeliveryId", eventDeliveryId)
+                    new NpgsqlParameter("@EventDeliveryId", eventDeliveryId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -115,9 +114,9 @@ namespace CateringEcommerce.BAL.Common
                     WHERE c_orderid = @OrderId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -145,9 +144,9 @@ namespace CateringEcommerce.BAL.Common
                 // Build dynamic update based on new status
                 string timestampUpdate = request.NewStatus switch
                 {
-                    EventDeliveryStatus.Dispatched => "c_actual_dispatch_time = GETDATE(),",
-                    EventDeliveryStatus.ArrivedAtVenue => "c_arrived_time = GETDATE(),",
-                    EventDeliveryStatus.EventCompleted => "c_completed_time = GETDATE(),",
+                    EventDeliveryStatus.Dispatched => "c_actual_dispatch_time = NOW(),",
+                    EventDeliveryStatus.ArrivedAtVenue => "c_arrived_time = NOW(),",
+                    EventDeliveryStatus.EventCompleted => "c_completed_time = NOW(),",
                     _ => ""
                 };
 
@@ -160,18 +159,18 @@ namespace CateringEcommerce.BAL.Common
                         c_driver_name = COALESCE(@DriverName, c_driver_name),
                         c_driver_phone = COALESCE(@DriverPhone, c_driver_phone),
                         c_notes = COALESCE(@Notes, c_notes),
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_event_delivery_id = @EventDeliveryId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@EventDeliveryId", eventDeliveryId),
-                    new SqlParameter("@NewStatus", (int)request.NewStatus),
-                    new SqlParameter("@VehicleNumber", (object?)request.VehicleNumber ?? DBNull.Value),
-                    new SqlParameter("@DriverName", (object?)request.DriverName ?? DBNull.Value),
-                    new SqlParameter("@DriverPhone", (object?)request.DriverPhone ?? DBNull.Value),
-                    new SqlParameter("@Notes", (object?)request.Notes ?? DBNull.Value)
+                    new NpgsqlParameter("@EventDeliveryId", eventDeliveryId),
+                    new NpgsqlParameter("@NewStatus", (int)request.NewStatus),
+                    new NpgsqlParameter("@VehicleNumber", (object?)request.VehicleNumber ?? DBNull.Value),
+                    new NpgsqlParameter("@DriverName", (object?)request.DriverName ?? DBNull.Value),
+                    new NpgsqlParameter("@DriverPhone", (object?)request.DriverPhone ?? DBNull.Value),
+                    new NpgsqlParameter("@Notes", (object?)request.Notes ?? DBNull.Value)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -203,10 +202,10 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY c_scheduled_dispatch_time ASC, c_createddate ASC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@CompletedStatus", (int)EventDeliveryStatus.EventCompleted)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@CompletedStatus", (int)EventDeliveryStatus.EventCompleted)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -250,9 +249,9 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY ed.c_scheduled_dispatch_time ASC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@CompletedStatus", (int)EventDeliveryStatus.EventCompleted)
+                    new NpgsqlParameter("@CompletedStatus", (int)EventDeliveryStatus.EventCompleted)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -317,20 +316,19 @@ namespace CateringEcommerce.BAL.Common
                      c_changed_by_userid, c_changed_by_type, c_notes, c_changed_at)
                     VALUES
                     (@EventDeliveryId, @OrderId, @PreviousStatus, @NewStatus,
-                     @ChangedByUserId, @ChangedByType, @Notes, GETDATE());
-
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);
+                     @ChangedByUserId, @ChangedByType, @Notes, NOW())
+                    RETURNING c_event_delivery_id;
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@EventDeliveryId", history.EventDeliveryId),
-                    new SqlParameter("@OrderId", history.OrderId),
-                    new SqlParameter("@PreviousStatus", history.PreviousStatus.HasValue ? (int)history.PreviousStatus.Value : DBNull.Value),
-                    new SqlParameter("@NewStatus", (int)history.NewStatus),
-                    new SqlParameter("@ChangedByUserId", (object?)history.ChangedByUserId ?? DBNull.Value),
-                    new SqlParameter("@ChangedByType", (object?)history.ChangedByType ?? DBNull.Value),
-                    new SqlParameter("@Notes", (object?)history.Notes ?? DBNull.Value)
+                    new NpgsqlParameter("@EventDeliveryId", history.EventDeliveryId),
+                    new NpgsqlParameter("@OrderId", history.OrderId),
+                    new NpgsqlParameter("@PreviousStatus", history.PreviousStatus.HasValue ? (int)history.PreviousStatus.Value : DBNull.Value),
+                    new NpgsqlParameter("@NewStatus", (int)history.NewStatus),
+                    new NpgsqlParameter("@ChangedByUserId", (object?)history.ChangedByUserId ?? DBNull.Value),
+                    new NpgsqlParameter("@ChangedByType", (object?)history.ChangedByType ?? DBNull.Value),
+                    new NpgsqlParameter("@Notes", (object?)history.Notes ?? DBNull.Value)
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -359,9 +357,9 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY c_changed_at ASC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@EventDeliveryId", eventDeliveryId)
+                    new NpgsqlParameter("@EventDeliveryId", eventDeliveryId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -428,3 +426,4 @@ namespace CateringEcommerce.BAL.Common
         }
     }
 }
+

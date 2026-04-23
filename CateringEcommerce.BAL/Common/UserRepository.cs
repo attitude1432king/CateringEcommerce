@@ -4,7 +4,7 @@ using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace CateringEcommerce.BAL.Common
 {
@@ -19,13 +19,13 @@ namespace CateringEcommerce.BAL.Common
         public UserModel GetUserDetails(Int64 userPKID)
         {
             string query = $"SELECT * FROM {Table.SysUser} WHERE c_userid = @UserPKID";
-            SqlParameter[] parameters = Array.Empty<SqlParameter>();
+            NpgsqlParameter[] parameters = Array.Empty<NpgsqlParameter>();
 
             if (userPKID > 0)
             {
                 parameters = new[]
                 {
-                    new SqlParameter("@UserPKID", userPKID)
+                    new NpgsqlParameter("@UserPKID", userPKID)
                 };
             }
 
@@ -63,8 +63,8 @@ namespace CateringEcommerce.BAL.Common
         {
             string tableName = GetUserTableName(role);
             string query = $"SELECT Count(c_email) FROM {tableName} WHERE c_email = @Email";
-            SqlParameter[] parameters = {
-                    new SqlParameter("@Email", email)
+            NpgsqlParameter[] parameters = {
+                    new NpgsqlParameter("@Email", email)
                     };
             return Convert.ToBoolean(_dbHelper.ExecuteScalar(query, parameters));
         }
@@ -79,8 +79,8 @@ namespace CateringEcommerce.BAL.Common
         {
             string tableName = GetUserTableName(role);
             string query = $"SELECT Count(c_mobile) FROM {tableName} WHERE c_mobile = @phoneNumber";
-            SqlParameter[] parameters = {
-                    new SqlParameter("@phoneNumber", phoneNumber)
+            NpgsqlParameter[] parameters = {
+                    new NpgsqlParameter("@phoneNumber", phoneNumber)
                     };
             return Convert.ToBoolean(_dbHelper.ExecuteScalar(query, parameters));
         }
@@ -90,8 +90,8 @@ namespace CateringEcommerce.BAL.Common
             string tableName = GetUserTableName(role);
             string numberColumn = type == "phone" ? "c_mobile" : "c_catering_number";
             string query = $"SELECT Count({numberColumn}) FROM {tableName} WHERE {numberColumn} = @phoneNumber";
-            SqlParameter[] parameters = {
-                    new SqlParameter("@phoneNumber", phoneNumber.Substring(3))
+            NpgsqlParameter[] parameters = {
+                    new NpgsqlParameter("@phoneNumber", phoneNumber.Substring(3))
                     };
             return Convert.ToBoolean(_dbHelper.ExecuteScalar(query, parameters));
         }
@@ -103,8 +103,8 @@ namespace CateringEcommerce.BAL.Common
         public int? GetOwnerApprovalStatus(string phoneNumber)
         {
             string query = $"SELECT c_approval_status FROM {Table.SysCateringOwner} WHERE c_catering_number = @phoneNumber OR c_mobile = @phoneNumber";
-            SqlParameter[] parameters = {
-                    new SqlParameter("@phoneNumber", phoneNumber)
+            NpgsqlParameter[] parameters = {
+                    new NpgsqlParameter("@phoneNumber", phoneNumber)
                     };
             
             var result = _dbHelper.ExecuteScalar(query, parameters);
@@ -123,8 +123,8 @@ namespace CateringEcommerce.BAL.Common
         public (bool exists, int? approvalStatus) CheckOwnerWithApprovalStatus(string phoneNumber)
         {
             string query = $"SELECT c_ownerid, c_approval_status FROM {Table.SysCateringOwner} WHERE c_catering_number = @phoneNumber OR c_mobile = @phoneNumber";
-            SqlParameter[] parameters = {
-                    new SqlParameter("@phoneNumber", phoneNumber)
+            NpgsqlParameter[] parameters = {
+                    new NpgsqlParameter("@phoneNumber", phoneNumber)
                     };
             
             var dt = _dbHelper.Execute(query, parameters);

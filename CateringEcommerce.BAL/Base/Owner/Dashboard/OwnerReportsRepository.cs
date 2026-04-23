@@ -1,10 +1,10 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -36,8 +36,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         SUM(CASE WHEN c_order_status = 'Completed' THEN 1 ELSE 0 END) AS CompletedOrders,
                         SUM(CASE WHEN c_order_status = 'Pending' OR c_order_status = 'Confirmed' THEN 1 ELSE 0 END) AS PendingOrders,
                         SUM(CASE WHEN c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS CancelledOrders,
-                        ISNULL(SUM(c_total_amount), 0) AS TotalRevenue,
-                        ISNULL(AVG(c_total_amount), 0) AS AverageOrderValue,
+                        COALESCE(SUM(c_total_amount), 0) AS TotalRevenue,
+                        COALESCE(AVG(c_total_amount), 0) AS AverageOrderValue,
                         SUM(c_guest_count) AS TotalGuestsServed
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
@@ -58,7 +58,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                     -- Time Series Data
                     SELECT
-                        FORMAT(c_createddate, 'MMM yyyy') AS Period,
+                        TO_CHAR(c_createddate, 'Mon YYYY') AS Period,
                         COUNT(*) AS OrderCount,
                         SUM(c_total_amount) AS Revenue,
                         SUM(c_guest_count) AS GuestsServed
@@ -66,26 +66,23 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     WHERE c_ownerid = @OwnerId
                         AND c_createddate >= @StartDate
                         AND c_createddate <= @EndDate
-                    GROUP BY YEAR(c_createddate), MONTH(c_createddate), FORMAT(c_createddate, 'MMM yyyy')
-                    ORDER BY YEAR(c_createddate), MONTH(c_createddate);
+                    GROUP BY EXTRACT(YEAR FROM c_createddate), EXTRACT(MONTH FROM c_createddate), TO_CHAR(c_createddate, 'Mon YYYY')
+                    ORDER BY EXTRACT(YEAR FROM c_createddate), EXTRACT(MONTH FROM c_createddate);
 
                     -- Comparison with previous period
-                    DECLARE @PreviousStartDate DATE = DATEADD(DAY, -DATEDIFF(DAY, @StartDate, @EndDate), @StartDate);
-                    DECLARE @PreviousEndDate DATE = @StartDate;
-
                     SELECT
-                        ISNULL(SUM(c_total_amount), 0) AS PreviousRevenue,
+                        COALESCE(SUM(c_total_amount), 0) AS PreviousRevenue,
                         COUNT(*) AS PreviousOrders
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId
-                        AND c_createddate >= @PreviousStartDate
-                        AND c_createddate < @PreviousEndDate;";
+                        AND c_createddate >= @StartDate - ((@EndDate::date - @StartDate::date) * INTERVAL '1 day')
+                        AND c_createddate < @StartDate;";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@StartDate", startDate),
-                    new SqlParameter("@EndDate", endDate)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@StartDate", startDate),
+                    new NpgsqlParameter("@EndDate", endDate)
                 };
 
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -176,14 +173,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         SUM(o.c_tax_amount) AS TotalTax,
                         SUM(o.c_discount_amount) AS TotalDiscounts,
                         SUM(o.c_delivery_charges) AS DeliveryCharges,
-                        SUM(CASE WHEN o.c_payment_status != 'Completed' THEN o.c_total_amount - ISNULL(pay.PaidAmount, 0) ELSE 0 END) AS PendingPayments
+                        SUM(CASE WHEN o.c_payment_status != 'Completed' THEN o.c_total_amount - COALESCE(pay.PaidAmount, 0) ELSE 0 END) AS PendingPayments
                     FROM {Table.SysOrders} o
-                    OUTER APPLY (
-                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                    LEFT JOIN LATERAL (
+                        SELECT SUM(COALESCE(p.c_paid_amount, p.c_amount)) AS PaidAmount
                         FROM {Table.SysOrderPayments} p
                         WHERE p.c_orderid = o.c_orderid
-                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
-                    ) pay
+                          AND COALESCE(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay ON TRUE
                     WHERE o.c_ownerid = @OwnerId
                         AND o.c_createddate >= @StartDate
                         AND o.c_createddate <= @EndDate;
@@ -191,7 +188,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- Payment Method Breakdown
                     SELECT
                         c_payment_method AS PaymentMethod,
-                        SUM(ISNULL(c_paid_amount, c_amount)) AS Amount
+                        SUM(COALESCE(c_paid_amount, c_amount)) AS Amount
                     FROM {Table.SysOrderPayments}
                     WHERE c_orderid IN (
                         SELECT c_orderid FROM {Table.SysOrders}
@@ -213,8 +210,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                     -- Monthly Revenue
                     SELECT
-                        FORMAT(c_createddate, 'MMM yyyy') AS Month,
-                        YEAR(c_createddate) AS Year,
+                        TO_CHAR(c_createddate, 'Mon YYYY') AS Month,
+                        EXTRACT(YEAR FROM c_createddate) AS Year,
                         SUM(c_total_amount) AS GrossRevenue,
                         SUM(c_total_amount - c_tax_amount) AS NetRevenue,
                         SUM(c_tax_amount) AS TaxAmount,
@@ -224,8 +221,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     WHERE c_ownerid = @OwnerId
                         AND c_createddate >= @StartDate
                         AND c_createddate <= @EndDate
-                    GROUP BY YEAR(c_createddate), MONTH(c_createddate), FORMAT(c_createddate, 'MMM yyyy')
-                    ORDER BY YEAR(c_createddate), MONTH(c_createddate);
+                    GROUP BY EXTRACT(YEAR FROM c_createddate), EXTRACT(MONTH FROM c_createddate), TO_CHAR(c_createddate, 'Mon YYYY')
+                    ORDER BY EXTRACT(YEAR FROM c_createddate), EXTRACT(MONTH FROM c_createddate);
 
                     -- Revenue by Event Type
                     SELECT
@@ -239,9 +236,9 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@StartDate", startDate),
-                    new SqlParameter("@EndDate", endDate)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@StartDate", startDate),
+                    new NpgsqlParameter("@EndDate", endDate)
                 };
 
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -337,7 +334,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
                             AND o2.c_createddate < @StartDate
                         ) THEN o.c_userid END) AS ReturningCustomers,
-                        ISNULL(AVG(CustomerLifetime.LifetimeValue), 0) AS AverageLifetimeValue
+                        COALESCE(AVG(CustomerLifetime.LifetimeValue), 0) AS AverageLifetimeValue
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
                     LEFT JOIN (
@@ -351,7 +348,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         AND o.c_createddate <= @EndDate;
 
                     -- Customer Satisfaction
-                    SELECT ISNULL(AVG(CAST(c_overall_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfactionScore
+                    SELECT COALESCE(AVG(CAST(c_overall_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfactionScore
                     FROM {Table.SysCateringReview} r
                     INNER JOIN {Table.SysOrders} o ON r.c_orderid = o.c_orderid
                     WHERE o.c_ownerid = @OwnerId
@@ -359,7 +356,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         AND o.c_createddate <= @EndDate;
 
                     -- Top Customers
-                    SELECT TOP 10
+                    SELECT
                         u.c_userid AS CustomerId,
                         CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
                         u.c_email AS Email,
@@ -373,33 +370,34 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         AND o.c_createddate >= @StartDate
                         AND o.c_createddate <= @EndDate
                     GROUP BY u.c_userid, u.c_firstname, u.c_lastname, u.c_email, u.c_mobilenumber
-                    ORDER BY LifetimeValue DESC;
+                    ORDER BY LifetimeValue DESC
+                    LIMIT 10;
 
                     -- Customer Acquisition by Month
                     SELECT
-                        FORMAT(o.c_createddate, 'MMM yyyy') AS Month,
+                        TO_CHAR(o.c_createddate, 'Mon YYYY') AS Month,
                         COUNT(DISTINCT CASE WHEN NOT EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_createddate < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_createddate), 0)
+                            AND o2.c_createddate < DATE_TRUNC('month', o.c_createddate)
                         ) THEN o.c_userid END) AS NewCustomers,
                         COUNT(DISTINCT CASE WHEN EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_createddate < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_createddate), 0)
+                            AND o2.c_createddate < DATE_TRUNC('month', o.c_createddate)
                         ) THEN o.c_userid END) AS ReturningCustomers
                     FROM {Table.SysOrders} o
                     WHERE o.c_ownerid = @OwnerId
                         AND o.c_createddate >= @StartDate
                         AND o.c_createddate <= @EndDate
-                    GROUP BY YEAR(o.c_createddate), MONTH(o.c_createddate), FORMAT(o.c_createddate, 'MMM yyyy')
-                    ORDER BY YEAR(o.c_createddate), MONTH(o.c_createddate);";
+                    GROUP BY EXTRACT(YEAR FROM o.c_createddate), EXTRACT(MONTH FROM o.c_createddate), TO_CHAR(o.c_createddate, 'Mon YYYY')
+                    ORDER BY EXTRACT(YEAR FROM o.c_createddate), EXTRACT(MONTH FROM o.c_createddate);";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@StartDate", startDate),
-                    new SqlParameter("@EndDate", endDate)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@StartDate", startDate),
+                    new NpgsqlParameter("@EndDate", endDate)
                 };
 
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -489,20 +487,20 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- Food Items & Package Performance
                     SELECT
                         f.c_foodid AS MenuItemId,
-                        ISNULL(f.c_foodname, p.c_packagename) AS MenuItemName,
-                        ISNULL(fc.c_categoryname, 'Package') AS Category,
+                        COALESCE(f.c_foodname, p.c_packagename) AS MenuItemName,
+                        COALESCE(fc.c_categoryname, 'Package') AS Category,
                         COUNT(DISTINCT oi.c_orderid) AS OrderCount,
                         SUM(oi.c_quantity) AS TotalQuantitySold,
                         SUM(oi.c_item_total) AS TotalRevenue,
-                        ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(10,2))), 0) AS AverageRating,
+                        COALESCE(AVG(CAST(r.c_overall_rating AS DECIMAL(10,2))), 0) AS AverageRating,
                         f.c_price AS Price,
                         CASE
-                            WHEN f.c_ispackage_item = 1 THEN 'Package'
+                            WHEN f.c_ispackage_item = TRUE THEN 'Package'
                             ELSE 'Individual Item'
                         END AS ItemType
                     FROM {Table.SysFoodItems} f
                     LEFT JOIN {Table.SysFoodCategory} fc ON f.c_categoryid = fc.c_categoryid
-                    LEFT JOIN {Table.SysMenuPackage} p ON f.c_ispackage_item = 1
+                    LEFT JOIN {Table.SysMenuPackage} p ON f.c_ispackage_item = TRUE
                         AND EXISTS (
                             SELECT 1 FROM {Table.SysMenuPackageItems} pi
                             WHERE pi.c_packageid = p.c_packageid
@@ -511,43 +509,43 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     LEFT JOIN {Table.SysOrders} o ON oi.c_orderid = o.c_orderid
                     LEFT JOIN {Table.SysCateringReview} r ON o.c_orderid = r.c_orderid
                     WHERE f.c_ownerid = @OwnerId
-                        AND f.c_is_deleted = 0
+                        AND f.c_is_deleted = FALSE
                         AND (o.c_orderid IS NULL OR (o.c_createddate >= @StartDate AND o.c_createddate <= @EndDate))
-                    GROUP BY f.c_foodid, ISNULL(f.c_foodname, p.c_packagename),
-                             ISNULL(fc.c_categoryname, 'Package'), f.c_price, f.c_ispackage_item;
+                    GROUP BY f.c_foodid, COALESCE(f.c_foodname, p.c_packagename),
+                             COALESCE(fc.c_categoryname, 'Package'), f.c_price, f.c_ispackage_item;
 
                     -- Category Performance (Food Categories + Packages)
                     SELECT
-                        ISNULL(fc.c_categoryname, 'Package') AS CategoryName,
+                        COALESCE(fc.c_categoryname, 'Package') AS CategoryName,
                         COUNT(DISTINCT f.c_foodid) AS ItemCount,
                         COUNT(DISTINCT oi.c_orderid) AS TotalOrders,
                         SUM(oi.c_item_total) AS TotalRevenue,
-                        ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(10,2))), 0) AS AverageRating
+                        COALESCE(AVG(CAST(r.c_overall_rating AS DECIMAL(10,2))), 0) AS AverageRating
                     FROM {Table.SysFoodItems} f
                     LEFT JOIN {Table.SysFoodCategory} fc ON f.c_categoryid = fc.c_categoryid
                     LEFT JOIN {Table.SysOrderItems} oi ON f.c_foodid = oi.c_foodid
                     LEFT JOIN {Table.SysOrders} o ON oi.c_orderid = o.c_orderid
                     LEFT JOIN {Table.SysCateringReview} r ON o.c_orderid = r.c_orderid
                     WHERE f.c_ownerid = @OwnerId
-                        AND f.c_is_deleted = 0
+                        AND f.c_is_deleted = FALSE
                         AND (o.c_orderid IS NULL OR (o.c_createddate >= @StartDate AND o.c_createddate <= @EndDate))
-                    GROUP BY ISNULL(fc.c_categoryname, 'Package');
+                    GROUP BY COALESCE(fc.c_categoryname, 'Package');
 
                     -- Total Active Items (Food Items + Packages)
                     SELECT
                         COUNT(*) AS TotalItems,
-                        SUM(CASE WHEN c_ispackage_item = 1 THEN 1 ELSE 0 END) AS TotalPackages,
-                        SUM(CASE WHEN c_ispackage_item = 0 OR c_ispackage_item IS NULL THEN 1 ELSE 0 END) AS TotalIndividualItems
+                        SUM(CASE WHEN c_ispackage_item = TRUE THEN 1 ELSE 0 END) AS TotalPackages,
+                        SUM(CASE WHEN c_ispackage_item = FALSE OR c_ispackage_item IS NULL THEN 1 ELSE 0 END) AS TotalIndividualItems
                     FROM {Table.SysFoodItems}
                     WHERE c_ownerid = @OwnerId
                         AND c_status = 1
-                        AND c_is_deleted = 0;";
+                        AND c_is_deleted = FALSE;";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@StartDate", startDate),
-                    new SqlParameter("@EndDate", endDate)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@StartDate", startDate),
+                    new NpgsqlParameter("@EndDate", endDate)
                 };
 
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -670,27 +668,27 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
                         o.c_event_date AS EventDate,
                         o.c_total_amount AS TotalAmount,
-                        ISNULL(pay.PaidAmount, 0) AS PaidAmount,
-                        (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) AS BalanceAmount,
-                        DATEDIFF(DAY, o.c_event_date, GETDATE()) AS DaysOverdue
+                        COALESCE(pay.PaidAmount, 0) AS PaidAmount,
+                        (o.c_total_amount - COALESCE(pay.PaidAmount, 0)) AS BalanceAmount,
+                        (CURRENT_DATE - o.c_event_date::date) AS DaysOverdue
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
-                    OUTER APPLY (
-                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                    LEFT JOIN LATERAL (
+                        SELECT SUM(COALESCE(p.c_paid_amount, p.c_amount)) AS PaidAmount
                         FROM {Table.SysOrderPayments} p
                         WHERE p.c_orderid = o.c_orderid
-                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
-                    ) pay
+                          AND COALESCE(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay ON TRUE
                     WHERE o.c_ownerid = @OwnerId
                         AND o.c_payment_status != 'Completed'
-                        AND (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) > 0
+                        AND (o.c_total_amount - COALESCE(pay.PaidAmount, 0)) > 0
                     ORDER BY DaysOverdue DESC;";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@StartDate", startDate),
-                    new SqlParameter("@EndDate", endDate)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@StartDate", startDate),
+                    new NpgsqlParameter("@EndDate", endDate)
                 };
 
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -846,7 +844,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             if (report.TopItems.Count > 0)
             {
                 var topItem = report.TopItems.First();
-                recommendations.Add($"'{topItem.MenuItemName}' is your best performer with ₹{topItem.TotalRevenue:N0} in revenue. Consider creating variations or promoting it more.");
+                recommendations.Add($"'{topItem.MenuItemName}' is your best performer with â‚¹{topItem.TotalRevenue:N0} in revenue. Consider creating variations or promoting it more.");
             }
 
             var lowRatedItems = report.TopItems.Where(i => i.AverageRating < 3.5m).ToList();
@@ -859,4 +857,5 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         }
     }
 }
+
 

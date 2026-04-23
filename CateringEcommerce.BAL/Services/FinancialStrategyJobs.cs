@@ -1,6 +1,6 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
@@ -81,9 +81,9 @@ namespace CateringEcommerce.BAL.Services
                     SELECT vpt.*, co.c_catering_name, co.c_email
                     FROM {Table.SysOwnerPartnershipTiers} vpt
                     INNER JOIN {Table.SysCateringOwner} co ON vpt.c_ownerid = co.c_ownerid
-                    WHERE vpt.c_is_lock_period_active = 1
-                      AND DATEDIFF(DAY, GETDATE(), vpt.c_tier_lock_end_date) = 60
-                      AND vpt.c_transition_notice_sent = 0";
+                    WHERE vpt.c_is_lock_period_active = TRUE
+                      AND (vpt.c_tier_lock_end_date::date - CURRENT_DATE) = 60
+                      AND vpt.c_transition_notice_sent = FALSE";
 
                 var vendors = await _dbHelper.ExecuteQueryAsync<dynamic>(query);
 
@@ -96,12 +96,12 @@ namespace CateringEcommerce.BAL.Services
                     var updateQuery = $@"
                         UPDATE {Table.SysOwnerPartnershipTiers}
                         SET c_transition_notice_sent = 1,
-                            c_transition_notice_sent_date = GETDATE()
+                            c_transition_notice_sent_date = NOW()
                         WHERE c_tier_id = @TierId";
 
                     await _dbHelper.ExecuteNonQueryAsync(updateQuery, new[]
                     {
-                        new SqlParameter("@TierId", vendor.c_tier_id)
+                        new NpgsqlParameter("@TierId", vendor.c_tier_id)
                     });
                 }
 
@@ -127,9 +127,9 @@ namespace CateringEcommerce.BAL.Services
                 var query = $@"
                     UPDATE {Table.SysOrderComplaints}
                     SET c_status = 'Escalated',
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_status = 'Open'
-                      AND DATEDIFF(HOUR, c_createddate, GETDATE()) > 12
+                      AND EXTRACT(EPOCH FROM (NOW() - c_createddate)) / 3600 > 12
                       AND c_severity IN ('CRITICAL', 'MAJOR')";
 
                 var escalatedCount = await _dbHelper.ExecuteNonQueryAsync(query);
@@ -144,3 +144,4 @@ namespace CateringEcommerce.BAL.Services
         }
     }
 }
+

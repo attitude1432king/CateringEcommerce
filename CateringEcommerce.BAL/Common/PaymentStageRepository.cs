@@ -1,9 +1,10 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
+using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -35,18 +36,18 @@ namespace CateringEcommerce.BAL.Common
                         c_status, c_due_date, c_reminder_sent_count, c_createddate
                     ) VALUES (
                         @OrderId, @StageType, @StagePercentage, @StageAmount,
-                        'Pending', @DueDate, 0, GETDATE()
-                    );
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);
+                        'Pending', @DueDate, 0, NOW()
+                    )
+                    RETURNING c_payment_stage_id;
                 ");
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@StageType", stageType),
-                    new SqlParameter("@StagePercentage", stagePercentage),
-                    new SqlParameter("@StageAmount", stageAmount),
-                    new SqlParameter("@DueDate", (object)dueDate ?? DBNull.Value)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@StageType", stageType),
+                    new NpgsqlParameter("@StagePercentage", stagePercentage),
+                    new NpgsqlParameter("@StageAmount", stageAmount),
+                    new NpgsqlParameter("@DueDate", (object)dueDate ?? DBNull.Value)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
@@ -81,9 +82,9 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY c_stage_type ASC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -106,7 +107,7 @@ namespace CateringEcommerce.BAL.Common
         }
 
         // ===================================
-        // GET PENDING PAYMENT STAGES
+        // GET PENDIOG PAYMENT STAGES
         // ===================================
         public async Task<List<PaymentStageDto>> GetPendingPaymentStagesAsync(long orderId)
         {
@@ -123,9 +124,9 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY c_stage_type ASC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -164,20 +165,20 @@ namespace CateringEcommerce.BAL.Common
                         c_razorpay_payment_id = @RazorpayPaymentId,
                         c_transaction_id = @TransactionId,
                         c_upi_id = @UpiId,
-                        c_payment_date = GETDATE()
+                        c_payment_date = NOW()
                     WHERE c_payment_stage_id = @PaymentStageId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PaymentStageId", paymentStageId),
-                    new SqlParameter("@Status", status),
-                    new SqlParameter("@PaymentMethod", paymentData.PaymentMethod),
-                    new SqlParameter("@PaymentGateway", (object)paymentData.PaymentGateway ?? DBNull.Value),
-                    new SqlParameter("@RazorpayOrderId", (object)paymentData.RazorpayOrderId ?? DBNull.Value),
-                    new SqlParameter("@RazorpayPaymentId", (object)paymentData.RazorpayPaymentId ?? DBNull.Value),
-                    new SqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value),
-                    new SqlParameter("@UpiId", (object)paymentData.UpiId ?? DBNull.Value)
+                    new NpgsqlParameter("@PaymentStageId", paymentStageId),
+                    new NpgsqlParameter("@Status", status),
+                    new NpgsqlParameter("@PaymentMethod", paymentData.PaymentMethod),
+                    new NpgsqlParameter("@PaymentGateway", (object)paymentData.PaymentGateway ?? DBNull.Value),
+                    new NpgsqlParameter("@RazorpayOrderId", (object)paymentData.RazorpayOrderId ?? DBNull.Value),
+                    new NpgsqlParameter("@RazorpayPaymentId", (object)paymentData.RazorpayPaymentId ?? DBNull.Value),
+                    new NpgsqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value),
+                    new NpgsqlParameter("@UpiId", (object)paymentData.UpiId ?? DBNull.Value)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -190,7 +191,7 @@ namespace CateringEcommerce.BAL.Common
         }
 
         // ===================================
-        // UPDATE PAYMENT STAGE WITH ORDER STATUS (Transactional - NEW)
+        // UPDATE PAYMENT STAGE WITH ORDER STATUS (Transactional - OEW)
         // CRITICAL: This is the preferred method for payment verification
         // ===================================
         public async Task<bool> UpdatePaymentStageWithOrderStatusAsync(
@@ -203,21 +204,21 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PaymentStageId", paymentStageId),
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@StageType", stageType),
-                    new SqlParameter("@Status", status),
-                    new SqlParameter("@PaymentMethod", paymentData.PaymentMethod),
-                    new SqlParameter("@PaymentGateway", (object)paymentData.PaymentGateway ?? DBNull.Value),
-                    new SqlParameter("@RazorpayOrderId", (object)paymentData.RazorpayOrderId ?? DBNull.Value),
-                    new SqlParameter("@RazorpayPaymentId", (object)paymentData.RazorpayPaymentId ?? DBNull.Value),
-                    new SqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value),
-                    new SqlParameter("@UpiId", (object)paymentData.UpiId ?? DBNull.Value),
-                    new SqlParameter("@NewOrderStatus", (object)newOrderStatus ?? DBNull.Value),
-                    new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                    new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@PaymentStageId", paymentStageId),
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@StageType", stageType),
+                    new NpgsqlParameter("@Status", status),
+                    new NpgsqlParameter("@PaymentMethod", paymentData.PaymentMethod),
+                    new NpgsqlParameter("@PaymentGateway", (object)paymentData.PaymentGateway ?? DBNull.Value),
+                    new NpgsqlParameter("@RazorpayOrderId", (object)paymentData.RazorpayOrderId ?? DBNull.Value),
+                    new NpgsqlParameter("@RazorpayPaymentId", (object)paymentData.RazorpayPaymentId ?? DBNull.Value),
+                    new NpgsqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value),
+                    new NpgsqlParameter("@UpiId", (object)paymentData.UpiId ?? DBNull.Value),
+                    new NpgsqlParameter("@NewOrderStatus", (object)newOrderStatus ?? DBNull.Value),
+                    new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                    new NpgsqlParameter("@ErrorMessage", NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_UpdatePaymentStageWithOrderStatus", parameters);
@@ -239,7 +240,7 @@ namespace CateringEcommerce.BAL.Common
         }
 
         // ===================================
-        // GET ORDERS WITH PENDING POST-EVENT PAYMENTS
+        // GET ORDERS WITH PENDIOG POST-EVENT PAYMENTS
         // ===================================
         public async Task<DataTable> GetOrdersWithPendingPostEventPaymentsAsync()
         {
@@ -255,12 +256,12 @@ namespace CateringEcommerce.BAL.Common
                     INNER JOIN {Table.SysOrderPaymentStages} ps ON o.c_orderid = ps.c_orderid
                     WHERE ps.c_stage_type = 'PostEvent'
                     AND ps.c_status = 'Pending'
-                    AND o.c_event_date < GETDATE()
+                    AND o.c_event_date < NOW()
                     AND o.c_order_status IN ('Completed', 'InProgress')
                     ORDER BY o.c_event_date ASC
                 ";
 
-                DataTable dt = await _dbHelper.ExecuteAsync(query, Array.Empty<SqlParameter>());
+                DataTable dt = await _dbHelper.ExecuteAsync(query, Array.Empty<NpgsqlParameter>());
                 return dt;
             }
             catch (Exception ex)
@@ -280,13 +281,13 @@ namespace CateringEcommerce.BAL.Common
                     UPDATE {Table.SysOrderPaymentStages}
                     SET
                         c_reminder_sent_count = c_reminder_sent_count + 1,
-                        c_last_reminder_date = GETDATE()
+                        c_last_reminder_date = NOW()
                     WHERE c_payment_stage_id = @PaymentStageId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PaymentStageId", paymentStageId)
+                    new NpgsqlParameter("@PaymentStageId", paymentStageId)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -326,3 +327,4 @@ namespace CateringEcommerce.BAL.Common
         }
     }
 }
+

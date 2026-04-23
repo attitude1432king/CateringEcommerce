@@ -9,7 +9,7 @@ using CateringEcommerce.BAL.Services;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Microsoft.Extensions.Configuration;
 
 namespace CateringEcommerce.BAL.Base.User
@@ -345,9 +345,9 @@ namespace CateringEcommerce.BAL.Base.User
                     WHERE c_razorpay_payment_id = @RazorpayPaymentId
                       AND c_status = 'Success'";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@RazorpayPaymentId", razorpayPaymentId)
+                    new NpgsqlParameter("@RazorpayPaymentId", razorpayPaymentId)
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync<int>(query, parameters, CommandType.Text);
@@ -372,7 +372,7 @@ namespace CateringEcommerce.BAL.Base.User
                 }
 
                 string query = $@"
-                    SELECT TOP 1
+                    SELECT
                         c_payment_stage_id,
                         c_orderid,
                         c_stage_type,
@@ -391,11 +391,12 @@ namespace CateringEcommerce.BAL.Base.User
                         c_last_reminder_date,
                         c_createddate
                     FROM {Table.SysOrderPaymentStages}
-                    WHERE c_razorpay_payment_id = @RazorpayPaymentId";
+                    WHERE c_razorpay_payment_id = @RazorpayPaymentId
+                    LIMIT 1";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@RazorpayPaymentId", razorpayPaymentId)
+                    new NpgsqlParameter("@RazorpayPaymentId", razorpayPaymentId)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);

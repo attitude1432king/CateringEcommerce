@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Models.Supervisor;
+using NpgsqlTypes;
 
 namespace CateringEcommerce.BAL.Base.Supervisor
 {
@@ -31,22 +32,22 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", request.AssignmentId),
-                new SqlParameter("@SupervisorId", request.SupervisorId),
-                new SqlParameter("@MenuVerified", request.MenuVerified),
-                new SqlParameter("@MenuVsContractMatch", request.MenuVsContractMatch),
-                new SqlParameter("@MenuVerificationNotes", (object)request.MenuVerificationNotes ?? DBNull.Value),
-                new SqlParameter("@MenuVerificationPhotos", (object)JsonSerializer.Serialize(request.MenuVerificationPhotos ?? new List<string>()) ?? DBNull.Value),
-                new SqlParameter("@RawMaterialVerified", request.RawMaterialVerified),
-                new SqlParameter("@RawMaterialQualityOK", request.RawMaterialQualityOK),
-                new SqlParameter("@RawMaterialQuantityOK", request.RawMaterialQuantityOK),
-                new SqlParameter("@RawMaterialNotes", (object)request.RawMaterialNotes ?? DBNull.Value),
-                new SqlParameter("@RawMaterialPhotos", (object)JsonSerializer.Serialize(request.RawMaterialPhotos ?? new List<string>()) ?? DBNull.Value),
-                new SqlParameter("@GuestCountConfirmed", request.GuestCountConfirmed),
-                new SqlParameter("@ConfirmedGuestCount", request.ConfirmedGuestCount),
-                new SqlParameter("@PreEventEvidenceUrls", (object)JsonSerializer.Serialize(request.PreEventEvidence ?? new List<TimestampedEvidence>()) ?? DBNull.Value),
-                new SqlParameter("@IssuesFound", request.IssuesFound),
-                new SqlParameter("@IssuesDescription", (object)request.IssuesDescription ?? DBNull.Value)
+                new NpgsqlParameter("@AssignmentId", request.AssignmentId),
+                new NpgsqlParameter("@SupervisorId", request.SupervisorId),
+                new NpgsqlParameter("@MenuVerified", request.MenuVerified),
+                new NpgsqlParameter("@MenuVsContractMatch", request.MenuVsContractMatch),
+                new NpgsqlParameter("@MenuVerificationNotes", (object)request.MenuVerificationNotes ?? DBNull.Value),
+                new NpgsqlParameter("@MenuVerificationPhotos", (object)JsonSerializer.Serialize(request.MenuVerificationPhotos ?? new List<string>()) ?? DBNull.Value),
+                new NpgsqlParameter("@RawMaterialVerified", request.RawMaterialVerified),
+                new NpgsqlParameter("@RawMaterialQualityOK", request.RawMaterialQualityOK),
+                new NpgsqlParameter("@RawMaterialQuantityOK", request.RawMaterialQuantityOK),
+                new NpgsqlParameter("@RawMaterialNotes", (object)request.RawMaterialNotes ?? DBNull.Value),
+                new NpgsqlParameter("@RawMaterialPhotos", (object)JsonSerializer.Serialize(request.RawMaterialPhotos ?? new List<string>()) ?? DBNull.Value),
+                new NpgsqlParameter("@GuestCountConfirmed", request.GuestCountConfirmed),
+                new NpgsqlParameter("@ConfirmedGuestCount", request.ConfirmedGuestCount),
+                new NpgsqlParameter("@PreEventEvidenceUrls", (object)JsonSerializer.Serialize(request.PreEventEvidence ?? new List<TimestampedEvidence>()) ?? DBNull.Value),
+                new NpgsqlParameter("@IssuesFound", request.IssuesFound),
+                new NpgsqlParameter("@IssuesDescription", (object)request.IssuesDescription ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_SubmitPreEventVerification", parameters);
@@ -56,7 +57,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId)
+                new NpgsqlParameter("@AssignmentId", assignmentId)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<PreEventVerificationModel>(
@@ -67,11 +68,11 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@ChecklistId", checklistId),
-                new SqlParameter("@MenuVerified", updates.MenuVerified),
-                new SqlParameter("@RawMaterialVerified", updates.RawMaterialVerified),
-                new SqlParameter("@GuestCountConfirmed", updates.GuestCountConfirmed),
-                new SqlParameter("@ChecklistPhotos", (object)JsonSerializer.Serialize(updates.ChecklistPhotos ?? new List<string>()) ?? DBNull.Value)
+                new NpgsqlParameter("@ChecklistId", checklistId),
+                new NpgsqlParameter("@MenuVerified", updates.MenuVerified),
+                new NpgsqlParameter("@RawMaterialVerified", updates.RawMaterialVerified),
+                new NpgsqlParameter("@GuestCountConfirmed", updates.GuestCountConfirmed),
+                new NpgsqlParameter("@ChecklistPhotos", (object)JsonSerializer.Serialize(updates.ChecklistPhotos ?? new List<string>()) ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_UpdatePreEventChecklist", parameters);
@@ -85,13 +86,13 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", request.AssignmentId),
-                new SqlParameter("@SupervisorId", request.SupervisorId),
-                new SqlParameter("@QualityRating", request.QualityRating),
-                new SqlParameter("@TemperatureOK", request.TemperatureOK),
-                new SqlParameter("@PresentationOK", request.PresentationOK),
-                new SqlParameter("@Notes", (object)request.Notes ?? DBNull.Value),
-                new SqlParameter("@Photos", (object)JsonSerializer.Serialize(request.Photos ?? new List<string>()) ?? DBNull.Value)
+                new NpgsqlParameter("@AssignmentId", request.AssignmentId),
+                new NpgsqlParameter("@SupervisorId", request.SupervisorId),
+                new NpgsqlParameter("@QualityRating", request.QualityRating),
+                new NpgsqlParameter("@TemperatureOK", request.TemperatureOK),
+                new NpgsqlParameter("@PresentationOK", request.PresentationOK),
+                new NpgsqlParameter("@Notes", (object)request.Notes ?? DBNull.Value),
+                new NpgsqlParameter("@Photos", (object)JsonSerializer.Serialize(request.Photos ?? new List<string>()) ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_RecordFoodServingMonitor", parameters);
@@ -101,11 +102,11 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", request.AssignmentId),
-                new SqlParameter("@SupervisorId", request.SupervisorId),
-                new SqlParameter("@ActualGuestCount", request.ActualGuestCount),
-                new SqlParameter("@Notes", (object)request.Notes ?? DBNull.Value),
-                new SqlParameter("@Timestamp", request.Timestamp)
+                new NpgsqlParameter("@AssignmentId", request.AssignmentId),
+                new NpgsqlParameter("@SupervisorId", request.SupervisorId),
+                new NpgsqlParameter("@ActualGuestCount", request.ActualGuestCount),
+                new NpgsqlParameter("@Notes", (object)request.Notes ?? DBNull.Value),
+                new NpgsqlParameter("@Timestamp", request.Timestamp)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_UpdateGuestCount", parameters);
@@ -115,16 +116,16 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", request.AssignmentId),
-                new SqlParameter("@SupervisorId", request.SupervisorId),
-                new SqlParameter("@ItemName", request.ItemName),
-                new SqlParameter("@ExtraQuantity", request.ExtraQuantity),
-                new SqlParameter("@ExtraCost", request.ExtraCost),
-                new SqlParameter("@Reason", request.Reason),
-                new SqlParameter("@ClientPhone", request.ClientPhone),
-                new SqlParameter("@ApprovalMethod", request.ApprovalMethod.ToString()),
-                new SqlParameter("@OTPCode", SqlDbType.VarChar, 10) { Direction = ParameterDirection.Output },
-                new SqlParameter("@TrackingId", SqlDbType.BigInt) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@AssignmentId", request.AssignmentId),
+                new NpgsqlParameter("@SupervisorId", request.SupervisorId),
+                new NpgsqlParameter("@ItemName", request.ItemName),
+                new NpgsqlParameter("@ExtraQuantity", request.ExtraQuantity),
+                new NpgsqlParameter("@ExtraCost", request.ExtraCost),
+                new NpgsqlParameter("@Reason", request.Reason),
+                new NpgsqlParameter("@ClientPhone", request.ClientPhone),
+                new NpgsqlParameter("@ApprovalMethod", request.ApprovalMethod.ToString()),
+                new NpgsqlParameter("@OTPCode", NpgsqlDbType.Varchar, 10) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@TrackingId", NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<object>("sp_RequestExtraQuantity", parameters);
@@ -148,12 +149,12 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", request.AssignmentId),
-                new SqlParameter("@OTPCode", request.OTPCode),
-                new SqlParameter("@ClientIPAddress", (object)request.ClientIPAddress ?? DBNull.Value),
-                new SqlParameter("@IsValid", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                new SqlParameter("@RemainingAttempts", SqlDbType.Int) { Direction = ParameterDirection.Output },
-                new SqlParameter("@IsExpired", SqlDbType.Bit) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@AssignmentId", request.AssignmentId),
+                new NpgsqlParameter("@OTPCode", request.OTPCode),
+                new NpgsqlParameter("@ClientIPAddress", (object)request.ClientIPAddress ?? DBNull.Value),
+                new NpgsqlParameter("@IsValid", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@RemainingAttempts", NpgsqlDbType.Integer) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@IsExpired", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<object>("sp_VerifyClientOTP", parameters);
@@ -180,7 +181,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId)
+                new NpgsqlParameter("@AssignmentId", assignmentId)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<DuringEventTrackingModel>>(
@@ -195,32 +196,32 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", request.AssignmentId),
-                new SqlParameter("@SupervisorId", request.SupervisorId),
-                new SqlParameter("@FinalGuestCount", request.FinalGuestCount),
-                new SqlParameter("@EventRating", request.EventRating),
-                new SqlParameter("@ClientName", request.ClientName),
-                new SqlParameter("@ClientPhone", request.ClientPhone),
-                new SqlParameter("@ClientSatisfactionRating", request.ClientSatisfactionRating),
-                new SqlParameter("@FoodQualityRating", request.FoodQualityRating),
-                new SqlParameter("@FoodQuantityRating", request.FoodQuantityRating),
-                new SqlParameter("@ServiceQualityRating", request.ServiceQualityRating),
-                new SqlParameter("@PresentationRating", request.PresentationRating),
-                new SqlParameter("@WouldRecommend", request.WouldRecommend),
-                new SqlParameter("@ClientComments", (object)request.ClientComments ?? DBNull.Value),
-                new SqlParameter("@ClientSignatureUrl", (object)request.ClientSignatureUrl ?? DBNull.Value),
-                new SqlParameter("@VendorPunctualityRating", request.VendorPunctualityRating),
-                new SqlParameter("@VendorPreparationRating", request.VendorPreparationRating),
-                new SqlParameter("@VendorCooperationRating", request.VendorCooperationRating),
-                new SqlParameter("@VendorComments", (object)request.VendorComments ?? DBNull.Value),
-                new SqlParameter("@IssuesCount", request.IssuesCount),
-                new SqlParameter("@IssuesSummary", (object)JsonSerializer.Serialize(request.Issues ?? new List<EventIssue>()) ?? DBNull.Value),
-                new SqlParameter("@FinalPayableAmount", request.FinalPayableAmount),
-                new SqlParameter("@PaymentBreakdown", (object)JsonSerializer.Serialize(request.PaymentBreakdown) ?? DBNull.Value),
-                new SqlParameter("@ReportSummary", request.ReportSummary),
-                new SqlParameter("@Recommendations", (object)request.Recommendations ?? DBNull.Value),
-                new SqlParameter("@CompletionPhotos", (object)JsonSerializer.Serialize(request.CompletionPhotos ?? new List<string>()) ?? DBNull.Value),
-                new SqlParameter("@CompletionVideos", (object)JsonSerializer.Serialize(request.CompletionVideos ?? new List<string>()) ?? DBNull.Value)
+                new NpgsqlParameter("@AssignmentId", request.AssignmentId),
+                new NpgsqlParameter("@SupervisorId", request.SupervisorId),
+                new NpgsqlParameter("@FinalGuestCount", request.FinalGuestCount),
+                new NpgsqlParameter("@EventRating", request.EventRating),
+                new NpgsqlParameter("@ClientName", request.ClientName),
+                new NpgsqlParameter("@ClientPhone", request.ClientPhone),
+                new NpgsqlParameter("@ClientSatisfactionRating", request.ClientSatisfactionRating),
+                new NpgsqlParameter("@FoodQualityRating", request.FoodQualityRating),
+                new NpgsqlParameter("@FoodQuantityRating", request.FoodQuantityRating),
+                new NpgsqlParameter("@ServiceQualityRating", request.ServiceQualityRating),
+                new NpgsqlParameter("@PresentationRating", request.PresentationRating),
+                new NpgsqlParameter("@WouldRecommend", request.WouldRecommend),
+                new NpgsqlParameter("@ClientComments", (object)request.ClientComments ?? DBNull.Value),
+                new NpgsqlParameter("@ClientSignatureUrl", (object)request.ClientSignatureUrl ?? DBNull.Value),
+                new NpgsqlParameter("@VendorPunctualityRating", request.VendorPunctualityRating),
+                new NpgsqlParameter("@VendorPreparationRating", request.VendorPreparationRating),
+                new NpgsqlParameter("@VendorCooperationRating", request.VendorCooperationRating),
+                new NpgsqlParameter("@VendorComments", (object)request.VendorComments ?? DBNull.Value),
+                new NpgsqlParameter("@IssuesCount", request.IssuesCount),
+                new NpgsqlParameter("@IssuesSummary", (object)JsonSerializer.Serialize(request.Issues ?? new List<EventIssue>()) ?? DBNull.Value),
+                new NpgsqlParameter("@FinalPayableAmount", request.FinalPayableAmount),
+                new NpgsqlParameter("@PaymentBreakdown", (object)JsonSerializer.Serialize(request.PaymentBreakdown) ?? DBNull.Value),
+                new NpgsqlParameter("@ReportSummary", request.ReportSummary),
+                new NpgsqlParameter("@Recommendations", (object)request.Recommendations ?? DBNull.Value),
+                new NpgsqlParameter("@CompletionPhotos", (object)JsonSerializer.Serialize(request.CompletionPhotos ?? new List<string>()) ?? DBNull.Value),
+                new NpgsqlParameter("@CompletionVideos", (object)JsonSerializer.Serialize(request.CompletionVideos ?? new List<string>()) ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_SubmitPostEventReport", parameters);
@@ -230,7 +231,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId)
+                new NpgsqlParameter("@AssignmentId", assignmentId)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<PostEventReportModel>(
@@ -241,10 +242,10 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@ReportId", reportId),
-                new SqlParameter("@ReportSummary", updates.ReportSummary),
-                new SqlParameter("@Recommendations", (object)updates.Recommendations ?? DBNull.Value),
-                new SqlParameter("@SupervisorNotes", (object)updates.SupervisorNotes ?? DBNull.Value)
+                new NpgsqlParameter("@ReportId", reportId),
+                new NpgsqlParameter("@ReportSummary", updates.ReportSummary),
+                new NpgsqlParameter("@Recommendations", (object)updates.Recommendations ?? DBNull.Value),
+                new NpgsqlParameter("@SupervisorNotes", (object)updates.SupervisorNotes ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_UpdatePostEventReport", parameters);
@@ -254,9 +255,9 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@ReportId", reportId),
-                new SqlParameter("@VerifiedBy", verifiedBy),
-                new SqlParameter("@VerificationNotes", (object)verificationNotes ?? DBNull.Value)
+                new NpgsqlParameter("@ReportId", reportId),
+                new NpgsqlParameter("@VerifiedBy", verifiedBy),
+                new NpgsqlParameter("@VerificationNotes", (object)verificationNotes ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_VerifyPostEventReport", parameters);
@@ -270,7 +271,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId)
+                new NpgsqlParameter("@AssignmentId", assignmentId)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<EventSupervisionSummaryDto>(
@@ -285,9 +286,9 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@OTPPurpose", purpose),
-                new SqlParameter("@NewOTPCode", SqlDbType.VarChar, 10) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@OTPPurpose", purpose),
+                new NpgsqlParameter("@NewOTPCode", NpgsqlDbType.Varchar, 10) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<object>("sp_ResendClientOTP", parameters);
@@ -299,7 +300,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@OTPCode", otpCode)
+                new NpgsqlParameter("@OTPCode", otpCode)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<ClientOTPVerificationModel>(
@@ -370,9 +371,9 @@ namespace CateringEcommerce.BAL.Base.Supervisor
 
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@EvidenceData", JsonSerializer.Serialize(evidence)),
-                new SqlParameter("@Phase", phase) // PRE_EVENT, DURING_EVENT, POST_EVENT
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@EvidenceData", JsonSerializer.Serialize(evidence)),
+                new NpgsqlParameter("@Phase", phase) // PRE_EVENT, DURING_EVENT, POST_EVENT
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_UploadTimestampedEvidence", parameters);
@@ -382,7 +383,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId)
+                new NpgsqlParameter("@AssignmentId", assignmentId)
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_GetAssignmentEvidence", parameters);

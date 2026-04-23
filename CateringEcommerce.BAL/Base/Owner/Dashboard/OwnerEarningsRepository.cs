@@ -1,8 +1,8 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -13,7 +13,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
     public class OwnerEarningsRepository : IOwnerEarningsRepository
     {
         private readonly IDatabaseHelper _dbHelper;
-        private const decimal MINIMUM_WITHDRAWAL_AMOUNT = 500.00m; // Minimum ₹500
+        private const decimal MINIMUM_WITHDRAWAL_AMOUNT = 500.00m; // Minimum â‚¹500
 
         public OwnerEarningsRepository(IDatabaseHelper dbHelper)
         {
@@ -26,24 +26,25 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             {
                 var query = $@"
                     SELECT
-                        ISNULL(SUM(CASE WHEN c_status = 'RELEASED' THEN c_net_settlement_amount ELSE 0 END), 0) AS TotalEarnings,
-                        ISNULL(SUM(CASE WHEN c_status = 'ESCROWED' THEN c_net_settlement_amount ELSE 0 END), 0) AS AvailableBalance,
-                        ISNULL(SUM(CASE WHEN c_status = 'PENDING' THEN c_net_settlement_amount ELSE 0 END), 0) AS PendingSettlement,
-                        ISNULL(SUM(c_platform_service_fee), 0) AS PlatformFees,
-                        COUNT(DISTINCT c_order_id) AS TotalOrders,
-                        COUNT(DISTINCT CASE WHEN c_status = 'RELEASED' THEN c_order_id END) AS CompletedOrders
+                        COALESCE(SUM(CASE WHEN c_status = 'RELEASED' THEN c_net_settlement_amount ELSE 0 END), 0) AS TotalEarnings,
+                        COALESCE(SUM(CASE WHEN c_status = 'ESCROWED' THEN c_net_settlement_amount ELSE 0 END), 0) AS AvailableBalance,
+                        COALESCE(SUM(CASE WHEN c_status = 'PENDING' THEN c_net_settlement_amount ELSE 0 END), 0) AS PendingSettlement,
+                        COALESCE(SUM(c_platform_service_fee), 0) AS PlatformFees,
+                        COUNT(DISTINCT c_orderid) AS TotalOrders,
+                        COUNT(DISTINCT CASE WHEN c_status = 'RELEASED' THEN c_orderid END) AS CompletedOrders
                     FROM t_owner_payment
                     WHERE c_owner_id = @OwnerId;
 
-                    SELECT TOP 1 c_released_at AS LastPayoutDate
+                    SELECT c_released_at AS LastPayoutDate
                     FROM t_owner_payment
                     WHERE c_owner_id = @OwnerId
                       AND c_status = 'RELEASED'
                       AND c_released_at IS NOT NULL
-                    ORDER BY c_released_at DESC;
+                    ORDER BY c_released_at DESC
+                    LIMIT 1;
                 ";
 
-                var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+                var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
 
                 var ds = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
 
@@ -83,13 +84,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             {
                 var query = $@"
                     SELECT
-                        ISNULL(SUM(CASE WHEN c_status = 'ESCROWED' THEN c_net_settlement_amount ELSE 0 END), 0) AS AvailableAmount,
-                        ISNULL(SUM(CASE WHEN c_status = 'PENDING' THEN c_net_settlement_amount ELSE 0 END), 0) AS PendingRelease
+                        COALESCE(SUM(CASE WHEN c_status = 'ESCROWED' THEN c_net_settlement_amount ELSE 0 END), 0) AS AvailableAmount,
+                        COALESCE(SUM(CASE WHEN c_status = 'PENDING' THEN c_net_settlement_amount ELSE 0 END), 0) AS PendingRelease
                     FROM t_owner_payment
                     WHERE c_owner_id = @OwnerId;
                 ";
 
-                var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+                var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
 
@@ -108,7 +109,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 balance.CanWithdraw = balance.AvailableAmount >= MINIMUM_WITHDRAWAL_AMOUNT;
                 if (!balance.CanWithdraw && balance.AvailableAmount > 0)
                 {
-                    balance.BlockReason = $"Minimum withdrawal amount is ₹{MINIMUM_WITHDRAWAL_AMOUNT}";
+                    balance.BlockReason = $"Minimum withdrawal amount is â‚¹{MINIMUM_WITHDRAWAL_AMOUNT}";
                 }
                 else if (balance.AvailableAmount == 0)
                 {
@@ -130,29 +131,29 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             try
             {
                 var whereConditions = new List<string> { "c_owner_id = @OwnerId" };
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@Offset", (filter.PageNumber - 1) * filter.PageSize),
-                    new SqlParameter("@PageSize", filter.PageSize)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@Offset", (filter.PageNumber - 1) * filter.PageSize),
+                    new NpgsqlParameter("@PageSize", filter.PageSize)
                 };
 
                 if (filter.StartDate.HasValue)
                 {
                     whereConditions.Add("c_settlement_period_start >= @StartDate");
-                    parameters.Add(new SqlParameter("@StartDate", filter.StartDate.Value));
+                    parameters.Add(new NpgsqlParameter("@StartDate", filter.StartDate.Value));
                 }
 
                 if (filter.EndDate.HasValue)
                 {
                     whereConditions.Add("c_settlement_period_end <= @EndDate");
-                    parameters.Add(new SqlParameter("@EndDate", filter.EndDate.Value));
+                    parameters.Add(new NpgsqlParameter("@EndDate", filter.EndDate.Value));
                 }
 
                 if (!string.IsNullOrEmpty(filter.Status))
                 {
                     whereConditions.Add("c_status = @Status");
-                    parameters.Add(new SqlParameter("@Status", filter.Status));
+                    parameters.Add(new NpgsqlParameter("@Status", filter.Status));
                 }
 
                 var whereClause = string.Join(" AND ", whereConditions);
@@ -177,7 +178,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     FROM t_owner_settlement
                     WHERE {whereClause}
                     ORDER BY c_createddate DESC
-                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+                    LIMIT @PageSize OFFSET @Offset;
                 ";
 
                 var ds = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters.ToArray()));
@@ -241,7 +242,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     return new WithdrawalResponseDto
                     {
                         Status = "FAILED",
-                        Message = $"Insufficient balance. Available: ₹{balance.AvailableAmount}",
+                        Message = $"Insufficient balance. Available: â‚¹{balance.AvailableAmount}",
                         RequestedAt = DateTime.Now
                     };
                 }
@@ -251,7 +252,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     return new WithdrawalResponseDto
                     {
                         Status = "FAILED",
-                        Message = $"Minimum withdrawal amount is ₹{MINIMUM_WITHDRAWAL_AMOUNT}",
+                        Message = $"Minimum withdrawal amount is â‚¹{MINIMUM_WITHDRAWAL_AMOUNT}",
                         RequestedAt = DateTime.Now
                     };
                 }
@@ -267,23 +268,23 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         c_modifieddate,
                         c_notes
                     )
-                    OUTPUT INSERTED.c_schedule_id
                     VALUES (
                         @OwnerId,
                         @Amount,
-                        GETDATE(),
+                        NOW(),
                         0,
-                        GETDATE(),
-                        GETDATE(),
+                        NOW(),
+                        NOW(),
                         @Notes
-                    );
+                    )
+                    RETURNING c_schedule_id;
                 ";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@Amount", request.Amount),
-                    new SqlParameter("@Notes", (object?)request.Notes ?? DBNull.Value)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@Amount", request.Amount),
+                    new NpgsqlParameter("@Notes", (object?)request.Notes ?? DBNull.Value)
                 };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
@@ -317,23 +318,23 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             try
             {
                 var whereConditions = new List<string> { "c_owner_id = @OwnerId" };
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@Offset", (filter.PageNumber - 1) * filter.PageSize),
-                    new SqlParameter("@PageSize", filter.PageSize)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@Offset", (filter.PageNumber - 1) * filter.PageSize),
+                    new NpgsqlParameter("@PageSize", filter.PageSize)
                 };
 
                 if (filter.StartDate.HasValue)
                 {
                     whereConditions.Add("c_scheduled_date >= @StartDate");
-                    parameters.Add(new SqlParameter("@StartDate", filter.StartDate.Value));
+                    parameters.Add(new NpgsqlParameter("@StartDate", filter.StartDate.Value));
                 }
 
                 if (filter.EndDate.HasValue)
                 {
                     whereConditions.Add("c_scheduled_date <= @EndDate");
-                    parameters.Add(new SqlParameter("@EndDate", filter.EndDate.Value));
+                    parameters.Add(new NpgsqlParameter("@EndDate", filter.EndDate.Value));
                 }
 
                 var whereClause = string.Join(" AND ", whereConditions);
@@ -348,7 +349,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         c_scheduled_amount AS Amount,
                         c_release_method AS PaymentMethod,
                         CASE
-                            WHEN c_is_released = 1 THEN 'COMPLETED'
+                            WHEN c_is_released = TRUE THEN 'COMPLETED'
                             WHEN c_failed_at IS NOT NULL THEN 'FAILED'
                             ELSE 'PENDING'
                         END AS Status,
@@ -361,7 +362,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     FROM t_owner_payout_schedule
                     WHERE {whereClause}
                     ORDER BY c_scheduled_date DESC
-                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+                    LIMIT @PageSize OFFSET @Offset;
                 ";
 
                 var ds = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters.ToArray()));
@@ -409,7 +410,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var query = $@"
                     SELECT
                         p.c_owner_payment_id AS TransactionId,
-                        p.c_order_id AS OrderId,
+                        p.c_orderid AS OrderId,
                         o.c_order_number AS OrderNumber,
                         o.c_createddate AS OrderDate,
                         p.c_settlement_amount AS SettlementAmount,
@@ -421,15 +422,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         p.c_payment_method AS PaymentMethod,
                         p.c_transaction_reference AS TransactionReference
                     FROM t_owner_payment p
-                    INNER JOIN {Table.SysOrders} o ON p.c_order_id = o.c_orderid
+                    INNER JOIN {Table.SysOrders} o ON p.c_orderid = o.c_orderid
                     WHERE p.c_owner_payment_id = @TransactionId
                       AND p.c_owner_id = @OwnerId;
                 ";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@TransactionId", transactionId),
-                    new SqlParameter("@OwnerId", ownerId)
+                    new NpgsqlParameter("@TransactionId", transactionId),
+                    new NpgsqlParameter("@OwnerId", ownerId)
                 };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
@@ -483,7 +484,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         break;
                     case "year":
                         dateFormat = "MMM"; // Jan, Feb, Mar
-                        groupBy = "YEAR(c_released_at), MONTH(c_released_at)";
+                        groupBy = "EXTRACT(YEAR FROM c_released_at), EXTRACT(MONTH FROM c_released_at)";
                         daysBack = 365;
                         break;
                     default:
@@ -501,15 +502,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     FROM t_owner_payment
                     WHERE c_owner_id = @OwnerId
                       AND c_status = 'RELEASED'
-                      AND c_released_at >= DATEADD(day, -@DaysBack, GETDATE())
+                      AND c_released_at >= NOW() - (@DaysBack * INTERVAL '1 day')
                     GROUP BY {groupBy}, CAST(c_released_at AS DATE)
                     ORDER BY CAST(c_released_at AS DATE);
                 ";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@DaysBack", daysBack)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@DaysBack", daysBack)
                 };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
@@ -548,3 +549,4 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         }
     }
 }
+

@@ -3,9 +3,10 @@ using CateringEcommerce.BAL.Base.User;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.Common;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace CateringEcommerce.API.Controllers.User
 {
@@ -518,7 +519,7 @@ namespace CateringEcommerce.API.Controllers.User
         /// <summary>
         /// Gets package selection details with categories, allowed quantities, and eligible food items.
         /// Used for the package selection popup where users choose specific items from each category.
-        /// Only returns items where c_ispackage_item = TRUE, c_status = TRUE, c_is_deleted = 0.
+        /// Only returns items where c_ispackage_item = TRUE, c_status = TRUE, c_is_deleted = FALSE.
         /// </summary>
         /// <param name="cateringId">The catering owner ID</param>
         /// <param name="packageId">The package ID</param>
@@ -798,33 +799,28 @@ namespace CateringEcommerce.API.Controllers.User
             {
                 var eventTypeIds = new List<int>();
 
-                using (var connection = new SqlConnection(_connStr))
+                using (var connection = new NpgsqlConnection(_connStr))
                 {
                     await connection.OpenAsync();
 
-                    foreach (var eventTypeName in eventTypeNames)
+                    var query = $@"
+                        SELECT DISTINCT c_type_id
+                        FROM {Table.SysCateringTypeMaster}
+                        WHERE c_category_id = 3
+                          AND c_is_active = TRUE
+                          AND c_is_deleted = FALSE
+                          AND EXISTS (
+                              SELECT 1
+                              FROM UNNEST(@Patterns) AS pattern
+                              WHERE c_type_name ILIKE pattern
+                          );";
+
+                    var ids = await connection.QueryAsync<int>(query, new
                     {
-                        var query = $@"
-                            SELECT c_type_id
-                            FROM {Table.SysCateringTypeMaster}
-                            WHERE c_category_id = 3
-                            AND c_type_name LIKE @EventTypeName
-                            AND c_is_active = 1
-                            AND c_is_deleted = 0";
+                        Patterns = eventTypeNames.Select(name => $"%{name}%").ToArray()
+                    });
 
-                        using (var command = new SqlCommand(query, connection))
-                        {
-                            command.Parameters.AddWithValue("@EventTypeName", $"%{eventTypeName}%");
-
-                            using (var reader = await command.ExecuteReaderAsync())
-                            {
-                                while (await reader.ReadAsync())
-                                {
-                                    eventTypeIds.Add(Convert.ToInt32(reader["c_type_id"]));
-                                }
-                            }
-                        }
-                    }
+                    eventTypeIds.AddRange(ids);
                 }
 
                 return eventTypeIds;
@@ -848,7 +844,7 @@ namespace CateringEcommerce.API.Controllers.User
             {
                 var eventTypes = new List<object>();
 
-                using (var connection = new SqlConnection(_connStr))
+                using (var connection = new NpgsqlConnection(_connStr))
                 {
                     await connection.OpenAsync();
 
@@ -856,22 +852,16 @@ namespace CateringEcommerce.API.Controllers.User
                         SELECT c_type_id, c_type_name
                         FROM {Table.SysCateringTypeMaster}
                         WHERE c_category_id = 3
-                        AND c_is_active = 1
-                        AND c_is_deleted = 0
+                        AND c_is_active = TRUE
+                        AND c_is_deleted = FALSE
                         ORDER BY c_display_order, c_type_name";
 
-                    using (var command = new SqlCommand(query, connection))
-                    using (var reader = await command.ExecuteReaderAsync())
+                    var rows = await connection.QueryAsync(query);
+                    eventTypes.AddRange(rows.Select(row => (object)new
                     {
-                        while (await reader.ReadAsync())
-                        {
-                            eventTypes.Add(new
-                            {
-                                id = Convert.ToInt32(reader["c_type_id"]),
-                                name = reader["c_type_name"].ToString()
-                            });
-                        }
-                    }
+                        id = Convert.ToInt32(row.c_type_id),
+                        name = Convert.ToString(row.c_type_name)
+                    }));
                 }
 
                 return Ok(new

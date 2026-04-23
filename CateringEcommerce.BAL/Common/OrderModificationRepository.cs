@@ -1,8 +1,8 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -33,20 +33,20 @@ namespace CateringEcommerce.BAL.Common
                         c_additional_amount, c_modification_reason, c_requested_by, c_status, c_createddate
                     ) VALUES (
                         @OrderId, @ModificationType, @OriginalGuestCount, @ModifiedGuestCount,
-                        @AdditionalAmount, @ModificationReason, @RequestedBy, 'Pending', GETDATE()
-                    );
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);
+                        @AdditionalAmount, @ModificationReason, @RequestedBy, 'Pending', NOW()
+                    )
+                    RETURNING c_modification_id;
                 ");
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", modificationData.OrderId),
-                    new SqlParameter("@ModificationType", modificationData.ModificationType),
-                    new SqlParameter("@OriginalGuestCount", (object)modificationData.OriginalGuestCount ?? DBNull.Value),
-                    new SqlParameter("@ModifiedGuestCount", (object)modificationData.ModifiedGuestCount ?? DBNull.Value),
-                    new SqlParameter("@AdditionalAmount", modificationData.AdditionalAmount),
-                    new SqlParameter("@ModificationReason", modificationData.ModificationReason),
-                    new SqlParameter("@RequestedBy", modificationData.RequestedBy)
+                    new NpgsqlParameter("@OrderId", modificationData.OrderId),
+                    new NpgsqlParameter("@ModificationType", modificationData.ModificationType),
+                    new NpgsqlParameter("@OriginalGuestCount", (object)modificationData.OriginalGuestCount ?? DBNull.Value),
+                    new NpgsqlParameter("@ModifiedGuestCount", (object)modificationData.ModifiedGuestCount ?? DBNull.Value),
+                    new NpgsqlParameter("@AdditionalAmount", modificationData.AdditionalAmount),
+                    new NpgsqlParameter("@ModificationReason", modificationData.ModificationReason),
+                    new NpgsqlParameter("@RequestedBy", modificationData.RequestedBy)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
@@ -87,9 +87,9 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY m.c_createddate DESC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -134,9 +134,9 @@ namespace CateringEcommerce.BAL.Common
                     WHERE m.c_modification_id = @ModificationId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ModificationId", modificationId)
+                    new NpgsqlParameter("@ModificationId", modificationId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -166,16 +166,16 @@ namespace CateringEcommerce.BAL.Common
                     SET
                         c_status = 'Approved',
                         c_approved_by = @UserId,
-                        c_approved_date = GETDATE(),
+                        c_approved_date = NOW(),
                         c_payment_stage_id = @PaymentStageId
                     WHERE c_modification_id = @ModificationId AND c_status = 'Pending'
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ModificationId", modificationId),
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@PaymentStageId", (object)paymentStageId ?? DBNull.Value)
+                    new NpgsqlParameter("@ModificationId", modificationId),
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@PaymentStageId", (object)paymentStageId ?? DBNull.Value)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -199,16 +199,16 @@ namespace CateringEcommerce.BAL.Common
                     SET
                         c_status = 'Rejected',
                         c_approved_by = @UserId,
-                        c_approved_date = GETDATE(),
-                        c_modification_reason = c_modification_reason + ' | Rejection Reason: ' + @RejectionReason
+                        c_approved_date = NOW(),
+                        c_modification_reason = c_modification_reason || ' | Rejection Reason: ' || @RejectionReason
                     WHERE c_modification_id = @ModificationId AND c_status = 'Pending'
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ModificationId", modificationId),
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@RejectionReason", rejectionReason)
+                    new NpgsqlParameter("@ModificationId", modificationId),
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@RejectionReason", rejectionReason)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -233,9 +233,9 @@ namespace CateringEcommerce.BAL.Common
                     WHERE c_modification_id = @ModificationId AND c_status = 'Approved'
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ModificationId", modificationId)
+                    new NpgsqlParameter("@ModificationId", modificationId)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -270,9 +270,9 @@ namespace CateringEcommerce.BAL.Common
                     WHERE m.c_payment_stage_id = @PaymentStageId AND m.c_status = 'Approved'
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PaymentStageId", paymentStageId)
+                    new NpgsqlParameter("@PaymentStageId", paymentStageId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -321,3 +321,4 @@ namespace CateringEcommerce.BAL.Common
         }
     }
 }
+

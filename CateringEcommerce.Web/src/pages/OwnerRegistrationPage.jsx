@@ -14,6 +14,7 @@ import Step5_Agreement from '../components/owner/Step5_Agreement';
 import RegistrationSuccess from '../components/owner/RegistrationSuccess';
 import { apiService } from '../services/userApi';
 import { ownerApiService } from '../services/ownerApi';
+import { useToast } from '../contexts/ToastContext';
 
 // Modern OTP Modal with individual input boxes
 const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, identifier }) => {
@@ -23,6 +24,7 @@ const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, ide
     const [isVerifying, setIsVerifying] = useState(false);
     const [error, setError] = useState('');
     const inputRefs = useRef([]);
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (isOpen) {
@@ -565,12 +567,12 @@ export default function OwnerRegistrationPage() {
         // Here passing the 0 as pkId since this is for registration and we don't have a user PKID yet
         const response = await apiService.verifyUpdateOtp(otpModalInfo.type, otpModalInfo.value, otp, 0, 'Owner');
         console.log(`Verifying OTP ${otp} for ${otpModalInfo.type}`);
-        if (otp === response.otp) {
+        if (response.result) {
             const verificationFlag = `is${otpModalInfo.type.charAt(0).toUpperCase() + otpModalInfo.type.slice(1)}Verified`;
             setFormData(prev => ({ ...prev, [verificationFlag]: true }));
             setOtpModalInfo({ isOpen: false, type: null, value: '' });
         } else {
-            alert("Invalid OTP");
+            showToast("Invalid OTP. Please try again.", "error");
         }
         otp = '';
     };

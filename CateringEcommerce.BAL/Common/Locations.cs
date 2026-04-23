@@ -3,7 +3,7 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Models.Common;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Common
@@ -43,7 +43,7 @@ namespace CateringEcommerce.BAL.Common
             string sqlCity = $"SELECT c_cityid AS CityID, c_cityname AS CityName FROM {Table.City} WHERE c_stateid = @StateID";
             var parameters = new[]
             {
-                new SqlParameter("@StateID", stateId) // Use Microsoft.Data.SqlClient.SqlParameter
+                new NpgsqlParameter("@StateID", stateId) // Use Npgsql.NpgsqlParameter
             };
 
             // Use pattern matching to simplify the type check and cast
@@ -70,7 +70,7 @@ namespace CateringEcommerce.BAL.Common
                 string query = $@"SELECT c_cityid FROM {Table.City} WHERE c_cityname = @CityName";
                 var parameters = new[]
                 {
-                    new SqlParameter("@CityName", cityName) // Use Microsoft.Data.SqlClient.SqlParameter
+                    new NpgsqlParameter("@CityName", cityName) // Use Npgsql.NpgsqlParameter
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(query.ToString(), parameters.ToArray());

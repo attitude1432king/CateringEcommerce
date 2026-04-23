@@ -1,305 +1,153 @@
--- ============================================
--- In-App Notifications Migration
--- Creates tables for in-app notification system
--- ============================================
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-USE CateringDB;
-GO
+-- =============================================
+-- Table: t_sys_notifications
+-- =============================================
+CREATE TABLE IF NOT EXISTS t_sys_notifications (
+    c_notification_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_notification_uuid UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+    c_userid VARCHAR(50) NOT NULL,
+    c_user_type VARCHAR(20) NOT NULL DEFAULT 'USER',
+    c_title VARCHAR(200) NOT NULL,
+    c_message VARCHAR(1000) NOT NULL,
+    c_category VARCHAR(50) NOT NULL,
+    c_priority INTEGER NOT NULL DEFAULT 1,
+    c_action_url VARCHAR(500),
+    c_action_label VARCHAR(100),
+    c_icon_url VARCHAR(500),
+    c_data TEXT,
+    c_is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    c_read_at TIMESTAMP,
+    c_is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    c_deleted_at TIMESTAMP,
+    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_expires_at TIMESTAMP
+);
 
-PRINT 'Starting In-App Notifications Migration...';
-GO
+CREATE INDEX IF NOT EXISTS ix_notifications_userid_usertype
+ON t_sys_notifications(c_userid, c_user_type, c_is_read, c_is_deleted, c_createddate DESC);
 
--- ============================================
--- TABLE: t_sys_notifications (In-App Notifications)
--- ============================================
+CREATE INDEX IF NOT EXISTS ix_notifications_created
+ON t_sys_notifications(c_createddate DESC)
+WHERE c_is_deleted = FALSE;
 
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N't_sys_notifications') AND type = 'U')
+CREATE INDEX IF NOT EXISTS ix_notifications_category
+ON t_sys_notifications(c_category);
+
+-- =============================================
+-- Table: t_sys_notification_preferences
+-- =============================================
+CREATE TABLE IF NOT EXISTS t_sys_notification_preferences (
+    c_preference_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_userid VARCHAR(50) NOT NULL,
+    c_user_type VARCHAR(20) NOT NULL DEFAULT 'USER',
+    c_email_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    c_sms_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    c_inapp_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    c_push_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    c_category_preferences TEXT,
+    c_quiet_hours_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    c_quiet_hours_start TIME,
+    c_quiet_hours_end TIME,
+    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_modifieddate TIMESTAMP,
+    CONSTRAINT uq_notification_preferences_user UNIQUE (c_userid, c_user_type)
+);
+
+-- =============================================
+-- FUNCTION: Mark Notification As Read
+-- =============================================
+CREATE OR REPLACE FUNCTION sp_MarkNotificationAsRead(
+    p_notification_uuid UUID,
+    p_userid VARCHAR
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE v_count INTEGER;
 BEGIN
-    CREATE TABLE [dbo].[t_sys_notifications] (
-        [c_notification_id] BIGINT IDENTITY(1,1) PRIMARY KEY,
-        [c_notification_uuid] UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),
-
-        -- Recipient Information
-        [c_userid] NVARCHAR(50) NOT NULL,  -- User ID (can be numeric or string)
-        [c_user_type] NVARCHAR(20) NOT NULL DEFAULT 'USER', -- USER, OWNER, ADMIN, SUPERVISOR
-
-        -- Notification Content
-        [c_title] NVARCHAR(200) NOT NULL,
-        [c_message] NVARCHAR(1000) NOT NULL,
-        [c_category] NVARCHAR(50) NOT NULL, -- ORDER, PAYMENT, REVIEW, SYSTEM, etc.
-
-        -- Priority & Actions
-        [c_priority] INT NOT NULL DEFAULT 1, -- 1=Low, 2=Normal, 3=High, 4=Urgent
-        [c_action_url] NVARCHAR(500) NULL, -- Deep link URL
-        [c_action_label] NVARCHAR(100) NULL, -- Button label (e.g., "View Order")
-        [c_icon_url] NVARCHAR(500) NULL, -- Icon/image URL
-
-        -- Additional Data (JSON)
-        [c_data] NVARCHAR(MAX) NULL, -- JSON object with extra data
-
-        -- Status
-        [c_is_read] BIT NOT NULL DEFAULT 0,
-        [c_read_at] DATETIME NULL,
-        [c_is_deleted] BIT NOT NULL DEFAULT 0,
-        [c_deleted_at] DATETIME NULL,
-
-        -- Audit
-        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
-        [c_expires_at] DATETIME NULL, -- Auto-delete after this date
-
-        -- Indexes
-        CONSTRAINT [UQ_Notification_UUID] UNIQUE ([c_notification_uuid])
-    );
-
-    -- Indexes for performance
-    CREATE NONCLUSTERED INDEX [IX_Notifications_UserId_UserType]
-        ON [dbo].[t_sys_notifications] ([c_userid], [c_user_type], [c_is_read], [c_is_deleted])
-        INCLUDE ([c_createddate], [c_priority]);
-
-    CREATE NONCLUSTERED INDEX [IX_Notifications_Created]
-        ON [dbo].[t_sys_notifications] ([c_createddate] DESC)
-        WHERE [c_is_deleted] = 0;
-
-    CREATE NONCLUSTERED INDEX [IX_Notifications_Category]
-        ON [dbo].[t_sys_notifications] ([c_category], [c_user_type])
-        WHERE [c_is_deleted] = 0;
-
-    PRINT 'Table t_sys_notifications created successfully';
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_notifications already exists';
-END
-GO
-
--- ============================================
--- TABLE: t_sys_notification_preferences (User Preferences)
--- ============================================
-
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N't_sys_notification_preferences') AND type = 'U')
-BEGIN
-    CREATE TABLE [dbo].[t_sys_notification_preferences] (
-        [c_preference_id] BIGINT IDENTITY(1,1) PRIMARY KEY,
-        [c_userid] NVARCHAR(50) NOT NULL,
-        [c_user_type] NVARCHAR(20) NOT NULL DEFAULT 'USER',
-
-        -- Channel Preferences
-        [c_email_enabled] BIT NOT NULL DEFAULT 1,
-        [c_sms_enabled] BIT NOT NULL DEFAULT 1,
-        [c_inapp_enabled] BIT NOT NULL DEFAULT 1,
-        [c_push_enabled] BIT NOT NULL DEFAULT 1,
-
-        -- Category Preferences (JSON)
-        [c_category_preferences] NVARCHAR(MAX) NULL, -- JSON: {"ORDER": true, "PAYMENT": false, ...}
-
-        -- Quiet Hours
-        [c_quiet_hours_enabled] BIT NOT NULL DEFAULT 0,
-        [c_quiet_hours_start] TIME NULL, -- e.g., 22:00
-        [c_quiet_hours_end] TIME NULL, -- e.g., 08:00
-
-        -- Audit
-        [c_createddate] DATETIME NOT NULL DEFAULT GETDATE(),
-        [c_modifieddate] DATETIME NULL,
-
-        -- Unique constraint
-        CONSTRAINT [UQ_NotificationPreferences_User] UNIQUE ([c_userid], [c_user_type])
-    );
-
-    PRINT 'Table t_sys_notification_preferences created successfully';
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_notification_preferences already exists';
-END
-GO
-
--- ============================================
--- STORED PROCEDURE: sp_GetUserNotifications
--- ============================================
-
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'sp_GetUserNotifications') AND type = 'P')
-    DROP PROCEDURE sp_GetUserNotifications;
-GO
-
-CREATE PROCEDURE sp_GetUserNotifications
-    @UserId NVARCHAR(50),
-    @UserType NVARCHAR(20) = 'USER',
-    @PageNumber INT = 1,
-    @PageSize INT = 20,
-    @IncludeRead BIT = 1,
-    @CategoryFilter NVARCHAR(50) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
-
-    SELECT
-        c_notification_uuid AS NotificationId,
-        c_title AS Title,
-        c_message AS Message,
-        c_category AS Category,
-        c_priority AS Priority,
-        c_action_url AS ActionUrl,
-        c_action_label AS ActionLabel,
-        c_icon_url AS IconUrl,
-        c_data AS Data,
-        c_is_read AS IsRead,
-        c_read_at AS ReadAt,
-        c_createddate AS CreatedAt,
-        c_expires_at AS ExpiresAt
-    FROM t_sys_notifications
-    WHERE c_userid = @UserId
-      AND c_user_type = @UserType
-      AND c_is_deleted = 0
-      AND (@IncludeRead = 1 OR c_is_read = 0)
-      AND (@CategoryFilter IS NULL OR c_category = @CategoryFilter)
-      AND (c_expires_at IS NULL OR c_expires_at > GETDATE())
-    ORDER BY
-        c_priority DESC,
-        c_createddate DESC
-    OFFSET @Offset ROWS
-    FETCH NEXT @PageSize ROWS ONLY;
-
-    -- Return total count
-    SELECT COUNT(*) AS TotalCount
-    FROM t_sys_notifications
-    WHERE c_userid = @UserId
-      AND c_user_type = @UserType
-      AND c_is_deleted = 0
-      AND (@IncludeRead = 1 OR c_is_read = 0)
-      AND (@CategoryFilter IS NULL OR c_category = @CategoryFilter)
-      AND (c_expires_at IS NULL OR c_expires_at > GETDATE());
-
-    -- Return unread count
-    SELECT COUNT(*) AS UnreadCount
-    FROM t_sys_notifications
-    WHERE c_userid = @UserId
-      AND c_user_type = @UserType
-      AND c_is_deleted = 0
-      AND c_is_read = 0
-      AND (c_expires_at IS NULL OR c_expires_at > GETDATE());
-END
-GO
-
-PRINT 'Stored procedure sp_GetUserNotifications created successfully';
-GO
-
--- ============================================
--- STORED PROCEDURE: sp_MarkNotificationAsRead
--- ============================================
-
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'sp_MarkNotificationAsRead') AND type = 'P')
-    DROP PROCEDURE sp_MarkNotificationAsRead;
-GO
-
-CREATE PROCEDURE sp_MarkNotificationAsRead
-    @NotificationUuid UNIQUEIDENTIFIER,
-    @UserId NVARCHAR(50)
-AS
-BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_notifications
-    SET c_is_read = 1,
-        c_read_at = GETDATE()
-    WHERE c_notification_uuid = @NotificationUuid
-      AND c_userid = @UserId
-      AND c_is_read = 0;
+    SET c_is_read = TRUE,
+        c_read_at = CURRENT_TIMESTAMP
+    WHERE c_notification_uuid = p_notification_uuid
+      AND c_userid = p_userid
+      AND c_is_read = FALSE;
 
-    SELECT @@ROWCOUNT AS RowsAffected;
-END
-GO
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$$;
 
-PRINT 'Stored procedure sp_MarkNotificationAsRead created successfully';
-GO
-
--- ============================================
--- STORED PROCEDURE: sp_MarkAllNotificationsAsRead
--- ============================================
-
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'sp_MarkAllNotificationsAsRead') AND type = 'P')
-    DROP PROCEDURE sp_MarkAllNotificationsAsRead;
-GO
-
-CREATE PROCEDURE sp_MarkAllNotificationsAsRead
-    @UserId NVARCHAR(50),
-    @UserType NVARCHAR(20) = 'USER'
-AS
+-- =============================================
+-- FUNCTION: Mark All Notifications As Read
+-- =============================================
+CREATE OR REPLACE FUNCTION sp_MarkAllNotificationsAsRead(
+    p_userid VARCHAR,
+    p_user_type VARCHAR DEFAULT 'USER'
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE v_count INTEGER;
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_notifications
-    SET c_is_read = 1,
-        c_read_at = GETDATE()
-    WHERE c_userid = @UserId
-      AND c_user_type = @UserType
-      AND c_is_read = 0
-      AND c_is_deleted = 0;
+    SET c_is_read = TRUE,
+        c_read_at = CURRENT_TIMESTAMP
+    WHERE c_userid = p_userid
+      AND c_user_type = p_user_type
+      AND c_is_read = FALSE
+      AND c_is_deleted = FALSE;
 
-    SELECT @@ROWCOUNT AS RowsAffected;
-END
-GO
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$$;
 
-PRINT 'Stored procedure sp_MarkAllNotificationsAsRead created successfully';
-GO
-
--- ============================================
--- STORED PROCEDURE: sp_DeleteOldNotifications
--- ============================================
-
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'sp_DeleteOldNotifications') AND type = 'P')
-    DROP PROCEDURE sp_DeleteOldNotifications;
-GO
-
-CREATE PROCEDURE sp_DeleteOldNotifications
-    @DaysToKeep INT = 90
-AS
+-- =============================================
+-- FUNCTION: Delete Old Notifications
+-- =============================================
+CREATE OR REPLACE FUNCTION sp_DeleteOldNotifications(
+    p_days_to_keep INTEGER DEFAULT 90
+)
+RETURNS TABLE(deleted_count INTEGER, expired_count INTEGER)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    -- Soft delete old read notifications
+    -- Soft delete
     UPDATE t_sys_notifications
-    SET c_is_deleted = 1,
-        c_deleted_at = GETDATE()
-    WHERE c_is_read = 1
-      AND c_createddate < DATEADD(DAY, -@DaysToKeep, GETDATE())
-      AND c_is_deleted = 0;
+    SET c_is_deleted = TRUE,
+        c_deleted_at = CURRENT_TIMESTAMP
+    WHERE c_is_read = TRUE
+      AND c_createddate < CURRENT_TIMESTAMP - (p_days_to_keep || ' days')::INTERVAL
+      AND c_is_deleted = FALSE;
 
-    SELECT @@ROWCOUNT AS DeletedCount;
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
 
-    -- Hard delete expired notifications
+    -- Hard delete
     DELETE FROM t_sys_notifications
     WHERE c_expires_at IS NOT NULL
-      AND c_expires_at < GETDATE();
+      AND c_expires_at < CURRENT_TIMESTAMP;
 
-    SELECT @@ROWCOUNT AS ExpiredCount;
-END
-GO
+    GET DIAGNOSTICS expired_count = ROW_COUNT;
 
-PRINT 'Stored procedure sp_DeleteOldNotifications created successfully';
-GO
+    RETURN NEXT;
+END;
+$$;
 
--- ============================================
--- Insert Default Notification Preferences for existing users
--- ============================================
-
--- Insert default preferences for existing users (if needed)
-INSERT INTO t_sys_notification_preferences (c_userid, c_user_type, c_email_enabled, c_sms_enabled, c_inapp_enabled, c_push_enabled)
+-- =============================================
+-- Insert Default Preferences
+-- =============================================
+INSERT INTO t_sys_notification_preferences 
+(c_userid, c_user_type, c_email_enabled, c_sms_enabled, c_inapp_enabled, c_push_enabled)
 SELECT
-    CAST(u.c_userid AS NVARCHAR(50)),
+    CAST(u.c_userid AS VARCHAR(50)),
     'USER',
-    1, 1, 1, 1
+    TRUE, TRUE, TRUE, TRUE
 FROM t_sys_user u
 WHERE NOT EXISTS (
     SELECT 1
-    FROM t_sys_notification_preferences
-    WHERE c_userid = CAST(u.c_userid AS NVARCHAR(50))
-      AND c_user_type = 'USER'
+    FROM t_sys_notification_preferences p
+    WHERE p.c_userid = CAST(u.c_userid AS VARCHAR(50))
+      AND p.c_user_type = 'USER'
 );
-
-PRINT 'Default notification preferences created for existing users';
-GO
-
-PRINT 'In-App Notifications Migration completed successfully!';
-GO

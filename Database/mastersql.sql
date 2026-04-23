@@ -1,30 +1,33 @@
-CREATE TABLE t_sys_user (
-    c_userid BIGINT IDENTITY(1,1) PRIMARY KEY, 
-    c_name NVARCHAR(100) NOT NULL,
+CREATE TABLE IF NOT EXISTS t_sys_user (
+    c_userid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_name VARCHAR(100) NOT NULL,
     c_mobile VARCHAR(15) NOT NULL UNIQUE,
-    c_email NVARCHAR(100) NULL,
-    c_password_hash NVARCHAR(255) NULL,         -- Optional (if using password login)
-    c_googleid NVARCHAR(255) NULL,             -- Optional for Google login
-    c_isemailverified BIT NULL, 
-    c_isphoneverified BIT NULL,                -- 1 if OTP verified
-    c_isactive BIT NULL,                -- 1 if OTP verified
-    c_description NVARCHAR(4000) NULL, 
-    c_stateid INT NULL,
-    c_cityid INT NULL, 
-    c_isblocked BIT NOT NULL DEFAULT 0,
-    c_block_reason NVARCHAR(500) NULL,
-    c_last_login DATETIME NULL,
-    c_picture NVARCHAR(MAX) NULL,
-    c_createddate DATETIME NULL,
-    c_modifieddate DATETIME NULL
+    c_email VARCHAR(100),
+    c_password_hash VARCHAR(255),
+    c_googleid VARCHAR(255),
+    c_isemailverified BOOLEAN,
+    c_isphoneverified BOOLEAN,
+    c_isactive BOOLEAN,
+    c_description TEXT,
+    c_stateid INTEGER,
+    c_cityid INTEGER,
+    c_isblocked BOOLEAN NOT NULL DEFAULT FALSE,
+    c_block_reason VARCHAR(500),
+    c_last_login TIMESTAMP,
+    c_picture TEXT,
+    c_deleted_date TIMESTAMP NULL,
+    c_deleted_by BIGINT NULL,
+    c_is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    c_createddate TIMESTAMP,
+    c_modifieddate TIMESTAMP
 );
 
 
 --------------------------------------------------------------
 
 
-CREATE TABLE t_sys_state (
-    c_stateid INT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS t_sys_state (
+    c_stateid INTEGER PRIMARY KEY,
     c_statename VARCHAR(100) NOT NULL
 );
 
@@ -70,15 +73,15 @@ INSERT INTO t_sys_state (c_stateid, c_statename) VALUES
 
 ----------------------------------------------------
 
-CREATE TABLE t_sys_city (
-  c_cityid   INT PRIMARY KEY,
-  c_cityname VARCHAR(100) NOT NULL,
-  c_stateid  INT NOT NULL,
-  c_isactive  BIT DEFAULT 1,
-  c_createdby INT NULL,
-  c_createddate DATETIME DEFAULT GETDATE(),
-  c_modifiedby INT NULL,
-  c_modifieddate DATETIME NULL, 
+CREATE TABLE IF NOT EXISTS t_sys_city (
+    c_cityid INTEGER PRIMARY KEY,
+    c_cityname VARCHAR(100) NOT NULL,
+    c_stateid INTEGER NOT NULL,
+    c_isactive BOOLEAN DEFAULT TRUE,
+    c_createdby INTEGER,
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_modifiedby INTEGER,
+    c_modifieddate TIMESTAMP
 );
 
 
@@ -285,129 +288,125 @@ INSERT INTO t_sys_city (c_cityid, c_cityname, c_stateid, c_createdby) VALUES
 -----------------------------------------------
 
 
-CREATE TABLE t_sys_catering_owner (
-    c_ownerid BIGINT IDENTITY(1,1) PRIMARY KEY,
-     -- Business Info
-	c_catering_name NVARCHAR(200) NOT NULL,
-    c_owner_name NVARCHAR(200) NOT NULL,
-    c_partnernumber NVARCHAR(50) NOT NULL,
-    c_email NVARCHAR(256) NOT NULL,
-    c_mobile NVARCHAR(15) NOT NULL,
-    c_password_hash NVARCHAR(512) NULL, -- Store encrypted password hash
-	c_catering_number NVARCHAR(15) NOT NULL,
-	c_std_number NVARCHAR(15) NULL,
-	c_logo_path NVARCHAR(500),
-    -- Verification Flags
-    c_same_contact BIT DEFAULT 0,
-    c_isactive BIT DEFAULT 1,
-    c_email_verified BIT DEFAULT 0,
-    c_phone_verified BIT DEFAULT 0,
-    c_approval_status INT DEFAULT 1,
-    c_approved_date DATETIME NULL,
-    c_approved_by BIGINT NULL,
-    c_priority INT DEFAULT 1,
-    c_isblocked BIT NOT NULL DEFAULT 0,
-    c_block_reason NVARCHAR(500) NULL,
-    c_rejection_reason NVARCHAR(1000) NULL,
-    c_internal_notes NVARCHAR(MAX) NULL,
-	c_isfeatured BIT DEFAULT 0, -- Featured on homepage
-	-- Contact / Support
-    c_support_contact_number NVARCHAR(15) NULL,
-    c_alternate_email NVARCHAR(256) NULL,
-    c_whatsapp_number NVARCHAR(15) NULL,
-    c_isdeleted BIT NOT NULL DEFAULT 0,
-    c_reviewed_date DATETIME NULL,
-    c_reviewed_by BIGINT NULL,
-    c_deleted_by BIGINT NULL,
-    c_deleted_date DATETIME NULL,
-	c_createddate DATETIME NULL,
-    c_modifieddate DATETIME NULL
+CREATE TABLE IF NOT EXISTS t_sys_catering_owner (
+	c_ownerid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	c_catering_name VARCHAR(200) NOT NULL,
+	c_owner_name VARCHAR(200) NOT NULL,
+	c_partnernumber VARCHAR(50) NOT NULL,
+	c_email VARCHAR(256) NOT NULL,
+	c_mobile VARCHAR(15) NOT NULL,
+	c_password_hash VARCHAR(512),
+	c_catering_number VARCHAR(15) NOT NULL,
+	c_std_number VARCHAR(15),
+	c_logo_path VARCHAR(500),
+	c_same_contact BOOLEAN DEFAULT FALSE,
+	c_isactive BOOLEAN DEFAULT TRUE,
+	c_email_verified BOOLEAN DEFAULT FALSE,
+	c_phone_verified BOOLEAN DEFAULT FALSE,
+	c_approval_status INTEGER DEFAULT 1,
+	c_approved_date TIMESTAMP,
+	c_approved_by BIGINT,
+	c_priority INTEGER DEFAULT 1,
+	c_isblocked BOOLEAN NOT NULL DEFAULT FALSE,
+	c_block_reason VARCHAR(500),
+	c_rejection_reason VARCHAR(1000),
+	c_internal_notes TEXT,
+	c_isfeatured BOOLEAN DEFAULT FALSE,
+	c_support_contact_number VARCHAR(15),
+	c_alternate_email VARCHAR(256),
+	c_whatsapp_number VARCHAR(15),
+	c_is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+	c_reviewed_date TIMESTAMP,
+	c_reviewed_by BIGINT,
+	c_deleted_by BIGINT,
+	c_deleted_date TIMESTAMP,
+	c_createddate TIMESTAMP,
+	c_modifieddate TIMESTAMP
 );
 
 
 
-CREATE TABLE t_sys_catering_owner_addresses (
-    c_addressid BIGINT IDENTITY(1,1) PRIMARY KEY,
-    c_ownerid BIGINT NOT NULL,
-    c_building NVARCHAR(50) NOT NULL,
-    c_street NVARCHAR(100) NULL,
-	c_area NVARCHAR(256) NULL,
-	c_stateid INT NULL,
-    c_cityid INT NULL,
-    c_pincode NVARCHAR(10) NOT NULL,
-    c_latitude NVARCHAR(100) NULL,
-    c_longitude NVARCHAR(100) NULL,
-    c_mapurl NVARCHAR(500),
-	c_createddate DATETIME NULL,
-    c_modifieddate DATETIME NULL
-);
-
-
-CREATE TABLE t_sys_catering_owner_compliance (
-    c_complianceid BIGINT IDENTITY(1,1) PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS t_sys_catering_owner_addresses (
+	c_addressid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 	c_ownerid BIGINT NOT NULL,
-    c_fssai_number NVARCHAR(20) NOT NULL,
-    c_fssai_expiry_date DATE NOT NULL,
-    c_fssai_certificate_path NVARCHAR(500) NOT NULL,
-    c_gst_applicable BIT DEFAULT 0,
-    c_gst_number NVARCHAR(20),
-    c_gst_certificate_path NVARCHAR(500),
-	c_pan_name NVARCHAR(100) NOT NULL,
-    c_pan_number NVARCHAR(20) NOT NULL,
-    c_pan_file_path NVARCHAR(500),
-	c_createddate DATETIME NULL,
-    c_modifieddate DATETIME NULL
-);
-
-CREATE TABLE t_sys_catering_owner_bankdetails (
-    c_bankid BIGINT IDENTITY(1,1) PRIMARY KEY,
-    c_ownerid BIGINT NOT NULL,
-    c_account_number NVARCHAR(30) NOT NULL,
-    c_account_holder_name NVARCHAR(200) NOT NULL,
-    c_ifsc_code NVARCHAR(20) NOT NULL,
-    c_cheque_path NVARCHAR(500),
-    c_upi_id NVARCHAR(100),
-	c_createddate DATETIME NULL,
-    c_modifieddate DATETIME NULL
+	c_building VARCHAR(50) NOT NULL,
+	c_street VARCHAR(100),
+	c_area VARCHAR(256),
+	c_stateid INTEGER,
+	c_cityid INTEGER,
+	c_pincode VARCHAR(10) NOT NULL,
+	c_latitude VARCHAR(100),
+	c_longitude VARCHAR(100),
+	c_mapurl VARCHAR(500),
+	c_createddate TIMESTAMP,
+	c_modifieddate TIMESTAMP
 );
 
 
-CREATE TABLE t_sys_catering_owner_operations (
-    c_operationid BIGINT IDENTITY(1,1) PRIMARY KEY,
-    c_ownerid BIGINT NOT NULL,
-    c_cuisine_types NVARCHAR(500), -- comma-separated or JSON
-    c_service_types NVARCHAR(300), -- comma-separated or JSON
-	c_event_types NVARCHAR(300), -- comma-separated or JSON
-    c_food_types NVARCHAR(300), -- comma-separated or JSON
-    c_min_dish_order DECIMAL(10, 2),
-    c_delivery_available BIT DEFAULT 0,
-    c_delivery_radius_km INT,
-    c_daily_booking_capacity INT NULL,
-    c_serving_time_slots NVARCHAR(200), -- e.g., "Breakfast,Lunch"
-	c_createddate DATETIME NULL,
-    c_modifieddate DATETIME NULL
-);	
+CREATE TABLE IF NOT EXISTS t_sys_catering_owner_compliance (
+	c_complianceid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	c_ownerid BIGINT NOT NULL,
+	c_fssai_number VARCHAR(20) NOT NULL,
+	c_fssai_expiry_date DATE NOT NULL,
+	c_fssai_certificate_path VARCHAR(500) NOT NULL,
+	c_gst_applicable BOOLEAN DEFAULT FALSE,
+	c_gst_number VARCHAR(20),
+	c_gst_certificate_path VARCHAR(500),
+	c_pan_name VARCHAR(100) NOT NULL,
+	c_pan_number VARCHAR(20) NOT NULL,
+	c_pan_file_path VARCHAR(500),
+	c_createddate TIMESTAMP,
+	c_modifieddate TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS t_sys_catering_owner_bankdetails (
+	c_bankid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	c_ownerid BIGINT NOT NULL,
+	c_account_number VARCHAR(30) NOT NULL,
+	c_account_holder_name VARCHAR(200) NOT NULL,
+	c_ifsc_code VARCHAR(20) NOT NULL,
+	c_cheque_path VARCHAR(500),
+	c_upi_id VARCHAR(100),
+	c_createddate TIMESTAMP,
+	c_modifieddate TIMESTAMP
+);
 
 
-CREATE TABLE t_sys_catering_media_uploads (
-    c_media_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS t_sys_catering_owner_operations (
+	c_operationid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	c_ownerid BIGINT NOT NULL,
+	c_cuisine_types VARCHAR(500),
+	c_service_types VARCHAR(300),
+	c_event_types VARCHAR(300),
+	c_food_types VARCHAR(300),
+	c_min_guest_count INTEGER,
+	c_delivery_available BOOLEAN DEFAULT FALSE,
+	c_delivery_radius_km INTEGER,
+	c_daily_booking_capacity INTEGER,
+	c_serving_time_slots VARCHAR(200),
+	c_createddate TIMESTAMP,
+	c_modifieddate TIMESTAMP
+);
+
+
+CREATE TABLE IF NOT EXISTS t_sys_catering_media_uploads (
+	c_media_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 	c_ownerid BIGINT NOT NULL,
 	c_reference_id BIGINT NOT NULL,
-	c_document_type_id INT NULL, 
-	c_extension NVARCHAR(20) NOT NULL,
-    c_file_name VARCHAR(255) NOT NULL,
-    c_file_path TEXT NOT NULL,
-    c_document_type_id INT,
-	c_is_deleted BIT DEFAULT 0,
-    c_uploaded_at DATETIME NULL,
-	c_modifieddate DATETIME NULL,	
+	c_document_type_id INTEGER,
+	c_extension VARCHAR(20) NOT NULL,
+	c_file_name VARCHAR(255) NOT NULL,
+	c_file_path TEXT NOT NULL,
+	c_is_deleted BOOLEAN DEFAULT FALSE,
+	c_uploaded_at TIMESTAMP,
+	c_modifieddate TIMESTAMP
 );
 
-CREATE TABLE t_sys_catering_document_types (
-    c_document_type_id INT PRIMARY KEY,                         -- Unique identifier
-    c_document_type NVARCHAR(50) NOT NULL,                      -- PascalCase or friendly name (e.g., 'Food', 'Menu')
-    c_description NVARCHAR(1000) NULL,                          -- Optional description (e.g., 'Visuals of food items')
-    c_is_active BIT NOT NULL DEFAULT 1                          -- Logical delete / active status flag
+CREATE TABLE IF NOT EXISTS t_sys_catering_document_types (
+    c_document_type_id INTEGER PRIMARY KEY,
+    c_document_type VARCHAR(50) NOT NULL,
+    c_description VARCHAR(1000),
+    c_is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 
@@ -433,10 +432,10 @@ INSERT INTO t_sys_catering_document_types
 (17, 'Portfolio',      'Showcase of completed events and past work');
 
 
-CREATE TABLE t_sys_catering_type_category (
-	c_categoryid INT PRIMARY KEY,
-	c_categoryname NVARCHAR(100) NOT NULL,  -- e.g., "Food Preference", "Event Type"
-	c_category_code NVARCHAR(10) NOT NULL   -- Optional: for filtering ("food", "event", etc.)
+CREATE TABLE IF NOT EXISTS t_sys_catering_type_category (
+	c_categoryid INTEGER PRIMARY KEY,
+	c_categoryname VARCHAR(100) NOT NULL,
+	c_category_code VARCHAR(10) NOT NULL
 );
 
 
@@ -449,16 +448,16 @@ INSERT INTO t_sys_catering_type_category(c_categoryid, c_categoryname, c_categor
   (5, 'Serving Slots', 'SS');
 
 
-CREATE TABLE t_sys_catering_type_master (
-	c_typeid INT IDENTITY(1,1) PRIMARY KEY,
-	c_categoryid INT,
-	c_type_name NVARCHAR(100),
-	c_description NVARCHAR(500) NULL, 
-	c_isactive BIT DEFAULT 1,
-    c_createdby INT NULL, 
-    c_createddate DATETIME DEFAULT GETDATE(),
-    c_modifiedby INT NULL, 
-    c_modifieddate DATETIME NULL,
+CREATE TABLE IF NOT EXISTS t_sys_catering_type_master (
+	c_typeid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	c_categoryid INTEGER,
+	c_type_name VARCHAR(100),
+	c_description VARCHAR(500),
+	c_isactive BOOLEAN DEFAULT TRUE,
+	c_createdby INTEGER,
+	c_createddate TIMESTAMP DEFAULT NOW(),
+	c_modifiedby INTEGER,
+	c_modifieddate TIMESTAMP
 );
 
 INSERT INTO t_sys_catering_type_master ( c_categoryid, c_type_name, c_description, c_createdby) VALUES
@@ -520,125 +519,145 @@ INSERT INTO t_sys_catering_type_master ( c_categoryid, c_type_name, c_descriptio
 
 
 CREATE TABLE t_sys_food_category (
-  c_categoryid BIGINT PRIMARY KEY IDENTITY(1,1),  
-  c_categoryname NVARCHAR(100) NOT NULL, 
-  c_description NVARCHAR(500) NULL, 
-  c_isactive BIT NULL, 
-  c_is_global BIT NULL, 
+  c_categoryid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,  
+  c_categoryname VARCHAR(100) NOT NULL, 
+  c_description VARCHAR(500) NULL, 
+  c_isactive BOOLEAN NULL, 
+  c_is_global BOOLEAN NULL, 
   c_createdby INT NULL, 
-  c_createddate DATETIME DEFAULT GETDATE(),
+  c_createddate TIMESTAMP DEFAULT NOW(),
   c_modifiedby INT NULL, 
-  c_modifieddate DATETIME NULL,  
+  c_modifieddate TIMESTAMP NULL  
 );
 
-INSERT INTO t_sys_food_category (c_categoryname, c_description, c_is_active, c_is_global, c_createdby, c_createddate) VALUES
+INSERT INTO t_sys_food_category (c_categoryname, c_description, c_isactive, c_is_global, c_createdby, c_createddate) VALUES
 
-    ('Starter', 'Appetizers served before the main course', 1, 1, NULL, GETDATE()),
-    ('Soup', 'Various vegetarian and non-vegetarian soups', 1, 1, NULL, GETDATE()),
-    ('Salad', 'Fresh salads including veg and non-veg options', 1, 1, NULL, GETDATE()),
-    ('Main Course', 'Primary food items served in the meal', 1, 1, NULL, GETDATE()),
-    ('Dal & Rice', 'Dal items with rice varieties', 1, 1, NULL, GETDATE()),
-    ('Roti / Bread', 'Indian breads such as roti, naan, paratha', 1, 1, NULL, GETDATE()),
-    ('Sweet Regular', 'Standard sweet dishes', 1, 1, NULL, GETDATE()),
-    ('Sweet Special', 'Premium or special sweet dishes', 1, 1, NULL, GETDATE()),
-    ('Dessert', 'Ice creams, pastries, and other desserts', 1, 1, NULL, GETDATE()),
-    ('Juice / Beverages', 'Fruit juices and soft drinks', 1, 1, NULL, GETDATE()),
-    ('Chat / Street Food', 'Indian street food items', 1, 1, NULL, GETDATE()),
-    ('Chinese', 'Chinese cuisine items', 1, 1, NULL, GETDATE()),
-    ('Italian', 'Italian cuisine items', 1, 1, NULL, GETDATE()),
-    ('Special Items', 'Live counters or special stalls', 1, 1, NULL, GETDATE()),
-    ('Pan Counter', 'Pan and mouth freshener counters', 1, 1, NULL, GETDATE()),
-    ('Mocktail / Coffee Bar', 'Mocktails, coffee, tea, and hot beverages', 1, 1, NULL, GETDATE()),
-    ('Bengali Counter', 'Bengali food special items', 1, 1, NULL, GETDATE());
+    ('Starter', 'Appetizers served before the main course', TRUE, TRUE, NULL, NOW()),
+    ('Soup', 'Various vegetarian and non-vegetarian soups', TRUE, TRUE, NULL, NOW()),
+    ('Salad', 'Fresh salads including veg and non-veg options', TRUE, TRUE, NULL, NOW()),
+    ('Main Course', 'Primary food items served in the meal', TRUE, TRUE, NULL, NOW()),
+    ('Dal & Rice', 'Dal items with rice varieties', TRUE, TRUE, NULL, NOW()),
+    ('Roti / Bread', 'Indian breads such as roti, naan, paratha', TRUE, TRUE, NULL, NOW()),
+    ('Sweet Regular', 'Standard sweet dishes', TRUE, TRUE, NULL, NOW()),
+    ('Sweet Special', 'Premium or special sweet dishes', TRUE, TRUE, NULL, NOW()),
+    ('Dessert', 'Ice creams, pastries, and other desserts', TRUE, TRUE, NULL, NOW()),
+    ('Juice / Beverages', 'Fruit juices and soft drinks', TRUE, TRUE, NULL, NOW()),
+    ('Chat / Street Food', 'Indian street food items', TRUE, TRUE, NULL, NOW()),
+    ('Chinese', 'Chinese cuisine items', TRUE, TRUE, NULL, NOW()),
+    ('Italian', 'Italian cuisine items', TRUE, TRUE, NULL, NOW()),
+    ('Special Items', 'Live counters or special stalls', TRUE, TRUE, NULL, NOW()),
+    ('Pan Counter', 'Pan and mouth freshener counters', TRUE, TRUE, NULL, NOW()),
+    ('Mocktail / Coffee Bar', 'Mocktails, coffee, tea, and hot beverages', TRUE, TRUE, NULL, NOW()),
+    ('Bengali Counter', 'Bengali food special items', TRUE, TRUE, NULL, NOW());
 
 
 CREATE TABLE t_sys_guest_category (
-	c_guest_category_id INT IDENTITY(1,1) PRIMARY KEY,
-	c_categoryname NVARCHAR(100),
-	c_description NVARCHAR(500) NULL, 
-	c_isactive BIT DEFAULT 1,
+	c_guest_category_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	c_categoryname VARCHAR(100),
+	c_description VARCHAR(500) NULL, 
+	c_isactive BOOLEAN DEFAULT TRUE,
     c_createdby INT NULL, 
-    c_createddate DATETIME DEFAULT GETDATE(),
+    c_createddate TIMESTAMP DEFAULT NOW(),
     c_modifiedby INT NULL, 
-    c_modifieddate DATETIME NULL,
+    c_modifieddate TIMESTAMP NULL
 ); 
 
+-- Active + display order (used in UI filtering)
+CREATE INDEX IF NOT EXISTS ix_guest_category_active
+ON t_sys_guest_category(c_isactive);
+
+-- Fast lookup by category name
+CREATE INDEX IF NOT EXISTS ix_guest_category_name
+ON t_sys_guest_category(c_categoryname);
+
+-- =============================================
+-- 3. Insert Default Data (Safe + Idempotent)
+-- =============================================
+INSERT INTO t_sys_guest_category 
+(c_categoryname, c_description, c_isactive, c_createdby)
+VALUES
+('50-100 Guests', 'Small gatherings and intimate events', TRUE, 1),
+('100-200 Guests', 'Medium-sized events and celebrations', TRUE, 1),
+('200-500 Guests', 'Large events and parties', TRUE, 1),
+('500-1000 Guests', 'Very large events and corporate functions', TRUE, 1),
+('1000+ Guests', 'Mass gatherings and mega events', TRUE, 1);
+
 CREATE TABLE t_map_partner_category (
-  c_mapid BIGINT PRIMARY KEY IDENTITY(1,1),  
+  c_mapid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,  
   c_ownerid BIGINT NOT NULL, 
   c_categoryid BIGINT NOT NULL, 
-  c_is_enabled BIT NULL, 
-  c_createddate DATETIME NULL 
+  c_is_enabled BOOLEAN NULL, 
+  c_createddate TIMESTAMP NULL 
 );
 
 
 CREATE TABLE t_sys_catering_packages (
-  c_packageid BIGINT PRIMARY KEY IDENTITY(1,1), 
+  c_packageid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
   c_ownerid BIGINT NOT NULL, 
-  c_packagename NVARCHAR(100) NULL, 
-  c_description NVARCHAR(1000) NULL, 
+  c_packagename VARCHAR(100) NULL, 
+  c_description VARCHAR(1000) NULL, 
   c_price DECIMAL(10, 2) NULL, 
-  c_is_active BIT NULL, 
-  c_is_deleted BIT DEFAULT 0,
-  c_createddate GETDATE(), 
-  c_modifieddate DATETIME NULL, 
+  c_is_active BOOLEAN NULL, 
+  c_is_deleted BOOLEAN DEFAULT FALSE,
+  c_createddate TIMESTAMP DEFAULT NOW(), 
+  c_modifieddate TIMESTAMP NULL 
 );
 
 CREATE TABLE t_sys_catering_package_items (
-  c_itemid BIGINT PRIMARY KEY IDENTITY(1,1),
+  c_itemid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   c_packageid BIGINT NOT NULL, 
-  c_categoryid INT NOT NULL, 
+  c_categoryid BIGINT NOT NULL, 
   c_quantity INT NULL, 
-  c_createddate GETDATE(), 
-  c_modifieddate DATETIME NULL
+  c_createddate TIMESTAMP DEFAULT NOW(), 
+  c_modifieddate TIMESTAMP NULL
 );
 
 
 
 -- Menu Table – stores food items offered by partners
 CREATE TABLE t_sys_fooditems (
-    c_foodid BIGINT PRIMARY KEY IDENTITY(1,1),  -- Primary Key
+    c_foodid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,  -- Primary Key
     c_ownerid BIGINT NOT NULL,                  -- FK → Partner
-    c_foodname NVARCHAR(200) NOT NULL,          -- Name of food item
-    c_description NVARCHAR(MAX) NULL,           -- Description/details
+    c_foodname VARCHAR(200) NOT NULL,          -- Name of food item
+    c_description TEXT NULL,           -- Description/details
     c_categoryid BIGINT NULL,                 -- Category (Starter, Main, Dessert, etc.)
     c_cuisinetypeid BIGINT NULL,              -- Cuisine type (Indian, Chinese, Italian, etc.)
     c_price DECIMAL(10,2) NOT NULL,             -- Price
-    c_ispackage_item BIT NULL,
-    c_isveg BIT NULL,
-    c_islive_counter BIT DEFAULT 0,
-    c_status BIT NULL,
-	c_is_deleted BIT DEFAULT 0,
-    c_createddate DATETIME NULL, 
-    c_modifieddate DATETIME NULL, 
-    c_issample_tasted BIT NOT NULL
+    c_ispackage_item BOOLEAN NULL,
+    c_isveg BOOLEAN NULL,
+    c_islive_counter BOOLEAN DEFAULT FALSE,
+    c_status BOOLEAN NULL,
+	c_is_deleted BOOLEAN DEFAULT FALSE,
+    c_createddate TIMESTAMP NULL, 
+    c_modifieddate TIMESTAMP NULL, 
+    c_issample_tasted BOOLEAN NOT NULL
 );
 
 CREATE TABLE t_sys_catering_decorations (
-  c_decoration_id BIGINT PRIMARY KEY IDENTITY(1,1), 
+  c_decoration_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
   c_ownerid BIGINT NOT NULL, 
   c_packageids VARCHAR(100) NULL, 
-  c_decoration_name NVARCHAR(200) NOT NULL, 
-  c_description NVARCHAR(MAX) NULL, 
+  c_decoration_name VARCHAR(200) NOT NULL, 
+  c_description TEXT NULL, 
   c_theme_id INT NOT NULL, 
   c_price DECIMAL(10, 2) NULL, 
-  c_status BIT NULL, 
-  c_is_deleted BIT DEFAULT 0,
-  c_createddate GETDATE(),
-  c_modifieddate DATETIME NULL
+  c_status BOOLEAN NULL, 
+  c_is_deleted BOOLEAN DEFAULT FALSE,
+  c_createddate TIMESTAMP DEFAULT NOW(),
+  c_modifieddate TIMESTAMP NULL
 );
 
 
 CREATE TABLE t_sys_catering_theme_types
 (
-    c_theme_id    BIGINT IDENTITY(1,1) PRIMARY KEY,
-    c_theme_name  NVARCHAR(150) NOT NULL,
-    c_description NVARCHAR(500) NULL,
-    c_isactive    BIT DEFAULT 1,
+    c_theme_id    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_theme_name  VARCHAR(150) NOT NULL,
+    c_description TEXT NULL,
+    c_isactive    BOOLEAN DEFAULT TRUE,
     c_createdby   INT NULL, 
-    c_createddate DATETIME DEFAULT GETDATE(),
+    c_createddate TIMESTAMP DEFAULT NOW(),
     c_modifiedby  INT NULL, 
-    c_modifieddate DATETIME NULL,
+    c_modifieddate TIMESTAMP NULL
 );
 
 INSERT INTO t_sys_catering_theme_types (c_theme_name, c_description, c_createdby) VALUES
@@ -680,29 +699,29 @@ INSERT INTO t_sys_catering_theme_types (c_theme_name, c_description, c_createdby
 
 
 CREATE TABLE t_sys_catering_staff (
-  c_staffid BIGINT PRIMARY KEY IDENTITY(1,1),  
+  c_staffid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,  
   c_ownerid BIGINT NOT NULL, 
-  c_fullname NVARCHAR(150) NOT NULL, 
-  c_gender NVARCHAR(10) NOT NULL, 
-  c_contact_number NVARCHAR(15) NOT NULL, 
-  c_role NVARCHAR(100) NOT NULL, 
-  c_other_role NVARCHAR(100) NULL, 
+  c_fullname VARCHAR(150) NOT NULL, 
+  c_gender VARCHAR(10) NOT NULL, 
+  c_contact_number VARCHAR(15) NOT NULL, 
+  c_role VARCHAR(100) NOT NULL, 
+  c_other_role VARCHAR(100) NULL, 
   c_expertise_categoryid BIGINT NULL, 
   c_experience_years DECIMAL(4, 1) NULL, 
-  c_salary_type NVARCHAR(20) NOT NULL, 
+  c_salary_type VARCHAR(20) NOT NULL, 
   c_salary_amount DECIMAL(10, 2) NOT NULL, 
-  c_profile_path NVARCHAR(500) NULL, 
-  c_identity_doc_path NVARCHAR(500) NULL, 
-  c_resume_doc_path NVARCHAR(500) NULL, 
-  c_availability BIT NULL, 
-  c_is_deleted BIT DEFAULT 0,
-  c_createddate GETDATE(), 
-  c_modifieddate DATETIME NULL, 
+  c_profile_path VARCHAR(500) NULL, 
+  c_identity_doc_path VARCHAR(500) NULL, 
+  c_resume_doc_path VARCHAR(500) NULL, 
+  c_availability BOOLEAN NULL, 
+  c_is_deleted BOOLEAN DEFAULT FALSE,
+  c_createddate TIMESTAMP DEFAULT NOW(), 
+  c_modifieddate TIMESTAMP NULL 
 );
 
 
 CREATE TABLE t_sys_catering_review (
-    c_reviewid BIGINT IDENTITY(1,1) PRIMARY KEY,
+    c_reviewid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
     -- Foreign Keys
     c_ownerid BIGINT NOT NULL,                  -- FK → Catering Owner
@@ -718,133 +737,160 @@ CREATE TABLE t_sys_catering_review (
     c_punctuality_rating DECIMAL(2,1) NULL,
 
     -- Review Content
-    c_review_title NVARCHAR(200) NULL,
-    c_review_comment NVARCHAR(2000) NULL,
-    c_owner_reply NVARCHAR(2000) NULL,          -- Owner response to review
-    c_owner_reply_date DATETIME NULL,           -- When owner replied
+    c_review_title VARCHAR(200) NULL,
+    c_review_comment TEXT NULL,
+    c_owner_reply TEXT NULL,          -- Owner response to review
+    c_owner_reply_date TIMESTAMP NULL,           -- When owner replied
 
     -- Review Status & Moderation
-    c_is_verified BIT DEFAULT 1,                -- Verified order-based review
-    c_is_visible BIT DEFAULT 1,                 -- Visible to customers
-    c_is_reported BIT DEFAULT 0,                -- Reported by vendor/user
-    c_ishidden BIT NOT NULL DEFAULT 0,          -- Admin hidden flag
-    c_hidden_reason NVARCHAR(500) NULL,         -- Why review was hidden
+    c_is_verified BOOLEAN DEFAULT TRUE,                -- Verified order-based review
+    c_is_visible BOOLEAN DEFAULT TRUE,                 -- Visible to customers
+    c_is_reported BOOLEAN DEFAULT FALSE,                -- Reported by vendor/user
+    c_ishidden BOOLEAN NOT NULL DEFAULT FALSE,          -- Admin hidden flag
+    c_hidden_reason VARCHAR(500) NULL,         -- Why review was hidden
     c_hidden_by BIGINT NULL,                    -- Admin who hid review
-    c_hidden_date DATETIME NULL,                -- When review was hidden
-    c_admin_status NVARCHAR(20) DEFAULT 'Approved', 
+    c_hidden_date TIMESTAMP NULL,                -- When review was hidden
+    c_admin_status VARCHAR(20) DEFAULT 'Approved', 
         -- Approved / Pending / Rejected
 
     -- Metadata
-    c_createddate DATETIME DEFAULT GETDATE(),
-    c_modifieddate DATETIME NULL
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_modifieddate TIMESTAMP NULL
 );
 
+-- Ensure Owner Review Reply table exists for owner responses
+CREATE TABLE IF NOT EXISTS t_sys_owner_review_reply (
+    c_replyid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_reviewid BIGINT NOT NULL,
+    c_ownerid BIGINT NOT NULL,
+    c_reply_text VARCHAR(1000) NOT NULL,
+    c_reply_date TIMESTAMP DEFAULT NOW(),
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_modifieddate TIMESTAMP NULL,
 
-CREATE TABLE t_sys_catering_discount (
-    c_discountid BIGINT IDENTITY(1,1) PRIMARY KEY,
+    CONSTRAINT fk_review_reply_review FOREIGN KEY (c_reviewid)
+        REFERENCES t_sys_catering_review (c_reviewid) ON DELETE CASCADE,
+    CONSTRAINT fk_review_reply_owner FOREIGN KEY (c_ownerid)
+        REFERENCES t_sys_catering_owner (c_ownerid)
+);
+
+-- Create index for better performance on review queries
+CREATE INDEX IF NOT EXISTS ix_review_ownerid_visible
+ON t_sys_catering_review (c_ownerid, c_is_visible, c_ishidden);
+
+-- Create index for user's reviews
+CREATE INDEX IF NOT EXISTS ix_review_userid
+ON t_sys_catering_review (c_userid);
+
+-- Create index for order reviews
+CREATE INDEX IF NOT EXISTS ix_review_orderid
+ON t_sys_catering_review (c_orderid);
+
+
+CREATE TABLE IF NOT EXISTS t_sys_catering_discount (
+    c_discountid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_ownerid BIGINT NOT NULL,
 
-    c_discount_name NVARCHAR(200) NOT NULL,
-    c_discount_description NVARCHAR(500) NULL,
+    c_discount_name VARCHAR(200) NOT NULL,
+    c_discount_description TEXT,
 
     c_discount_type INT NOT NULL,   -- Enum
     c_discount_mode INT NOT NULL,   -- Enum
-	
-    c_discount_value DECIMAL(10,2) NOT NULL,
-    c_min_order_value DECIMAL(10,2) NULL,
-    c_max_discount_value DECIMAL(10,2) NULL,
-	c_discount_code NVARCHAR(50) NOT NULL UNIQUE,
+
+    c_discount_value NUMERIC(10,2) NOT NULL,
+    c_min_order_value NUMERIC(10,2),
+    c_max_discount_value NUMERIC(10,2),
+
+    c_discount_code VARCHAR(50) NOT NULL UNIQUE,
 
     c_max_uses_per_order INT DEFAULT 1,
     c_max_uses_per_user INT DEFAULT 1,
-    c_is_stackable BIT DEFAULT 0,
+    c_is_stackable BOOLEAN DEFAULT FALSE,
 
     c_startdate DATE NOT NULL,
     c_enddate DATE NOT NULL,
 
-    c_isactive BIT DEFAULT 1,
-    c_isautodisable BIT DEFAULT 1,
-    c_status INT DEFAULT 1,         -- 1=Active,2=Expired,3=Disabled
-	
-	c_is_deleted BIT DEFAULT 0,
-    c_createddate DATETIME DEFAULT GETDATE(),
-    c_updateddate DATETIME NULL
+    c_isactive BOOLEAN DEFAULT TRUE,
+    c_isautodisable BOOLEAN DEFAULT TRUE,
+    c_status INT DEFAULT 1, -- 1=Active,2=Expired,3=Disabled
+
+    c_is_deleted BOOLEAN DEFAULT FALSE,
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_updateddate TIMESTAMP
 );
 
 
 
 CREATE TABLE t_map_discount_fooditem (
-    c_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    c_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_discountid BIGINT NOT NULL,
     c_foodid BIGINT NOT NULL,
-	c_isactive BIT NOT NULL DEFAULT 1,
+	c_isactive BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE t_map_discount_package (
-    c_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    c_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_discountid BIGINT NOT NULL,
     c_packageid BIGINT NOT NULL,
-	c_isactive BIT NOT NULL DEFAULT 1,
+	c_isactive BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- Global Status Table
 CREATE TABLE t_catering_availability_global (
-    c_id INT IDENTITY(1,1) PRIMARY KEY,
+    c_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_ownerid BIGINT NOT NULL,
     c_global_status INT NOT NULL DEFAULT 1 CHECK (c_global_status IN (1, 2)),
-    c_closure_reason NVARCHAR(255) NULL,
-    c_modifieddate DATETIME DEFAULT GETDATE()
+    c_closure_reason VARCHAR(255) NULL,
+    c_modifieddate TIMESTAMP DEFAULT NOW()
 );
 
 -- Date-Specific Availability Table
 CREATE TABLE t_catering_availability_dates (
-    c_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    c_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_ownerid BIGINT NOT NULL,
     c_date DATE NOT NULL,
     c_status INT NOT NULL CHECK (c_status IN (1, 2, 3)),
-    c_note NVARCHAR(255) NULL,
-    c_createddate DATETIME DEFAULT GETDATE(),
-    c_modifieddate DATETIME NULL
+    c_note VARCHAR(255) NULL,
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_modifieddate TIMESTAMP NULL
 );
 
--- Indexes for Performance
-CREATE INDEX IX_Availability_Dates_Range
+CREATE INDEX IF NOT EXISTS idx_availability_dates_range
 ON t_catering_availability_dates (c_ownerid, c_date)
 INCLUDE (c_status);
--- logic: fast lookup for "Is owner X available on date Y?" returning just the status.
 
 
 -- Banner Management Table
 CREATE TABLE t_sys_catering_banners (
-    c_bannerid BIGINT IDENTITY(1,1) PRIMARY KEY,
+    c_bannerid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_ownerid BIGINT NOT NULL,
-    c_title NVARCHAR(200) NOT NULL,
-    c_description NVARCHAR(MAX) NULL,
-    c_link_url NVARCHAR(500) NULL,
+    c_title VARCHAR(200) NOT NULL,
+    c_description TEXT NULL,
+    c_link_url VARCHAR(500) NULL,
     c_display_order INT NOT NULL DEFAULT 0,
-    c_isactive BIT NOT NULL DEFAULT 1,
-    c_start_date DATETIME NULL,
-    c_end_date DATETIME NULL,
+    c_isactive BOOLEAN NOT NULL DEFAULT TRUE,
+    c_start_date TIMESTAMP NULL,
+    c_end_date TIMESTAMP NULL,
     c_click_count INT NOT NULL DEFAULT 0,
     c_view_count INT NOT NULL DEFAULT 0,
-    c_is_deleted BIT NOT NULL DEFAULT 0,
-    c_createddate DATETIME DEFAULT GETDATE(),
-    c_modifieddate DATETIME NULL
+    c_is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_modifieddate TIMESTAMP NULL
 );
 
 -- Index for better query performance
 CREATE INDEX IX_Banners_Owner_Active
 ON t_sys_catering_banners (c_ownerid, c_isactive, c_display_order)
-WHERE c_is_deleted = 0;
+WHERE c_is_deleted = FALSE;
 
 ------------------------------------------ Below Tables are executing is pending ---- --------------------------------
 
 CREATE TABLE t_sys_catering_discount_usage (
-    c_usage_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    c_usage_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
     -- Discount Reference
     c_discount_id BIGINT NOT NULL,
-    c_discount_code NVARCHAR(50) NOT NULL,
+    c_discount_code VARCHAR(50) NOT NULL,
 
     -- Who used it
     c_ownerid BIGINT NOT NULL,        -- Catering Owner
@@ -863,135 +909,76 @@ CREATE TABLE t_sys_catering_discount_usage (
     -- 3 = Cancelled (order cancelled)
 
     -- Audit
-    c_used_at DATETIME DEFAULT GETDATE()
-);
-
-
--- Order Table – stores orders placed by users
-CREATE TABLE t_sys_order (
-    c_orderid BIGINT PRIMARY KEY IDENTITY(1,1),
-    c_userid BIGINT NOT NULL,
-    c_ownerid BIGINT NOT NULL,
-    c_total_amount DECIMAL(10,2) NOT NULL,
-    c_statusid BIGINT NOT NULL, -- Pending, Accepted, Preparing, Delivered, Cancelled
-    c_createddate DATETIME NULL 
-);
-
-
--- Payment Table – stores payment details
-CREATE TABLE t_sys_payment (
-    c_paymentid BIGINT PRIMARY KEY IDENTITY(1,1),
-    c_orderid BIGINT NOT NULL,
-    c_payment_method NVARCHAR(50) NOT NULL, -- UPI, Card, COD
-    c_payment_statusid BIGINT NOT NULL, 'Pending', -- Paid, Failed
-    c_transaction_id NVARCHAR(100),
-    c_paid_amount DECIMAL(10,2),
-    c_paid_at DATETIME NOT NULL,
-);
-
---Order History Table – tracks order status changes
-CREATE TABLE t_sys_order_history (
-    c_historyid BIGINT PRIMARY KEY IDENTITY(1,1),
-    c_orderid BIGINT NOT NULL,
-    c_status NVARCHAR(50) NOT NULL,
-    c_changed_at DATETIME NULL,
-);
-
---Feedback Table – user feedback for orders
-CREATE TABLE t_sys_feedback (
-    c_feedbackid BIGINT PRIMARY KEY IDENTITY(1,1),
-    c_orderid BIGINT NOT NULL,
-    c_userid BIGINT NOT NULL,
-    c_rating INT CHECK (c_rating BETWEEN 1 AND 5),
-    c_comment NVARCHAR(MAX),
-    c_createddate DATETIME NULL
+    c_used_at TIMESTAMP DEFAULT NOW()
 );
 
 --optional: Coupon Table – discounts & promotions
 
-CREATE TABLE t_sys_coupon (
-    c_couponid BIGINT PRIMARY KEY IDENTITY(1,1),
-    c_code NVARCHAR(50) UNIQUE NOT NULL,
-    c_discount_percent INT,
-    c_valid_from DATETIME,
-    c_valid_to DATETIME,
-    c_is_active BIT DEFAULT 1
-);
-
-
---Status Master Table
-CREATE TABLE t_sys_statusmaster (
-    c_statusid BIGINT PRIMARY KEY IDENTITY(1,1),  -- Primary Key
-    c_statusname NVARCHAR(50) NOT NULL,           -- e.g., Active, Inactive, Pending, Completed
-    c_description NVARCHAR(200) NULL,             -- Optional detail
-    c_createddate DATETIME DEFAULT GETDATE()
-);
-
 -- Homepage Statistics Table (for caching homepage stats)
 CREATE TABLE t_sys_homepage_stats (
-    c_statsid INT PRIMARY KEY IDENTITY(1,1),
+    c_statsid INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_total_events_catered INT NOT NULL DEFAULT 0,
     c_total_catering_partners INT NOT NULL DEFAULT 0,
     c_total_happy_customers INT NOT NULL DEFAULT 0,
     c_satisfaction_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
-    c_last_updated DATETIME DEFAULT GETDATE()
+    c_last_updated TIMESTAMP DEFAULT NOW()
 );
 
 -- Insert initial homepage stats record
 INSERT INTO t_sys_homepage_stats (c_total_events_catered, c_total_catering_partners, c_total_happy_customers, c_satisfaction_rate, c_last_updated)
-VALUES (5000, 500, 50000, 98.00, GETDATE());
+VALUES (5000, 500, 50000, 98.00, NOW());
 
 
--- Partner Agreement Table
-CREATE TABLE t_sys_catering_owner_agreement (
-    c_agreementid BIGINT IDENTITY(1,1) PRIMARY KEY,
+-- Create Partner Agreement Table
+CREATE TABLE IF NOT EXISTS t_sys_catering_owner_agreement (
+    c_agreementid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_ownerid BIGINT NOT NULL,
-    c_agreement_text NVARCHAR(MAX) NOT NULL,
-    c_agreement_accepted BIT NOT NULL DEFAULT 0,
-    c_signature_data NVARCHAR(MAX) NULL, -- Base64 encoded signature image
-    c_signature_path NVARCHAR(500) NULL, -- File path to signature image
-    c_agreement_pdf_path NVARCHAR(500) NULL, -- File path to generated agreement PDF
-    c_ip_address NVARCHAR(50) NULL,
-    c_user_agent NVARCHAR(500) NULL,
-    c_accepted_date DATETIME NULL,
-    c_createddate DATETIME DEFAULT GETDATE(),
-    c_modifieddate DATETIME NULL,
-    CONSTRAINT FK_Agreement_Owner FOREIGN KEY (c_ownerid) REFERENCES t_sys_catering_owner(c_ownerid)
+    c_agreement_text TEXT NOT NULL,
+    c_agreement_accepted BOOLEAN NOT NULL DEFAULT FALSE,
+    c_signature_data TEXT NULL, -- Base64 encoded signature image
+    c_signature_path VARCHAR(500) NULL, -- File path to signature image
+    c_agreement_pdf_path VARCHAR(500) NULL, -- File path to generated agreement PDF
+    c_ip_address VARCHAR(50) NULL,
+    c_user_agent VARCHAR(500) NULL,
+    c_accepted_date TIMESTAMP NULL,
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_modifieddate TIMESTAMP NULL,
+    CONSTRAINT fk_agreement_owner FOREIGN KEY (c_ownerid) REFERENCES t_sys_catering_owner(c_ownerid)
 );
 
 
 -- Notification Templates Table
 CREATE TABLE t_notification_templates (
-    c_template_id BIGINT PRIMARY KEY IDENTITY(1,1),
+    c_template_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_template_code VARCHAR(100) NOT NULL UNIQUE,
     c_channel VARCHAR(20) NOT NULL, -- EMAIL, SMS, INAPP
     c_audience VARCHAR(20) NOT NULL, -- ADMIN, PARTNER, USER, ALL
     c_category VARCHAR(50) NOT NULL, -- OTP, ORDER_CONFIRMATION, etc.
 
-    c_name NVARCHAR(200) NOT NULL,
-    c_description NVARCHAR(500),
+    c_name VARCHAR(200) NOT NULL,
+    c_description VARCHAR(500),
 
     -- Template Content
-    c_subject NVARCHAR(500) NULL, -- For EMAIL only
-    c_body NVARCHAR(MAX) NOT NULL,
-    c_text_body NVARCHAR(MAX) NULL, -- Plain text version for EMAIL
+    c_subject VARCHAR(500) NULL, -- For EMAIL only
+    c_body TEXT NOT NULL,
+    c_text_body TEXT NULL, -- Plain text version for EMAIL
 
     -- Metadata
     c_language VARCHAR(10) NOT NULL DEFAULT 'en', -- en, hi, es, etc.
     c_version INT NOT NULL DEFAULT 1,
-    c_is_active BIT NOT NULL DEFAULT 1,
-    c_is_default BIT NOT NULL DEFAULT 0, -- Default template for this code
+    c_is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    c_is_default BOOLEAN NOT NULL DEFAULT FALSE, -- Default template for this code
 
     -- Placeholders
-    c_placeholders NVARCHAR(MAX), -- JSON array of placeholder names
-    c_sample_data NVARCHAR(MAX), -- JSON object with sample data for preview
+    c_placeholders TEXT, -- JSON array of placeholder names
+    c_sample_data TEXT, -- JSON object with sample data for preview
 
     -- Audit
     c_createdby VARCHAR(100),
-    c_createddate DATETIME DEFAULT GETDATE(),
+    c_createddate TIMESTAMP DEFAULT NOW(),
     c_updated_by VARCHAR(100),
-    c_modifieddate DATETIME DEFAULT GETDATE(),
-    c_last_used_date DATETIME NULL,
+    c_modifieddate TIMESTAMP DEFAULT NOW(),
+    c_last_used_date TIMESTAMP NULL,
     c_usage_count INT DEFAULT 0,
 
     -- Constraints
@@ -1007,15 +994,15 @@ CREATE INDEX IX_templates_active ON t_notification_templates(c_is_active);
 
 -- Template Version History
 CREATE TABLE t_notification_template_versions (
-    c_version_id BIGINT PRIMARY KEY IDENTITY(1,1),
+    c_version_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_template_id BIGINT NOT NULL,
     c_version INT NOT NULL,
-    c_subject NVARCHAR(500),
-    c_body NVARCHAR(MAX) NOT NULL,
-    c_text_body NVARCHAR(MAX),
+    c_subject VARCHAR(500),
+    c_body TEXT NOT NULL,
+    c_text_body TEXT,
     c_changed_by VARCHAR(100),
-    c_changed_date DATETIME DEFAULT GETDATE(),
-    c_change_notes NVARCHAR(500),
+    c_changed_date TIMESTAMP DEFAULT NOW(),
+    c_change_notes VARCHAR(500),
 
     CONSTRAINT FK_template_version_template FOREIGN KEY (c_template_id)
         REFERENCES t_notification_templates(c_template_id)
@@ -1023,84 +1010,94 @@ CREATE TABLE t_notification_template_versions (
 
 CREATE INDEX IX_template_versions ON t_notification_template_versions(c_template_id, c_version);
 
--- In-App Notifications Table
-CREATE TABLE t_inapp_notifications (
+CREATE TABLE IF NOT EXISTS t_inapp_notifications (
     c_notification_id VARCHAR(50) PRIMARY KEY,
     c_userid VARCHAR(50) NOT NULL,
     c_user_type VARCHAR(20) NOT NULL, -- ADMIN, PARTNER, USER
 
-    c_title NVARCHAR(200) NOT NULL,
-    c_message NVARCHAR(1000) NOT NULL,
+    c_title VARCHAR(200) NOT NULL,
+    c_message VARCHAR(1000) NOT NULL,
     c_category VARCHAR(50),
     c_priority INT DEFAULT 5,
 
     c_action_url VARCHAR(500),
     c_icon_url VARCHAR(500),
-    c_data NVARCHAR(MAX), -- JSON
+    c_data JSONB, -- better for PostgreSQL
 
-    c_is_read BIT DEFAULT 0,
-    c_read_at DATETIME NULL,
+    c_is_read BOOLEAN DEFAULT FALSE,
+    c_read_at TIMESTAMP NULL,
 
-    c_createddate DATETIME DEFAULT GETDATE(),
-    c_expires_at DATETIME NULL,
-
-    INDEX IX_inapp_user_unread (c_userid, c_user_type, c_is_read),
-    INDEX IX_inapp_created (c_createddate DESC)
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_expires_at TIMESTAMP NULL
 );
 
--- Notification Delivery Log
-CREATE TABLE t_notification_delivery_log (
-    c_delivery_id BIGINT PRIMARY KEY IDENTITY(1,1),
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_inapp_user_unread 
+ON t_inapp_notifications (c_userid, c_user_type, c_is_read);
+
+CREATE INDEX IF NOT EXISTS idx_inapp_created 
+ON t_inapp_notifications (c_createddate DESC);
+
+CREATE TABLE IF NOT EXISTS t_notification_delivery_log (
+    c_delivery_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_notification_id VARCHAR(50) NOT NULL,
     c_channel VARCHAR(20) NOT NULL, -- EMAIL, SMS, INAPP
 
-    c_recipient NVARCHAR(200) NOT NULL, -- Email/Phone/UserId
+    c_recipient VARCHAR(200) NOT NULL, -- Email/Phone/UserId
     c_status VARCHAR(20) NOT NULL, -- QUEUED, SENT, DELIVERED, FAILED, BOUNCED
 
-    c_provider VARCHAR(50), -- SendGrid, Twilio, SignalR
+    c_provider VARCHAR(50),
     c_provider_message_id VARCHAR(200),
 
-    c_sent_at DATETIME NULL,
-    c_delivered_at DATETIME NULL,
-    c_opened_at DATETIME NULL,
-    c_clicked_at DATETIME NULL,
+    c_sent_at TIMESTAMP NULL,
+    c_delivered_at TIMESTAMP NULL,
+    c_opened_at TIMESTAMP NULL,
+    c_clicked_at TIMESTAMP NULL,
 
-    c_error_message NVARCHAR(MAX),
+    c_error_message TEXT,
     c_retry_count INT DEFAULT 0,
-    c_cost DECIMAL(10, 4) DEFAULT 0,
+    c_cost NUMERIC(10,4) DEFAULT 0,
 
-    c_createddate DATETIME DEFAULT GETDATE(),
-
-    INDEX IX_delivery_notification (c_notification_id),
-    INDEX IX_delivery_status (c_channel, c_status),
-    INDEX IX_delivery_created (c_createddate DESC)
+    c_createddate TIMESTAMP DEFAULT NOW()
 );
 
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_delivery_notification 
+ON t_notification_delivery_log (c_notification_id);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_status 
+ON t_notification_delivery_log (c_channel, c_status);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_created 
+ON t_notification_delivery_log (c_createddate DESC);
+
 -- Notification Queue (for debugging/retry)
-CREATE TABLE t_notification_queue (
-    c_queue_id BIGINT PRIMARY KEY IDENTITY(1,1),
+CREATE TABLE IF NOT EXISTS t_notification_queue (
+    c_queue_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_message_id VARCHAR(50) NOT NULL UNIQUE,
     c_routing_key VARCHAR(200) NOT NULL,
 
-    c_payload NVARCHAR(MAX) NOT NULL, -- JSON
+    c_payload JSONB NOT NULL, -- JSON optimized for PostgreSQL
     c_priority INT DEFAULT 5,
 
     c_status VARCHAR(20) DEFAULT 'PENDING', -- PENDING, PROCESSING, COMPLETED, FAILED
     c_retry_count INT DEFAULT 0,
     c_max_retries INT DEFAULT 3,
 
-    c_next_retry_at DATETIME NULL,
-    c_error_message NVARCHAR(MAX),
+    c_next_retry_at TIMESTAMP NULL,
+    c_error_message TEXT,
 
-    c_enqueued_at DATETIME DEFAULT GETDATE(),
-    c_processed_at DATETIME NULL,
-
-    INDEX IX_queue_status (c_status, c_next_retry_at)
+    c_enqueued_at TIMESTAMP DEFAULT NOW(),
+    c_processed_at TIMESTAMP NULL
 );
 
+-- Index
+CREATE INDEX IF NOT EXISTS idx_queue_status 
+ON t_notification_queue (c_status, c_next_retry_at);
+
 -- Template Usage Statistics
-CREATE TABLE t_notification_template_stats (
-    c_stat_id BIGINT PRIMARY KEY IDENTITY(1,1),
+CREATE TABLE IF NOT EXISTS t_notification_template_stats (
+    c_stat_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_template_id BIGINT NOT NULL,
     c_date DATE NOT NULL,
     c_channel VARCHAR(20) NOT NULL,
@@ -1111,11 +1108,69 @@ CREATE TABLE t_notification_template_stats (
     c_opened_count INT DEFAULT 0,
     c_clicked_count INT DEFAULT 0,
 
-    c_total_cost DECIMAL(10, 2) DEFAULT 0,
+    c_total_cost NUMERIC(10, 2) DEFAULT 0,
 
-    CONSTRAINT FK_template_stats_template FOREIGN KEY (c_template_id)
+    CONSTRAINT fk_template_stats_template 
+        FOREIGN KEY (c_template_id)
         REFERENCES t_notification_templates(c_template_id),
 
-    UNIQUE (c_template_id, c_date, c_channel),
-    INDEX IX_template_stats_date (c_date DESC)
+    CONSTRAINT uq_template_stats UNIQUE (c_template_id, c_date, c_channel)
 );
+
+-- Index
+CREATE INDEX IF NOT EXISTS idx_template_stats_date 
+ON t_notification_template_stats (c_date DESC);
+
+
+/* =============================================
+   Owner Support Tickets Migration
+   Creates t_sys_support_tickets table
+   and t_sys_support_ticket_messages table
+   ============================================= */
+
+CREATE TABLE IF NOT EXISTS t_sys_support_tickets (
+    c_ticket_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_ticket_number VARCHAR(20) NOT NULL,
+    c_ownerid BIGINT NOT NULL,
+
+    -- Ticket Info
+    c_subject VARCHAR(200) NOT NULL,
+    c_description VARCHAR(2000) NOT NULL,
+    c_category VARCHAR(50) NOT NULL,
+    c_priority VARCHAR(20) NOT NULL DEFAULT 'Medium',
+    c_status VARCHAR(20) NOT NULL DEFAULT 'Open',
+
+    -- Related entities (optional)
+    c_related_order_id BIGINT NULL,
+
+    -- Resolution
+    c_resolved_by VARCHAR(100) NULL,
+    c_resolution_notes VARCHAR(2000) NULL,
+    c_resolved_date TIMESTAMP NULL,
+
+    -- Metadata
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    c_modifieddate TIMESTAMP NULL,
+
+    CONSTRAINT uq_ticket_number UNIQUE (c_ticket_number)
+);
+
+CREATE INDEX IF NOT EXISTS ix_support_tickets_ownerid ON t_sys_support_tickets (c_ownerid);
+CREATE INDEX IF NOT EXISTS ix_support_tickets_status ON t_sys_support_tickets (c_status);
+CREATE INDEX IF NOT EXISTS ix_support_tickets_category ON t_sys_support_tickets (c_category);
+CREATE INDEX IF NOT EXISTS ix_support_tickets_createddate ON t_sys_support_tickets (c_createddate DESC);
+
+CREATE TABLE IF NOT EXISTS t_sys_support_ticket_messages (
+    c_message_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_ticket_id BIGINT NOT NULL,
+    c_sender_type VARCHAR(20) NOT NULL,
+    c_sender_id BIGINT NOT NULL,
+    c_message_text VARCHAR(2000) NOT NULL,
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_ticket_messages_ticket FOREIGN KEY (c_ticket_id)
+        REFERENCES t_sys_support_tickets (c_ticket_id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_ticket_messages_ticketid ON t_sys_support_ticket_messages (c_ticket_id);
+

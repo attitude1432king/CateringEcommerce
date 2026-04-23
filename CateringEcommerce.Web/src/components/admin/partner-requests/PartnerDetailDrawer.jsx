@@ -252,8 +252,8 @@ const PartnerDetailDrawer = ({ request, onClose, onActionSuccess }) => {
                             {request.serviceOperations.foodTypes && (
                                 <InfoRow label="Food Types" value={request.serviceOperations.foodTypes} />
                             )}
-                            {request.serviceOperations.minDishOrder && (
-                                <InfoRow label="Min Dish Order" value={`₹${request.serviceOperations.minDishOrder}`} />
+                            {request.serviceOperations.minGuestCount && (
+                                <InfoRow label="Min Guest Count" value={request.serviceOperations.minGuestCount} />
                             )}
                             <InfoRow
                                 label="Delivery Available"

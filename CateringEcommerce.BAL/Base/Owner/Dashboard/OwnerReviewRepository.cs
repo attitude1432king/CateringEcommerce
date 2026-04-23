@@ -1,8 +1,8 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -35,17 +35,17 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 SELECT COUNT(*)
                 FROM {Table.SysCateringReview} r
                 WHERE r.c_ownerid = @OwnerId
-                  AND r.c_is_visible = 1";
+                  AND r.c_is_visible = TRUE";
 
-            var countParams = new List<SqlParameter>
+            var countParams = new List<NpgsqlParameter>
             {
-                new SqlParameter("@OwnerId", ownerId)
+                new NpgsqlParameter("@OwnerId", ownerId)
             };
 
             if (filter.Rating.HasValue)
             {
                 countSql += " AND FLOOR(r.c_overall_rating) = @Rating";
-                countParams.Add(new SqlParameter("@Rating", filter.Rating.Value));
+                countParams.Add(new NpgsqlParameter("@Rating", filter.Rating.Value));
             }
 
             if (filter.HasReply.HasValue)
@@ -73,9 +73,9 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 SELECT
                     r.c_reviewid AS ReviewId,
                     r.c_orderid AS OrderId,
-                    ISNULL(o.c_order_number, '') AS OrderNumber,
+                    COALESCE(o.c_order_number, '') AS OrderNumber,
                     r.c_userid AS UserId,
-                    ISNULL(u.c_name, 'Customer') AS CustomerName,
+                    COALESCE(u.c_name, 'Customer') AS CustomerName,
                     r.c_overall_rating AS OverallRating,
                     r.c_food_quality_rating AS FoodQualityRating,
                     r.c_hygiene_rating AS HygieneRating,
@@ -84,7 +84,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     r.c_punctuality_rating AS PunctualityRating,
                     r.c_review_title AS ReviewTitle,
                     r.c_review_comment AS ReviewComment,
-                    ISNULL(o.c_event_type, '') AS EventType,
+                    COALESCE(o.c_event_type, '') AS EventType,
                     r.c_owner_reply AS OwnerReply,
                     r.c_owner_reply_date AS OwnerReplyDate,
                     r.c_createddate AS ReviewDate,
@@ -94,7 +94,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 LEFT JOIN {Table.SysOrders} o ON r.c_orderid = o.c_orderid
                 LEFT JOIN {Table.SysUser} u ON r.c_userid = u.c_userid
                 WHERE r.c_ownerid = @OwnerId
-                  AND r.c_is_visible = 1";
+                  AND r.c_is_visible = TRUE";
 
             if (filter.Rating.HasValue)
                 dataSql += " AND FLOOR(r.c_overall_rating) = @Rating";
@@ -107,18 +107,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             }
 
             dataSql += $" ORDER BY {sortExpression} {sortDir}";
-            dataSql += " OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            dataSql += " LIMIT @PageSize OFFSET @Offset";
 
-            var dataParams = new List<SqlParameter>
+            var dataParams = new List<NpgsqlParameter>
             {
-                new SqlParameter("@OwnerId", ownerId),
-                new SqlParameter("@Offset", (filter.Page - 1) * filter.PageSize),
-                new SqlParameter("@PageSize", filter.PageSize)
+                new NpgsqlParameter("@OwnerId", ownerId),
+                new NpgsqlParameter("@Offset", (filter.Page - 1) * filter.PageSize),
+                new NpgsqlParameter("@PageSize", filter.PageSize)
             };
 
             if (filter.Rating.HasValue)
             {
-                dataParams.Add(new SqlParameter("@Rating", filter.Rating.Value));
+                dataParams.Add(new NpgsqlParameter("@Rating", filter.Rating.Value));
             }
 
             var dataTable = await _dbHelper.ExecuteAsync(dataSql, dataParams.ToArray());
@@ -160,7 +160,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
             var sql = $@"
                 SELECT
-                    ISNULL(AVG(c_overall_rating), 0) AS AverageRating,
+                    COALESCE(AVG(c_overall_rating), 0) AS AverageRating,
                     COUNT(*) AS TotalReviews,
                     SUM(CASE WHEN FLOOR(c_overall_rating) = 5 THEN 1 ELSE 0 END) AS FiveStarCount,
                     SUM(CASE WHEN FLOOR(c_overall_rating) = 4 THEN 1 ELSE 0 END) AS FourStarCount,
@@ -174,9 +174,9 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     AVG(c_punctuality_rating) AS AvgPunctuality
                 FROM {Table.SysCateringReview}
                 WHERE c_ownerid = @OwnerId
-                  AND c_is_visible = 1";
+                  AND c_is_visible = TRUE";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = await _dbHelper.ExecuteAsync(sql, parameters);
             if (dataTable.Rows.Count > 0)
             {
@@ -206,16 +206,16 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             var sql = $@"
                 UPDATE {Table.SysCateringReview}
                 SET c_owner_reply = @ReplyText,
-                    c_owner_reply_date = GETDATE(),
-                    c_modifieddate = GETDATE()
+                    c_owner_reply_date = NOW(),
+                    c_modifieddate = NOW()
                 WHERE c_reviewid = @ReviewId
                   AND c_ownerid = @OwnerId";
 
             var parameters = new[]
             {
-                new SqlParameter("@ReplyText", replyText),
-                new SqlParameter("@ReviewId", reviewId),
-                new SqlParameter("@OwnerId", ownerId)
+                new NpgsqlParameter("@ReplyText", replyText),
+                new NpgsqlParameter("@ReviewId", reviewId),
+                new NpgsqlParameter("@OwnerId", ownerId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(sql, parameters);
@@ -223,3 +223,4 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         }
     }
 }
+

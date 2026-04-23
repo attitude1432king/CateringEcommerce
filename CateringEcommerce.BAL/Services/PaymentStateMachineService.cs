@@ -1,10 +1,11 @@
-using CateringEcommerce.Domain.Enums;
+﻿using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Interfaces.Invoice;
 using CateringEcommerce.Domain.Interfaces;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using CateringEcommerce.BAL.Configuration;
+using NpgsqlTypes;
 
 namespace CateringEcommerce.BAL.Services
 {
@@ -218,9 +219,9 @@ namespace CateringEcommerce.BAL.Services
             }
 
             // Get order total and payment summary
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var paymentData = await _dbHelper.ExecuteQueryFirstAsync<PaymentSummary>(
@@ -248,7 +249,7 @@ namespace CateringEcommerce.BAL.Services
             else
             {
                 result.Status = PaymentGateStatus.FAILED;
-                result.ErrorMessage = $"Insufficient payment. Required: {requiredPercentage}%, Current: {result.CurrentPercentage}%. Balance due: ₹{result.BalanceDue:N2}";
+                result.ErrorMessage = $"Insufficient payment. Required: {requiredPercentage}%, Current: {result.CurrentPercentage}%. Balance due: â‚¹{result.BalanceDue:N2}";
             }
 
             return result;
@@ -309,9 +310,9 @@ namespace CateringEcommerce.BAL.Services
             };
 
             // Get order details
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var order = await _dbHelper.ExecuteQueryFirstAsync<OrderLockInfo>(
@@ -412,9 +413,9 @@ namespace CateringEcommerce.BAL.Services
 
         private async Task<bool> CheckSupervisorAssignedAsync(long orderId)
         {
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var count = await _dbHelper.ExecuteScalarAsync<int>(
@@ -427,10 +428,10 @@ namespace CateringEcommerce.BAL.Services
 
         private async Task<bool> CheckInvoiceGeneratedAsync(long orderId, InvoiceType invoiceType)
         {
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId),
-                new SqlParameter("@InvoiceType", (int)invoiceType)
+                new NpgsqlParameter("@OrderId", orderId),
+                new NpgsqlParameter("@InvoiceType", (int)invoiceType)
             };
 
             var count = await _dbHelper.ExecuteScalarAsync<int>(
@@ -464,19 +465,19 @@ namespace CateringEcommerce.BAL.Services
             }
 
             // Lock guest count
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId),
-                new SqlParameter("@LockDate", DateTime.Now),
-                new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@OrderId", orderId),
+                new NpgsqlParameter("@LockDate", DateTime.Now),
+                new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
                 $@"UPDATE {Table.SysOrders}
-                  SET c_guest_count_locked = 1,
+                  SET c_guest_count_locked = TRUE,
                       c_guest_lock_date = @LockDate,
-                      c_last_modified = GETDATE()
-                  WHERE c_orderid = @OrderId AND c_guest_count_locked = 0;
+                      c_modifieddate = NOW()
+                  WHERE c_orderid = @OrderId AND c_guest_count_locked = FALSE;
 
                   SET @Success = CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END;",
                 parameters,
@@ -508,19 +509,19 @@ namespace CateringEcommerce.BAL.Services
             }
 
             // Lock menu
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId),
-                new SqlParameter("@LockDate", DateTime.Now),
-                new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@OrderId", orderId),
+                new NpgsqlParameter("@LockDate", DateTime.Now),
+                new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
                 $@"UPDATE {Table.SysOrders}
-                  SET c_menu_locked = 1,
+                  SET c_menu_locked = TRUE,
                       c_menu_lock_date = @LockDate,
-                      c_last_modified = GETDATE()
-                  WHERE c_orderid = @OrderId AND c_menu_locked = 0;
+                      c_last_modified = NOW()
+                  WHERE c_orderid = @OrderId AND c_menu_locked = FALSE;
 
                   SET @Success = CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END;",
                 parameters,
@@ -538,13 +539,13 @@ namespace CateringEcommerce.BAL.Services
         /// </summary>
         public async Task<bool> IsGuestCountLockedAsync(long orderId)
         {
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var locked = await _dbHelper.ExecuteScalarAsync<bool>(
-                $"SELECT ISNULL(c_guest_count_locked, 0) FROM {Table.SysOrders} WHERE c_orderid = @OrderId",
+                $"SELECT COALESCE(c_guest_count_locked, FALSE) FROM {Table.SysOrders} WHERE c_orderid = @OrderId",
                 parameters,
                 CommandType.Text);
 
@@ -556,13 +557,13 @@ namespace CateringEcommerce.BAL.Services
         /// </summary>
         public async Task<bool> IsMenuLockedAsync(long orderId)
         {
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var locked = await _dbHelper.ExecuteScalarAsync<bool>(
-                $"SELECT ISNULL(c_menu_locked, 0) FROM {Table.SysOrders} WHERE c_orderid = @OrderId",
+                $"SELECT COALESCE(c_menu_locked, FALSE) FROM {Table.SysOrders} WHERE c_orderid = @OrderId",
                 parameters,
                 CommandType.Text);
 
@@ -575,9 +576,9 @@ namespace CateringEcommerce.BAL.Services
         /// </summary>
         public async Task<int> GetDaysUntilGuestLockAsync(long orderId)
         {
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var order = await _dbHelper.ExecuteQueryFirstAsync<dynamic>(
@@ -602,9 +603,9 @@ namespace CateringEcommerce.BAL.Services
         /// </summary>
         public async Task<int> GetDaysUntilMenuLockAsync(long orderId)
         {
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var order = await _dbHelper.ExecuteQueryFirstAsync<dynamic>(
@@ -640,9 +641,9 @@ namespace CateringEcommerce.BAL.Services
             await using var transaction = await _dbHelper.BeginTransactionAsync();
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var currentStatus = await transaction.ExecuteScalarAsync<int>(
@@ -659,16 +660,16 @@ namespace CateringEcommerce.BAL.Services
                 };
 
                 // Update order status within transaction
-                var updateParams = new SqlParameter[]
+                var updateParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@NewStatus", (int)newStatus)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@NewStatus", (int)newStatus)
                 };
 
                 await transaction.ExecuteNonQueryAsync(
                     $@"UPDATE {Table.SysOrders}
                       SET c_order_status = @NewStatus,
-                          c_last_modified = GETDATE()
+                          c_last_modified = NOW()
                       WHERE c_orderid = @OrderId",
                     updateParams,
                     CommandType.Text);
@@ -718,16 +719,16 @@ namespace CateringEcommerce.BAL.Services
 
                 if (overdueStatus.HasValue)
                 {
-                    var parameters = new SqlParameter[]
+                    var parameters = new NpgsqlParameter[]
                     {
-                        new SqlParameter("@OrderId", invoice.OrderId),
-                        new SqlParameter("@Status", (int)overdueStatus.Value)
+                        new NpgsqlParameter("@OrderId", invoice.OrderId),
+                        new NpgsqlParameter("@Status", (int)overdueStatus.Value)
                     };
 
                     await transaction.ExecuteNonQueryAsync(
                         $@"UPDATE {Table.SysOrders}
                           SET c_order_status = @Status,
-                              c_last_modified = GETDATE()
+                              c_last_modified = NOW()
                           WHERE c_orderid = @OrderId",
                         parameters,
                         CommandType.Text);
@@ -768,3 +769,4 @@ namespace CateringEcommerce.BAL.Services
         #endregion
     }
 }
+

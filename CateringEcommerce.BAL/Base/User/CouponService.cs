@@ -5,7 +5,7 @@ using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.User
@@ -25,8 +25,8 @@ namespace CateringEcommerce.BAL.Base.User
         /// <summary>
         /// Gets all available and valid coupons for a specific caterer
         /// Only returns coupons that are:
-        /// - Active (c_isactive = 1)
-        /// - Not deleted (c_is_deleted = 0)
+        /// - Active (c_isactive = TRUE)
+        /// - Not deleted (c_is_deleted = FALSE)
         /// - Within valid date range
         /// - Have not reached usage limits
         /// - Type is "EntireCatering" (applies to whole order)
@@ -54,17 +54,17 @@ namespace CateringEcommerce.BAL.Base.User
                         c_isactive AS IsActive
                     FROM {Table.SysCateringDiscount}
                     WHERE c_ownerid = @CateringId
-                        AND c_is_deleted = 0
-                        AND c_isactive = 1
-                        AND c_startdate <= CAST(GETDATE() AS DATE)
-                        AND c_enddate >= CAST(GETDATE() AS DATE)
+                        AND c_is_deleted = FALSE
+                        AND c_isactive = TRUE
+                        AND c_startdate <= CAST(NOW() AS DATE)
+                        AND c_enddate >= CAST(NOW() AS DATE)
                         AND c_discount_type = @EntireCateringType
                     ORDER BY c_discount_value DESC, c_createddate DESC";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@CateringId", cateringId),
-                    new SqlParameter("@EntireCateringType", DiscountType.EntireCatering.GetHashCode())
+                    new NpgsqlParameter("@CateringId", cateringId),
+                    new NpgsqlParameter("@EntireCateringType", DiscountType.EntireCatering.GetHashCode())
                 };
 
                 var discountData = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
@@ -209,12 +209,12 @@ namespace CateringEcommerce.BAL.Base.User
                     FROM {Table.SysCateringDiscount}
                     WHERE c_ownerid = @CateringId
                         AND c_discount_code = @CouponCode
-                        AND c_is_deleted = 0";
+                        AND c_is_deleted = FALSE";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@CateringId", cateringId),
-                    new SqlParameter("@CouponCode", couponCode.ToUpper())
+                    new NpgsqlParameter("@CateringId", cateringId),
+                    new NpgsqlParameter("@CouponCode", couponCode.ToUpper())
                 };
 
                 var result = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
@@ -257,7 +257,7 @@ namespace CateringEcommerce.BAL.Base.User
             try
             {
                 string query = $@"
-                    SELECT TOP (@Limit)
+                    SELECT
                         c_discountid AS ID,
                         c_discount_name AS Name,
                         c_discount_description AS Description,
@@ -271,14 +271,15 @@ namespace CateringEcommerce.BAL.Base.User
                         c_enddate AS EndDate,
                         c_isactive AS IsActive
                     FROM {Table.SysCateringDiscount}
-                    WHERE c_isactive = 1
-                        AND c_is_deleted = 0
+                    WHERE c_isactive = TRUE
+                        AND c_is_deleted = FALSE
                         AND c_status = 1
-                        AND c_startdate <= CAST(GETDATE() AS DATE)
-                        AND c_enddate   >= CAST(GETDATE() AS DATE)
-                    ORDER BY c_createddate DESC";
+                        AND c_startdate <= CAST(NOW() AS DATE)
+                        AND c_enddate   >= CAST(NOW() AS DATE)
+                    ORDER BY c_createddate DESC
+                    LIMIT @Limit";
 
-                var parameters = new[] { new SqlParameter("@Limit", limit) };
+                var parameters = new[] { new NpgsqlParameter("@Limit", limit) };
                 var data = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (data.Rows.Count == 0)
@@ -323,10 +324,10 @@ namespace CateringEcommerce.BAL.Base.User
                         AND c_discount_id = @DiscountId
                         AND c_usage_status = 1"; // 1 = Applied successfully
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@DiscountId", discountId)
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@DiscountId", discountId)
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
@@ -339,3 +340,5 @@ namespace CateringEcommerce.BAL.Base.User
         }
     }
 }
+
+

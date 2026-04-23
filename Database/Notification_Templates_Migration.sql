@@ -4,64 +4,32 @@
 -- for Email, SMS, and In-App notifications
 -- ============================================
 
--- Check if table exists, if not create it
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N't_sys_notification_templates') AND type in (N'U'))
-BEGIN
-    CREATE TABLE t_sys_notification_templates (
-        c_template_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_template_code NVARCHAR(100) NOT NULL UNIQUE,
-        c_template_name NVARCHAR(200) NOT NULL,
-        c_description NVARCHAR(500) NULL,
-        c_language NVARCHAR(10) NOT NULL DEFAULT 'en',
-        c_channel NVARCHAR(20) NOT NULL, -- EMAIL, SMS, INAPP
-        c_category NVARCHAR(50) NOT NULL,
-        c_subject NVARCHAR(500) NULL,
-        c_body NVARCHAR(MAX) NOT NULL,
-        c_version INT NOT NULL DEFAULT 1,
-        c_is_active BIT NOT NULL DEFAULT 1,
-        c_usage_count INT NOT NULL DEFAULT 0,
-        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
-        c_createdby BIGINT NULL,
-        c_modifieddate DATETIME NULL,
-        c_modifiedby BIGINT NULL
-    );
+-- Create notification templates table if it does not already exist
+CREATE TABLE IF NOT EXISTS t_sys_notification_templates (
+    c_template_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_template_code VARCHAR(100) NOT NULL UNIQUE,
+    c_template_name VARCHAR(200) NOT NULL,
+    c_description VARCHAR(500),
+    c_language VARCHAR(10) NOT NULL DEFAULT 'en',
+    c_channel VARCHAR(20) NOT NULL, -- EMAIL, SMS, INAPP
+    c_category VARCHAR(50) NOT NULL,
+    c_subject VARCHAR(500),
+    c_body TEXT NOT NULL,
+    c_version INT NOT NULL DEFAULT 1,
+    c_is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    c_usage_count INT NOT NULL DEFAULT 0,
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    c_createdby BIGINT,
+    c_modifieddate TIMESTAMP,
+    c_modifiedby BIGINT
+);
 
-    CREATE NONCLUSTERED INDEX IX_NotificationTemplates_Code
-        ON t_sys_notification_templates(c_template_code, c_is_active);
+CREATE INDEX IF NOT EXISTS "IX_NotificationTemplates_Code"
+    ON t_sys_notification_templates(c_template_code, c_is_active);
 
-    CREATE NONCLUSTERED INDEX IX_NotificationTemplates_Channel
-        ON t_sys_notification_templates(c_channel, c_language, c_is_active);
-
-    PRINT 'Table t_sys_notification_templates created successfully';
-END
-GO
-
--- Add missing columns if table already exists without them
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_notification_templates') AND name = 'c_description')
-BEGIN
-    ALTER TABLE t_sys_notification_templates ADD c_description NVARCHAR(500) NULL;
-    PRINT 'Added c_description column';
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_notification_templates') AND name = 'c_createdby')
-BEGIN
-    ALTER TABLE t_sys_notification_templates ADD c_createdby BIGINT NULL;
-    PRINT 'Added c_createdby column';
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('t_sys_notification_templates') AND name = 'c_modifiedby')
-BEGIN
-    ALTER TABLE t_sys_notification_templates ADD c_modifiedby BIGINT NULL;
-    PRINT 'Added c_modifiedby column';
-END
-GO
-
--- Clear existing templates (if re-running migration)
-DELETE FROM t_sys_notification_templates;
-GO
-
+CREATE INDEX IF NOT EXISTS "IX_NotificationTemplates_Channel"
+    ON t_sys_notification_templates(c_channel, c_language, c_is_active);
+    
 -- ============================================
 -- USER REGISTRATION & AUTHENTICATION TEMPLATES
 -- ============================================
@@ -822,6 +790,8 @@ Phone: {{ supervisor_phone }}</p>
 </body>
 </html>');
 
-PRINT 'All notification templates inserted successfully';
-PRINT 'Total templates created: 60+ templates covering Email, SMS, and In-App channels (including 7 Supervisor templates)';
-GO
+DO $$
+BEGIN
+    RAISE NOTICE 'All notification templates inserted successfully';
+    RAISE NOTICE 'Total templates created: 60+ templates covering Email, SMS, and In-App channels (including 7 Supervisor templates)';
+END $$;

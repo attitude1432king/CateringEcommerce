@@ -4,7 +4,7 @@ using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Newtonsoft.Json;
 using System.Data;
 using System.Text;
@@ -30,34 +30,34 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                // ✅ Define insert query
+                // âœ… Define insert query
                 string insertQuery = $@"INSERT INTO {Table.SysCateringStaff}
                         (c_ownerid, c_fullname, c_contact_number, c_gender, c_role, c_other_role, c_expertise_categoryid, c_experience_years, 
                         c_salary_type, c_salary_amount, c_availability)
                         VALUES
-                        (@OwnerPKID, @Name, @Contact, @Gender, @Role, @OtherRole, @CategoryId, @Experience, @SalaryType, @SalaryAmount, @Availability);
-                        SELECT SCOPE_IDENTITY();"; // ✅ Return the new staff ID
+                        (@OwnerPKID, @Name, @Contact, @Gender, @Role, @OtherRole, @CategoryId, @Experience, @SalaryType, @SalaryAmount, @Availability)
+                    RETURNING c_staffid;"; // âœ… Return the new staff ID
 
-                // ✅ Prepare SQL parameters
-                List<SqlParameter> parameters = new()
+                // âœ… Prepare SQL parameters
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Name", staff.Name?.ToString()),
-                    new SqlParameter("@Contact", staff.Contact?.ToString()),
-                    new SqlParameter("@Gender", staff.Gender?.ToString()),
-                    new SqlParameter("@Role", staff.Role?.ToString()),
-                    new SqlParameter("@OtherRole", staff.OtherRole?.ToString()),
-                    new SqlParameter("@CategoryId", staff.CategoryId > 0 ? staff.CategoryId : DBNull.Value),
-                    new SqlParameter("@Experience", staff.Experience),
-                    new SqlParameter("@SalaryType", (object?)staff.salaryType ?? DBNull.Value),
-                    new SqlParameter("@SalaryAmount", staff.SalaryAmount),
-                    new SqlParameter("@Availability", staff.Availability.ToBinary())
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Name", staff.Name?.ToString()),
+                    new NpgsqlParameter("@Contact", staff.Contact?.ToString()),
+                    new NpgsqlParameter("@Gender", staff.Gender?.ToString()),
+                    new NpgsqlParameter("@Role", staff.Role?.ToString()),
+                    new NpgsqlParameter("@OtherRole", staff.OtherRole?.ToString()),
+                    new NpgsqlParameter("@CategoryId", staff.CategoryId > 0 ? staff.CategoryId : DBNull.Value),
+                    new NpgsqlParameter("@Experience", staff.Experience),
+                    new NpgsqlParameter("@SalaryType", (object?)staff.salaryType ?? DBNull.Value),
+                    new NpgsqlParameter("@SalaryAmount", staff.SalaryAmount),
+                    new NpgsqlParameter("@Availability", staff.Availability.ToString())
                 };
 
-                // ✅ Execute insert query
+                // âœ… Execute insert query
                 var result = await _dbHelper.ExecuteScalarAsync(insertQuery, parameters.ToArray());
 
-                // ✅ Convert result to int (new record ID)
+                // âœ… Convert result to int (new record ID)
                 int newStaffId = result != null ? Convert.ToInt32(result) : 0;
                 return newStaffId;
             }
@@ -78,14 +78,14 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                // ✅ Security check: make sure the record belongs to this owner
+                // âœ… Security check: make sure the record belongs to this owner
                 string validationQuery = $@"SELECT COUNT(1) FROM {Table.SysCateringStaff} 
                                     WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffID";
 
-                List<SqlParameter> validateParams = new()
+                List<NpgsqlParameter> validateParams = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@StaffID", staff.ID ?? 0)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@StaffID", staff.ID ?? 0)
                 };
 
                 var existsResult = await _dbHelper.ExecuteScalarAsync(validationQuery, validateParams.ToArray());
@@ -94,7 +94,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 if (existsCount == 0)
                     throw new Exception("Invalid staff ID or unauthorized access.");
 
-                // ✅ Update query (updates only editable fields)
+                // âœ… Update query (updates only editable fields)
                 string updateQuery = $@"
                 UPDATE {Table.SysCateringStaff}
                 SET 
@@ -108,27 +108,27 @@ namespace CateringEcommerce.BAL.Base.Owner
                     c_salary_type = @SalaryType,
                     c_salary_amount = @SalaryAmount,
                     c_availability = @Availability,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffID";
 
-                // ✅ Prepare parameters
-                List<SqlParameter> parameters = new()
+                // âœ… Prepare parameters
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@StaffID", staff.ID ?? 0),
-                    new SqlParameter("@Name", staff.Name ?? string.Empty),
-                    new SqlParameter("@Contact", staff.Contact ?? string.Empty),
-                    new SqlParameter("@Gender", staff.Gender ?? string.Empty),
-                    new SqlParameter("@Role", staff.Role ?? string.Empty),
-                    new SqlParameter("@OtherRole", staff.OtherRole?.ToString()),
-                    new SqlParameter("@CategoryId", staff.CategoryId > 0 ? staff.CategoryId : DBNull.Value),
-                    new SqlParameter("@Experience", staff.Experience),
-                    new SqlParameter("@SalaryType", (object?)staff.salaryType ?? DBNull.Value),
-                    new SqlParameter("@SalaryAmount", staff.SalaryAmount),
-                    new SqlParameter("@Availability", staff.Availability),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@StaffID", staff.ID ?? 0),
+                    new NpgsqlParameter("@Name", staff.Name ?? string.Empty),
+                    new NpgsqlParameter("@Contact", staff.Contact ?? string.Empty),
+                    new NpgsqlParameter("@Gender", staff.Gender ?? string.Empty),
+                    new NpgsqlParameter("@Role", staff.Role ?? string.Empty),
+                    new NpgsqlParameter("@OtherRole", staff.OtherRole?.ToString()),
+                    new NpgsqlParameter("@CategoryId", staff.CategoryId > 0 ? staff.CategoryId : DBNull.Value),
+                    new NpgsqlParameter("@Experience", staff.Experience),
+                    new NpgsqlParameter("@SalaryType", (object?)staff.salaryType ?? DBNull.Value),
+                    new NpgsqlParameter("@SalaryAmount", staff.SalaryAmount),
+                    new NpgsqlParameter("@Availability", staff.Availability),
                 };
 
-                // ✅ Execute update
+                // âœ… Execute update
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
                 return rowsAffected;
             }
@@ -150,13 +150,13 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 string query = $@"
-                    UPDATE {Table.SysCateringStaff} SET c_is_deleted = 1, c_availability = 0, c_modifieddate = GETDATE()
+                    UPDATE {Table.SysCateringStaff} SET c_is_deleted = TRUE, c_availability = 0, c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffPKID";
 
-                List<SqlParameter> deleteParams = new()
+                List<NpgsqlParameter> deleteParams = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@StaffPKID", staffPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@StaffPKID", staffPKID)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, deleteParams.ToArray());
@@ -189,11 +189,11 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 int offset = (page - 1) * pageSize;
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Offset", offset),
-                    new SqlParameter("@PageSize", pageSize)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Offset", offset),
+                    new NpgsqlParameter("@PageSize", pageSize)
                 };
 
                 StringBuilder sql = new();
@@ -223,7 +223,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 {
                     var staffId = row["c_staffid"] != DBNull.Value ? Convert.ToInt64(row["c_staffid"]) : 0;
 
-                    // ✅ Helper to safely extract file info
+                    // âœ… Helper to safely extract file info
                     StaffMediaModel[] BuildMedia(string? filePath)
                     {
                         if (string.IsNullOrWhiteSpace(filePath))
@@ -254,7 +254,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                         SalaryAmount = row["c_salary_amount"] != DBNull.Value ? Convert.ToDecimal(row["c_salary_amount"]) : 0,
                         Availability = row["c_availability"] != DBNull.Value && Convert.ToBoolean(row["c_availability"]),
 
-                        // ✅ Use safe method for media
+                        // âœ… Use safe method for media
                         Photo = BuildMedia(row["c_profile_path"]?.ToString()),
                         IdProof = BuildMedia(row["c_identity_doc_path"]?.ToString()),
                         Resume = BuildMedia(row["c_resume_doc_path"]?.ToString())
@@ -290,14 +290,14 @@ namespace CateringEcommerce.BAL.Base.Owner
                     SELECT COUNT(1)
                     FROM {Table.SysCateringStaff} AS s"); 
 
-                // ✅ Parameters
-                List<SqlParameter> parameters = new()
+                // âœ… Parameters
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID)
                 };
 
                 selectQuery.Append(BuildStaffFilterQuery(filter, parameters));
-                // ✅ Execute and read result
+                // âœ… Execute and read result
                 var result = await _dbHelper.ExecuteScalarAsync(selectQuery.ToString(), parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
 
@@ -321,30 +321,30 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                // ✅ Base query
+                // âœ… Base query
                 string selectQuery = $@"
                     SELECT COUNT(1)
                     FROM {Table.SysCateringStaff}
-                    WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0
+                    WHERE c_ownerid = @OwnerPKID AND c_is_deleted = FALSE
                       AND LTRIM(RTRIM(c_contact_number)) = LTRIM(RTRIM(@ContactNumber))";
 
-                // ✅ Exclude current record if updating
+                // âœ… Exclude current record if updating
                 if (excludeStaffPKID.HasValue && excludeStaffPKID.Value > 0)
                 {
                     selectQuery += " AND c_staffid <> @ExcludeStaffPKID";
                 }
 
-                // ✅ Prepare parameters
-                List<SqlParameter> parameters = new()
+                // âœ… Prepare parameters
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@ContactNumber", number)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@ContactNumber", number)
                 };
 
                 if (excludeStaffPKID.HasValue && excludeStaffPKID.Value > 0)
-                    parameters.Add(new SqlParameter("@ExcludeStaffPKID", excludeStaffPKID.Value));
+                    parameters.Add(new NpgsqlParameter("@ExcludeStaffPKID", excludeStaffPKID.Value));
 
-                // ✅ Execute and get result
+                // âœ… Execute and get result
                 var result = await _dbHelper.ExecuteScalarAsync(selectQuery, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
 
@@ -368,12 +368,12 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                // ✅ Build dynamic SET clause based on provided paths
+                // âœ… Build dynamic SET clause based on provided paths
                 List<string> setClauses = new();
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@StaffPKID", staffPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@StaffPKID", staffPKID)
                 };
                 foreach (var kvp in dicPath)
                 {
@@ -385,18 +385,18 @@ namespace CateringEcommerce.BAL.Base.Owner
                         _ => throw new Exception($"Invalid document type: {kvp.Key}")
                     };
                     setClauses.Add($"{columnName} = @{columnName}");
-                    parameters.Add(new SqlParameter($"@{columnName}", kvp.Value));
+                    parameters.Add(new NpgsqlParameter($"@{columnName}", kvp.Value));
                 }
                 if (setClauses.Count == 0)
                     throw new Exception("No valid document paths provided for update.");
                 string setClause = string.Join(", ", setClauses);
-                // ✅ Construct update query
+                // âœ… Construct update query
                 string updateQuery = $@"
                     UPDATE {Table.SysCateringStaff}
                     SET {setClause},
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerPKID AND c_staffid = @StaffPKID";
-                // ✅ Execute update
+                // âœ… Execute update
                 return _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
 
             }
@@ -418,23 +418,23 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                // ✅ Step 1: Select file paths
+                // âœ… Step 1: Select file paths
                 string selectQuery = $@"
                     SELECT c_profile_path, c_identity_doc_path, c_resume_doc_path
                     FROM {Table.SysCateringStaff}
                     WHERE c_staffid = @StaffID AND c_ownerid = @OwnerPKID";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@StaffID", staffId),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@StaffID", staffId),
                 };
 
                 var staffData = await _dbHelper.ExecuteAsync(selectQuery, parameters.ToArray());
                 if (staffData.Rows.Count == 0)
                     return false;
 
-                // ✅ Step 2: Loop through rows and find matching path
+                // âœ… Step 2: Loop through rows and find matching path
                 foreach (System.Data.DataRow row in staffData.Rows)
                 {
                     string? profilePath = row["c_profile_path"]?.ToString();
@@ -450,7 +450,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     else if (!string.IsNullOrEmpty(resumePath) && string.Equals(resumePath, filePath, StringComparison.OrdinalIgnoreCase))
                         columnToUpdate = "c_resume_doc_path";
 
-                    // ✅ Step 3: If found, set the column to NULL
+                    // âœ… Step 3: If found, set the column to NULL
                     if (columnToUpdate != null)
                     {
                         string updateQuery = $@"
@@ -458,18 +458,18 @@ namespace CateringEcommerce.BAL.Base.Owner
                             SET {columnToUpdate} = NULL
                             WHERE c_staffid = @StaffID AND c_ownerid = @OwnerPKID";
 
-                        List<SqlParameter> updateParams = new()
+                        List<NpgsqlParameter> updateParams = new()
                         {
-                            new SqlParameter("@StaffID", staffId),
-                            new SqlParameter("@OwnerPKID", ownerPKID)
+                            new NpgsqlParameter("@StaffID", staffId),
+                            new NpgsqlParameter("@OwnerPKID", ownerPKID)
                         };
 
                         int result = await _dbHelper.ExecuteNonQueryAsync(updateQuery, updateParams.ToArray());
-                        return result > 0; // true → can safely delete the physical file
+                        return result > 0; // true â†’ can safely delete the physical file
                     }
                 }
 
-                // ✅ Step 4: No matching file found
+                // âœ… Step 4: No matching file found
                 return false;
             }
             catch (Exception ex)
@@ -494,10 +494,10 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FROM {Table.SysCateringStaff}
                     WHERE c_staffid = @StaffID AND c_ownerid = @OwnerPKID";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@StaffID", staffId),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@StaffID", staffId),
                 };
 
                 var staffData = await _dbHelper.ExecuteAsync(selectQuery, parameters.ToArray());
@@ -543,16 +543,16 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                // ✅ Step 1: Validate ownership (security check)
+                // âœ… Step 1: Validate ownership (security check)
                 string validationQuery = $@"
                 SELECT COUNT(1)
                 FROM {Table.SysCateringStaff}
-                WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0 AND c_staffid = @StaffPKID";
+                WHERE c_ownerid = @OwnerPKID AND c_is_deleted = FALSE AND c_staffid = @StaffPKID";
 
-                List<SqlParameter> validationParams = new()
+                List<NpgsqlParameter> validationParams = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@StaffPKID", staffPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@StaffPKID", staffPKID)
                 };
 
                 var existsResult = await _dbHelper.ExecuteScalarAsync(validationQuery, validationParams.ToArray());
@@ -560,14 +560,14 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 if (existsCount == 0)
                 {
-                    // ❌ Record not found or doesn’t belong to owner
+                    // âŒ Record not found or doesnâ€™t belong to owner
                     throw new Exception("Invalid Staff ID or unauthorized access.");
                 }
                 return true;
             }
             catch (Exception ex)
             {
-                // ❌ Record not found or doesn’t belong to owner
+                // âŒ Record not found or doesnâ€™t belong to owner
                 throw new Exception("Invalid Staff ID or unauthorized access.");
             }
         }
@@ -584,15 +584,15 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                string updateQuery = $@"UPDATE {Table.SysCateringStaff} SET c_availability = @Status, c_modifieddate = GETDATE()
+                string updateQuery = $@"UPDATE {Table.SysCateringStaff} SET c_availability = @Status, c_modifieddate = NOW()
                                    WHERE c_ownerid = @OwnerPKID
                                     AND c_staffid = @StaffId";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@StaffId", staffPKID),
-                    new SqlParameter("@Status", status.ToBinary())
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@StaffId", staffPKID),
+                    new NpgsqlParameter("@Status", status.ToString())
                 };
 
                 var result = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
@@ -609,30 +609,30 @@ namespace CateringEcommerce.BAL.Base.Owner
         /// <param name="filter"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        private string BuildStaffFilterQuery(StaffFilter filter, List<SqlParameter> parameters)
+        private string BuildStaffFilterQuery(StaffFilter filter, List<NpgsqlParameter> parameters)
         {
             StringBuilder where = new();
-            where.Append(" WHERE s.c_ownerid = @OwnerPKID AND c_is_deleted = 0");
+            where.Append(" WHERE s.c_ownerid = @OwnerPKID AND c_is_deleted = FALSE");
 
             // Name search
             if (!string.IsNullOrWhiteSpace(filter.Name))
             {
-                where.Append(" AND LOWER(s.c_fullname) LIKE LOWER('%' + @Name + '%') ");
-                parameters.Add(new SqlParameter("@Name", filter.Name));
+                where.Append(" AND LOWER(s.c_fullname) LIKE LOWER('%' || @Name || '%') ");
+                parameters.Add(new NpgsqlParameter("@Name", filter.Name));
             }
 
             // Theme filter
             if (!string.IsNullOrWhiteSpace(filter.Role))
             {
-                where.Append($" AND (LOWER(s.c_role) LIKE LOWER('%' + @Role + '%') OR LOWER(s.c_other_role) LIKE LOWER('%' + @Role + '%'))");
-                parameters.Add(new SqlParameter("@Role", filter.Role));
+                where.Append($" AND (LOWER(s.c_role) LIKE LOWER('%' || @Role || '%') OR LOWER(s.c_other_role) LIKE LOWER('%' || @Role || '%'))");
+                parameters.Add(new NpgsqlParameter("@Role", filter.Role));
             }
 
             // Status filter
             if (!string.IsNullOrWhiteSpace(filter.Status))
             {
                 where.Append(" AND s.c_availability = @Status ");
-                parameters.Add(new SqlParameter("@Status", filter.Status));
+                parameters.Add(new NpgsqlParameter("@Status", filter.Status));
             }
 
 

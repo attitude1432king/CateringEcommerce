@@ -4,7 +4,7 @@ using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.Admin
@@ -24,24 +24,24 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var conditions = new List<string>();
 
-            var baseParameters = new List<SqlParameter>();
+            var baseParameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 conditions.Add("(c.c_cityname LIKE @SearchTerm OR s.c_statename LIKE @SearchTerm)");
-                baseParameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                baseParameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
             }
 
             if (request.IsActive.HasValue)
             {
                 conditions.Add("c.c_isactive = @IsActive");
-                baseParameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                baseParameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             if (request.StateId.HasValue)
             {
                 conditions.Add("c.c_stateid = @StateId");
-                baseParameters.Add(new SqlParameter("@StateId", request.StateId.Value));
+                baseParameters.Add(new NpgsqlParameter("@StateId", request.StateId.Value));
             }
 
             string whereClause = conditions.Count > 0
@@ -83,8 +83,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 .Select(CloneParameter)
                 .ToList();
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dataQuery = $@"
                 SELECT
@@ -105,7 +105,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON c.c_modifiedby = modifier.c_adminid
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
             var dt = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
 
@@ -159,7 +159,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON c.c_modifiedby = modifier.c_adminid
                 WHERE c.c_cityid = @Id";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@Id", id) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@Id", id) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -186,20 +186,20 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INSERT INTO {Table.City}
                     (c_cityid, c_cityname, c_stateid, c_isactive, c_createddate, c_createdby)
                 VALUES
-                    ((select MAX(c_cityid + 1) FROM {Table.City} WHERE c_stateid = @StateId), @Name, @StateId, 1, GETDATE(), @CreatedBy);
-                SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
+                    ((select MAX(c_cityid + 1) FROM {Table.City} WHERE c_stateid = @StateId), @Name, @StateId, 1, NOW(), @CreatedBy)
+                RETURNING c_cityid;";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@StateId", request.StateId ?? 0),
-                new SqlParameter("@CreatedBy", createdBy)
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@StateId", request.StateId ?? 0),
+                new NpgsqlParameter("@CreatedBy", createdBy)
             };
 
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             var result = await _dbHelper.ExecuteScalarAsync(
                 "SELECT MAX(c_cityid) FROM " + Table.City + " WHERE c_stateid = @StateId",
-                new SqlParameter[] { new SqlParameter("@StateId", request.StateId) }
+                new NpgsqlParameter[] { new NpgsqlParameter("@StateId", request.StateId) }
             );
             return Convert.ToInt64(result);
         }
@@ -209,15 +209,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.City}
                 SET c_cityname = @Name,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_cityid = @Id";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", request.Id),
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", request.Id),
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -229,15 +229,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.City}
                 SET c_isactive = @IsActive,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_cityid = @Id";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", id),
-                new SqlParameter("@IsActive", isActive),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", id),
+                new NpgsqlParameter("@IsActive", isActive),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -251,7 +251,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.State}
                 ORDER BY c_statename";
 
-            var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<SqlParameter>());
+            var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<NpgsqlParameter>());
             var states = new List<StateDropdownItem>();
 
             foreach (DataRow row in dt.Rows)
@@ -273,18 +273,18 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<MasterDataListResponse<FoodCategoryMasterItem>> GetFoodCategoriesAsync(MasterDataListRequest request)
         {
             var conditions = new List<string>();
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 conditions.Add("fc.c_categoryname LIKE @SearchTerm");
-                parameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
             }
 
             if (request.IsActive.HasValue)
             {
                 conditions.Add("fc.c_isactive = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             string whereClause = string.Empty;
@@ -311,8 +311,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 .Select(CloneParameter)
                 .ToList();
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dataQuery = $@"
                 SELECT
@@ -332,7 +332,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON fc.c_modifiedby = modifier.c_adminid
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
 
             var dt = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
@@ -385,7 +385,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON c_modifiedby = modifier.c_adminid
                 WHERE c_categoryid = @Id";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@Id", id) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@Id", id) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -412,15 +412,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INSERT INTO {Table.SysFoodCategory}
                     (c_categoryname, c_is_global, c_isactive, c_description, c_createddate, c_createdby)
                 VALUES
-                    (@Name, @IsGlobal, 1, @Description, GETDATE(), @CreatedBy);
-                SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
+                    (@Name, @IsGlobal, 1, @Description, NOW(), @CreatedBy)
+                RETURNING c_categoryid;";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@IsGlobal", request.IsGlobal ?? false),
-                new SqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
-                new SqlParameter("@CreatedBy", createdBy)
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@IsGlobal", request.IsGlobal ?? false),
+                new NpgsqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@CreatedBy", createdBy)
             };
 
             var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -434,17 +434,17 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_categoryname = @Name,
                     c_description = @Description,  
                     c_is_global = @IsGlobal,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_categoryid = @Id";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", request.Id),
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@IsGlobal", request.IsGlobal ?? false),
-                new SqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", request.Id),
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@IsGlobal", request.IsGlobal ?? false),
+                new NpgsqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -456,15 +456,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.SysFoodCategory}
                 SET c_isactive = @IsActive,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_categoryid = @Id";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", id),
-                new SqlParameter("@IsActive", isActive),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", id),
+                new NpgsqlParameter("@IsActive", isActive),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -478,21 +478,21 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<MasterDataListResponse<CateringTypeMasterItem>> GetCateringTypesAsync(int categoryId, MasterDataListRequest request)
         {
             var conditions = new List<string> { "c_categoryid = @CategoryId" };
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@CategoryId", categoryId)
+                new NpgsqlParameter("@CategoryId", categoryId)
             };
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 conditions.Add("cm.c_type_name LIKE @SearchTerm");
-                parameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
             }
 
             if (request.IsActive.HasValue)
             {
                 conditions.Add("cm.c_isactive = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             var whereClause = "WHERE " + string.Join(" AND ", conditions);
@@ -517,8 +517,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 .Select(CloneParameter)
                 .ToList();
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dataQuery = $@"
                 SELECT
@@ -538,7 +538,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON cm.c_modifiedby = modifier.c_adminid
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
             var dt = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
             var items = new List<CateringTypeMasterItem>();
@@ -592,7 +592,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON c_modifiedby = modifier.c_adminid
                 WHERE c_typeid = @Id";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@Id", id) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@Id", id) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -623,15 +623,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INSERT INTO {Table.SysCateringTypeMaster}
                     (c_type_name, c_categoryid, c_isactive, c_description, c_createddate, c_createdby)
                 VALUES
-                    (@Name, @CategoryId, 1, @Description, GETDATE(), @CreatedBy);
-                SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
+                    (@Name, @CategoryId, 1, @Description, NOW(), @CreatedBy)
+                RETURNING c_typeid;";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@CategoryId", request.CategoryId ?? 0),
-                new SqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
-                new SqlParameter("@CreatedBy", createdBy)
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@CategoryId", request.CategoryId ?? 0),
+                new NpgsqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@CreatedBy", createdBy)
             };
 
             var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -644,16 +644,16 @@ namespace CateringEcommerce.BAL.Base.Admin
                 UPDATE {Table.SysCateringTypeMaster}
                 SET c_type_name = @Name,
                     c_description = @Description,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_typeid = @Id";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", request.Id),
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", request.Id),
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -665,15 +665,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.SysCateringTypeMaster}
                 SET c_isactive = @IsActive,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_typeid = @Id";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", id),
-                new SqlParameter("@IsActive", isActive),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", id),
+                new NpgsqlParameter("@IsActive", isActive),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -686,18 +686,18 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<MasterDataListResponse<GuestCategoryMasterItem>> GetGuestCategoriesAsync(MasterDataListRequest request)
         {
             var conditions = new List<string>();
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 conditions.Add("(gc.c_categoryname LIKE @SearchTerm OR gc.c_description LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
             }
 
             if (request.IsActive.HasValue)
             {
                 conditions.Add("gc.c_isactive = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             string whereClause = string.Empty;
@@ -724,8 +724,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 .Select(CloneParameter)
                 .ToList();
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dataQuery = $@"
                 SELECT
@@ -744,7 +744,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON gc.c_modifiedby = modifier.c_adminid
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
             var dt = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
             var items = new List<GuestCategoryMasterItem>();
@@ -794,7 +794,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON c_modifiedby = modifier.c_adminid
                 WHERE c_guest_category_id = @Id";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@Id", id) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@Id", id) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -820,15 +820,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INSERT INTO {Table.SysGuestCategory}
                     (c_categoryname, c_description, c_isactive, c_createddate, c_createdby)
                 VALUES
-                    (@Name, @Description, 1, GETDATE(), @CreatedBy);
-                SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
+                    (@Name, @Description, 1, NOW(), @CreatedBy)
+                RETURNING c_guest_category_id;";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
-                new SqlParameter("@DisplayOrder", request.DisplayOrder),
-                new SqlParameter("@CreatedBy", createdBy)
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@DisplayOrder", request.DisplayOrder),
+                new NpgsqlParameter("@CreatedBy", createdBy)
             };
 
             var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -841,16 +841,16 @@ namespace CateringEcommerce.BAL.Base.Admin
                 UPDATE {Table.SysGuestCategory}
                 SET c_categoryname = @Name,
                     c_description = @Description,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_guest_category_id = @Id";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", request.Id),
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", request.Id),
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -862,15 +862,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.SysGuestCategory}
                 SET c_isactive = @IsActive,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_guest_category_id = @Id";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", id),
-                new SqlParameter("@IsActive", isActive),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", id),
+                new NpgsqlParameter("@IsActive", isActive),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -883,18 +883,18 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<MasterDataListResponse<ThemeMasterItem>> GetThemesAsync(MasterDataListRequest request)
         {
             var conditions = new List<string>();
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 conditions.Add("theme.c_theme_name LIKE @SearchTerm");
-                parameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
             }
 
             if (request.IsActive.HasValue)
             {
                 conditions.Add("theme.c_isactive = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             string whereClause = string.Empty;
@@ -921,8 +921,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 .Select(CloneParameter)
                 .ToList();
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dataQuery = $@"
                 SELECT
@@ -941,7 +941,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON theme.c_modifiedby = modifier.c_adminid
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
             var dt = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
             var items = new List<ThemeMasterItem>();
@@ -990,7 +990,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON c_modifiedby = modifier.c_adminid
                 WHERE c_theme_id = @Id  ";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@Id", id) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@Id", id) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -1015,14 +1015,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INSERT INTO {Table.SysCateringThemeTypes}
                     (c_theme_name0, c_description, c_isactive, c_createddate, c_createdby)
                 VALUES
-                    (@Name, @Description, 1, GETDATE(), @CreatedBy);
-                SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
+                    (@Name, @Description, 1, NOW(), @CreatedBy)
+                RETURNING c_theme_id;";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
-                new SqlParameter("@CreatedBy", createdBy)
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@CreatedBy", createdBy)
             };
 
             var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -1035,16 +1035,16 @@ namespace CateringEcommerce.BAL.Base.Admin
                 UPDATE {Table.SysCateringThemeTypes}
                 SET c_theme_name = @Name,
                     c_description = @Description,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_theme_id = @Id  ";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", request.Id),
-                new SqlParameter("@Name", request.Name),
-                new SqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", request.Id),
+                new NpgsqlParameter("@Name", request.Name),
+                new NpgsqlParameter("@Description", (object?)request.Description ?? DBNull.Value),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -1056,15 +1056,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.SysCateringThemeTypes}
                 SET c_isactive = @IsActive,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_theme_id = @Id  ";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Id", id),
-                new SqlParameter("@IsActive", isActive),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@Id", id),
+                new NpgsqlParameter("@IsActive", isActive),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -1097,12 +1097,12 @@ namespace CateringEcommerce.BAL.Base.Admin
                 : $"SELECT COUNT(*) FROM {tableName} WHERE {nameColumn} = @Name  ";
 
             var parameters = excludeId.HasValue
-                ? new SqlParameter[]
+                ? new NpgsqlParameter[]
                 {
-                    new SqlParameter("@Name", name),
-                    new SqlParameter("@ExcludeId", excludeId.Value)
+                    new NpgsqlParameter("@Name", name),
+                    new NpgsqlParameter("@ExcludeId", excludeId.Value)
                 }
-                : new SqlParameter[] { new SqlParameter("@Name", name) };
+                : new NpgsqlParameter[] { new NpgsqlParameter("@Name", name) };
 
             var count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters));
             return count > 0;
@@ -1121,9 +1121,9 @@ namespace CateringEcommerce.BAL.Base.Admin
             };
         }
 
-        private static SqlParameter CloneParameter(SqlParameter p)
+        private static NpgsqlParameter CloneParameter(NpgsqlParameter p)
         {
-            return new SqlParameter(p.ParameterName, p.Value)
+            return new NpgsqlParameter(p.ParameterName, p.Value)
             {
                 DbType = p.DbType,
                 Size = p.Size,
@@ -1148,3 +1148,4 @@ namespace CateringEcommerce.BAL.Base.Admin
 
     }
 }
+

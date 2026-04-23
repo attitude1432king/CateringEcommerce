@@ -1,34 +1,31 @@
--- =============================================
--- Banner Management Table
--- Description: Stores banner images that partners can upload to display on user homepage
--- =============================================
+/*
+ * Database Table: Banner Management
+ * Purpose: Stores banner images that partners can upload to display on user homepage
+ * PostgreSQL Compatible Version
+ */
 
-CREATE TABLE t_sys_catering_banners (
-    c_bannerid BIGINT PRIMARY KEY IDENTITY(1,1),
+-- =============================================
+-- Table: t_sys_catering_banners
+-- Purpose: Banner management for catering owners
+-- =============================================
+CREATE TABLE IF NOT EXISTS t_sys_catering_banners (
+    c_bannerid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_ownerid BIGINT NOT NULL,
-    c_title NVARCHAR(200) NOT NULL,
-    c_description NVARCHAR(500) NULL,
-    c_linkurl NVARCHAR(500) NULL,
-    c_display_order INT NOT NULL DEFAULT 0,
-    c_isactive BIT NOT NULL DEFAULT 1,
-    c_startdate DATETIME NULL,
-    c_enddate DATETIME NULL,
-    c_clickcount INT NOT NULL DEFAULT 0,
-    c_viewcount INT NOT NULL DEFAULT 0,
-    c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
-    c_modifieddate BIGINT NULL,
-    c_is_deleted BIT NOT NULL DEFAULT 0,
+    c_title VARCHAR(200) NOT NULL,
+    c_description VARCHAR(500),
+    c_linkurl VARCHAR(500),
+    c_display_order INTEGER NOT NULL DEFAULT 0,
+    c_isactive BOOLEAN NOT NULL DEFAULT TRUE,
+    c_startdate TIMESTAMP,
+    c_enddate TIMESTAMP,
+    c_clickcount INTEGER NOT NULL DEFAULT 0,
+    c_viewcount INTEGER NOT NULL DEFAULT 0,
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    c_modifieddate TIMESTAMP,
+    c_is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Index for better query performance
-CREATE INDEX IX_Banner_OwnerPKID ON t_sys_catering_banners(c_ownerid) WHERE IsDeleted = 0;
-CREATE INDEX IX_Banner_IsActive ON t_sys_catering_banners(c_isactive, c_startdate, c_enddate) WHERE IsDeleted = 0;
-CREATE INDEX IX_Banner_DisplayOrder ON t_sys_catering_banners(c_display_order, c_ownerid) WHERE IsDeleted = 0;
+CREATE INDEX IF NOT EXISTS ix_banner_ownerid ON t_sys_catering_banners(c_ownerid) WHERE c_is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS ix_banner_isactive ON t_sys_catering_banners(c_isactive, c_startdate, c_enddate) WHERE c_is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS ix_banner_displayorder ON t_sys_catering_banners(c_display_order, c_ownerid) WHERE c_is_deleted = FALSE;
 
-
--- Index for better query performance
-CREATE INDEX IX_Banner_OwnerPKID ON t_sys_catering_banners(OwnerPKID) WHERE IsDeleted = 0;
-CREATE INDEX IX_Banner_IsActive ON t_sys_catering_banners(IsActive, StartDate, EndDate) WHERE IsDeleted = 0;
-CREATE INDEX IX_Banner_DisplayOrder ON t_sys_catering_banners(DisplayOrder, OwnerPKID) WHERE IsDeleted = 0;
-
-GO

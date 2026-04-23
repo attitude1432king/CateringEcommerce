@@ -3,16 +3,17 @@
 -- Creates t_sys_contact_messages for user-facing contact form
 -- ============================================================
 
-CREATE TABLE t_sys_contact_messages (
-    c_messageid   BIGINT        IDENTITY(1,1) PRIMARY KEY,
-    c_name        NVARCHAR(100) NOT NULL,
-    c_email       NVARCHAR(256) NOT NULL,
-    c_message     NVARCHAR(2000) NOT NULL,
-    c_status      NVARCHAR(20)  NOT NULL DEFAULT 'New',   -- New | Read | Replied
-    c_ip_address  NVARCHAR(50)  NULL,
-    c_createddate DATETIME      NOT NULL DEFAULT GETDATE(),
-    c_modifieddate DATETIME     NULL
+CREATE TABLE IF NOT EXISTS t_sys_contact_messages (
+    c_messageid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_name VARCHAR(100) NOT NULL,
+    c_email VARCHAR(256) NOT NULL,
+    c_message VARCHAR(2000) NOT NULL,
+    c_status VARCHAR(20) NOT NULL DEFAULT 'New',   -- New | Read | Replied
+    c_ip_address VARCHAR(50) NULL,
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    c_modifieddate TIMESTAMP NULL
 );
 
-CREATE INDEX IX_contact_messages_status
-    ON t_sys_contact_messages (c_status, c_createddate DESC);
+CREATE INDEX IF NOT EXISTS ix_contact_messages_status
+ON t_sys_contact_messages (c_status, c_createddate DESC);
+

@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
-using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 using CateringEcommerce.Domain.Models.User;
+using CateringEcommerce.BAL.Configuration;
 
 namespace CateringEcommerce.BAL.Base.User
 {
@@ -30,25 +30,46 @@ namespace CateringEcommerce.BAL.Base.User
         {
             try
             {
-                using (var connection = new SqlConnection(_connectionString))
+                using (var connection = new NpgsqlConnection(_connectionString))
                 {
-                    var parameters = new DynamicParameters();
-                    parameters.Add("@UserId", userId);
-                    parameters.Add("@CateringId", cateringId);
+                    var query = $@"
+                        INSERT INTO {Table.SysUserFavorites}
+                        (
+                            c_userid,
+                            c_ownerid,
+                            c_added_date,
+                            c_is_active,
+                            c_removed_date,
+                            c_createddate
+                        )
+                        VALUES
+                        (
+                            @UserId,
+                            @CateringId,
+                            NOW(),
+                            TRUE,
+                            NULL,
+                            NOW()
+                        )
+                        ON CONFLICT (c_userid, c_ownerid)
+                        DO UPDATE SET
+                            c_is_active = TRUE,
+                            c_added_date = NOW(),
+                            c_removed_date = NULL
+                        RETURNING c_favorite_id;";
 
-                    var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                        "sp_User_AddFavorite",
-                        parameters,
-                        commandType: CommandType.StoredProcedure
-                    );
+                    var result = await connection.ExecuteScalarAsync<long?>(query, new
+                    {
+                        UserId = userId,
+                        CateringId = cateringId
+                    });
 
-                    return result != null;
+                    return result.HasValue;
                 }
             }
-            catch (SqlException ex)
+            catch (PostgresException ex)
             {
-                // Handle constraint violations (e.g., foreign key violations)
-                if (ex.Number == 547) // Foreign key violation
+                if (ex.SqlState == PostgresErrorCodes.ForeignKeyViolation)
                 {
                     throw new InvalidOperationException("Invalid user ID or catering ID.", ex);
                 }
@@ -61,19 +82,23 @@ namespace CateringEcommerce.BAL.Base.User
         /// </summary>
         public async Task<bool> RemoveFavoriteAsync(long userId, long cateringId)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
-                var parameters = new DynamicParameters();
-                parameters.Add("@UserId", userId);
-                parameters.Add("@CateringId", cateringId);
+                var query = $@"
+                    UPDATE {Table.SysUserFavorites}
+                    SET c_is_active = FALSE,
+                        c_removed_date = NOW()
+                    WHERE c_userid = @UserId
+                      AND c_ownerid = @CateringId
+                      AND c_is_active = TRUE;";
 
-                var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                    "sp_User_RemoveFavorite",
-                    parameters,
-                    commandType: CommandType.StoredProcedure
-                );
+                var rowsAffected = await connection.ExecuteAsync(query, new
+                {
+                    UserId = userId,
+                    CateringId = cateringId
+                });
 
-                return result?.RowsAffected > 0;
+                return rowsAffected > 0;
             }
         }
 
@@ -85,17 +110,45 @@ namespace CateringEcommerce.BAL.Base.User
             int pageNumber = 1,
             int pageSize = 20)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
-                var parameters = new DynamicParameters();
-                parameters.Add("@UserId", userId);
-                parameters.Add("@PageNumber", pageNumber);
-                parameters.Add("@PageSize", pageSize);
+                var offset = Math.Max(0, (pageNumber - 1) * pageSize);
+                var query = $@"
+                    SELECT
+                        f.c_favorite_id AS FavoriteId,
+                        f.c_ownerid AS CateringId,
+                        c.c_catering_name AS CateringName,
+                        c.c_logo_path AS LogoUrl,
+                        COALESCE((
+                            SELECT AVG(r.c_rating::double precision)
+                            FROM t_sys_reviews r
+                            WHERE r.c_ownerid = c.c_ownerid
+                              AND r.c_is_approved = TRUE
+                        ), 0) AS AverageRating,
+                        COALESCE(c.c_min_order_value, 0) AS MinOrderValue,
+                        COALESCE(c.c_is_online, FALSE) AS IsOnline,
+                        f.c_added_date AS AddedDate
+                    FROM {Table.SysUserFavorites} f
+                    INNER JOIN {Table.SysCateringOwner} c ON f.c_ownerid = c.c_ownerid
+                    WHERE f.c_userid = @UserId
+                      AND f.c_is_active = TRUE
+                      AND c.c_is_active = TRUE
+                    ORDER BY f.c_added_date DESC
+                    LIMIT @PageSize OFFSET @Offset;
 
-                using (var multi = await connection.QueryMultipleAsync(
-                    "sp_User_GetFavorites",
-                    parameters,
-                    commandType: CommandType.StoredProcedure))
+                    SELECT COUNT(*)
+                    FROM {Table.SysUserFavorites} f
+                    INNER JOIN {Table.SysCateringOwner} c ON f.c_ownerid = c.c_ownerid
+                    WHERE f.c_userid = @UserId
+                      AND f.c_is_active = TRUE
+                      AND c.c_is_active = TRUE;";
+
+                using (var multi = await connection.QueryMultipleAsync(query, new
+                {
+                    UserId = userId,
+                    PageSize = pageSize,
+                    Offset = offset
+                }))
                 {
                     var favorites = (await multi.ReadAsync<FavoriteCateringDto>()).ToList();
                     var totalCount = (await multi.ReadSingleAsync<int>());
@@ -110,19 +163,22 @@ namespace CateringEcommerce.BAL.Base.User
         /// </summary>
         public async Task<bool> IsFavoriteAsync(long userId, long cateringId)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
-                var parameters = new DynamicParameters();
-                parameters.Add("@UserId", userId);
-                parameters.Add("@CateringId", cateringId);
+                var query = $@"
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM {Table.SysUserFavorites}
+                        WHERE c_userid = @UserId
+                          AND c_ownerid = @CateringId
+                          AND c_is_active = TRUE
+                    );";
 
-                var result = await connection.QuerySingleAsync<int>(
-                    "sp_User_IsFavorite",
-                    parameters,
-                    commandType: CommandType.StoredProcedure
-                );
-
-                return result == 1;
+                return await connection.QuerySingleAsync<bool>(query, new
+                {
+                    UserId = userId,
+                    CateringId = cateringId
+                });
             }
         }
 
@@ -131,18 +187,15 @@ namespace CateringEcommerce.BAL.Base.User
         /// </summary>
         public async Task<int> GetFavoritesCountAsync(long userId)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
-                var parameters = new DynamicParameters();
-                parameters.Add("@UserId", userId);
+                var query = $@"
+                    SELECT COUNT(*)
+                    FROM {Table.SysUserFavorites}
+                    WHERE c_userid = @UserId
+                      AND c_is_active = TRUE;";
 
-                var result = await connection.QuerySingleAsync<int>(
-                    "sp_User_GetFavoritesCount",
-                    parameters,
-                    commandType: CommandType.StoredProcedure
-                );
-
-                return result;
+                return await connection.QuerySingleAsync<int>(query, new { UserId = userId });
             }
         }
 
@@ -156,17 +209,25 @@ namespace CateringEcommerce.BAL.Base.User
                 return new Dictionary<long, bool>();
             }
 
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
-                var parameters = new DynamicParameters();
-                parameters.Add("@UserId", userId);
-                parameters.Add("@CateringIds", string.Join(",", cateringIds));
+                var query = $@"
+                    SELECT
+                        ids.catering_id AS CateringId,
+                        EXISTS (
+                            SELECT 1
+                            FROM {Table.SysUserFavorites} f
+                            WHERE f.c_userid = @UserId
+                              AND f.c_ownerid = ids.catering_id
+                              AND f.c_is_active = TRUE
+                        ) AS IsFavorite
+                    FROM UNNEST(@CateringIds) AS ids(catering_id);";
 
-                var results = await connection.QueryAsync<FavoriteStatusDto>(
-                    "sp_User_GetFavoriteStatus",
-                    parameters,
-                    commandType: CommandType.StoredProcedure
-                );
+                var results = await connection.QueryAsync<FavoriteStatusDto>(query, new
+                {
+                    UserId = userId,
+                    CateringIds = cateringIds.ToArray()
+                });
 
                 return results.ToDictionary(r => r.CateringId, r => r.IsFavorite);
             }

@@ -1,9 +1,9 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using System.Text;
 
@@ -29,15 +29,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_cityname AS City,
                     s.c_statename AS State,
                     co.c_approval_status AS Status,
-                    ISNULL(co.c_verified_by_admin, 0) AS IsVerified,
-                    ISNULL(co.c_isactive, 0) AS IsActive,
-                    ISNULL(co.c_isblocked, 0) AS IsBlocked,
-                    ISNULL(co.c_isdeleted, 0) AS IsDeleted,
-                    ISNULL(co.c_isfeatured, 0) AS IsFeatured,
-                    ISNULL(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
+                    COALESCE(co.c_verified_by_admin, 0) AS IsVerified,
+                    COALESCE(co.c_isactive, 0) AS IsActive,
+                    COALESCE(co.c_isblocked, 0) AS IsBlocked,
+                    COALESCE(co.c_is_deleted, 0) AS IsDeleted,
+                    COALESCE(co.c_isfeatured, 0) AS IsFeatured,
+                    COALESCE(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
                     COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
-                    ISNULL(SUM(o.c_total_amount), 0) AS TotalEarnings,
+                    COALESCE(SUM(o.c_total_amount), 0) AS TotalEarnings,
                     co.c_createddate AS CreatedDate,
                     co.c_approved_date AS ApprovedDate
                 FROM {Table.SysCateringOwner} co
@@ -48,13 +48,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'
                 WHERE 1=1");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
             AppendFilters(queryBuilder, parameters, request);
 
             queryBuilder.Append(@"
                 GROUP BY co.c_ownerid, co.c_catering_name, co.c_owner_name, co.c_mobile,
                          co.c_email, c.c_cityname, s.c_statename, co.c_approval_status, co.c_verified_by_admin,
-                         co.c_isactive, co.c_isblocked, co.c_isdeleted, co.c_isfeatured,
+                         co.c_isactive, co.c_isblocked, co.c_is_deleted, co.c_isfeatured,
                          co.c_createddate, co.c_approved_date");
 
             // Sorting
@@ -76,14 +76,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.City} c ON cd.c_cityid = c.c_cityid
                 LEFT JOIN {Table.State} s ON cd.c_stateid = s.c_stateid
                 WHERE 1=1");
-            var countParams = new List<SqlParameter>();
+            var countParams = new List<NpgsqlParameter>();
             AppendFilters(countBuilder, countParams, request);
 
             int totalRecords = Convert.ToInt32(_dbHelper.ExecuteScalar(countBuilder.ToString(), countParams.ToArray()));
 
             // Pagination
             int offset = (request.PageNumber - 1) * request.PageSize;
-            queryBuilder.Append($" OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY");
+            queryBuilder.Append($" LIMIT {request.PageSize} OFFSET {offset}");
 
             var dt = _dbHelper.Execute(queryBuilder.ToString(), parameters.ToArray());
 
@@ -112,8 +112,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     legal.c_gst_number, legal.c_fssai_number, legal.c_pan_number,
                     addr.c_building AS c_address_line1, addr.c_street AS c_address_line2,
                     c.c_cityname, s.c_statename, addr.c_pincode,
-                    co.c_approval_status, ISNULL(co.c_verified_by_admin, 0) AS c_verified_by_admin,
-                    ISNULL(co.c_isactive, 0) AS c_isactive, ISNULL(co.c_isblocked, 0) AS c_isblocked,
+                    co.c_approval_status, COALESCE(co.c_verified_by_admin, 0) AS c_verified_by_admin,
+                    COALESCE(co.c_isactive, 0) AS c_isactive, COALESCE(co.c_isblocked, 0) AS c_isblocked,
                     co.c_block_reason,
                     bank.c_account_number, bank.c_ifsc_code, bank.c_account_holder_name,
                     co.c_createddate, co.c_approved_date, co.c_modifieddate
@@ -125,7 +125,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysCateringOwnerBankDetails} bank ON co.c_ownerid = bank.c_ownerid
                 WHERE co.c_ownerid = @CateringId";
 
-            SqlParameter[] parameters = { new SqlParameter("@CateringId", cateringId) };
+            NpgsqlParameter[] parameters = { new NpgsqlParameter("@CateringId", cateringId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -180,14 +180,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_isactive = CASE WHEN @Status = 2 THEN 1 ELSE c_isactive END,
                     c_isblocked = CASE WHEN @Status = 3 THEN 1 ELSE 0 END,
                     c_block_reason = @Reason,
-                    c_approved_date = CASE WHEN @Status = 2 AND c_approved_date IS NULL THEN GETDATE() ELSE c_approved_date END,
-                    c_modifieddate = GETDATE()
+                    c_approved_date = CASE WHEN @Status = 2 AND c_approved_date IS NULL THEN NOW() ELSE c_approved_date END,
+                    c_modifieddate = NOW()
                 WHERE c_ownerid = @CateringId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@CateringId", request.CateringId),
-                new SqlParameter("@Status", request.Status),
-                new SqlParameter("@Reason", (object?)request.Reason ?? DBNull.Value)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@CateringId", request.CateringId),
+                new NpgsqlParameter("@Status", request.Status),
+                new NpgsqlParameter("@Reason", (object?)request.Reason ?? DBNull.Value)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -198,15 +198,15 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 UPDATE {Table.SysCateringOwner}
-                SET c_isdeleted = 1,
-                    c_isactive = 0,
+                SET c_is_deleted = TRUE,
+                    c_isactive = FALSE,
                     c_deleted_by = @DeletedBy,
-                    c_deleted_date = GETDATE()
+                    c_deleted_date = NOW()
                 WHERE c_ownerid = @CateringId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@CateringId", cateringId),
-                new SqlParameter("@DeletedBy", deletedBy)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@CateringId", cateringId),
+                new NpgsqlParameter("@DeletedBy", deletedBy)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -217,15 +217,15 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 UPDATE {Table.SysCateringOwner}
-                SET c_isdeleted = 0,
-                    c_isactive = 1,
+                SET c_is_deleted = FALSE,
+                    c_isactive = TRUE,
                     c_deleted_by = NULL,
                     c_deleted_date = NULL,
-                    c_modifieddate = GETDATE()
-                WHERE c_ownerid = @CateringId AND c_isdeleted = 1";
+                    c_modifieddate = NOW()
+                WHERE c_ownerid = @CateringId AND c_is_deleted = TRUE";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@CateringId", cateringId)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@CateringId", cateringId)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -244,13 +244,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_cityname AS City,
                     s.c_statename AS State,
                     co.c_approval_status AS Status,
-                    ISNULL(co.c_verified_by_admin, 0) AS IsVerified,
-                    ISNULL(co.c_isactive, 0) AS IsActive,
-                    ISNULL(co.c_isblocked, 0) AS IsBlocked,
-                    ISNULL(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
+                    COALESCE(co.c_verified_by_admin, 0) AS IsVerified,
+                    COALESCE(co.c_isactive, 0) AS IsActive,
+                    COALESCE(co.c_isblocked, 0) AS IsBlocked,
+                    COALESCE(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
                     COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
-                    ISNULL(SUM(o.c_total_amount), 0) AS TotalEarnings,
+                    COALESCE(SUM(o.c_total_amount), 0) AS TotalEarnings,
                     co.c_createddate AS CreatedDate
                 FROM {Table.SysCateringOwner} co
                 LEFT JOIN {Table.SysCateringOwnerAddress} cd ON cd.c_ownerid = co.c_ownerid
@@ -260,7 +260,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'
                 WHERE 1=1");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
             AppendFilters(queryBuilder, parameters, request);
 
             queryBuilder.Append(@"
@@ -301,58 +301,58 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         #region Private Helpers
 
-        private void AppendFilters(StringBuilder queryBuilder, List<SqlParameter> parameters, AdminCateringListRequest request)
+        private void AppendFilters(StringBuilder queryBuilder, List<NpgsqlParameter> parameters, AdminCateringListRequest request)
         {
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 queryBuilder.Append(" AND (co.c_catering_name LIKE @SearchTerm OR co.c_owner_name LIKE @SearchTerm OR co.c_mobile LIKE @SearchTerm OR co.c_email LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
             }
 
             if (request.StateId.HasValue)
             {
                 queryBuilder.Append(" AND cd.c_stateid = @StateId");
-                parameters.Add(new SqlParameter("@StateId", request.StateId.Value));
+                parameters.Add(new NpgsqlParameter("@StateId", request.StateId.Value));
             }
 
             if (request.CityId.HasValue)
             {
                 queryBuilder.Append(" AND cd.c_cityid = @CityId");
-                parameters.Add(new SqlParameter("@CityId", request.CityId.Value));
+                parameters.Add(new NpgsqlParameter("@CityId", request.CityId.Value));
             }
 
             if (request.Status.HasValue)
             {
                 queryBuilder.Append(" AND co.c_approval_status = @Status");
-                parameters.Add(new SqlParameter("@Status", request.Status.Value));
+                parameters.Add(new NpgsqlParameter("@Status", request.Status.Value));
             }
 
             if (request.IsBlocked.HasValue)
             {
-                queryBuilder.Append(" AND ISNULL(co.c_isblocked, 0) = @IsBlocked");
-                parameters.Add(new SqlParameter("@IsBlocked", request.IsBlocked.Value ? 1 : 0));
+                queryBuilder.Append(" AND COALESCE(co.c_isblocked, 0) = @IsBlocked");
+                parameters.Add(new NpgsqlParameter("@IsBlocked", request.IsBlocked.Value ? 1 : 0));
             }
 
             if (request.IsActive.HasValue)
             {
-                queryBuilder.Append(" AND ISNULL(co.c_isactive, 0) = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value ? 1 : 0));
+                queryBuilder.Append(" AND COALESCE(co.c_isactive, 0) = @IsActive");
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value ? 1 : 0));
             }
 
             if (request.IsDeleted.HasValue && request.IsDeleted.Value)
             {
-                queryBuilder.Append(" AND ISNULL(co.c_isdeleted, 0) = 1");
+                queryBuilder.Append(" AND COALESCE(co.c_is_deleted, 0) = 1");
             }
             else
             {
-                queryBuilder.Append(" AND ISNULL(co.c_isdeleted, 0) = 0");
+                queryBuilder.Append(" AND COALESCE(co.c_is_deleted, 0) = 0");
             }
 
             if (!string.IsNullOrEmpty(request.VerificationStatus))
             {
                 bool isVerified = request.VerificationStatus.Equals("Verified", StringComparison.OrdinalIgnoreCase);
-                queryBuilder.Append(" AND ISNULL(co.c_verified_by_admin, 0) = @IsVerified");
-                parameters.Add(new SqlParameter("@IsVerified", isVerified ? 1 : 0));
+                queryBuilder.Append(" AND COALESCE(co.c_verified_by_admin, 0) = @IsVerified");
+                parameters.Add(new NpgsqlParameter("@IsVerified", isVerified ? 1 : 0));
             }
         }
 
@@ -386,17 +386,17 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT
-                    ISNULL(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS AvgRating,
+                    COALESCE(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS AvgRating,
                     COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
-                    ISNULL(SUM(o.c_total_amount), 0) AS TotalEarnings,
-                    ISNULL(SUM(o.c_platform_commission), 0) AS Commission
+                    COALESCE(SUM(o.c_total_amount), 0) AS TotalEarnings,
+                    COALESCE(SUM(o.c_platform_commission), 0) AS Commission
                 FROM {Table.SysCateringOwner} co
                 LEFT JOIN {Table.SysCateringReview} cr ON co.c_ownerid = cr.c_ownerid
                 LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'
                 WHERE co.c_ownerid = @CateringId";
 
-            SqlParameter[] parameters = { new SqlParameter("@CateringId", cateringId) };
+            NpgsqlParameter[] parameters = { new NpgsqlParameter("@CateringId", cateringId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             if (dt.Rows.Count > 0)
@@ -419,10 +419,10 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT c_file_path
                 FROM {Table.SysCateringMediaUploads}
-                WHERE c_ownerid = @CateringId AND ISNULL(c_is_deleted, 0) = 0
+                WHERE c_ownerid = @CateringId AND COALESCE(c_is_deleted, FALSE) = 0
                 ORDER BY c_uploaded_at DESC";
 
-            SqlParameter[] parameters = { new SqlParameter("@CateringId", cateringId) };
+            NpgsqlParameter[] parameters = { new NpgsqlParameter("@CateringId", cateringId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             var images = new List<string>();
@@ -441,15 +441,16 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 UPDATE {Table.SysCateringOwner}
                 SET c_isfeatured = @IsFeatured,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_ownerid = @CateringId";
 
             int rows = _dbHelper.ExecuteNonQuery(query, new[]
             {
-                new SqlParameter("@IsFeatured", isFeatured ? 1 : 0),
-                new SqlParameter("@CateringId", cateringId)
+                new NpgsqlParameter("@IsFeatured", isFeatured ? 1 : 0),
+                new NpgsqlParameter("@CateringId", cateringId)
             });
             return rows > 0;
         }
     }
 }
+

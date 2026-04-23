@@ -2,7 +2,8 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Models.Order;
-using Microsoft.Data.SqlClient;
+using Npgsql;
+using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -24,11 +25,11 @@ namespace CateringEcommerce.BAL.Base.Order
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", orderId),
-                new SqlParameter("@RefundPercentage", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
-                new SqlParameter("@RefundAmount", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
-                new SqlParameter("@PolicyTier", SqlDbType.VarChar, 20) { Direction = ParameterDirection.Output },
-                new SqlParameter("@PartnerCompensation", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 }
+                new NpgsqlParameter("@OrderId", orderId),
+                new NpgsqlParameter("@RefundPercentage", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
+                new NpgsqlParameter("@RefundAmount", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
+                new NpgsqlParameter("@PolicyTier", NpgsqlDbType.Varchar, 20) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@PartnerCompensation", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 }
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<CancellationPolicyResponse>(
@@ -49,11 +50,11 @@ namespace CateringEcommerce.BAL.Base.Order
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@UserId", request.UserId),
-                new SqlParameter("@CancellationReason", request.CancellationReason),
-                new SqlParameter("@IsForceMajeure", request.IsForceMajeure),
-                new SqlParameter("@ForceMajeureEvidence", (object)request.ForceMajeureEvidence ?? DBNull.Value)
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@UserId", request.UserId),
+                new NpgsqlParameter("@CancellationReason", request.CancellationReason),
+                new NpgsqlParameter("@IsForceMajeure", request.IsForceMajeure),
+                new NpgsqlParameter("@ForceMajeureEvidence", (object)request.ForceMajeureEvidence ?? DBNull.Value)
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<CancellationRequestModel>(
@@ -72,7 +73,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@CancellationId", cancellationId)
+                new NpgsqlParameter("@CancellationId", cancellationId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<CancellationRequestModel>(query, parameters);
@@ -88,7 +89,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<CancellationRequestModel>(query, parameters);
@@ -104,7 +105,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@UserId", userId)
             };
 
             return await _dbHelper.ExecuteQueryAsync<CancellationRequestModel>(query, parameters);
@@ -115,11 +116,11 @@ namespace CateringEcommerce.BAL.Base.Order
             // CRITICAL FIX: Use transactional stored procedure
             var parameters = new[]
             {
-                new SqlParameter("@CancellationId", cancellationId),
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@AdminNotes", (object)adminNotes ?? DBNull.Value),
-                new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@CancellationId", cancellationId),
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@AdminNotes", (object)adminNotes ?? DBNull.Value),
+                new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@ErrorMessage", NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_ApproveCancellationTransaction", parameters);
@@ -140,11 +141,11 @@ namespace CateringEcommerce.BAL.Base.Order
             // CRITICAL FIX: Use transactional stored procedure
             var parameters = new[]
             {
-                new SqlParameter("@CancellationId", cancellationId),
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@RejectionReason", rejectionReason),
-                new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@CancellationId", cancellationId),
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@RejectionReason", rejectionReason),
+                new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@ErrorMessage", NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_RejectCancellationTransaction", parameters);
@@ -168,11 +169,11 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@CancellationId", cancellationId),
-                new SqlParameter("@RefundTransactionId", refundTransactionId),
-                new SqlParameter("@RefundMethod", refundMethod),
-                new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@CancellationId", cancellationId),
+                new NpgsqlParameter("@RefundTransactionId", refundTransactionId),
+                new NpgsqlParameter("@RefundMethod", refundMethod),
+                new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@ErrorMessage", NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_ProcessRefundTransaction", parameters);

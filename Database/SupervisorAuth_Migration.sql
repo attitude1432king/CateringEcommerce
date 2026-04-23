@@ -5,17 +5,25 @@
 
 -- sp_GetSupervisorForLogin
 -- Returns credential fields only (used for login verification)
-IF OBJECT_ID('dbo.sp_GetSupervisorForLogin', 'P') IS NOT NULL
-    DROP PROCEDURE dbo.sp_GetSupervisorForLogin;
-GO
-
-CREATE PROCEDURE dbo.sp_GetSupervisorForLogin
-    @Identifier NVARCHAR(100)   -- email or phone
-AS
+CREATE OR REPLACE FUNCTION sp_GetSupervisorForLogin(
+    p_Identifier VARCHAR
+)
+RETURNS TABLE (
+    SupervisorId BIGINT,
+    FullName VARCHAR,
+    Email VARCHAR,
+    Phone VARCHAR,
+    PasswordHash VARCHAR,
+    CurrentStatus VARCHAR,
+    SupervisorType VARCHAR,
+    AuthorityLevel VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
-    SELECT TOP 1
+    RETURN QUERY
+    SELECT
         c_supervisor_id     AS SupervisorId,
         c_full_name         AS FullName,
         c_email             AS Email,
@@ -25,27 +33,29 @@ BEGIN
         c_supervisor_type   AS SupervisorType,
         c_authority_level   AS AuthorityLevel
     FROM t_sys_supervisor
-    WHERE
-        (c_email = @Identifier OR c_phone = @Identifier)
-        AND c_is_deleted = 0;
-END
-GO
+    WHERE (c_email = p_Identifier OR c_phone = p_Identifier)
+      AND c_is_deleted = FALSE
+    LIMIT 1;
+
+END;
+$$;
 
 -- sp_UpdateSupervisorLastLogin
-IF OBJECT_ID('dbo.sp_UpdateSupervisorLastLogin', 'P') IS NOT NULL
-    DROP PROCEDURE dbo.sp_UpdateSupervisorLastLogin;
-GO
-
-CREATE PROCEDURE dbo.sp_UpdateSupervisorLastLogin
-    @SupervisorId BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_UpdateSupervisorLastLogin(
+    p_SupervisorId BIGINT
+)
+RETURNS TABLE (Success INT)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
     UPDATE t_sys_supervisor
-    SET c_last_login_date = GETUTCDATE(),
-        c_modified_date   = GETUTCDATE()
-    WHERE c_supervisor_id = @SupervisorId
-      AND c_is_deleted = 0;
-END
-GO
+    SET c_last_login_date = NOW(),
+        c_modified_date   = NOW()
+    WHERE c_supervisor_id = p_SupervisorId
+      AND c_is_deleted = FALSE;
+
+    RETURN QUERY SELECT 1 AS Success;
+
+END;
+$$;

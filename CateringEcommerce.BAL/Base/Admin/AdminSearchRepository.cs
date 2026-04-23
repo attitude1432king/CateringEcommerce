@@ -2,7 +2,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.Admin
@@ -80,26 +80,27 @@ namespace CateringEcommerce.BAL.Base.Admin
         private async Task<List<GlobalSearchResultItem>> SearchUsersAsync(string query, int max)
         {
             var sql = $@"
-                SELECT TOP(@Max)
+                SELECT
                     c_userid,
-                    ISNULL(c_name, '') AS c_name,
-                    ISNULL(c_email, '') AS c_email,
-                    ISNULL(c_mobile, '') AS c_mobile,
-                    CASE WHEN ISNULL(c_isblocked, 0) = 1 THEN 'Blocked'
-                         WHEN ISNULL(c_isactive, 1) = 0  THEN 'Inactive'
+                    COALESCE(c_name, '') AS c_name,
+                    COALESCE(c_email, '') AS c_email,
+                    COALESCE(c_mobile, '') AS c_mobile,
+                    CASE WHEN COALESCE(c_isblocked, FALSE) = TRUE THEN 'Blocked'
+                         WHEN COALESCE(c_isactive, TRUE) = FALSE  THEN 'Inactive'
                          ELSE 'Active' END AS Status,
-                    CASE WHEN ISNULL(c_isblocked, 0) = 1 THEN 'red'
-                         WHEN ISNULL(c_isactive, 1) = 0  THEN 'gray'
+                    CASE WHEN COALESCE(c_isblocked, FALSE) = TRUE THEN 'red'
+                         WHEN COALESCE(c_isactive, TRUE) = FALSE  THEN 'gray'
                          ELSE 'green' END AS StatusColor
                 FROM {Table.SysUser}
                 WHERE (c_name LIKE @Q OR c_email LIKE @Q OR c_mobile LIKE @Q)
-                  AND ISNULL(c_isdeleted, 0) = 0
-                ORDER BY c_createddate DESC";
+                  AND COALESCE(c_is_deleted, FALSE) = FALSE
+                ORDER BY c_createddate DESC
+                LIMIT @Max";
 
             var parameters = new[]
             {
-                new SqlParameter("@Max", max),
-                new SqlParameter("@Q", $"%{query}%")
+                new NpgsqlParameter("@Max", max),
+                new NpgsqlParameter("@Q", $"%{query}%")
             };
 
             var dt = await _dbHelper.ExecuteAsync(sql, parameters);
@@ -135,12 +136,12 @@ namespace CateringEcommerce.BAL.Base.Admin
         private async Task<List<GlobalSearchResultItem>> SearchPartnersAsync(string query, int max)
         {
             var sql = $@"
-                SELECT TOP(@Max)
+                SELECT
                     c_ownerid,
-                    ISNULL(c_catering_name, '') AS c_catering_name,
-                    ISNULL(c_owner_name, '') AS c_owner_name,
-                    ISNULL(c_email, '') AS c_email,
-                    ISNULL(c_mobile, '') AS c_mobile,
+                    COALESCE(c_catering_name, '') AS c_catering_name,
+                    COALESCE(c_owner_name, '') AS c_owner_name,
+                    COALESCE(c_email, '') AS c_email,
+                    COALESCE(c_mobile, '') AS c_mobile,
                     c_approval_status,
                     CASE c_approval_status
                          WHEN 2 THEN 'Approved'
@@ -152,13 +153,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                          ELSE 'yellow' END AS StatusColor
                 FROM {Table.SysCateringOwner}
                 WHERE (c_catering_name LIKE @Q OR c_owner_name LIKE @Q OR c_email LIKE @Q)
-                  AND ISNULL(c_isdeleted, 0) = 0
-                ORDER BY c_createddate DESC";
+                  AND COALESCE(c_is_deleted, FALSE) = FALSE
+                ORDER BY c_createddate DESC
+                LIMIT @Max";
 
             var parameters = new[]
             {
-                new SqlParameter("@Max", max),
-                new SqlParameter("@Q", $"%{query}%")
+                new NpgsqlParameter("@Max", max),
+                new NpgsqlParameter("@Q", $"%{query}%")
             };
 
             var dt = await _dbHelper.ExecuteAsync(sql, parameters);
@@ -199,13 +201,13 @@ namespace CateringEcommerce.BAL.Base.Admin
         private async Task<List<GlobalSearchResultItem>> SearchOrdersAsync(string query, int max)
         {
             var sql = $@"
-                SELECT TOP(@Max)
+                SELECT
                     o.c_orderid,
-                    ISNULL(o.c_order_number, CAST(o.c_orderid AS VARCHAR)) AS c_order_number,
-                    ISNULL(u.c_name, '') AS c_name,
-                    ISNULL(CAST(o.c_total_amount AS VARCHAR), '0') AS c_total_amount,
-                    ISNULL(o.c_order_status, 'Pending') AS Status,
-                    CASE ISNULL(o.c_order_status, 'Pending')
+                    COALESCE(o.c_order_number, CAST(o.c_orderid AS VARCHAR)) AS c_order_number,
+                    COALESCE(u.c_name, '') AS c_name,
+                    COALESCE(CAST(o.c_total_amount AS VARCHAR), '0') AS c_total_amount,
+                    COALESCE(o.c_order_status, 'Pending') AS Status,
+                    CASE COALESCE(o.c_order_status, 'Pending')
                          WHEN 'Completed'  THEN 'green'
                          WHEN 'Cancelled'  THEN 'red'
                          WHEN 'Pending'    THEN 'yellow'
@@ -215,15 +217,16 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysOrders} o
                 INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
                 WHERE (CAST(o.c_orderid AS VARCHAR) = @RawQ
-                    OR ISNULL(o.c_order_number, '') LIKE @Q
+                    OR COALESCE(o.c_order_number, '') LIKE @Q
                     OR u.c_name LIKE @Q)
-                ORDER BY o.c_createddate DESC";
+                ORDER BY o.c_createddate DESC
+                LIMIT @Max";
 
             var parameters = new[]
             {
-                new SqlParameter("@Max", max),
-                new SqlParameter("@Q", $"%{query}%"),
-                new SqlParameter("@RawQ", query)
+                new NpgsqlParameter("@Max", max),
+                new NpgsqlParameter("@Q", $"%{query}%"),
+                new NpgsqlParameter("@RawQ", query)
             };
 
             var dt = await _dbHelper.ExecuteAsync(sql, parameters);
@@ -259,29 +262,30 @@ namespace CateringEcommerce.BAL.Base.Admin
         private async Task<List<GlobalSearchResultItem>> SearchSupervisorsAsync(string query, int max)
         {
             var sql = $@"
-                SELECT TOP(@Max)
+                SELECT
                     c_supervisor_id,
-                    ISNULL(c_full_name, '') AS c_full_name,
-                    ISNULL(c_email, '') AS c_email,
-                    ISNULL(c_phone, '') AS c_phone,
-                    ISNULL(c_current_status, 'APPLIED') AS c_current_status,
-                    CASE ISNULL(c_current_status, 'APPLIED')
+                    COALESCE(c_full_name, '') AS c_full_name,
+                    COALESCE(c_email, '') AS c_email,
+                    COALESCE(c_phone, '') AS c_phone,
+                    COALESCE(c_current_status, 'APPLIED') AS c_current_status,
+                    CASE COALESCE(c_current_status, 'APPLIED')
                          WHEN 'ACTIVE'     THEN 'Active'
                          WHEN 'SUSPENDED'  THEN 'Suspended'
                          ELSE 'Pending' END AS Status,
-                    CASE ISNULL(c_current_status, 'APPLIED')
+                    CASE COALESCE(c_current_status, 'APPLIED')
                          WHEN 'ACTIVE'     THEN 'green'
                          WHEN 'SUSPENDED'  THEN 'red'
                          ELSE 'yellow' END AS StatusColor
                 FROM {Table.SysSupervisor}
                 WHERE (c_full_name LIKE @Q OR c_email LIKE @Q)
-                  AND ISNULL(c_is_deleted, 0) = 0
-                ORDER BY c_createddate DESC";
+                  AND COALESCE(c_is_deleted, FALSE) = FALSE
+                ORDER BY c_createddate DESC
+                LIMIT @Max";
 
             var parameters = new[]
             {
-                new SqlParameter("@Max", max),
-                new SqlParameter("@Q", $"%{query}%")
+                new NpgsqlParameter("@Max", max),
+                new NpgsqlParameter("@Q", $"%{query}%")
             };
 
             var dt = await _dbHelper.ExecuteAsync(sql, parameters);
@@ -323,28 +327,29 @@ namespace CateringEcommerce.BAL.Base.Admin
         private async Task<List<GlobalSearchResultItem>> SearchEarningsAsync(string query, int max)
         {
             var sql = $@"
-                SELECT TOP(@Max)
+                SELECT
                     o.c_orderid,
-                    ISNULL(o.c_order_number, CAST(o.c_orderid AS VARCHAR)) AS c_order_number,
-                    ISNULL(co.c_catering_name, '') AS c_catering_name,
-                    ISNULL(CAST(o.c_platform_commission AS VARCHAR), '0') AS c_commission,
-                    ISNULL(o.c_order_status, 'Pending') AS Status,
-                    CASE ISNULL(o.c_order_status, 'Pending')
+                    COALESCE(o.c_order_number, CAST(o.c_orderid AS VARCHAR)) AS c_order_number,
+                    COALESCE(co.c_catering_name, '') AS c_catering_name,
+                    COALESCE(CAST(o.c_platform_commission AS VARCHAR), '0') AS c_commission,
+                    COALESCE(o.c_order_status, 'Pending') AS Status,
+                    CASE COALESCE(o.c_order_status, 'Pending')
                          WHEN 'Completed' THEN 'green'
                          WHEN 'Cancelled' THEN 'red'
                          ELSE 'yellow' END AS StatusColor
                 FROM {Table.SysOrders} o
                 INNER JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
-                WHERE (ISNULL(o.c_order_number, '') LIKE @Q
+                WHERE (COALESCE(o.c_order_number, '') LIKE @Q
                     OR co.c_catering_name LIKE @Q
                     OR CAST(o.c_orderid AS VARCHAR) = @RawQ)
-                ORDER BY o.c_createddate DESC";
+                ORDER BY o.c_createddate DESC
+                LIMIT @Max";
 
             var parameters = new[]
             {
-                new SqlParameter("@Max", max),
-                new SqlParameter("@Q", $"%{query}%"),
-                new SqlParameter("@RawQ", query)
+                new NpgsqlParameter("@Max", max),
+                new NpgsqlParameter("@Q", $"%{query}%"),
+                new NpgsqlParameter("@RawQ", query)
             };
 
             var dt = await _dbHelper.ExecuteAsync(sql, parameters);
@@ -393,3 +398,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         }
     }
 }
+

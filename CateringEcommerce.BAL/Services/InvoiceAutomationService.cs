@@ -4,7 +4,7 @@ using CateringEcommerce.Domain.Models.Invoice;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using CateringEcommerce.BAL.Configuration;
 
@@ -420,16 +420,16 @@ namespace CateringEcommerce.BAL.Services
 
         private async Task UpdateOrderStatusAsync(long orderId, OrderStatus status)
         {
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@OrderId", orderId),
-                new SqlParameter("@Status", (int)status)
+                new NpgsqlParameter("@OrderId", orderId),
+                new NpgsqlParameter("@Status", (int)status)
             };
 
             await _dbHelper.ExecuteNonQueryAsync(
                 $@"UPDATE {Table.SysOrders}
                   SET c_order_status = @Status,
-                      c_last_modified = GETDATE()
+                      c_last_modified = NOW()
                   WHERE c_orderid = @OrderId",
                 parameters,
                 CommandType.Text);
@@ -473,3 +473,4 @@ namespace CateringEcommerce.BAL.Services
 
     #endregion
 }
+

@@ -4,7 +4,7 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace CateringEcommerce.BAL.Base.User
 {
@@ -380,7 +380,7 @@ namespace CateringEcommerce.BAL.Base.User
         /// <summary>
         /// Gets guest categories (food types) supported by a catering business.
         /// Fetches from t_sys_catering_type_master based on c_food_types in t_sys_catering_owner_operations.
-        /// Also returns minimum guest count from c_min_dish_order.
+        /// Also returns minimum guest count from c_min_guest_count.
         /// </summary>
         /// <param name="cateringId">The catering owner ID</param>
         /// <returns>Supported guest categories and minimum guest count</returns>
@@ -397,13 +397,13 @@ namespace CateringEcommerce.BAL.Base.User
                 var operationsQuery = $@"
                     SELECT
                         c_food_types,
-                        c_min_dish_order
+                        c_min_guest_count
                     FROM {Table.SysCateringOwnerService}
                     WHERE c_ownerid = @CateringId";
 
                 var operationsData = await _dbHelper.ExecuteAsync(
                     operationsQuery,
-                    new[] { new SqlParameter("@CateringId", cateringId) });
+                    new[] { new NpgsqlParameter("@CateringId", cateringId) });
 
                 if (operationsData == null)
                 {
@@ -412,7 +412,7 @@ namespace CateringEcommerce.BAL.Base.User
 
                 string foodTypesStr = operationsData.Rows[0]["c_food_types"]?.ToString() ?? "";
                  
-                int minDishOrder = operationsData.Rows[0]["c_min_dish_order"] != DBNull.Value ? Convert.ToInt16(operationsData.Rows[0]["c_min_dish_order"]) : 50;
+                int minGuestCount = operationsData.Rows[0]["c_min_guest_count"] != DBNull.Value ? Convert.ToInt16(operationsData.Rows[0]["c_min_guest_count"]) : 50;
 
                 // Parse food type IDs (comma-separated)
                 var foodTypeIds = foodTypesStr
@@ -433,7 +433,7 @@ namespace CateringEcommerce.BAL.Base.User
                             c_description as Description,
                         FROM {Table.SysCateringTypeMaster}
                         WHERE c_typeid IN @FoodTypeIds
-                        AND c_isactive = 1
+                        AND c_isactive = TRUE
                         ORDER BY c_type_name";
 
                     var categoriesTable = await _dbHelper.ExecuteAsync(categoriesQuery, null);
@@ -465,8 +465,8 @@ namespace CateringEcommerce.BAL.Base.User
 
                 return new CateringGuestCategoriesDto
                 {
-                    MinimumGuests = minDishOrder,
-                    DefaultGuests = minDishOrder,
+                    MinimumGuests = minGuestCount,
+                    DefaultGuests = minGuestCount,
                     SupportedCategories = categories
                 };
             }

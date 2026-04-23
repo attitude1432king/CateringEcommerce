@@ -26,7 +26,7 @@ using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Interfaces.User;
 using Hangfire;
-using Hangfire.SqlServer;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http.Features;
@@ -61,7 +61,7 @@ builder.Services.AddSession(options =>
 });
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
-// ── OTP: MSG91 (exclusively for authentication OTP flows) ──
+// -- OTP: MSG91 (exclusively for authentication OTP flows) --
 builder.Services.AddHttpClient("msg91", c =>
 {
     c.Timeout = TimeSpan.FromSeconds(10);
@@ -69,9 +69,11 @@ builder.Services.AddHttpClient("msg91", c =>
 builder.Services.AddScoped<IOtpSmsProvider, Msg91OtpProvider>();
 builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Common.ISmsService, CateringEcommerce.BAL.Configuration.SmsService>();
 
-// ── Notifications: AWS SNS (exclusively for order/system SMS) ──
+// -- Notifications: AWS SNS (exclusively for order/system SMS) --
 builder.Services.Configure<AwsSnsSettings>(builder.Configuration.GetSection("AwsSns"));
 builder.Services.AddSingleton<INotificationSmsProvider, AwsSnsNotificationProvider>();
+builder.Services.Configure<EncryptionSettings>(
+    builder.Configuration.GetSection("EncryptionSettings"));
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -438,14 +440,13 @@ builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"), new SqlServerStorageOptions
-    {
-        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.Zero,
-        UseRecommendedIsolationLevel = true,
-        DisableGlobalLocks = true
-    }));
+    .UsePostgreSqlStorage(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        new PostgreSqlStorageOptions
+        {
+            QueuePollInterval = TimeSpan.FromMilliseconds(50), // FIX
+            InvisibilityTimeout = TimeSpan.FromMinutes(5)
+        }));
 
 // Add Hangfire server
 builder.Services.AddHangfireServer();
@@ -722,3 +723,6 @@ public static class ServiceCollectionExtensions
         return services;
     }
 }
+
+
+

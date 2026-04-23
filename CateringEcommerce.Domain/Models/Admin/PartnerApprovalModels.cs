@@ -193,7 +193,7 @@ namespace CateringEcommerce.Domain.Models.Admin
         public string? ServiceTypes { get; set; }       // Comma-separated IDs
         public string? EventTypes { get; set; }         // Comma-separated IDs
         public string? FoodTypes { get; set; }          // Comma-separated IDs
-        public decimal? MinDishOrder { get; set; }
+        public int? MinGuestCount { get; set; }
         public bool DeliveryAvailable { get; set; }
         public int? DeliveryRadiusKm { get; set; }
         public string? ServingTimeSlots { get; set; }   // Comma-separated time slot IDs

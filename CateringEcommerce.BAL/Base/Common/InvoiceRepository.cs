@@ -4,12 +4,9 @@ using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Invoice;
 using CateringEcommerce.Domain.Models.Invoice;
-using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
+using Npgsql;
+using NpgsqlTypes;
 
 namespace CateringEcommerce.BAL.Base.Common
 {
@@ -41,18 +38,18 @@ namespace CateringEcommerce.BAL.Base.Common
                 if (request == null)
                     throw new ArgumentNullException(nameof(request));
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", request.OrderId),
-                    new SqlParameter("@InvoiceType", (int)request.InvoiceType),
-                    new SqlParameter("@TriggeredBy", (object)request.TriggeredBy ?? DBNull.Value),
-                    new SqlParameter("@TriggeredByType", request.TriggeredByType?.ToString() ?? "SYSTEM"),
-                    new SqlParameter("@ExtraGuestCount", request.ExtraGuestCount ?? 0),
-                    new SqlParameter("@ExtraGuestCharges", request.ExtraGuestCharges ?? 0),
-                    new SqlParameter("@AddonCharges", request.AddonCharges ?? 0),
-                    new SqlParameter("@OvertimeCharges", request.OvertimeCharges ?? 0),
-                    new SqlParameter("@OtherCharges", request.OtherCharges ?? 0),
-                    new SqlParameter("@InvoiceId", SqlDbType.BigInt) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@OrderId", request.OrderId),
+                    new NpgsqlParameter("@InvoiceType", (int)request.InvoiceType),
+                    new NpgsqlParameter("@TriggeredBy", (object)request.TriggeredBy ?? DBNull.Value),
+                    new NpgsqlParameter("@TriggeredByType", request.TriggeredByType?.ToString() ?? "SYSTEM"),
+                    new NpgsqlParameter("@ExtraGuestCount", request.ExtraGuestCount ?? 0),
+                    new NpgsqlParameter("@ExtraGuestCharges", request.ExtraGuestCharges ?? 0),
+                    new NpgsqlParameter("@AddonCharges", request.AddonCharges ?? 0),
+                    new NpgsqlParameter("@OvertimeCharges", request.OvertimeCharges ?? 0),
+                    new NpgsqlParameter("@OtherCharges", request.OtherCharges ?? 0),
+                    new NpgsqlParameter("@InvoiceId", NpgsqlTypes.NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output }
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_GenerateInvoice", parameters);
@@ -124,9 +121,9 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@InvoiceId", invoiceId)
+                    new NpgsqlParameter("@InvoiceId", invoiceId)
                 };
 
                 var resultSets = await _dbHelper.ExecuteStoredProcedureMultipleAsync("sp_GetInvoiceById", parameters);
@@ -166,12 +163,12 @@ namespace CateringEcommerce.BAL.Base.Common
 
                 var query = $@"
                     SELECT c_invoice_id FROM {Table.SysInvoice}
-                    WHERE c_invoice_number = @InvoiceNumber AND c_is_deleted = 0
+                    WHERE c_invoice_number = @InvoiceNumber AND c_is_deleted = FALSE
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@InvoiceNumber", invoiceNumber)
+                    new NpgsqlParameter("@InvoiceNumber", invoiceNumber)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -197,9 +194,9 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_GetInvoicesByOrderId", parameters);
@@ -251,13 +248,13 @@ namespace CateringEcommerce.BAL.Base.Common
             {
                 var query = $@"
                     SELECT c_invoice_id FROM {Table.SysInvoice}
-                    WHERE c_order_id = @OrderId AND c_invoice_type = @InvoiceType AND c_is_deleted = 0
+                    WHERE c_orderid = @OrderId AND c_invoice_type = @InvoiceType AND c_is_deleted = FALSE
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@InvoiceType", (int)invoiceType)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@InvoiceType", (int)invoiceType)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -285,49 +282,49 @@ namespace CateringEcommerce.BAL.Base.Common
                     request = new InvoiceListRequestDto();
 
                 // Build dynamic query with filters
-                var whereClause = "WHERE i.c_is_deleted = 0";
-                var parameters = new List<SqlParameter>();
+                var whereClause = "WHERE i.c_is_deleted = FALSE";
+                var parameters = new List<NpgsqlParameter>();
 
                 if (request.OrderId.HasValue)
                 {
-                    whereClause += " AND i.c_order_id = @OrderId";
-                    parameters.Add(new SqlParameter("@OrderId", request.OrderId.Value));
+                    whereClause += " AND i.c_orderid = @OrderId";
+                    parameters.Add(new NpgsqlParameter("@OrderId", request.OrderId.Value));
                 }
 
                 if (request.UserId.HasValue)
                 {
                     whereClause += " AND i.c_userid = @UserId";
-                    parameters.Add(new SqlParameter("@UserId", request.UserId.Value));
+                    parameters.Add(new NpgsqlParameter("@UserId", request.UserId.Value));
                 }
 
                 if (request.CateringOwnerId.HasValue)
                 {
                     whereClause += " AND i.c_ownerid = @OwnerId";
-                    parameters.Add(new SqlParameter("@OwnerId", request.CateringOwnerId.Value));
+                    parameters.Add(new NpgsqlParameter("@OwnerId", request.CateringOwnerId.Value));
                 }
 
                 if (request.InvoiceType.HasValue)
                 {
                     whereClause += " AND i.c_invoice_type = @InvoiceType";
-                    parameters.Add(new SqlParameter("@InvoiceType", (int)request.InvoiceType.Value));
+                    parameters.Add(new NpgsqlParameter("@InvoiceType", (int)request.InvoiceType.Value));
                 }
 
                 if (request.Status.HasValue)
                 {
                     whereClause += " AND i.c_status = @Status";
-                    parameters.Add(new SqlParameter("@Status", request.Status.Value.ToString()));
+                    parameters.Add(new NpgsqlParameter("@Status", request.Status.Value.ToString()));
                 }
 
                 if (request.StartDate.HasValue)
                 {
                     whereClause += " AND i.c_invoice_date >= @StartDate";
-                    parameters.Add(new SqlParameter("@StartDate", request.StartDate.Value));
+                    parameters.Add(new NpgsqlParameter("@StartDate", request.StartDate.Value));
                 }
 
                 if (request.EndDate.HasValue)
                 {
                     whereClause += " AND i.c_invoice_date <= @EndDate";
-                    parameters.Add(new SqlParameter("@EndDate", request.EndDate.Value));
+                    parameters.Add(new NpgsqlParameter("@EndDate", request.EndDate.Value));
                 }
 
                 if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -335,24 +332,24 @@ namespace CateringEcommerce.BAL.Base.Common
                     whereClause += @" AND (i.c_invoice_number LIKE @SearchTerm
                                       OR o.c_order_number LIKE @SearchTerm
                                       OR u.c_fullname LIKE @SearchTerm)";
-                    parameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                    parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
                 }
 
                 if (request.MinAmount.HasValue)
                 {
                     whereClause += " AND i.c_total_amount >= @MinAmount";
-                    parameters.Add(new SqlParameter("@MinAmount", request.MinAmount.Value));
+                    parameters.Add(new NpgsqlParameter("@MinAmount", request.MinAmount.Value));
                 }
 
                 if (request.MaxAmount.HasValue)
                 {
                     whereClause += " AND i.c_total_amount <= @MaxAmount";
-                    parameters.Add(new SqlParameter("@MaxAmount", request.MaxAmount.Value));
+                    parameters.Add(new NpgsqlParameter("@MaxAmount", request.MaxAmount.Value));
                 }
 
                 if (request.IsOverdue.HasValue && request.IsOverdue.Value)
                 {
-                    whereClause += " AND i.c_status IN ('UNPAID', 'OVERDUE') AND i.c_due_date < GETDATE()";
+                    whereClause += " AND i.c_status IN ('UNPAID', 'OVERDUE') AND i.c_due_date < NOW()";
                 }
 
                 if (request.IsPaid.HasValue && request.IsPaid.Value)
@@ -364,7 +361,7 @@ namespace CateringEcommerce.BAL.Base.Common
                 var countQuery = $@"
                     SELECT COUNT(*) AS TotalCount
                     FROM {Table.SysInvoice} i
-                    INNER JOIN {Table.SysOrders} o ON i.c_order_id = o.c_orderid
+                    INNER JOIN {Table.SysOrders} o ON i.c_orderid = o.c_orderid
                     INNER JOIN {Table.SysUser} u ON i.c_userid = u.c_userid
                     {whereClause}
                 ";
@@ -390,15 +387,14 @@ namespace CateringEcommerce.BAL.Base.Common
                         i.c_status AS Status,
                         o.c_order_number AS OrderNumber,
                         u.c_fullname AS CustomerName,
-                        CASE WHEN i.c_status IN ('UNPAID', 'OVERDUE') AND i.c_due_date < GETDATE() THEN 1 ELSE 0 END AS IsOverdue,
-                        DATEDIFF(DAY, GETDATE(), i.c_due_date) AS DaysUntilDue
+                        CASE WHEN i.c_status IN ('UNPAID', 'OVERDUE') AND i.c_due_date < NOW() THEN 1 ELSE 0 END AS IsOverdue,
+                        (i.c_due_date::date - CURRENT_DATE) AS DaysUntilDue
                     FROM {Table.SysInvoice} i
-                    INNER JOIN {Table.SysOrders} o ON i.c_order_id = o.c_orderid
+                    INNER JOIN {Table.SysOrders} o ON i.c_orderid = o.c_orderid
                     INNER JOIN {Table.SysUser} u ON i.c_userid = u.c_userid
                     {whereClause}
                     ORDER BY i.{sortBy} {sortOrder}
-                    OFFSET {offset} ROWS
-                    FETCH NEXT {request.PageSize} ROWS ONLY
+                    LIMIT {request.PageSize} OFFSET {offset}
                 ";
 
                 var dataDt = await _dbHelper.ExecuteAsync(dataQuery, parameters.ToArray());
@@ -469,14 +465,14 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@InvoiceId", invoiceId),
-                    new SqlParameter("@NewStatus", newStatus.ToString()),
-                    new SqlParameter("@Remarks", (object)remarks ?? DBNull.Value),
-                    new SqlParameter("@UpdatedBy", (object)updatedBy ?? DBNull.Value),
-                    new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                    new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@InvoiceId", invoiceId),
+                    new NpgsqlParameter("@NewStatus", newStatus.ToString()),
+                    new NpgsqlParameter("@Remarks", (object)remarks ?? DBNull.Value),
+                    new NpgsqlParameter("@UpdatedBy", (object)updatedBy ?? DBNull.Value),
+                    new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                    new NpgsqlParameter("@ErrorMessage", NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_UpdateInvoiceStatus", parameters);
@@ -507,16 +503,16 @@ namespace CateringEcommerce.BAL.Base.Common
                 if (paymentData == null)
                     throw new ArgumentNullException(nameof(paymentData));
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@InvoiceId", paymentData.InvoiceId),
-                    new SqlParameter("@RazorpayOrderId", paymentData.RazorpayOrderId),
-                    new SqlParameter("@RazorpayPaymentId", paymentData.RazorpayPaymentId),
-                    new SqlParameter("@AmountPaid", paymentData.AmountPaid),
-                    new SqlParameter("@PaymentMethod", paymentData.PaymentMethod),
-                    new SqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value),
-                    new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                    new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@InvoiceId", paymentData.InvoiceId),
+                    new NpgsqlParameter("@RazorpayOrderId", paymentData.RazorpayOrderId),
+                    new NpgsqlParameter("@RazorpayPaymentId", paymentData.RazorpayPaymentId),
+                    new NpgsqlParameter("@AmountPaid", paymentData.AmountPaid),
+                    new NpgsqlParameter("@PaymentMethod", paymentData.PaymentMethod),
+                    new NpgsqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value),
+                    new NpgsqlParameter("@Success", NpgsqlTypes.NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                    new NpgsqlParameter("@ErrorMessage", NpgsqlTypes.NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_LinkPaymentToInvoice", parameters);
@@ -550,15 +546,15 @@ namespace CateringEcommerce.BAL.Base.Common
                 var query = $@"
                     UPDATE {Table.SysInvoice}
                     SET c_pdf_path = @PdfPath,
-                        c_pdf_generated_date = GETDATE(),
-                        c_modifieddate = GETDATE()
+                        c_pdf_generated_date = NOW(),
+                        c_modifieddate = NOW()
                     WHERE c_invoice_id = @InvoiceId
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@InvoiceId", invoiceId),
-                    new SqlParameter("@PdfPath", pdfPath)
+                    new NpgsqlParameter("@InvoiceId", invoiceId),
+                    new NpgsqlParameter("@PdfPath", pdfPath)
                 };
 
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -566,9 +562,9 @@ namespace CateringEcommerce.BAL.Base.Common
                 if (rowsAffected > 0)
                 {
                     // Get order ID for audit
-                    var orderIdQuery = $"SELECT c_order_id FROM {Table.SysInvoice} WHERE c_invoice_id = @InvoiceId";
-                    var dt = await _dbHelper.ExecuteAsync(orderIdQuery, new SqlParameter[] { new SqlParameter("@InvoiceId", invoiceId) });
-                    var orderId = dt.Rows.Count > 0 ? Convert.ToInt64(dt.Rows[0]["c_order_id"]) : 0;
+                    var orderIdQuery = $"SELECT c_orderid FROM {Table.SysInvoice} WHERE c_invoice_id = @InvoiceId";
+                    var dt = await _dbHelper.ExecuteAsync(orderIdQuery, new NpgsqlParameter[] { new NpgsqlParameter("@InvoiceId", invoiceId) });
+                    var orderId = dt.Rows.Count > 0 ? Convert.ToInt64(dt.Rows[0]["c_orderid"]) : 0;
 
                     await LogInvoiceAuditAsync(invoiceId, orderId, InvoiceAuditAction.GENERATED, null, InvoiceUserType.SYSTEM, "PDF generated");
                 }
@@ -595,7 +591,7 @@ namespace CateringEcommerce.BAL.Base.Common
                     WHERE c_orderid = @OrderId
                 ";
 
-                var dt = await _dbHelper.ExecuteAsync(query, new SqlParameter[] { new SqlParameter("@OrderId", orderId) });
+                var dt = await _dbHelper.ExecuteAsync(query, new NpgsqlParameter[] { new NpgsqlParameter("@OrderId", orderId) });
 
                 if (dt.Rows.Count == 0)
                     throw new Exception("Order not found");
@@ -666,10 +662,10 @@ namespace CateringEcommerce.BAL.Base.Common
                     WHERE c_invoice_id = @NewInvoiceId
                 ";
 
-                await _dbHelper.ExecuteNonQueryAsync(updateQuery, new SqlParameter[]
+                await _dbHelper.ExecuteNonQueryAsync(updateQuery, new NpgsqlParameter[]
                 {
-                    new SqlParameter("@NewInvoiceId", newInvoiceId),
-                    new SqlParameter("@ParentInvoiceId", invoiceId)
+                    new NpgsqlParameter("@NewInvoiceId", newInvoiceId),
+                    new NpgsqlParameter("@ParentInvoiceId", invoiceId)
                 });
 
                 return newInvoiceId;
@@ -691,13 +687,13 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@TotalAmount", totalAmount),
-                    new SqlParameter("@EventDate", eventDate),
-                    new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                    new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@TotalAmount", totalAmount),
+                    new NpgsqlParameter("@EventDate", eventDate),
+                    new NpgsqlParameter("@Success", NpgsqlTypes.NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                    new NpgsqlParameter("@ErrorMessage", NpgsqlTypes.NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_CreatePaymentSchedule", parameters);
@@ -719,9 +715,9 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var resultSets = await _dbHelper.ExecuteStoredProcedureMultipleAsync("sp_GetPaymentSchedule", parameters);
@@ -784,16 +780,16 @@ namespace CateringEcommerce.BAL.Base.Common
                     UPDATE {Table.SysPaymentSchedule}
                     SET c_status = @Status,
                         c_invoice_id = @InvoiceId,
-                        c_modifieddate = GETDATE()
-                    WHERE c_order_id = @OrderId AND c_stage_type = @StageType
+                        c_modifieddate = NOW()
+                    WHERE c_orderid = @OrderId AND c_stage_type = @StageType
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@StageType", stageType.ToString()),
-                    new SqlParameter("@InvoiceId", invoiceId),
-                    new SqlParameter("@Status", status.ToString())
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@StageType", stageType.ToString()),
+                    new NpgsqlParameter("@InvoiceId", invoiceId),
+                    new NpgsqlParameter("@Status", status.ToString())
                 };
 
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -812,7 +808,7 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_GetOrdersForAutoInvoiceGeneration", Array.Empty<SqlParameter>());
+                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_GetOrdersForAutoInvoiceGeneration", Array.Empty<NpgsqlParameter>());
 
                 var orderIds = new List<long>();
                 foreach (DataRow row in dt.Rows)
@@ -838,13 +834,13 @@ namespace CateringEcommerce.BAL.Base.Common
                 var query = $@"
                     UPDATE {Table.SysPaymentSchedule}
                     SET c_reminder_sent_count = c_reminder_sent_count + 1,
-                        c_last_reminder_date = GETDATE()
+                        c_last_reminder_date = NOW()
                     WHERE c_schedule_id = @ScheduleId
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ScheduleId", scheduleId)
+                    new NpgsqlParameter("@ScheduleId", scheduleId)
                 };
 
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -877,18 +873,18 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@InvoiceId", invoiceId),
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@Action", action.ToString()),
-                    new SqlParameter("@PerformedBy", (object)performedBy ?? DBNull.Value),
-                    new SqlParameter("@PerformedByType", performedByType?.ToString() ?? "SYSTEM"),
-                    new SqlParameter("@Remarks", (object)remarks ?? DBNull.Value),
-                    new SqlParameter("@OldStatus", oldStatus.HasValue ? oldStatus.Value.ToString() : (object)DBNull.Value),
-                    new SqlParameter("@NewStatus", newStatus.HasValue ? newStatus.Value.ToString() : (object)DBNull.Value),
-                    new SqlParameter("@IpAddress", (object)ipAddress ?? DBNull.Value),
-                    new SqlParameter("@UserAgent", (object)userAgent ?? DBNull.Value)
+                    new NpgsqlParameter("@InvoiceId", invoiceId),
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@Action", action.ToString()),
+                    new NpgsqlParameter("@PerformedBy", (object)performedBy ?? DBNull.Value),
+                    new NpgsqlParameter("@PerformedByType", performedByType?.ToString() ?? "SYSTEM"),
+                    new NpgsqlParameter("@Remarks", (object)remarks ?? DBNull.Value),
+                    new NpgsqlParameter("@OldStatus", oldStatus.HasValue ? oldStatus.Value.ToString() : (object)DBNull.Value),
+                    new NpgsqlParameter("@NewStatus", newStatus.HasValue ? newStatus.Value.ToString() : (object)DBNull.Value),
+                    new NpgsqlParameter("@IpAddress", (object)ipAddress ?? DBNull.Value),
+                    new NpgsqlParameter("@UserAgent", (object)userAgent ?? DBNull.Value)
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_LogInvoiceAudit", parameters);
@@ -913,7 +909,7 @@ namespace CateringEcommerce.BAL.Base.Common
                     SELECT
                         c_audit_id AS AuditId,
                         c_invoice_id AS InvoiceId,
-                        c_order_id AS OrderId,
+                        c_orderid AS OrderId,
                         c_action AS Action,
                         c_performed_by AS PerformedBy,
                         c_performed_by_type AS PerformedByType,
@@ -930,9 +926,9 @@ namespace CateringEcommerce.BAL.Base.Common
                     ORDER BY c_timestamp DESC
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@InvoiceId", invoiceId)
+                    new NpgsqlParameter("@InvoiceId", invoiceId)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -962,11 +958,11 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@StartDate", (object)startDate ?? DBNull.Value),
-                    new SqlParameter("@EndDate", (object)endDate ?? DBNull.Value),
-                    new SqlParameter("@OwnerId", (object)ownerId ?? DBNull.Value)
+                    new NpgsqlParameter("@StartDate", (object)startDate ?? DBNull.Value),
+                    new NpgsqlParameter("@EndDate", (object)endDate ?? DBNull.Value),
+                    new NpgsqlParameter("@OwnerId", (object)ownerId ?? DBNull.Value)
                 };
 
                 var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_GetInvoiceStatistics", parameters);
@@ -1005,7 +1001,7 @@ namespace CateringEcommerce.BAL.Base.Common
         {
             try
             {
-                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_GetOverdueInvoices", Array.Empty<SqlParameter>());
+                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_GetOverdueInvoices", Array.Empty<NpgsqlParameter>());
 
                 var invoices = new List<InvoiceSummaryDto>();
                 foreach (DataRow row in dt.Rows)
@@ -1042,19 +1038,19 @@ namespace CateringEcommerce.BAL.Base.Common
                         o.c_order_number AS OrderNumber,
                         u.c_fullname AS CustomerName,
                         0 AS IsOverdue,
-                        DATEDIFF(DAY, GETDATE(), i.c_due_date) AS DaysUntilDue
+                        (i.c_due_date::date - CURRENT_DATE) AS DaysUntilDue
                     FROM {Table.SysInvoice} i
-                    INNER JOIN {Table.SysOrders} o ON i.c_order_id = o.c_orderid
+                    INNER JOIN {Table.SysOrders} o ON i.c_orderid = o.c_orderid
                     INNER JOIN {Table.SysUser} u ON i.c_userid = u.c_userid
                     WHERE i.c_status IN ('UNPAID', 'PARTIALLY_PAID')
-                        AND i.c_due_date BETWEEN GETDATE() AND DATEADD(DAY, @DaysAhead, GETDATE())
-                        AND i.c_is_deleted = 0
+                        AND i.c_due_date BETWEEN NOW() AND (NOW() + (@DaysAhead * INTERVAL '1 day'))
+                        AND i.c_is_deleted = FALSE
                     ORDER BY i.c_due_date
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@DaysAhead", daysAhead)
+                    new NpgsqlParameter("@DaysAhead", daysAhead)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -1086,13 +1082,13 @@ namespace CateringEcommerce.BAL.Base.Common
             {
                 var query = $@"
                     SELECT COUNT(*) FROM {Table.SysInvoice}
-                    WHERE c_order_id = @OrderId AND c_invoice_type = @InvoiceType AND c_is_deleted = 0
+                    WHERE c_orderid = @OrderId AND c_invoice_type = @InvoiceType AND c_is_deleted = FALSE
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@InvoiceType", (int)invoiceType)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@InvoiceType", (int)invoiceType)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -1113,12 +1109,12 @@ namespace CateringEcommerce.BAL.Base.Common
             {
                 var query = $@"
                     SELECT c_status FROM {Table.SysInvoice}
-                    WHERE c_invoice_id = @InvoiceId AND c_is_deleted = 0
+                    WHERE c_invoice_id = @InvoiceId AND c_is_deleted = FALSE
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@InvoiceId", invoiceId)
+                    new NpgsqlParameter("@InvoiceId", invoiceId)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -1176,14 +1172,14 @@ namespace CateringEcommerce.BAL.Base.Common
             try
             {
                 var query = $@"
-                    SELECT ISNULL(SUM(c_amount_paid), 0) AS TotalPaid
+                    SELECT COALESCE(SUM(c_amount_paid), 0) AS TotalPaid
                     FROM {Table.SysInvoice}
-                    WHERE c_order_id = @OrderId AND c_is_deleted = 0
+                    WHERE c_orderid = @OrderId AND c_is_deleted = FALSE
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -1208,9 +1204,9 @@ namespace CateringEcommerce.BAL.Base.Common
                     WHERE c_orderid = @OrderId
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -1440,14 +1436,14 @@ namespace CateringEcommerce.BAL.Base.Common
                            o.c_userid AS UserId,
                            o.c_ownerid AS CateringOwnerId
                     FROM {Table.SysInvoice} i
-                    INNER JOIN {Table.SysOrders} o ON i.c_order_id = o.c_orderid
+                    INNER JOIN {Table.SysOrders} o ON i.c_orderid = o.c_orderid
                     WHERE i.c_status = 1 -- UNPAID
-                      AND i.c_due_date < GETDATE()
-                      AND i.c_is_deleted = 0
+                      AND i.c_due_date < NOW()
+                      AND i.c_is_deleted = FALSE
                     ORDER BY i.c_due_date ASC
                 ";
 
-                var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<SqlParameter>());
+                var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<NpgsqlParameter>());
                 return dt.AsEnumerable().Select(MapInvoiceDto).ToList();
             }
             catch (Exception ex)
@@ -1467,17 +1463,17 @@ namespace CateringEcommerce.BAL.Base.Common
                 var query = $@"
                     SELECT c_orderid AS OrderId,
                            c_event_date AS EventDate,
-                           DATEDIFF(DAY, GETDATE(), DATEADD(DAY, -5, c_event_date)) AS DaysUntilLock
+                           ((c_event_date::date - 5) - CURRENT_DATE) AS DaysUntilLock
                     FROM {Table.SysOrders}
-                    WHERE c_guest_count_locked = 0
-                      AND c_event_date > GETDATE()
-                      AND DATEDIFF(DAY, GETDATE(), DATEADD(DAY, -5, c_event_date)) <= 1
+                    WHERE c_guest_count_locked = FALSE
+                      AND c_event_date > NOW()
+                      AND ((c_event_date::date - 5) - CURRENT_DATE) <= 1
                       AND c_order_status >= 6 -- BOOKING_PAID or later
-                      AND c_is_deleted = 0
+                      AND c_is_deleted = FALSE
                     ORDER BY c_event_date ASC
                 ";
 
-                var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<SqlParameter>());
+                var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<NpgsqlParameter>());
                 return dt.AsEnumerable().Select(row => new
                 {
                     OrderId = Convert.ToInt64(row["OrderId"]),
@@ -1502,17 +1498,17 @@ namespace CateringEcommerce.BAL.Base.Common
                 var query = $@"
                     SELECT c_orderid AS OrderId,
                            c_event_date AS EventDate,
-                           DATEDIFF(DAY, GETDATE(), DATEADD(DAY, -3, c_event_date)) AS DaysUntilLock
+                           ((c_event_date::date - 3) - CURRENT_DATE) AS DaysUntilLock
                     FROM {Table.SysOrders}
-                    WHERE c_menu_locked = 0
-                      AND c_event_date > GETDATE()
-                      AND DATEDIFF(DAY, GETDATE(), DATEADD(DAY, -3, c_event_date)) <= 1
+                    WHERE c_menu_locked = FALSE
+                      AND c_event_date > NOW()
+                      AND ((c_event_date::date - 3) - CURRENT_DATE) <= 1
                       AND c_order_status >= 6 -- BOOKING_PAID or later
-                      AND c_is_deleted = 0
+                      AND c_is_deleted = FALSE
                     ORDER BY c_event_date ASC
                 ";
 
-                var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<SqlParameter>());
+                var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<NpgsqlParameter>());
                 return dt.AsEnumerable().Select(row => new
                 {
                     OrderId = Convert.ToInt64(row["OrderId"]),
@@ -1539,17 +1535,17 @@ namespace CateringEcommerce.BAL.Base.Common
                            o.c_userid AS UserId,
                            o.c_ownerid AS CateringOwnerId
                     FROM {Table.SysInvoice} i
-                    INNER JOIN {Table.SysOrders} o ON i.c_order_id = o.c_orderid
+                    INNER JOIN {Table.SysOrders} o ON i.c_orderid = o.c_orderid
                     WHERE i.c_status IN (1, 2) -- UNPAID or OVERDUE
                       AND i.c_due_date IS NOT NULL
-                      AND DATEDIFF(DAY, GETDATE(), i.c_due_date) BETWEEN 0 AND @DaysThreshold
-                      AND i.c_is_deleted = 0
+                      AND (i.c_due_date::date - CURRENT_DATE) BETWEEN 0 AND @DaysThreshold
+                      AND i.c_is_deleted = FALSE
                     ORDER BY i.c_due_date ASC
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@DaysThreshold", daysThreshold)
+                    new NpgsqlParameter("@DaysThreshold", daysThreshold)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -1575,19 +1571,19 @@ namespace CateringEcommerce.BAL.Base.Common
                            c_order_total AS OrderTotal
                     FROM {Table.SysOrders}
                     WHERE c_order_status = 6 -- BOOKING_PAID
-                      AND c_event_date > GETDATE()
-                      AND DATEDIFF(DAY, GETDATE(), c_event_date) <= 5 -- Within 5 days of event
-                      AND c_is_deleted = 0
+                      AND c_event_date > NOW()
+                      AND (c_event_date::date - CURRENT_DATE) <= 5 -- Within 5 days of event
+                      AND c_is_deleted = FALSE
                       AND NOT EXISTS (
                           SELECT 1 FROM {Table.SysInvoice}
-                          WHERE c_order_id = {Table.SysOrders}.c_orderid
+                          WHERE c_orderid = {Table.SysOrders}.c_orderid
                             AND c_invoice_type = 2 -- PRE_EVENT
-                            AND c_is_deleted = 0
+                            AND c_is_deleted = FALSE
                       )
                     ORDER BY c_event_date ASC
                 ";
 
-                var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<SqlParameter>());
+                var dt = await _dbHelper.ExecuteAsync(query, Array.Empty<NpgsqlParameter>());
                 return dt.AsEnumerable().Select(row => new
                 {
                     OrderId = Convert.ToInt64(row["OrderId"]),
@@ -1648,3 +1644,4 @@ namespace CateringEcommerce.BAL.Base.Common
         #endregion
     }
 }
+

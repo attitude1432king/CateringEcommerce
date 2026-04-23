@@ -1,156 +1,85 @@
 /*
-====================================================
-CATERING DELIVERY SYSTEM - DATABASE TABLES
-====================================================
-Created: 2026-01-20
-Purpose: Separate delivery tables for Sample and Event delivery
-====================================================
-*/
+ * Database Migration Script: Catering Delivery System
+ * Purpose: Separate delivery tables for Sample and Event delivery
+ * PostgreSQL Compatible Version
+ * Date: 2026-01-20
+ */
 
--- ====================================================
--- 1. SAMPLE DELIVERY (Third-party real-time tracking)
--- ====================================================
+-- =============================================
+-- Table: t_sys_sample_delivery
+-- Purpose: Third-party provider delivery tracking for sample orders
+-- =============================================
+CREATE TABLE IF NOT EXISTS t_sys_sample_delivery (
+    c_sample_delivery_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_orderid BIGINT NOT NULL,
+    c_userid BIGINT NOT NULL,
+    c_ownerid BIGINT NOT NULL,
+    c_provider VARCHAR(50),
+    c_tracking_url VARCHAR(1000),
+    c_tracking_id VARCHAR(200),
+    c_delivery_status INTEGER NOT NULL DEFAULT 1,
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    c_modifieddate TIMESTAMP,
+    CONSTRAINT fk_sample_delivery_order FOREIGN KEY (c_orderid)
+        REFERENCES t_sys_orders(c_orderid),
+    CONSTRAINT fk_sample_delivery_user FOREIGN KEY (c_userid)
+        REFERENCES t_sys_user(c_userid),
+    CONSTRAINT fk_sample_delivery_owner FOREIGN KEY (c_ownerid)
+        REFERENCES t_sys_catering_owner(c_ownerid)
+);
 
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_sample_delivery')
-BEGIN
-    CREATE TABLE t_sys_sample_delivery (
-        c_sample_delivery_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_orderid BIGINT NOT NULL,
-        c_userid BIGINT NOT NULL,
-        c_ownerid BIGINT NOT NULL,
+CREATE INDEX IF NOT EXISTS ix_sample_delivery_order ON t_sys_sample_delivery(c_orderid);
 
-        -- Third-party provider info
-        c_provider NVARCHAR(50) NULL,          -- Dunzo / Porter / Shadowfax
-        c_tracking_url NVARCHAR(1000) NULL,
-        c_tracking_id NVARCHAR(200) NULL,
+-- =============================================
+-- Table: t_sys_event_delivery
+-- Purpose: Status-based delivery tracking for event catering (no GPS)
+-- =============================================
+CREATE TABLE IF NOT EXISTS t_sys_event_delivery (
+    c_event_delivery_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_orderid BIGINT NOT NULL,
+    c_ownerid BIGINT NOT NULL,
+    c_vehicle_number VARCHAR(50),
+    c_driver_name VARCHAR(100),
+    c_driver_phone VARCHAR(20),
+    c_delivery_status INTEGER NOT NULL DEFAULT 1,
+    c_scheduled_dispatch_time TIMESTAMP,
+    c_actual_dispatch_time TIMESTAMP,
+    c_arrived_time TIMESTAMP,
+    c_completed_time TIMESTAMP,
+    c_notes VARCHAR(500),
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    c_modifieddate TIMESTAMP,
+    CONSTRAINT fk_event_delivery_order FOREIGN KEY (c_orderid)
+        REFERENCES t_sys_orders(c_orderid),
+    CONSTRAINT fk_event_delivery_owner FOREIGN KEY (c_ownerid)
+        REFERENCES t_sys_catering_owner(c_ownerid)
+);
 
-        -- Status tracking
-        c_delivery_status INT NOT NULL DEFAULT 1,
-        /*
-            1 = Requested
-            2 = PickedUp
-            3 = InTransit
-            4 = Delivered
-            5 = Failed
-        */
+CREATE INDEX IF NOT EXISTS ix_event_delivery_order ON t_sys_event_delivery(c_orderid);
+CREATE INDEX IF NOT EXISTS ix_event_delivery_status ON t_sys_event_delivery(c_delivery_status);
 
-        -- Timestamps
-        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modifieddate DATETIME NULL,
+-- =============================================
+-- Table: t_sys_event_delivery_history
+-- Purpose: Audit log for event delivery status changes
+-- =============================================
+CREATE TABLE IF NOT EXISTS t_sys_event_delivery_history (
+    c_history_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_event_delivery_id BIGINT NOT NULL,
+    c_orderid BIGINT NOT NULL,
+    c_previous_status INTEGER,
+    c_new_status INTEGER NOT NULL,
+    c_changed_by_userid BIGINT,
+    c_changed_by_type VARCHAR(20),
+    c_notes VARCHAR(500),
+    c_changed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_event_delivery_history_event_delivery FOREIGN KEY (c_event_delivery_id)
+        REFERENCES t_sys_event_delivery(c_event_delivery_id)
+);
 
-        -- Indexes
-        CONSTRAINT FK_SampleDelivery_Order FOREIGN KEY (c_orderid)
-            REFERENCES t_sys_catering_order(c_orderid),
-        CONSTRAINT FK_SampleDelivery_User FOREIGN KEY (c_userid)
-            REFERENCES t_sys_user(c_userid),
-        CONSTRAINT FK_SampleDelivery_Owner FOREIGN KEY (c_ownerid)
-            REFERENCES t_sys_catering_owner(c_ownerid)
-    );
+CREATE INDEX IF NOT EXISTS ix_event_delivery_history_event_delivery ON t_sys_event_delivery_history(c_event_delivery_id);
+CREATE INDEX IF NOT EXISTS ix_event_delivery_history_order ON t_sys_event_delivery_history(c_orderid);
 
-    CREATE INDEX IX_SampleDelivery_Order ON t_sys_sample_delivery(c_orderid);
-    CREATE INDEX IX_SampleDelivery_Status ON t_sys_sample_delivery(c_delivery_status);
+-- =============================================
+-- Migration Complete
+-- =============================================
 
-    PRINT 'Table t_sys_sample_delivery created successfully';
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_sample_delivery already exists';
-END
-GO
-
--- ====================================================
--- 2. EVENT CATERING DELIVERY (Status-based, NO GPS)
--- ====================================================
-
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_event_delivery')
-BEGIN
-    CREATE TABLE t_sys_event_delivery (
-        c_event_delivery_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_orderid BIGINT NOT NULL,
-        c_ownerid BIGINT NOT NULL,
-
-        -- Vehicle & Driver Information
-        c_vehicle_number NVARCHAR(50) NULL,
-        c_driver_name NVARCHAR(100) NULL,
-        c_driver_phone NVARCHAR(20) NULL,
-
-        -- Status-driven delivery (NO GPS)
-        c_delivery_status INT NOT NULL DEFAULT 1,
-        /*
-            1 = Preparation Started
-            2 = Vehicle Ready
-            3 = Dispatched
-            4 = Arrived At Venue
-            5 = Event Completed
-        */
-
-        -- Scheduling & Timing
-        c_scheduled_dispatch_time DATETIME NULL,
-        c_actual_dispatch_time DATETIME NULL,
-        c_arrived_time DATETIME NULL,
-        c_completed_time DATETIME NULL,
-
-        -- Notes
-        c_notes NVARCHAR(500) NULL,
-
-        -- System timestamps
-        c_createddate DATETIME NOT NULL DEFAULT GETDATE(),
-        c_modifieddate DATETIME NULL,
-
-        -- Indexes
-        CONSTRAINT FK_EventDelivery_Order FOREIGN KEY (c_orderid)
-            REFERENCES t_sys_catering_order(c_orderid),
-        CONSTRAINT FK_EventDelivery_Owner FOREIGN KEY (c_ownerid)
-            REFERENCES t_sys_catering_owner(c_ownerid)
-    );
-
-    CREATE INDEX IX_EventDelivery_Order ON t_sys_event_delivery(c_orderid);
-    CREATE INDEX IX_EventDelivery_Status ON t_sys_event_delivery(c_delivery_status);
-    CREATE INDEX IX_EventDelivery_Owner ON t_sys_event_delivery(c_ownerid);
-
-    PRINT 'Table t_sys_event_delivery created successfully';
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_event_delivery already exists';
-END
-GO
-
--- ====================================================
--- 3. EVENT DELIVERY STATUS HISTORY (Audit Log)
--- ====================================================
-
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_event_delivery_history')
-BEGIN
-    CREATE TABLE t_sys_event_delivery_history (
-        c_history_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_event_delivery_id BIGINT NOT NULL,
-        c_orderid BIGINT NOT NULL,
-
-        -- Status change tracking
-        c_previous_status INT NULL,
-        c_new_status INT NOT NULL,
-        c_changed_by_userid BIGINT NULL,    -- Admin/Partner who made the change
-        c_changed_by_type NVARCHAR(20) NULL, -- 'Partner', 'Admin', 'System'
-
-        -- Details
-        c_notes NVARCHAR(500) NULL,
-        c_changed_at DATETIME NOT NULL DEFAULT GETDATE(),
-
-        CONSTRAINT FK_EventDeliveryHistory_EventDelivery FOREIGN KEY (c_event_delivery_id)
-            REFERENCES t_sys_event_delivery(c_event_delivery_id)
-    );
-
-    CREATE INDEX IX_EventDeliveryHistory_EventDelivery ON t_sys_event_delivery_history(c_event_delivery_id);
-    CREATE INDEX IX_EventDeliveryHistory_Order ON t_sys_event_delivery_history(c_orderid);
-
-    PRINT 'Table t_sys_event_delivery_history created successfully';
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_event_delivery_history already exists';
-END
-GO
-
-PRINT 'Delivery tables setup completed successfully';
-GO

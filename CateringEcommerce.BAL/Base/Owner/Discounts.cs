@@ -1,4 +1,4 @@
-﻿using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
@@ -6,7 +6,7 @@ using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Newtonsoft.Json;
 using System.Data;
 using System.Text;
@@ -36,36 +36,36 @@ namespace CateringEcommerce.BAL.Base.Owner
                                      c_max_discount_value, c_discount_code, c_max_uses_per_order, c_max_uses_per_user, c_is_stackable, c_startdate, c_enddate, c_isactive, c_isautodisable) 
                                      VALUES 
                                      (@OwnerPKID, @DiscountName, @Description, @Type, @Mode, @DiscountValue, @MinOrderValue,
-                                     @MaxDiscountValue, @Code, @MaxUsesPerOrder, @MaxUsesPerUser, @IsStackable, @Startdate, @Enddate, @IsActive, @AutoDisable);
-                                     SELECT SCOPE_IDENTITY(); ";
+                                     @MaxDiscountValue, @Code, @MaxUsesPerOrder, @MaxUsesPerUser, @IsStackable, @Startdate, @Enddate, @IsActive, @AutoDisable)
+                    RETURNING c_discountid; ";
 
                 string discountCode = await GenerateUniqueDiscountCodeAsync(discount.Name, discount.Value, discount.Mode);
 
-                // ✅ Prepare SQL parameters
-                List<SqlParameter> parameters = new()
+                // ? Prepare SQL parameters
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DiscountName", discount.Name?.ToString()),
-                    new SqlParameter("@Description", discount.Description?.ToString()),
-                    new SqlParameter("@Type", discount.Type),
-                    new SqlParameter("@Mode", discount.Mode),
-                    new SqlParameter("@DiscountValue", discount.Value),
-                    new SqlParameter("@MinOrderValue", discount.MinOrderValue ?? (object)DBNull.Value),
-                    new SqlParameter("@MaxDiscountValue", discount.MaxDiscount ?? (object)DBNull.Value),
-                    new SqlParameter("@Code", discountCode),
-                    new SqlParameter("@MaxUsesPerOrder", discount.MaxUsesPerOrder ?? (object)DBNull.Value),
-                    new SqlParameter("@MaxUsesPerUser", discount.MaxUsesPerUser ?? (object)DBNull.Value),
-                    new SqlParameter("@IsStackable", discount.IsStackable.ToBinary()),
-                    new SqlParameter("@Startdate", discount.StartDate),
-                    new SqlParameter("@Enddate", discount.EndDate),
-                    new SqlParameter("@IsActive", discount.IsActive.ToBinary()),
-                    new SqlParameter("@AutoDisable", discount.AutoDisable.ToBinary()),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DiscountName", discount.Name?.ToString()),
+                    new NpgsqlParameter("@Description", discount.Description?.ToString()),
+                    new NpgsqlParameter("@Type", discount.Type),
+                    new NpgsqlParameter("@Mode", discount.Mode),
+                    new NpgsqlParameter("@DiscountValue", discount.Value),
+                    new NpgsqlParameter("@MinOrderValue", discount.MinOrderValue ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@MaxDiscountValue", discount.MaxDiscount ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@Code", discountCode),
+                    new NpgsqlParameter("@MaxUsesPerOrder", discount.MaxUsesPerOrder ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@MaxUsesPerUser", discount.MaxUsesPerUser ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@IsStackable", discount.IsStackable),
+                    new NpgsqlParameter("@Startdate", discount.StartDate),
+                    new NpgsqlParameter("@Enddate", discount.EndDate),
+                    new NpgsqlParameter("@IsActive", discount.IsActive),
+                    new NpgsqlParameter("@AutoDisable", discount.AutoDisable),
                 };
 
-                // ✅ Execute insert query
+                // ? Execute insert query
                 var result = await _dbHelper.ExecuteScalarAsync(insertQuery, parameters.ToArray());
 
-                // ✅ Convert result to int (new record ID)
+                // ? Convert result to int (new record ID)
                 int newDiscountId = result != null ? Convert.ToInt32(result) : 0;
                 return newDiscountId;
             }
@@ -85,12 +85,12 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                string query = $@"UPDATE {Table.SysCateringDiscount} SET c_is_deleted = 1, c_status = 0, c_modifieddate = GETDATE() 
+                string query = $@"UPDATE {Table.SysCateringDiscount} SET c_is_deleted = TRUE, c_status = 0, c_modifieddate = NOW() 
                                 WHERE c_ownerid = @OwnerPKID AND c_discountid = @DiscountID";
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DiscountID", discountPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DiscountID", discountPKID)
                 }; 
                 return Convert.ToInt16(await _dbHelper.ExecuteNonQueryAsync(query, parameters.ToArray())) > 0;
             }
@@ -119,11 +119,11 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 int offset = (page - 1) * pageSize;
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Offset", offset),
-                    new SqlParameter("@PageSize", pageSize)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Offset", offset),
+                    new NpgsqlParameter("@PageSize", pageSize)
                 };
 
                 StringBuilder selectQuery = new();
@@ -152,8 +152,7 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 selectQuery.Append(@"
                     ORDER BY d.c_discountid DESC
-                    OFFSET @Offset ROWS
-                    FETCH NEXT @PageSize ROWS ONLY;
+                    LIMIT @PageSize OFFSET @Offset;
                 ");
 
                 var discountData = await _dbHelper.ExecuteAsync(selectQuery.ToString(), parameters.ToArray());
@@ -184,7 +183,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     .ToList();
 
                 MappingSyncService _mappingSyncService = new MappingSyncService(_dbHelper);
-                // ✅ Load selected items based on Discount Type
+                // ? Load selected items based on Discount Type
                 foreach (var discount in discountList)
                 {
                     if (!discount.ID.HasValue)
@@ -244,9 +243,9 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 StringBuilder selectQuery = new StringBuilder();
                 selectQuery.Append($"SELECT COUNT(1) FROM {Table.SysCateringDiscount} AS d");
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID)
                 };
 
                 selectQuery.Append(BuildDiscountFilterQuery(filter, parameters));
@@ -263,7 +262,7 @@ namespace CateringEcommerce.BAL.Base.Owner
         }
 
         /// <summary>
-        /// Is Valid discount ID for the owner
+        /// Is Aalid discount ID for the owner
         /// </summary>
         /// <param name="ownerPKID"></param>
         /// <param name="discountPKID"></param>
@@ -273,12 +272,12 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 string selectQuery = $@"SELECT COUNT(*) FROM {Table.SysCateringDiscount}
-                                     WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0
+                                     WHERE c_ownerid = @OwnerPKID AND c_is_deleted = FALSE
                                     AND c_discountid = @DiscountID";
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DiscountID", discountPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DiscountID", discountPKID)
                 };
                 var result = await _dbHelper.ExecuteScalarAsync(selectQuery, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
@@ -318,27 +317,27 @@ namespace CateringEcommerce.BAL.Base.Owner
                     c_enddate = @EndDate, 
                     c_isactive = @IsActive, 
                     c_isautodisable = @AutoDisable,
-                    c_modifieddate = GETDATE()"); 
+                    c_modifieddate = NOW()"); 
 
-                // ✅ Prepare SQL parameters
-                List<SqlParameter> parameters = new List<SqlParameter>
+                // ? Prepare SQL parameters
+                List<NpgsqlParameter> parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DiscountID", discount.ID),
-                    new SqlParameter("@DiscountName", discount.Name?.ToString()),
-                    new SqlParameter("@Description", discount.Description?.ToString()),
-                    new SqlParameter("@Type", discount.Type),
-                    new SqlParameter("@Mode", discount.Mode),
-                    new SqlParameter("@DiscountValue", discount.Value),
-                    new SqlParameter("@MinOrderValue", discount.MinOrderValue > 0 ? discount.MinOrderValue : DBNull.Value),
-                    new SqlParameter("@MaxDiscountValue", discount.MaxDiscount),
-                    new SqlParameter("@MaxUsesPerOrder", discount.MaxUsesPerOrder),
-                    new SqlParameter("@MaxUsesPerUser", discount.MaxUsesPerUser),
-                    new SqlParameter("@IsStackable", discount.IsStackable.ToBinary()),
-                    new SqlParameter("@Startdate", discount.StartDate),
-                    new SqlParameter("@Enddate", discount.EndDate),
-                    new SqlParameter("@IsActive", discount.IsActive.ToBinary()),
-                    new SqlParameter("@AutoDisable", discount.AutoDisable.ToBinary()),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DiscountID", discount.ID),
+                    new NpgsqlParameter("@DiscountName", discount.Name?.ToString()),
+                    new NpgsqlParameter("@Description", discount.Description?.ToString()),
+                    new NpgsqlParameter("@Type", discount.Type),
+                    new NpgsqlParameter("@Mode", discount.Mode),
+                    new NpgsqlParameter("@DiscountValue", discount.Value),
+                    new NpgsqlParameter("@MinOrderValue", discount.MinOrderValue > 0 ? discount.MinOrderValue : DBNull.Value),
+                    new NpgsqlParameter("@MaxDiscountValue", discount.MaxDiscount),
+                    new NpgsqlParameter("@MaxUsesPerOrder", discount.MaxUsesPerOrder),
+                    new NpgsqlParameter("@MaxUsesPerUser", discount.MaxUsesPerUser),
+                    new NpgsqlParameter("@IsStackable", discount.IsStackable),
+                    new NpgsqlParameter("@Startdate", discount.StartDate),
+                    new NpgsqlParameter("@Enddate", discount.EndDate),
+                    new NpgsqlParameter("@IsActive", discount.IsActive),
+                    new NpgsqlParameter("@AutoDisable", discount.AutoDisable),
                 };
 
                 if (discount.IsChangeDiscountCode)
@@ -346,12 +345,12 @@ namespace CateringEcommerce.BAL.Base.Owner
                     // Generate new unique discount code
                     string discountCode = await GenerateUniqueDiscountCodeAsync(discount.Name, discount.Value, discount.Mode);
                     updateQuery.Append(", c_discount_code = @Code ");
-                    parameters.Add(new SqlParameter("@Code", discountCode));
+                    parameters.Add(new NpgsqlParameter("@Code", discountCode));
                 }
                 
                 updateQuery.Append(" WHERE c_ownerid = @OwnerPKID AND c_discountid = @DiscountID");
 
-                // ✅ Execute update query
+                // ? Execute update query
                 var result = await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
                 return result;
             }
@@ -367,30 +366,30 @@ namespace CateringEcommerce.BAL.Base.Owner
         /// <param name="filter"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        private string BuildDiscountFilterQuery(DiscountFilter filter, List<SqlParameter> parameters)
+        private string BuildDiscountFilterQuery(DiscountFilter filter, List<NpgsqlParameter> parameters)
         {
             StringBuilder where = new();
-            where.Append(" WHERE d.c_ownerid = @OwnerPKID AND c_is_deleted = 0");
+            where.Append(" WHERE d.c_ownerid = @OwnerPKID AND c_is_deleted = FALSE");
 
             // Name search
             if (!string.IsNullOrWhiteSpace(filter.Name))
             {
-                where.Append(" AND LOWER(d.c_discount_name) LIKE LOWER('%' + @Name + '%') ");
-                parameters.Add(new SqlParameter("@Name", filter.Name));
+                where.Append(" AND LOWER(d.c_discount_name) LIKE LOWER('%' || @Name || '%') ");
+                parameters.Add(new NpgsqlParameter("@Name", filter.Name));
             }
 
             // Theme filter
             if (filter.Type != DiscountType.All.GetHashCode())
             {
                 where.Append($" AND d.c_discount_type = @DiscountType");
-                parameters.Add(new SqlParameter("@DiscountType", filter.Type));
+                parameters.Add(new NpgsqlParameter("@DiscountType", filter.Type));
             }
 
             // Status filter
             if (!string.IsNullOrWhiteSpace(filter.Status))
             {
                 where.Append(" AND d.c_isactive = @Status ");
-                parameters.Add(new SqlParameter("@Status", filter.Status));
+                parameters.Add(new NpgsqlParameter("@Status", filter.Status));
             }
 
             return where.ToString();
@@ -460,7 +459,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 : $"{discountValue}F";
 
             // STEP 3: Random suffix
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUAWXYZ0123456789";
             var random = new Random();
 
             string randomSuffix = new string(
@@ -484,9 +483,9 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 string query = $@"SELECT COUNT(1) FROM {Table.SysCateringDiscount} WHERE c_discount_code = @DiscountCode";
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@DiscountCode", discountCode)
+                    new NpgsqlParameter("@DiscountCode", discountCode)
                 };
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
@@ -515,7 +514,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string query = $@"
                             SELECT COUNT(1)
                             FROM {Table.SysCateringDiscount}
-                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0
+                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = FALSE
                               AND LOWER(LTRIM(RTRIM(c_discount_name))) = LOWER(LTRIM(RTRIM(@Name)))";
 
                 // Exclude the current record in case of update
@@ -524,14 +523,14 @@ namespace CateringEcommerce.BAL.Base.Owner
                     query += " AND c_discountid <> @DiscountPKID";
                 }
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Name", discountName)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Name", discountName)
                 };
 
                 if (discountPKID.HasValue && discountPKID.Value > 0)
-                    parameters.Add(new SqlParameter("@DiscountPKID", discountPKID.Value));
+                    parameters.Add(new NpgsqlParameter("@DiscountPKID", discountPKID.Value));
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
@@ -557,14 +556,14 @@ namespace CateringEcommerce.BAL.Base.Owner
             {
                 string query = $@"SELECT COUNT(*) FROM {tableName}
                             WHERE c_ownerid = @OwnerPKID AND {pkColumnName} = @ID AND c_price <= @Price";
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Price", price)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Price", price)
                 };
                 foreach (var itemId in selectedItemIds)
                 {
-                    parameters.Add(new SqlParameter("@ID", itemId));
+                    parameters.Add(new NpgsqlParameter("@ID", itemId));
                     var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                     int count = result != null ? Convert.ToInt32(result) : 0;
                     if (count > 0)
@@ -579,3 +578,5 @@ namespace CateringEcommerce.BAL.Base.Owner
         }
     }
 }
+
+

@@ -1,11 +1,11 @@
-using CateringEcommerce.Domain.Interfaces;
+﻿using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Payment;
 using CateringEcommerce.Domain.Models.Payment;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using CateringEcommerce.BAL.Configuration;
 
 namespace CateringEcommerce.BAL.Base.Payment
@@ -22,10 +22,10 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@TotalAmount", request.TotalAmount),
-                new SqlParameter("@AdvancePercentage", request.AdvancePercentage),
-                new SqlParameter("@CommissionRate", request.CommissionRate)
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@TotalAmount", request.TotalAmount),
+                new NpgsqlParameter("@AdvancePercentage", request.AdvancePercentage),
+                new NpgsqlParameter("@CommissionRate", request.CommissionRate)
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<InitializePaymentResponse>(
@@ -40,20 +40,20 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@UserId", request.UserId),
-                new SqlParameter("@CateringOwnerId", request.CateringOwnerId),
-                new SqlParameter("@Amount", request.Amount),
-                new SqlParameter("@PaymentMethod", request.PaymentMethod ?? (object)DBNull.Value),
-                new SqlParameter("@PaymentGateway", request.PaymentGateway ?? (object)DBNull.Value),
-                new SqlParameter("@GatewayTransactionId", request.GatewayTransactionId ?? (object)DBNull.Value),
-                new SqlParameter("@GatewayPaymentId", request.GatewayPaymentId ?? (object)DBNull.Value),
-                new SqlParameter("@GatewaySignature", request.GatewaySignature ?? (object)DBNull.Value),
-                new SqlParameter("@IsEMI", request.IsEMI),
-                new SqlParameter("@EMITenure", request.EMITenure ?? (object)DBNull.Value),
-                new SqlParameter("@EMIBank", request.EMIBank ?? (object)DBNull.Value),
-                new SqlParameter("@EMIRate", request.EMIRate ?? (object)DBNull.Value),
-                new SqlParameter("@EMIAmount", request.EMIAmount ?? (object)DBNull.Value)
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@UserId", request.UserId),
+                new NpgsqlParameter("@CateringOwnerId", request.CateringOwnerId),
+                new NpgsqlParameter("@Amount", request.Amount),
+                new NpgsqlParameter("@PaymentMethod", request.PaymentMethod ?? (object)DBNull.Value),
+                new NpgsqlParameter("@PaymentGateway", request.PaymentGateway ?? (object)DBNull.Value),
+                new NpgsqlParameter("@GatewayTransactionId", request.GatewayTransactionId ?? (object)DBNull.Value),
+                new NpgsqlParameter("@GatewayPaymentId", request.GatewayPaymentId ?? (object)DBNull.Value),
+                new NpgsqlParameter("@GatewaySignature", request.GatewaySignature ?? (object)DBNull.Value),
+                new NpgsqlParameter("@IsEMI", request.IsEMI),
+                new NpgsqlParameter("@EMITenure", request.EMITenure ?? (object)DBNull.Value),
+                new NpgsqlParameter("@EMIBank", request.EMIBank ?? (object)DBNull.Value),
+                new NpgsqlParameter("@EMIRate", request.EMIRate ?? (object)DBNull.Value),
+                new NpgsqlParameter("@EMIAmount", request.EMIAmount ?? (object)DBNull.Value)
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<PaymentTransaction>(
@@ -68,15 +68,15 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@UserId", request.UserId),
-                new SqlParameter("@CateringOwnerId", request.CateringOwnerId),
-                new SqlParameter("@Amount", request.Amount),
-                new SqlParameter("@PaymentMethod", request.PaymentMethod ?? (object)DBNull.Value),
-                new SqlParameter("@PaymentGateway", request.PaymentGateway ?? (object)DBNull.Value),
-                new SqlParameter("@GatewayTransactionId", request.GatewayTransactionId ?? (object)DBNull.Value),
-                new SqlParameter("@GatewayPaymentId", request.GatewayPaymentId ?? (object)DBNull.Value),
-                new SqlParameter("@GatewaySignature", request.GatewaySignature ?? (object)DBNull.Value)
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@UserId", request.UserId),
+                new NpgsqlParameter("@CateringOwnerId", request.CateringOwnerId),
+                new NpgsqlParameter("@Amount", request.Amount),
+                new NpgsqlParameter("@PaymentMethod", request.PaymentMethod ?? (object)DBNull.Value),
+                new NpgsqlParameter("@PaymentGateway", request.PaymentGateway ?? (object)DBNull.Value),
+                new NpgsqlParameter("@GatewayTransactionId", request.GatewayTransactionId ?? (object)DBNull.Value),
+                new NpgsqlParameter("@GatewayPaymentId", request.GatewayPaymentId ?? (object)DBNull.Value),
+                new NpgsqlParameter("@GatewaySignature", request.GatewaySignature ?? (object)DBNull.Value)
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<PaymentTransaction>(
@@ -91,7 +91,7 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<OrderPaymentSummary>(
@@ -111,7 +111,7 @@ namespace CateringEcommerce.BAL.Base.Payment
 
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<PaymentTransaction>(query, parameters);
@@ -127,7 +127,7 @@ namespace CateringEcommerce.BAL.Base.Payment
 
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<EscrowLedger>(query, parameters);
@@ -138,7 +138,7 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderAmount", orderAmount)
+                new NpgsqlParameter("@OrderAmount", orderAmount)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<EMIPlan>(
@@ -155,11 +155,11 @@ namespace CateringEcommerce.BAL.Base.Payment
             // Get EMI plan details
             var query = $@"
                 SELECT * FROM {Table.SysEMIPlan}
-                WHERE c_emiplanid = @EMIPlanId AND c_isactive = 1";
+                WHERE c_emiplanid = @EMIPlanId AND c_isactive = TRUE";
 
             var parameters = new[]
             {
-                new SqlParameter("@EMIPlanId", request.EMIPlanId)
+                new NpgsqlParameter("@EMIPlanId", request.EMIPlanId)
             };
 
             var plans = await _dbHelper.ExecuteQueryAsync<EMIPlan>(query, parameters);
@@ -176,7 +176,7 @@ namespace CateringEcommerce.BAL.Base.Payment
             var monthlyRate = plan.InterestRate / 100 / 12;
             var tenure = plan.Tenure;
 
-            // EMI Formula: P × r × (1 + r)^n / ((1 + r)^n - 1)
+            // EMI Formula: P Ã— r Ã— (1 + r)^n / ((1 + r)^n - 1)
             var monthlyEMI = principal * monthlyRate * (decimal)Math.Pow((double)(1 + monthlyRate), tenure) /
                             ((decimal)Math.Pow((double)(1 + monthlyRate), tenure) - 1);
 
@@ -198,8 +198,8 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@ApprovedBy", request.ApprovedBy)
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@ApprovedBy", request.ApprovedBy)
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<OrderPaymentSummary>(
@@ -214,8 +214,8 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@ProcessedBy", request.ProcessedBy)
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@ProcessedBy", request.ProcessedBy)
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<OrderPaymentSummary>(
@@ -238,7 +238,7 @@ namespace CateringEcommerce.BAL.Base.Payment
 
             var parameters = new[]
             {
-                new SqlParameter("@CateringOwnerId", cateringOwnerId)
+                new NpgsqlParameter("@CateringOwnerId", cateringOwnerId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<PartnerPayoutRequest>(query, parameters);
@@ -249,13 +249,13 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var query = $@"
                 SELECT
-                    ISNULL(SUM(CASE WHEN CAST(c_completeddate AS DATE) = CAST(GETDATE() AS DATE) THEN c_amount ELSE 0 END), 0) AS TodayRevenue,
-                    ISNULL(SUM(CASE WHEN CAST(c_completeddate AS DATE) = CAST(GETDATE() AS DATE) AND c_transactiontype = 'ADVANCE' THEN c_amount ELSE 0 END), 0) AS TodayAdvancePayments,
-                    ISNULL(SUM(CASE WHEN CAST(c_completeddate AS DATE) = CAST(GETDATE() AS DATE) AND c_transactiontype = 'FINAL' THEN c_amount ELSE 0 END), 0) AS TodayFinalPayments,
-                    COUNT(CASE WHEN CAST(c_completeddate AS DATE) = CAST(GETDATE() AS DATE) THEN 1 END) AS TodayTransactionCount,
-                    ISNULL((SELECT SUM(c_escrowamount) FROM {Table.SysPaymentSummary} WHERE c_escrowstatus = 'HELD'), 0) AS EscrowBalance,
-                    (SELECT COUNT(*) FROM {Table.SysPaymentSummary} WHERE c_advancepaid = 1 AND c_vendoradvancereleased = 0) AS PendingAdvanceReleases,
-                    (SELECT COUNT(*) FROM {Table.SysPaymentSummary} WHERE c_finalpaid = 1 AND c_vendorpayoutstatus <> 'COMPLETED') AS PendingFinalPayouts
+                    COALESCE(SUM(CASE WHEN CAST(c_completeddate AS DATE) = CAST(NOW() AS DATE) THEN c_amount ELSE 0 END), 0) AS TodayRevenue,
+                    COALESCE(SUM(CASE WHEN CAST(c_completeddate AS DATE) = CAST(NOW() AS DATE) AND c_transactiontype = 'ADVANCE' THEN c_amount ELSE 0 END), 0) AS TodayAdvancePayments,
+                    COALESCE(SUM(CASE WHEN CAST(c_completeddate AS DATE) = CAST(NOW() AS DATE) AND c_transactiontype = 'FINAL' THEN c_amount ELSE 0 END), 0) AS TodayFinalPayments,
+                    COUNT(CASE WHEN CAST(c_completeddate AS DATE) = CAST(NOW() AS DATE) THEN 1 END) AS TodayTransactionCount,
+                    COALESCE((SELECT SUM(c_escrowamount) FROM {Table.SysPaymentSummary} WHERE c_escrowstatus = 'HELD'), 0) AS EscrowBalance,
+                    (SELECT COUNT(*) FROM {Table.SysPaymentSummary} WHERE c_advancepaid = TRUE AND c_vendoradvancereleased = FALSE) AS PendingAdvanceReleases,
+                    (SELECT COUNT(*) FROM {Table.SysPaymentSummary} WHERE c_finalpaid = TRUE AND c_vendorpayoutstatus <> 'COMPLETED') AS PendingFinalPayouts
                 FROM {Table.SysPaymentTransantions}
                 WHERE c_paymentstatus = 'SUCCESS'";
 
@@ -264,9 +264,10 @@ namespace CateringEcommerce.BAL.Base.Payment
 
             // Get recent transactions
             var txnQuery = $@"
-                SELECT TOP 10 * FROM {Table.SysPaymentTransantions}
+                SELECT * FROM {Table.SysPaymentTransantions}
                 WHERE c_paymentstatus = 'SUCCESS'
-                ORDER BY c_completeddate DESC";
+                ORDER BY c_completeddate DESC
+                LIMIT 10";
 
             dashboard.RecentTransactions = await _dbHelper.ExecuteQueryAsync<PaymentTransaction>(txnQuery);
 
@@ -277,19 +278,19 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var query = $@"
                 SELECT
-                    ISNULL(SUM(ps.c_vendoradvanceamount), 0) + ISNULL(SUM(ps.c_vendorfinalpayout), 0) AS TotalEarnings,
-                    ISNULL(SUM(ps.c_vendoradvanceamount), 0) AS AdvanceReceived,
-                    ISNULL(SUM(CASE WHEN ps.c_finalpaid = 1 AND ps.c_vendorpayoutstatus <> 'COMPLETED' THEN ps.c_finalamount - ps.c_commissionamount ELSE 0 END), 0) AS FinalPayoutPending,
-                    ISNULL(SUM(ps.c_commissionamount), 0) AS TotalCommissionDeducted,
-                    COUNT(CASE WHEN ps.c_finalpaid = 0 THEN 1 END) AS PendingOrders,
-                    COUNT(CASE WHEN ps.c_paymentcompleted = 1 THEN 1 END) AS CompletedOrders
+                    COALESCE(SUM(ps.c_vendoradvanceamount), 0) + COALESCE(SUM(ps.c_vendorfinalpayout), 0) AS TotalEarnings,
+                    COALESCE(SUM(ps.c_vendoradvanceamount), 0) AS AdvanceReceived,
+                    COALESCE(SUM(CASE WHEN ps.c_finalpaid = TRUE AND ps.c_vendorpayoutstatus <> 'COMPLETED' THEN ps.c_total_amount - ps.c_commissionamount ELSE 0 END), 0) AS FinalPayoutPending,
+                    COALESCE(SUM(ps.c_commissionamount), 0) AS TotalCommissionDeducted,
+                    COUNT(CASE WHEN ps.c_finalpaid = FALSE THEN 1 END) AS PendingOrders,
+                    COUNT(CASE WHEN ps.c_paymentcompleted = TRUE THEN 1 END) AS CompletedOrders
                 FROM {Table.SysPaymentSummary} ps
                 INNER JOIN {Table.SysOrders} o ON ps.c_orderid = o.c_orderid
                 WHERE o.c_cateringownerid = @CateringOwnerId";
 
             var parameters = new[]
             {
-                new SqlParameter("@CateringOwnerId", cateringOwnerId)
+                new NpgsqlParameter("@CateringOwnerId", cateringOwnerId)
             };
 
             var dashboards = await _dbHelper.ExecuteQueryAsync<PartnerPayoutDashboard>(query, parameters);
@@ -305,11 +306,11 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var query = $@"
                 SELECT
-                    ISNULL(SUM(c_escrowamount), 0) AS TotalEscrowBalance,
-                    (SELECT COUNT(*) FROM {Table.SysPaymentSummary} WHERE c_advancepaid = 1 AND c_vendoradvancereleased = 0) AS PendingReleases,
-                    ISNULL((SELECT SUM(c_advanceamount) FROM {Table.SysPaymentSummary} WHERE c_advancepaid = 1 AND c_vendoradvancereleased = 0), 0) AS PendingReleaseAmount,
-                    (SELECT COUNT(*) FROM {Table.SysEscrowLedger} WHERE CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE) AND c_status = 'COMPLETED') AS CompletedReleasesToday,
-                    ISNULL((SELECT SUM(c_amount) FROM {Table.SysEscrowLedger} WHERE CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE) AND c_status = 'COMPLETED'), 0) AS CompletedReleaseAmountToday
+                    COALESCE(SUM(c_escrowamount), 0) AS TotalEscrowBalance,
+                    (SELECT COUNT(*) FROM {Table.SysPaymentSummary} WHERE c_advancepaid = TRUE AND c_vendoradvancereleased = FALSE) AS PendingReleases,
+                    COALESCE((SELECT SUM(c_advanceamount) FROM {Table.SysPaymentSummary} WHERE c_advancepaid = TRUE AND c_vendoradvancereleased = FALSE), 0) AS PendingReleaseAmount,
+                    (SELECT COUNT(*) FROM {Table.SysEscrowLedger} WHERE CAST(c_createddate AS DATE) = CAST(NOW() AS DATE) AND c_status = 'COMPLETED') AS CompletedReleasesToday,
+                    COALESCE((SELECT SUM(c_amount) FROM {Table.SysEscrowLedger} WHERE CAST(c_createddate AS DATE) = CAST(NOW() AS DATE) AND c_status = 'COMPLETED'), 0) AS CompletedReleaseAmountToday
                 FROM {Table.SysPaymentSummary}
                 WHERE c_escrowstatus = 'HELD'";
 
@@ -318,8 +319,9 @@ namespace CateringEcommerce.BAL.Base.Payment
 
             // Get recent transactions
             var txnQuery = $@"
-                SELECT TOP 20 * FROM {Table.SysEscrowLedger}
-                ORDER BY c_createddate DESC";
+                SELECT * FROM {Table.SysEscrowLedger}
+                ORDER BY c_createddate DESC
+                LIMIT 20";
 
             dashboard.RecentTransactions = await _dbHelper.ExecuteQueryAsync<EscrowLedger>(txnQuery);
 
@@ -330,11 +332,11 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var query = $@"
                 SELECT * FROM {Table.SysPaymentGatewayConfig}
-                WHERE c_gatewayname = @GatewayName AND c_isenabled = 1";
+                WHERE c_gatewayname = @GatewayName AND c_isenabled = TRUE";
 
             var parameters = new[]
             {
-                new SqlParameter("@GatewayName", gatewayName)
+                new NpgsqlParameter("@GatewayName", gatewayName)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<PaymentGatewayConfig>(query, parameters);
@@ -345,7 +347,7 @@ namespace CateringEcommerce.BAL.Base.Payment
         {
             var query = $@"
                 SELECT * FROM {Table.SysPaymentGatewayConfig}
-                WHERE c_isenabled = 1
+                WHERE c_isenabled = TRUE
                 ORDER BY c_priority";
 
             var results = await _dbHelper.ExecuteQueryAsync<PaymentGatewayConfig>(query);
@@ -353,3 +355,4 @@ namespace CateringEcommerce.BAL.Base.Payment
         }
     }
 }
+

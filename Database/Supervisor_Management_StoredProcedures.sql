@@ -2,22 +2,15 @@
 -- Supervisor Management System - Stored Procedures
 -- Business Logic for Both Portals
 -- =============================================
-
-USE [CateringDB];
-GO
-
-PRINT '================================================';
-PRINT 'Creating Supervisor Management Stored Procedures';
-PRINT '================================================';
-PRINT '';
-
 -- =============================================
--- SP 1: Check Authority Level for Action
+-- FUNCTION: Check Supervisor Authority
 -- =============================================
+
+DROP FUNCTION IF EXISTS sp_CheckSupervisorAuthority;
 
 CREATE OR ALTER PROCEDURE sp_CheckSupervisorAuthority
     @SupervisorId BIGINT,
-    @RequiredAction VARCHAR(50), -- 'PAYMENT_RELEASE', 'REFUND_APPROVAL', 'MENTOR_ACCESS'
+    @RequiredAction VARCHAR(50),
     @IsAuthorized BIT OUTPUT,
     @AuthorityLevel VARCHAR(20) OUTPUT
 AS
@@ -29,7 +22,6 @@ BEGIN
     DECLARE @CanApproveRefund BIT;
     DECLARE @Status VARCHAR(30);
 
-    -- Get supervisor details
     SELECT
         @SupervisorType = c_supervisor_type,
         @AuthorityLevel = c_authority_level,
@@ -39,319 +31,306 @@ BEGIN
     FROM t_sys_supervisor
     WHERE c_supervisor_id = @SupervisorId;
 
-    -- Default: Not authorized
     SET @IsAuthorized = 0;
 
-    -- Check if supervisor is active
     IF @Status != 'ACTIVE'
     BEGIN
         RETURN;
     END
 
-    -- Check specific action permissions
     IF @RequiredAction = 'PAYMENT_RELEASE'
     BEGIN
-        -- Only CAREER supervisors with FULL authority can release payments
         IF @SupervisorType = 'CAREER' AND @CanReleasePayment = 1
             SET @IsAuthorized = 1;
     END
 
     IF @RequiredAction = 'REFUND_APPROVAL'
     BEGIN
-        -- Only CAREER supervisors can approve refunds
         IF @SupervisorType = 'CAREER' AND @CanApproveRefund = 1
             SET @IsAuthorized = 1;
     END
 
     IF @RequiredAction = 'MENTOR_ACCESS'
     BEGIN
-        -- Only CAREER supervisors with ADVANCED or FULL authority
         IF @SupervisorType = 'CAREER' AND @AuthorityLevel IN ('ADVANCED', 'FULL')
             SET @IsAuthorized = 1;
     END
 
     IF @RequiredAction = 'QUALITY_CHECK'
     BEGIN
-        -- Both types can do quality checks
         SET @IsAuthorized = 1;
     END
 
     IF @RequiredAction = 'EXTRA_PAYMENT_REQUEST'
     BEGIN
-        -- Both types can request extra payments (but not approve)
         SET @IsAuthorized = 1;
     END
 END
 GO
 
-PRINT '✓ Created: sp_CheckSupervisorAuthority';
-
 -- =============================================
--- SP 2: Progress Careers Application Status
+-- FUNCTION: Progress Careers Application Status
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_ProgressCareersApplication
-    @ApplicationId BIGINT,
-    @NewStatus VARCHAR(30),
-    @AdminId BIGINT,
-    @Notes NVARCHAR(1000) = NULL,
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+CREATE OR REPLACE FUNCTION sp_ProgressCareersApplication(
+    p_ApplicationId BIGINT,
+    p_NewStatus VARCHAR,
+    p_AdminId BIGINT,
+    p_Notes TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SupervisorId BIGINT;
+    v_CurrentStatus VARCHAR(30);
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
-
-        DECLARE @SupervisorId BIGINT;
-        DECLARE @CurrentStatus VARCHAR(30);
-
+    BEGIN
         -- Get application details
-        SELECT @SupervisorId = c_supervisor_id
+        SELECT c_supervisor_id
+        INTO v_SupervisorId
         FROM t_sys_careers_application
-        WHERE c_application_id = @ApplicationId;
+        WHERE c_application_id = p_ApplicationId;
 
-        SELECT @CurrentStatus = c_current_status
+        SELECT c_current_status
+        INTO v_CurrentStatus
         FROM t_sys_supervisor
-        WHERE c_supervisor_id = @SupervisorId;
+        WHERE c_supervisor_id = v_SupervisorId;
 
         -- Validate status progression
-        IF @NewStatus = 'RESUME_SCREENED' AND @CurrentStatus != 'APPLIED'
-        BEGIN
-            SET @Success = 0;
-            SET @Message = 'Invalid status progression. Current status: ' + @CurrentStatus;
-            ROLLBACK;
+        IF p_NewStatus = 'RESUME_SCREENED' AND v_CurrentStatus <> 'APPLIED' THEN
+            RETURN QUERY SELECT FALSE, 'Invalid status progression. Current status: ' || v_CurrentStatus;
             RETURN;
-        END
+        END IF;
 
         -- Update supervisor status
         UPDATE t_sys_supervisor
-        SET c_current_status = @NewStatus,
-            c_status_reason = @Notes,
-            c_modifieddate = GETDATE(),
-            c_modifiedby = @AdminId
-        WHERE c_supervisor_id = @SupervisorId;
+        SET c_current_status = p_NewStatus,
+            c_status_reason = p_Notes,
+            c_modifieddate = NOW(),
+            c_modifiedby = p_AdminId
+        WHERE c_supervisor_id = v_SupervisorId;
 
         -- Update application workflow based on new status
-        IF @NewStatus = 'RESUME_SCREENED'
-        BEGIN
+        IF p_NewStatus = 'RESUME_SCREENED' THEN
             UPDATE t_sys_careers_application
-            SET c_resume_screened = 1,
-                c_resume_screened_by = @AdminId,
-                c_resume_screened_date = GETDATE(),
-                c_resume_screening_notes = @Notes,
+            SET c_resume_screened = TRUE,
+                c_resume_screened_by = p_AdminId,
+                c_resume_screened_date = NOW(),
+                c_resume_screening_notes = p_Notes,
                 c_resume_screening_status = 'PASSED'
-            WHERE c_application_id = @ApplicationId;
-        END
+            WHERE c_application_id = p_ApplicationId;
+        END IF;
 
-        IF @NewStatus = 'INTERVIEW_PASSED'
-        BEGIN
+        IF p_NewStatus = 'INTERVIEW_PASSED' THEN
             UPDATE t_sys_careers_application
-            SET c_interview_completed = 1,
+            SET c_interview_completed = TRUE,
                 c_interview_result = 'PASSED',
-                c_interview_feedback = @Notes
-            WHERE c_application_id = @ApplicationId;
-        END
+                c_interview_feedback = p_Notes
+            WHERE c_application_id = p_ApplicationId;
+        END IF;
 
-        IF @NewStatus = 'CERTIFIED'
-        BEGIN
+        IF p_NewStatus = 'CERTIFIED' THEN
             UPDATE t_sys_careers_application
-            SET c_certification_passed = 1
-            WHERE c_application_id = @ApplicationId;
+            SET c_certification_passed = TRUE
+            WHERE c_application_id = p_ApplicationId;
 
             UPDATE t_sys_supervisor
             SET c_certification_status = 'CERTIFIED',
-                c_certification_date = GETDATE()
-            WHERE c_supervisor_id = @SupervisorId;
-        END
+                c_certification_date = NOW()
+            WHERE c_supervisor_id = v_SupervisorId;
+        END IF;
 
-        IF @NewStatus = 'ACTIVE'
-        BEGIN
+        IF p_NewStatus = 'ACTIVE' THEN
             UPDATE t_sys_careers_application
-            SET c_probation_passed = 1,
-                c_onboarding_completed = 1
-            WHERE c_application_id = @ApplicationId;
+            SET c_probation_passed = TRUE,
+                c_onboarding_completed = TRUE
+            WHERE c_application_id = p_ApplicationId;
 
-            -- Grant full authority to careers supervisors
             UPDATE t_sys_supervisor
             SET c_authority_level = 'FULL',
-                c_can_release_payment = 1,
-                c_can_approve_refund = 1,
-                c_can_mentor_others = 1
-            WHERE c_supervisor_id = @SupervisorId;
-        END
+                c_can_release_payment = TRUE,
+                c_can_approve_refund = TRUE,
+                c_can_mentor_others = TRUE
+            WHERE c_supervisor_id = v_SupervisorId;
+        END IF;
 
-        SET @Success = 1;
-        SET @Message = 'Status updated successfully to: ' + @NewStatus;
+        RETURN QUERY SELECT TRUE, 'Status updated successfully to: ' || p_NewStatus;
 
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
-
-PRINT '✓ Created: sp_ProgressCareersApplication';
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN QUERY SELECT FALSE, SQLERRM;
+    END;
+END;
+$$;
 
 -- =============================================
--- SP 3: Progress Registration Portal Status
+-- FUNCTION: Progress Registration Portal Status
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_ProgressRegistrationStatus
-    @RegistrationId BIGINT,
-    @StageCompleted VARCHAR(30), -- 'DOCUMENT_VERIFIED', 'INTERVIEW_PASSED', 'TRAINING_PASSED', 'CERTIFIED'
-    @AdminId BIGINT,
-    @Notes NVARCHAR(1000) = NULL,
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+DROP FUNCTION IF EXISTS sp_progress_registration_status;
+CREATE OR REPLACE FUNCTION sp_ProgressRegistrationStatus(
+    p_RegistrationId BIGINT,
+    p_StageCompleted VARCHAR,
+    p_AdminId BIGINT,
+    p_Notes TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SupervisorId BIGINT;
+    v_AllStagesComplete BOOLEAN := FALSE;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
-
-        DECLARE @SupervisorId BIGINT;
-        DECLARE @AllStagesComplete BIT = 0;
-
-        SELECT @SupervisorId = c_supervisor_id
+    BEGIN
+        SELECT c_supervisor_id
+        INTO v_SupervisorId
         FROM t_sys_supervisor_registration
-        WHERE c_registration_id = @RegistrationId;
+        WHERE c_registration_id = p_RegistrationId;
 
-        -- Update registration stage
-        IF @StageCompleted = 'DOCUMENT_VERIFIED'
-        BEGIN
+        IF p_StageCompleted = 'DOCUMENT_VERIFIED' THEN
             UPDATE t_sys_supervisor_registration
             SET c_document_verification_status = 'VERIFIED',
-                c_document_verified_by = @AdminId,
-                c_document_verified_date = GETDATE()
-            WHERE c_registration_id = @RegistrationId;
-        END
+                c_document_verified_by = p_AdminId,
+                c_document_verified_date = NOW()
+            WHERE c_registration_id = p_RegistrationId;
+        END IF;
 
-        IF @StageCompleted = 'INTERVIEW_PASSED'
-        BEGIN
+        IF p_StageCompleted = 'INTERVIEW_PASSED' THEN
             UPDATE t_sys_supervisor_registration
-            SET c_interview_completed = 1,
+            SET c_interview_completed = TRUE,
                 c_interview_result = 'PASSED',
-                c_interview_notes = @Notes
-            WHERE c_registration_id = @RegistrationId;
-        END
+                c_interview_notes = p_Notes
+            WHERE c_registration_id = p_RegistrationId;
+        END IF;
 
-        IF @StageCompleted = 'TRAINING_PASSED'
-        BEGIN
+        IF p_StageCompleted = 'TRAINING_PASSED' THEN
             UPDATE t_sys_supervisor_registration
-            SET c_training_passed = 1,
-                c_training_completed_date = GETDATE()
-            WHERE c_registration_id = @RegistrationId;
+            SET c_training_passed = TRUE,
+                c_training_completed_date = NOW()
+            WHERE c_registration_id = p_RegistrationId;
 
             UPDATE t_sys_supervisor
-            SET c_training_completed_date = GETDATE()
-            WHERE c_supervisor_id = @SupervisorId;
-        END
+            SET c_training_completed_date = NOW()
+            WHERE c_supervisor_id = v_SupervisorId;
+        END IF;
 
-        IF @StageCompleted = 'CERTIFIED'
-        BEGIN
+        IF p_StageCompleted = 'CERTIFIED' THEN
             UPDATE t_sys_supervisor_registration
-            SET c_certification_test_passed = 1
-            WHERE c_registration_id = @RegistrationId;
+            SET c_certification_test_passed = TRUE
+            WHERE c_registration_id = p_RegistrationId;
 
             UPDATE t_sys_supervisor
             SET c_certification_status = 'CERTIFIED',
-                c_certification_date = GETDATE(),
+                c_certification_date = NOW(),
                 c_current_status = 'CERTIFIED'
-            WHERE c_supervisor_id = @SupervisorId;
-        END
+            WHERE c_supervisor_id = v_SupervisorId;
+        END IF;
 
-        -- Check if all stages are complete
-        SELECT @AllStagesComplete = CASE
+        SELECT CASE
             WHEN c_document_verification_status = 'VERIFIED'
-                AND c_interview_result = 'PASSED'
-                AND c_training_passed = 1
-                AND c_certification_test_passed = 1
-            THEN 1
-            ELSE 0
+             AND c_interview_result = 'PASSED'
+             AND c_training_passed = TRUE
+             AND c_certification_test_passed = TRUE
+            THEN TRUE
+            ELSE FALSE
         END
+        INTO v_AllStagesComplete
         FROM t_sys_supervisor_registration
-        WHERE c_registration_id = @RegistrationId;
+        WHERE c_registration_id = p_RegistrationId;
 
-        -- Auto-activate if all stages complete
-        IF @AllStagesComplete = 1
-        BEGIN
+        IF v_AllStagesComplete THEN
             UPDATE t_sys_supervisor_registration
             SET c_activation_status = 'ACTIVATED',
-                c_activated_date = GETDATE(),
-                c_activated_by = @AdminId
-            WHERE c_registration_id = @RegistrationId;
+                c_activated_date = NOW(),
+                c_activated_by = p_AdminId
+            WHERE c_registration_id = p_RegistrationId;
 
             UPDATE t_sys_supervisor
             SET c_current_status = 'ACTIVE',
-                c_authority_level = 'BASIC', -- Limited authority for registered supervisors
-                c_can_release_payment = 0, -- CANNOT release payments
-                c_can_approve_refund = 0, -- CANNOT approve refunds
-                c_can_mentor_others = 0
-            WHERE c_supervisor_id = @SupervisorId;
+                c_authority_level = 'BASIC',
+                c_can_release_payment = FALSE,
+                c_can_approve_refund = FALSE,
+                c_can_mentor_others = FALSE
+            WHERE c_supervisor_id = v_SupervisorId;
 
-            SET @Message = 'Registration completed and supervisor activated';
-        END
+            RETURN QUERY SELECT TRUE, 'Registration completed and supervisor activated';
         ELSE
-        BEGIN
-            SET @Message = 'Stage completed: ' + @StageCompleted;
-        END
+            RETURN QUERY SELECT TRUE, 'Stage completed: ' || p_StageCompleted;
+        END IF;
 
-        SET @Success = 1;
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
-
-PRINT '✓ Created: sp_ProgressRegistrationStatus';
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN QUERY SELECT FALSE, SQLERRM;
+    END;
+END;
+$$;
 
 -- =============================================
 -- SP 4: Find Eligible Supervisors for Assignment
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_FindEligibleSupervisors
-    @OrderId BIGINT,
-    @EventDate DATE,
-    @EventType NVARCHAR(100),
-    @EventValue DECIMAL(18,2),
-    @GuestCount INT,
-    @City NVARCHAR(50),
-    @Locality NVARCHAR(100) = NULL,
-    @IsVIPEvent BIT = 0,
-    @IsNewVendor BIT = 0
-AS
+CREATE OR REPLACE FUNCTION sp_FindEligibleSupervisors(
+    p_OrderId BIGINT,
+    p_EventDate DATE,
+    p_EventType TEXT,
+    p_EventValue NUMERIC(18,2),
+    p_GuestCount INT,
+    p_City TEXT,
+    p_Locality TEXT DEFAULT NULL,
+    p_IsVIPEvent BOOLEAN DEFAULT FALSE,
+    p_IsNewVendor BOOLEAN DEFAULT FALSE
+)
+RETURNS TABLE (
+    SupervisorId BIGINT,
+    SupervisorType TEXT,
+    FullName TEXT,
+    Email TEXT,
+    Phone TEXT,
+    AuthorityLevel TEXT,
+    Experience INT,
+    Rating NUMERIC,
+    TotalEvents INT,
+    City TEXT,
+    Locality TEXT,
+    PerEventRate NUMERIC,
+    CompensationType TEXT,
+    PriorityScore INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_RequiredSupervisorType TEXT := 'EITHER';
+    v_RequiredAuthorityLevel TEXT := 'BASIC';
+    v_RequiredMinExperience INT := 0;
 BEGIN
-    SET NOCOUNT ON;
 
-    -- Step 1: Check eligibility rules
-    DECLARE @RequiredSupervisorType VARCHAR(20) = 'EITHER';
-    DECLARE @RequiredAuthorityLevel VARCHAR(20) = 'BASIC';
-    DECLARE @RequiredMinExperience INT = 0;
-
-    -- Find matching rule (highest priority)
-    SELECT TOP 1
-        @RequiredSupervisorType = ISNULL(c_required_supervisor_type, 'EITHER'),
-        @RequiredAuthorityLevel = ISNULL(c_required_authority_level, 'BASIC'),
-        @RequiredMinExperience = ISNULL(c_required_min_experience, 0)
+    SELECT
+        COALESCE(c_required_supervisor_type, 'EITHER'),
+        COALESCE(c_required_authority_level, 'BASIC'),
+        COALESCE(c_required_min_experience, 0)
+    INTO
+        v_RequiredSupervisorType,
+        v_RequiredAuthorityLevel,
+        v_RequiredMinExperience
     FROM t_sys_assignment_eligibility_rule
-    WHERE c_is_active = 1
-        AND (c_event_type IS NULL OR c_event_type = @EventType)
-        AND (c_min_event_value IS NULL OR c_min_event_value <= @EventValue)
-        AND (c_max_event_value IS NULL OR c_max_event_value >= @EventValue)
-        AND (c_min_guest_count IS NULL OR c_min_guest_count <= @GuestCount)
-        AND (c_is_vip_event IS NULL OR c_is_vip_event = @IsVIPEvent)
-        AND (c_is_new_vendor IS NULL OR c_is_new_vendor = @IsNewVendor)
-    ORDER BY c_priority ASC;
+    WHERE c_is_active = TRUE
+        AND (c_event_type IS NULL OR c_event_type = p_EventType)
+        AND (c_min_event_value IS NULL OR c_min_event_value <= p_EventValue)
+        AND (c_max_event_value IS NULL OR c_max_event_value >= p_EventValue)
+        AND (c_min_guest_count IS NULL OR c_min_guest_count <= p_GuestCount)
+        AND (c_is_vip_event IS NULL OR c_is_vip_event = p_IsVIPEvent)
+        AND (c_is_new_vendor IS NULL OR c_is_new_vendor = p_IsNewVendor)
+    ORDER BY c_priority ASC
+    LIMIT 1;
 
-    -- Step 2: Find eligible supervisors
+    RETURN QUERY
     SELECT
         s.c_supervisor_id AS SupervisorId,
         s.c_supervisor_type AS SupervisorType,
@@ -366,7 +345,6 @@ BEGIN
         s.c_locality AS Locality,
         s.c_per_event_rate AS PerEventRate,
         s.c_compensation_type AS CompensationType,
-        -- Priority score (lower is better)
         CASE
             WHEN s.c_supervisor_type = 'CAREER' THEN 1
             WHEN s.c_supervisor_type = 'REGISTERED' THEN 2
@@ -374,276 +352,273 @@ BEGIN
         END AS PriorityScore
     FROM t_sys_supervisor s
     WHERE s.c_current_status = 'ACTIVE'
-        AND s.c_is_available = 1
-        AND s.c_city = @City
-        AND (@Locality IS NULL OR s.c_locality = @Locality)
-        AND s.c_years_of_experience >= @RequiredMinExperience
+        AND s.c_is_available = TRUE
+        AND s.c_city = p_City
+        AND (p_Locality IS NULL OR s.c_locality = p_Locality)
+        AND s.c_years_of_experience >= v_RequiredMinExperience
         AND (
-            @RequiredSupervisorType = 'EITHER'
-            OR s.c_supervisor_type = @RequiredSupervisorType
+            v_RequiredSupervisorType = 'EITHER'
+            OR s.c_supervisor_type = v_RequiredSupervisorType
         )
         AND (
-            s.c_authority_level = @RequiredAuthorityLevel
-            OR s.c_authority_level IN (
-                CASE @RequiredAuthorityLevel
-                    WHEN 'BASIC' THEN 'BASIC,INTERMEDIATE,ADVANCED,FULL'
-                    WHEN 'INTERMEDIATE' THEN 'INTERMEDIATE,ADVANCED,FULL'
-                    WHEN 'ADVANCED' THEN 'ADVANCED,FULL'
-                    WHEN 'FULL' THEN 'FULL'
-                END
+            s.c_authority_level = v_RequiredAuthorityLevel
+            OR (
+                v_RequiredAuthorityLevel = 'BASIC' AND s.c_authority_level IN ('BASIC','INTERMEDIATE','ADVANCED','FULL')
+            )
+            OR (
+                v_RequiredAuthorityLevel = 'INTERMEDIATE' AND s.c_authority_level IN ('INTERMEDIATE','ADVANCED','FULL')
+            )
+            OR (
+                v_RequiredAuthorityLevel = 'ADVANCED' AND s.c_authority_level IN ('ADVANCED','FULL')
+            )
+            OR (
+                v_RequiredAuthorityLevel = 'FULL' AND s.c_authority_level = 'FULL'
             )
         )
         AND NOT EXISTS (
-            -- Not already assigned to another event on same date
             SELECT 1 FROM t_sys_supervisor_assignment sa
             WHERE sa.c_supervisor_id = s.c_supervisor_id
-                AND sa.c_event_date = @EventDate
+                AND sa.c_event_date = p_EventDate
                 AND sa.c_status NOT IN ('REJECTED', 'CANCELLED')
         )
     ORDER BY PriorityScore ASC, s.c_average_rating DESC, s.c_total_events_supervised DESC;
-END
-GO
 
-PRINT '✓ Created: sp_FindEligibleSupervisors';
+END;
+$$;
 
 -- =============================================
 -- SP 5: Assign Supervisor to Event
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_AssignSupervisorToEvent
-    @OrderId BIGINT,
-    @SupervisorId BIGINT,
-    @AssignedBy BIGINT, -- Admin ID
-    @AssignmentNumber VARCHAR(50) OUTPUT,
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+CREATE OR REPLACE FUNCTION sp_AssignSupervisorToEvent(
+    p_OrderId BIGINT,
+    p_SupervisorId BIGINT,
+    p_AssignedBy BIGINT
+)
+RETURNS TABLE (
+    AssignmentNumber TEXT,
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SupervisorStatus VARCHAR(30);
+    v_EventDate DATE;
+    v_EventType TEXT;
+    v_EventValue NUMERIC(18,2);
+    v_GuestCount INT;
+    v_AssignmentNumber TEXT;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
-
-        DECLARE @SupervisorStatus VARCHAR(30);
-        DECLARE @EventDate DATE;
-        DECLARE @EventType NVARCHAR(100);
-        DECLARE @EventValue DECIMAL(18,2);
-        DECLARE @GuestCount INT;
-
+    BEGIN
         -- Validate supervisor is active
-        SELECT @SupervisorStatus = c_current_status
+        SELECT c_current_status
+        INTO v_SupervisorStatus
         FROM t_sys_supervisor
-        WHERE c_supervisor_id = @SupervisorId;
+        WHERE c_supervisor_id = p_SupervisorId;
 
-        IF @SupervisorStatus != 'ACTIVE'
-        BEGIN
-            SET @Success = 0;
-            SET @Message = 'Supervisor is not active. Status: ' + @SupervisorStatus;
-            ROLLBACK;
+        IF v_SupervisorStatus <> 'ACTIVE' THEN
+            RETURN QUERY SELECT NULL::TEXT, FALSE, 'Supervisor is not active. Status: ' || v_SupervisorStatus;
             RETURN;
-        END
+        END IF;
 
         -- Get event details
         SELECT
-            @EventDate = c_event_date,
-            @EventType = c_event_type,
-            @EventValue = c_total_amount,
-            @GuestCount = c_guest_count
-        FROM t_sys_order
-        WHERE c_orderid = @OrderId;
+            c_event_date,
+            c_event_type,
+            c_total_amount,
+            c_guest_count
+        INTO
+            v_EventDate,
+            v_EventType,
+            v_EventValue,
+            v_GuestCount
+        FROM t_sys_orders
+        WHERE c_orderid = p_OrderId;
 
         -- Generate assignment number
-        SET @AssignmentNumber = 'SA-' + FORMAT(GETDATE(), 'yyyyMMdd') + '-' + RIGHT('000000' + CAST(@OrderId AS VARCHAR), 6);
+        v_AssignmentNumber := 'SA-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || LPAD(p_OrderId::TEXT, 6, '0');
 
         -- Create assignment
         INSERT INTO t_sys_supervisor_assignment (
-            c_order_id, c_supervisor_id, c_assignment_number, c_assigned_by,
+            c_orderid, c_supervisor_id, c_assignment_number, c_assigned_by,
             c_assignment_source, c_event_date, c_event_type, c_event_value,
             c_estimated_guests, c_status
         )
         VALUES (
-            @OrderId, @SupervisorId, @AssignmentNumber, @AssignedBy,
-            'MANUAL', @EventDate, @EventType, @EventValue,
-            @GuestCount, 'ASSIGNED'
+            p_OrderId, p_SupervisorId, v_AssignmentNumber, p_AssignedBy,
+            'MANUAL', v_EventDate, v_EventType, v_EventValue,
+            v_GuestCount, 'ASSIGNED'
         );
 
-        -- Update order with supervisor assignment
-        UPDATE t_sys_order
-        SET c_supervisor_id = @SupervisorId,
-            c_supervisor_assigned_date = GETDATE(),
-            c_modifieddate = GETDATE()
-        WHERE c_orderid = @OrderId;
+        -- Update order
+        UPDATE t_sys_orders
+        SET c_supervisor_id = p_SupervisorId,
+            c_supervisor_assigned_date = NOW(),
+            c_modifieddate = NOW()
+        WHERE c_orderid = p_OrderId;
 
-        SET @Success = 1;
-        SET @Message = 'Supervisor assigned successfully';
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
+        RETURN QUERY SELECT v_AssignmentNumber, TRUE, 'Supervisor assigned successfully';
 
-PRINT '✓ Created: sp_AssignSupervisorToEvent';
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN QUERY SELECT NULL::TEXT, FALSE, SQLERRM;
+    END;
+END;
+$$;
 
 -- =============================================
 -- SP 6: Supervisor Check-In to Event
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_SupervisorCheckIn
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT,
-    @CheckInLocation VARCHAR(500) = NULL, -- GPS coordinates
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+CREATE OR REPLACE FUNCTION sp_SupervisorCheckIn(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT,
+    p_CheckInLocation TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_Status VARCHAR(30);
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
-
-        DECLARE @Status VARCHAR(30);
-
-        SELECT @Status = c_status
+    BEGIN
+        SELECT c_status
+        INTO v_Status
         FROM t_sys_supervisor_assignment
-        WHERE c_assignment_id = @AssignmentId
-            AND c_supervisor_id = @SupervisorId;
+        WHERE c_assignment_id = p_AssignmentId
+          AND c_supervisor_id = p_SupervisorId;
 
-        IF @Status NOT IN ('ASSIGNED', 'ACCEPTED')
-        BEGIN
-            SET @Success = 0;
-            SET @Message = 'Cannot check-in. Current status: ' + @Status;
-            ROLLBACK;
+        IF v_Status NOT IN ('ASSIGNED', 'ACCEPTED') THEN
+            RETURN QUERY SELECT FALSE, 'Cannot check-in. Current status: ' || v_Status;
             RETURN;
-        END
+        END IF;
 
-        -- Update assignment
         UPDATE t_sys_supervisor_assignment
         SET c_status = 'CHECKED_IN',
-            c_check_in_time = GETDATE(),
-            c_check_in_location = @CheckInLocation,
-            c_modifieddate = GETDATE()
-        WHERE c_assignment_id = @AssignmentId;
+            c_check_in_time = NOW(),
+            c_check_in_location = p_CheckInLocation,
+            c_modifieddate = NOW()
+        WHERE c_assignment_id = p_AssignmentId;
 
-        -- Log action
         INSERT INTO t_sys_supervisor_action_log (
             c_supervisor_id, c_assignment_id, c_action_type,
             c_action_description, c_gps_location
         )
         VALUES (
-            @SupervisorId, @AssignmentId, 'CHECK_IN',
-            'Supervisor checked in to event', @CheckInLocation
+            p_SupervisorId, p_AssignmentId, 'CHECK_IN',
+            'Supervisor checked in to event', p_CheckInLocation
         );
 
-        SET @Success = 1;
-        SET @Message = 'Check-in successful';
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
+        RETURN QUERY SELECT TRUE, 'Check-in successful';
 
-PRINT '✓ Created: sp_SupervisorCheckIn';
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN QUERY SELECT FALSE, SQLERRM;
+    END;
+END;
+$$;
 
 -- =============================================
 -- SP 7: Request Payment Release (With Authority Check)
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_RequestPaymentRelease
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT,
-    @ExtraChargesAmount DECIMAL(18,2) = 0,
-    @ExtraChargesReason NVARCHAR(500) = NULL,
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT,
-    @RequiresAdminApproval BIT OUTPUT
-AS
+CREATE OR REPLACE FUNCTION sp_RequestPaymentRelease(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT,
+    p_ExtraChargesAmount NUMERIC(18,2) DEFAULT 0,
+    p_ExtraChargesReason TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN,
+    Message TEXT,
+    RequiresAdminApproval BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SupervisorType TEXT;
+    v_CanReleasePayment BOOLEAN;
+    v_AuthorityLevel TEXT;
+    v_OrderId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        DECLARE @SupervisorType VARCHAR(20);
-        DECLARE @CanReleasePayment BIT;
-        DECLARE @AuthorityLevel VARCHAR(20);
-        DECLARE @OrderId BIGINT;
-
-        -- Get supervisor details
+    BEGIN
         SELECT
-            @SupervisorType = c_supervisor_type,
-            @CanReleasePayment = c_can_release_payment,
-            @AuthorityLevel = c_authority_level
+            c_supervisor_type,
+            c_can_release_payment,
+            c_authority_level
+        INTO
+            v_SupervisorType,
+            v_CanReleasePayment,
+            v_AuthorityLevel
         FROM t_sys_supervisor
-        WHERE c_supervisor_id = @SupervisorId;
+        WHERE c_supervisor_id = p_SupervisorId;
 
-        SELECT @OrderId = c_order_id
+        SELECT c_orderid
+        INTO v_OrderId
         FROM t_sys_supervisor_assignment
-        WHERE c_assignment_id = @AssignmentId;
+        WHERE c_assignment_id = p_AssignmentId;
 
-        -- CAREER supervisors with FULL authority can release payment directly
-        IF @SupervisorType = 'CAREER' AND @CanReleasePayment = 1
-        BEGIN
-            SET @RequiresAdminApproval = 0;
+        IF v_SupervisorType = 'CAREER' AND v_CanReleasePayment = TRUE THEN
 
             UPDATE t_sys_supervisor_assignment
             SET c_payment_release_requested = 1,
                 c_payment_release_approved = 1,
-                c_payment_approved_by = @SupervisorId,
-                c_payment_approval_date = GETDATE(),
-                c_extra_charges_amount = @ExtraChargesAmount,
-                c_extra_charges_reason = @ExtraChargesReason
-            WHERE c_assignment_id = @AssignmentId;
+                c_payment_approved_by = p_SupervisorId,
+                c_payment_approval_date = NOW(),
+                c_extra_charges_amount = p_ExtraChargesAmount,
+                c_extra_charges_reason = p_ExtraChargesReason
+            WHERE c_assignment_id = p_AssignmentId;
 
-            -- Update order payment status
-            UPDATE t_sys_order
+            UPDATE t_sys_orders
             SET c_payment_status = 'Released',
-                c_modifieddate = GETDATE()
-            WHERE c_orderid = @OrderId;
+                c_modifieddate = NOW()
+            WHERE c_orderid = v_OrderId;
 
-            SET @Message = 'Payment released successfully (Careers Supervisor Authority)';
-        END
+            INSERT INTO t_sys_supervisor_action_log (
+                c_supervisor_id, c_assignment_id, c_orderid, c_action_type,
+                c_action_description, c_authority_level_required, c_authority_check_passed
+            )
+            VALUES (
+                p_SupervisorId, p_AssignmentId, v_OrderId, 'PAYMENT_RELEASE_REQUEST',
+                'Payment release requested. Amount: ' || p_ExtraChargesAmount,
+                'FULL', v_CanReleasePayment
+            );
+
+            RETURN QUERY SELECT TRUE,
+                'Payment released successfully (Careers Supervisor Authority)',
+                FALSE;
+
         ELSE
-        BEGIN
-            -- REGISTERED supervisors can only REQUEST payment release
-            SET @RequiresAdminApproval = 1;
 
             UPDATE t_sys_supervisor_assignment
             SET c_payment_release_requested = 1,
-                c_extra_charges_amount = @ExtraChargesAmount,
-                c_extra_charges_reason = @ExtraChargesReason
-            WHERE c_assignment_id = @AssignmentId;
+                c_extra_charges_amount = p_ExtraChargesAmount,
+                c_extra_charges_reason = p_ExtraChargesReason
+            WHERE c_assignment_id = p_AssignmentId;
 
-            SET @Message = 'Payment release requested. Awaiting admin approval (Registered Supervisor - Limited Authority)';
-        END
+            INSERT INTO t_sys_supervisor_action_log (
+                c_supervisor_id, c_assignment_id, c_orderid, c_action_type,
+                c_action_description, c_authority_level_required, c_authority_check_passed
+            )
+            VALUES (
+                p_SupervisorId, p_AssignmentId, v_OrderId, 'PAYMENT_RELEASE_REQUEST',
+                'Payment release requested. Amount: ' || p_ExtraChargesAmount,
+                'FULL', v_CanReleasePayment
+            );
 
-        -- Log action
-        INSERT INTO t_sys_supervisor_action_log (
-            c_supervisor_id, c_assignment_id, c_order_id, c_action_type,
-            c_action_description, c_authority_level_required, c_authority_check_passed
-        )
-        VALUES (
-            @SupervisorId, @AssignmentId, @OrderId, 'PAYMENT_RELEASE_REQUEST',
-            'Payment release requested. Amount: ' + CAST(@ExtraChargesAmount AS VARCHAR),
-            'FULL', @CanReleasePayment
-        );
+            RETURN QUERY SELECT TRUE,
+                'Payment release requested. Awaiting admin approval (Registered Supervisor - Limited Authority)',
+                TRUE;
 
-        SET @Success = 1;
-    END TRY
-    BEGIN CATCH
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
+        END IF;
 
-PRINT '✓ Created: sp_RequestPaymentRelease';
-
-PRINT '';
-PRINT '================================================';
-PRINT 'Supervisor Management Stored Procedures Created';
-PRINT '================================================';
-PRINT '';
-GO
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN QUERY SELECT FALSE, SQLERRM, FALSE;
+    END;
+END;
+$$;

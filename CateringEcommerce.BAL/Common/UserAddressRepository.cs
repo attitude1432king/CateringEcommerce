@@ -1,7 +1,7 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -32,13 +32,13 @@ namespace CateringEcommerce.BAL.Common
                         c_city, c_state, c_pincode, c_contact_person, c_contact_phone,
                         c_is_default, c_createddate, c_isactive
                     FROM {Table.SysUserAddresses}
-                    WHERE c_userid = @UserId AND c_isactive = 1
+                    WHERE c_userid = @UserId AND c_isactive = TRUE
                     ORDER BY c_is_default DESC, c_createddate DESC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -88,13 +88,13 @@ namespace CateringEcommerce.BAL.Common
                         c_city, c_state, c_pincode, c_contact_person, c_contact_phone,
                         c_is_default, c_createddate, c_isactive
                     FROM {Table.SysUserAddresses}
-                    WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = 1
+                    WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = TRUE
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@AddressId", addressId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@AddressId", addressId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -138,12 +138,12 @@ namespace CateringEcommerce.BAL.Common
                 string query = $@"
                     SELECT COUNT(*)
                     FROM {Table.SysUserAddresses}
-                    WHERE c_userid = @UserId AND c_isactive = 1
+                    WHERE c_userid = @UserId AND c_isactive = TRUE
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -174,23 +174,23 @@ namespace CateringEcommerce.BAL.Common
                         c_pincode, c_contact_person, c_contact_phone, c_is_default, c_createddate, c_isactive
                     ) VALUES (
                         @UserId, @AddressLabel, @FullAddress, @Landmark, @City, @State,
-                        @Pincode, @ContactPerson, @ContactPhone, @IsDefault, GETDATE(), 1
-                    );
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);
+                        @Pincode, @ContactPerson, @ContactPhone, @IsDefault, NOW(), TRUE
+                    )
+                    RETURNING c_address_id;
                 ");
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@AddressLabel", addressData.AddressLabel),
-                    new SqlParameter("@FullAddress", addressData.FullAddress),
-                    new SqlParameter("@Landmark", (object)addressData.Landmark ?? DBNull.Value),
-                    new SqlParameter("@City", addressData.City),
-                    new SqlParameter("@State", addressData.State),
-                    new SqlParameter("@Pincode", addressData.Pincode),
-                    new SqlParameter("@ContactPerson", addressData.ContactPerson),
-                    new SqlParameter("@ContactPhone", addressData.ContactPhone),
-                    new SqlParameter("@IsDefault", addressData.IsDefault)
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@AddressLabel", addressData.AddressLabel),
+                    new NpgsqlParameter("@FullAddress", addressData.FullAddress),
+                    new NpgsqlParameter("@Landmark", (object)addressData.Landmark ?? DBNull.Value),
+                    new NpgsqlParameter("@City", addressData.City),
+                    new NpgsqlParameter("@State", addressData.State),
+                    new NpgsqlParameter("@Pincode", addressData.Pincode),
+                    new NpgsqlParameter("@ContactPerson", addressData.ContactPerson),
+                    new NpgsqlParameter("@ContactPhone", addressData.ContactPhone),
+                    new NpgsqlParameter("@IsDefault", addressData.IsDefault)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
@@ -226,22 +226,22 @@ namespace CateringEcommerce.BAL.Common
                         c_contact_person = @ContactPerson,
                         c_contact_phone = @ContactPhone,
                         c_is_default = @IsDefault
-                    WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = 1
+                    WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = TRUE
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@AddressId", addressData.AddressId),
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@AddressLabel", addressData.AddressLabel),
-                    new SqlParameter("@FullAddress", addressData.FullAddress),
-                    new SqlParameter("@Landmark", (object)addressData.Landmark ?? DBNull.Value),
-                    new SqlParameter("@City", addressData.City),
-                    new SqlParameter("@State", addressData.State),
-                    new SqlParameter("@Pincode", addressData.Pincode),
-                    new SqlParameter("@ContactPerson", addressData.ContactPerson),
-                    new SqlParameter("@ContactPhone", addressData.ContactPhone),
-                    new SqlParameter("@IsDefault", addressData.IsDefault)
+                    new NpgsqlParameter("@AddressId", addressData.AddressId),
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@AddressLabel", addressData.AddressLabel),
+                    new NpgsqlParameter("@FullAddress", addressData.FullAddress),
+                    new NpgsqlParameter("@Landmark", (object)addressData.Landmark ?? DBNull.Value),
+                    new NpgsqlParameter("@City", addressData.City),
+                    new NpgsqlParameter("@State", addressData.State),
+                    new NpgsqlParameter("@Pincode", addressData.Pincode),
+                    new NpgsqlParameter("@ContactPerson", addressData.ContactPerson),
+                    new NpgsqlParameter("@ContactPhone", addressData.ContactPhone),
+                    new NpgsqlParameter("@IsDefault", addressData.IsDefault)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -262,14 +262,14 @@ namespace CateringEcommerce.BAL.Common
             {
                 string query = $@"
                     UPDATE {Table.SysUserAddresses}
-                    SET c_isactive = 0
-                    WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = 1
+                    SET c_isactive = FALSE
+                    WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = TRUE
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@AddressId", addressId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@AddressId", addressId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -291,13 +291,13 @@ namespace CateringEcommerce.BAL.Common
                 // First, unset all other default addresses for this user
                 string unsetQuery = $@"
                     UPDATE {Table.SysUserAddresses}
-                    SET c_is_default = 0
-                    WHERE c_userid = @UserId AND c_isactive = 1
+                    SET c_is_default = FALSE
+                    WHERE c_userid = @UserId AND c_isactive = TRUE
                 ";
 
-                SqlParameter[] unsetParams = new SqlParameter[]
+                NpgsqlParameter[] unsetParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(unsetQuery, unsetParams);
@@ -305,14 +305,14 @@ namespace CateringEcommerce.BAL.Common
                 // Then set the specified address as default
                 string setQuery = $@"
                     UPDATE {Table.SysUserAddresses}
-                    SET c_is_default = 1
-                    WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = 1
+                    SET c_is_default = TRUE
+                    WHERE c_address_id = @AddressId AND c_userid = @UserId AND c_isactive = TRUE
                 ";
 
-                SqlParameter[] setParams = new SqlParameter[]
+                NpgsqlParameter[] setParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@AddressId", addressId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@AddressId", addressId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(setQuery, setParams);
@@ -325,3 +325,4 @@ namespace CateringEcommerce.BAL.Common
         }
     }
 }
+

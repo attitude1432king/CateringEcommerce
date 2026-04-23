@@ -13,10 +13,10 @@ SELECT
     r.c_role_id,                                                         -- Role ID from t_sys_admin_roles
     1 AS c_assigned_by,                                                  -- Assigned by Admin ID = 1
     1 AS c_is_active,                                                    -- Active = True
-    GETDATE() AS c_assigned_date                                         -- Current timestamp
+    NOW() AS c_assigned_date                                         -- Current timestamp
 FROM t_sys_admin_roles r
 WHERE r.c_role_code = 'SUPER_ADMIN'                                     -- Get SUPER_ADMIN role
-  AND r.c_is_active = 1                                                  -- Only active roles
+  AND r.c_is_active = TRUE                                                  -- Only active roles
   AND NOT EXISTS (                                                       -- Avoid duplicates
       SELECT 1
       FROM t_sys_admin_user_roles ur
@@ -45,13 +45,14 @@ GO
 SELECT r.c_role_code
 FROM t_sys_admin_roles r
 INNER JOIN t_sys_admin_user_roles ur ON r.c_role_id = ur.c_role_id
-WHERE ur.c_adminid = 1 AND ur.c_is_active = 1 AND r.c_is_active = 1;
+WHERE ur.c_adminid = 1 AND ur.c_is_active = TRUE AND r.c_is_active = TRUE;
 
 -- Query 2: Get admin permissions
 SELECT DISTINCT p.c_permission_code
 FROM t_sys_admin_permissions p
 INNER JOIN t_sys_admin_role_permissions rp ON p.c_permission_id = rp.c_permission_id
 INNER JOIN t_sys_admin_user_roles ur ON rp.c_role_id = ur.c_role_id
-WHERE ur.c_adminid = 1 AND ur.c_is_active = 1 AND p.c_is_active = 1;
+WHERE ur.c_adminid = 1 AND ur.c_is_active = TRUE AND p.c_is_active = TRUE;
 
 GO
+

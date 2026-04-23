@@ -1,10 +1,10 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
 using System.Data;
+using Npgsql;
 using System.Threading.Tasks;
 
 namespace CateringEcommerce.BAL.Base.Admin
@@ -22,27 +22,27 @@ namespace CateringEcommerce.BAL.Base.Admin
             var response = new AdminNotificationListResponse();
 
             var whereClause = "WHERE 1=1";
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             // Filter by admin ID
             if (adminId.HasValue)
             {
                 whereClause += " AND (c_adminid = @AdminId OR c_adminid IS NULL)";
-                parameters.Add(new SqlParameter("@AdminId", adminId.Value));
+                parameters.Add(new NpgsqlParameter("@AdminId", adminId.Value));
             }
 
             // Filter by read status
             if (request.IsRead.HasValue)
             {
                 whereClause += " AND c_is_read = @IsRead";
-                parameters.Add(new SqlParameter("@IsRead", request.IsRead.Value));
+                parameters.Add(new NpgsqlParameter("@IsRead", request.IsRead.Value));
             }
 
             // Filter by notification type
             if (!string.IsNullOrEmpty(request.NotificationType))
             {
                 whereClause += " AND c_notification_type = @NotificationType";
-                parameters.Add(new SqlParameter("@NotificationType", request.NotificationType));
+                parameters.Add(new NpgsqlParameter("@NotificationType", request.NotificationType));
             }
 
             // Get notifications
@@ -61,8 +61,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdminNotifications}
                 {whereClause}
                 ORDER BY c_createddate DESC
-                OFFSET {(request.PageNumber - 1) * request.PageSize} ROWS
-                FETCH NEXT {request.PageSize} ROWS ONLY";
+                LIMIT {request.PageSize} OFFSET {(request.PageNumber - 1) * request.PageSize}";
 
             var dataTable = _dbHelper.Execute(query, parameters.ToArray());
 
@@ -99,13 +98,13 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<int> GetUnreadCount(long? adminId = null)
         {
-            var whereClause = "WHERE c_is_read = 0";
-            var parameters = new List<SqlParameter>();
+            var whereClause = "WHERE c_is_read = FALSE";
+            var parameters = new List<NpgsqlParameter>();
 
             if (adminId.HasValue)
             {
                 whereClause += " AND (c_adminid = @AdminId OR c_adminid IS NULL)";
-                parameters.Add(new SqlParameter("@AdminId", adminId.Value));
+                parameters.Add(new NpgsqlParameter("@AdminId", adminId.Value));
             }
 
             var query = $@"
@@ -123,15 +122,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             {
                 var query = $@"
                     UPDATE {Table.SysAdminNotifications}
-                    SET c_is_read = 1,
-                        c_read_date = GETDATE()
+                    SET c_is_read = TRUE,
+                        c_read_date = NOW()
                     WHERE c_notification_id = @NotificationId
                     AND (c_adminid = @AdminId OR c_adminid IS NULL)";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@NotificationId", notificationId),
-                    new SqlParameter("@AdminId", adminId)
+                    new NpgsqlParameter("@NotificationId", notificationId),
+                    new NpgsqlParameter("@AdminId", adminId)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -149,14 +148,14 @@ namespace CateringEcommerce.BAL.Base.Admin
             {
                 var query = $@"
                     UPDATE {Table.SysAdminNotifications}
-                    SET c_is_read = 1,
-                        c_read_date = GETDATE()
-                    WHERE c_is_read = 0
+                    SET c_is_read = TRUE,
+                        c_read_date = NOW()
+                    WHERE c_is_read = FALSE
                     AND (c_adminid = @AdminId OR c_adminid IS NULL)";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@AdminId", adminId)
+                    new NpgsqlParameter("@AdminId", adminId)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -176,17 +175,17 @@ namespace CateringEcommerce.BAL.Base.Admin
                     INSERT INTO {Table.SysAdminNotifications}
                     (c_adminid, c_notification_type, c_title, c_message, c_entity_id, c_entity_type, c_link, c_is_read, c_createddate)
                     VALUES
-                    (@AdminId, @NotificationType, @Title, @Message, @EntityId, @EntityType, @Link, 0, GETDATE())";
+                    (@AdminId, @NotificationType, @Title, @Message, @EntityId, @EntityType, @Link, 0, NOW())";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@AdminId", (object?)adminId ?? DBNull.Value),
-                    new SqlParameter("@NotificationType", notificationType),
-                    new SqlParameter("@Title", title),
-                    new SqlParameter("@Message", (object?)message ?? DBNull.Value),
-                    new SqlParameter("@EntityId", (object?)entityId ?? DBNull.Value),
-                    new SqlParameter("@EntityType", (object?)entityType ?? DBNull.Value),
-                    new SqlParameter("@Link", (object?)link ?? DBNull.Value)
+                    new NpgsqlParameter("@AdminId", (object?)adminId ?? DBNull.Value),
+                    new NpgsqlParameter("@NotificationType", notificationType),
+                    new NpgsqlParameter("@Title", title),
+                    new NpgsqlParameter("@Message", (object?)message ?? DBNull.Value),
+                    new NpgsqlParameter("@EntityId", (object?)entityId ?? DBNull.Value),
+                    new NpgsqlParameter("@EntityType", (object?)entityType ?? DBNull.Value),
+                    new NpgsqlParameter("@Link", (object?)link ?? DBNull.Value)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -203,7 +202,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             try
             {
                 var query = $"DELETE FROM {Table.SysAdminNotifications} WHERE c_notification_id = @NotificationId";
-                var parameters = new[] { new SqlParameter("@NotificationId", notificationId) };
+                var parameters = new[] { new NpgsqlParameter("@NotificationId", notificationId) };
 
                 await _dbHelper.ExecuteNonQueryAsync(query, parameters);
                 return true;
@@ -215,3 +214,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         }
     }
 }
+

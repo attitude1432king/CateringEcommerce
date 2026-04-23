@@ -4,7 +4,7 @@ using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using System.Text;
 
@@ -42,25 +42,25 @@ namespace CateringEcommerce.BAL.Base.Owner
                      c_support_contact_number, c_alternate_email, c_whatsapp_number, c_createddate)
                     VALUES
                     (@CateringName, @Mobile, @CateringNumber, @OwnerName, @Email, @StdNumber, @IsSameContact, @IsPhoneVerify, @IsEmailVerify,
-                    @SupportContact, @AlternateEmail, @WhatsappNumber, @CreatedDate);
-                    SELECT CAST(SCOPE_IDENTITY() AS int);
+                    @SupportContact, @AlternateEmail, @WhatsappNumber, @CreatedDate)
+                    RETURNING c_ownerid;
                 ");
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@CateringName", cateringName),
-                    new SqlParameter("@Mobile", mobileNumber),
-                    new SqlParameter("@CateringNumber", cateringNumber),
-                    new SqlParameter("@OwnerName", ownerName),
-                    new SqlParameter("@Email", email),
-                    new SqlParameter("@StdNumber", string.IsNullOrEmpty(stdNumber) ? DBNull.Value : stdNumber),
-                    new SqlParameter("@IsSameContact", isSameContact.ToBinary()),
-                    new SqlParameter("@IsPhoneVerify", true.ToBinary()),
-                    new SqlParameter("@IsEmailVerify", true.ToBinary()),
-                    new SqlParameter("@SupportContact", string.IsNullOrEmpty(supportContact) ? DBNull.Value : supportContact),
-                    new SqlParameter("@AlternateEmail", string.IsNullOrEmpty(alternateEmail) ? DBNull.Value : alternateEmail),
-                    new SqlParameter("@WhatsappNumber", string.IsNullOrEmpty(whatsappNumber) ? DBNull.Value : whatsappNumber),
-                    new SqlParameter("@CreatedDate", DateTime.Now)
+                    new NpgsqlParameter("@CateringName", cateringName),
+                    new NpgsqlParameter("@Mobile", mobileNumber),
+                    new NpgsqlParameter("@CateringNumber", cateringNumber),
+                    new NpgsqlParameter("@OwnerName", ownerName),
+                    new NpgsqlParameter("@Email", email),
+                    new NpgsqlParameter("@StdNumber", string.IsNullOrEmpty(stdNumber) ? DBNull.Value : stdNumber),
+                    new NpgsqlParameter("@IsSameContact", isSameContact.ToString()),
+                    new NpgsqlParameter("@IsPhoneVerify", true.ToString()),
+                    new NpgsqlParameter("@IsEmailVerify", true.ToString()),
+                    new NpgsqlParameter("@SupportContact", string.IsNullOrEmpty(supportContact) ? DBNull.Value : supportContact),
+                    new NpgsqlParameter("@AlternateEmail", string.IsNullOrEmpty(alternateEmail) ? DBNull.Value : alternateEmail),
+                    new NpgsqlParameter("@WhatsappNumber", string.IsNullOrEmpty(whatsappNumber) ? DBNull.Value : whatsappNumber),
+                    new NpgsqlParameter("@CreatedDate", DateTime.Now)
                 };
 
                 var result = _dbHelper.ExecuteScalar(query.ToString(), parameters.ToArray());
@@ -94,19 +94,19 @@ namespace CateringEcommerce.BAL.Base.Owner
                 query.Append($@"INSERT INTO {Table.SysCateringOwnerAddress} 
                     (c_ownerid, c_building, c_street, c_area, c_cityid, c_stateid, c_pincode, c_latitude, c_longitude, c_mapurl,c_createddate) 
                     VALUES (@OwnerId, @Building, @Street, @Area, @CityId, @StateId, @Pincode, @Latitude, @Longitude, @MapUrl, @Createddate)");
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerId", onwerId),
-                    new SqlParameter("@Building", addressBuilding),
-                    new SqlParameter("@Street", addressStreet),
-                    new SqlParameter("@Area", addressArea),
-                    new SqlParameter("@CityId", cityID),
-                    new SqlParameter("@StateId", stateID),
-                    new SqlParameter("@Pincode", pincode),
-                    new SqlParameter("@Latitude", latitude),
-                    new SqlParameter("@Longitude", longitude),
-                    new SqlParameter("@MapUrl", !string.IsNullOrEmpty(mapUrl) ? mapUrl : DBNull.Value),
-                    new SqlParameter("@Createddate", DateTime.Now)
+                    new NpgsqlParameter("@OwnerId", onwerId),
+                    new NpgsqlParameter("@Building", addressBuilding),
+                    new NpgsqlParameter("@Street", addressStreet),
+                    new NpgsqlParameter("@Area", addressArea),
+                    new NpgsqlParameter("@CityId", cityID),
+                    new NpgsqlParameter("@StateId", stateID),
+                    new NpgsqlParameter("@Pincode", pincode),
+                    new NpgsqlParameter("@Latitude", latitude),
+                    new NpgsqlParameter("@Longitude", longitude),
+                    new NpgsqlParameter("@MapUrl", !string.IsNullOrEmpty(mapUrl) ? mapUrl : DBNull.Value),
+                    new NpgsqlParameter("@Createddate", DateTime.Now)
 
                 };
                 _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
@@ -127,7 +127,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             string cuisines = dicData.ContainsKey("Cuisines") ? dicData["Cuisines"].ToString() : null;
             string eventTypes = dicData.ContainsKey("EventTypes") ? dicData["EventTypes"].ToString() : null;
             string foodTypes = dicData.ContainsKey("FoodTypes") ? dicData["FoodTypes"].ToString() : null;
-            int minOrderValue = dicData.ContainsKey("MinOrderValue") ? Convert.ToInt32(dicData["MinOrderValue"]) : 0;
+            int minGuestCount = dicData.ContainsKey("MinGuestCount") ? Convert.ToInt32(dicData["MinGuestCount"]) : 0;
             int deliveryRediusKM = dicData.ContainsKey("DeliveryRediusKM") ? Convert.ToInt32(dicData["DeliveryRediusKM"]) : 0;
             int dailyBookingCapacity = dicData.ContainsKey("DailyBookingCapacity") ? Convert.ToInt32(dicData["DailyBookingCapacity"]) : 0;
             string servingTimeSlots = dicData.ContainsKey("ServingTimeSlots") ? dicData["ServingTimeSlots"].ToString() : null;
@@ -137,18 +137,18 @@ namespace CateringEcommerce.BAL.Base.Owner
                 query.Append($@"INSERT INTO {Table.SysCateringOwnerService} 
                     (c_ownerid, c_cuisine_types, c_service_types, c_event_types, c_food_types, c_min_dish_order, c_delivery_radius_km, c_daily_booking_capacity, c_serving_time_slots, c_createddate) 
                     VALUES (@OwnerId, @CuisineType, @ServiceTypes, @EventTypes, @FoodTypes, @MinDishOrder, @RadiusKm, @DailyBookingCapacity, @ServingSlots, @Createddate)");
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@CuisineType", cuisines),
-                    new SqlParameter("@ServiceTypes", serviceTypes),
-                    new SqlParameter("@EventTypes", eventTypes),
-                    new SqlParameter("@FoodTypes", foodTypes),
-                    new SqlParameter("@MinDishOrder", minOrderValue),
-                    new SqlParameter("@RadiusKm", deliveryRediusKM > 0 ? deliveryRediusKM : DBNull.Value),
-                    new SqlParameter("@DailyBookingCapacity", dailyBookingCapacity > 0 ? dailyBookingCapacity : DBNull.Value),
-                    new SqlParameter("@ServingSlots", !string.IsNullOrEmpty(servingTimeSlots) ? servingTimeSlots : DBNull.Value),
-                    new SqlParameter("@Createddate", DateTime.Now)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@CuisineType", cuisines),
+                    new NpgsqlParameter("@ServiceTypes", serviceTypes),
+                    new NpgsqlParameter("@EventTypes", eventTypes),
+                    new NpgsqlParameter("@FoodTypes", foodTypes),
+                    new NpgsqlParameter("@MinDishOrder", minGuestCount),
+                    new NpgsqlParameter("@RadiusKm", deliveryRediusKM > 0 ? deliveryRediusKM : DBNull.Value),
+                    new NpgsqlParameter("@DailyBookingCapacity", dailyBookingCapacity > 0 ? dailyBookingCapacity : DBNull.Value),
+                    new NpgsqlParameter("@ServingSlots", !string.IsNullOrEmpty(servingTimeSlots) ? servingTimeSlots : DBNull.Value),
+                    new NpgsqlParameter("@Createddate", DateTime.Now)
                 };
                 _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
             }
@@ -185,19 +185,19 @@ namespace CateringEcommerce.BAL.Base.Owner
                     c_pan_name, c_pan_number, c_pan_file_path, c_createddate) 
                     VALUES (@OwnerId, @FssaiNumber, @FssaiExpDate, @FssaiCertificate, @GstApplicable, @GstNumber, @GstCertificate,
                     @PanName , @PanNumber, @PanCertificate, @Createddate)");
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@FssaiNumber", fssaiNumber),
-                    new SqlParameter("@FssaiExpDate", fssaiExpiryDate.Date.ToString()),
-                    new SqlParameter("@FssaiCertificate", string.IsNullOrEmpty(fssaiCertificate) ? DBNull.Value : fssaiCertificate),
-                    new SqlParameter("@GstApplicable", isGstApplicable.ToBinary()),
-                    new SqlParameter("@GstNumber", gstNumber),
-                    new SqlParameter("@GstCertificate", string.IsNullOrEmpty(gstCertificate) ? DBNull.Value : gstCertificate),
-                    new SqlParameter("@PanName", panName),
-                    new SqlParameter("@PanNumber", panNumber),
-                    new SqlParameter("@PanCertificate", string.IsNullOrEmpty(panCertificate) ? DBNull.Value : panCertificate),
-                    new SqlParameter("@Createddate", DateTime.Now)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@FssaiNumber", fssaiNumber),
+                    new NpgsqlParameter("@FssaiExpDate", fssaiExpiryDate.Date.ToString()),
+                    new NpgsqlParameter("@FssaiCertificate", string.IsNullOrEmpty(fssaiCertificate) ? DBNull.Value : fssaiCertificate),
+                    new NpgsqlParameter("@GstApplicable", isGstApplicable.ToString()),
+                    new NpgsqlParameter("@GstNumber", gstNumber),
+                    new NpgsqlParameter("@GstCertificate", string.IsNullOrEmpty(gstCertificate) ? DBNull.Value : gstCertificate),
+                    new NpgsqlParameter("@PanName", panName),
+                    new NpgsqlParameter("@PanNumber", panNumber),
+                    new NpgsqlParameter("@PanCertificate", string.IsNullOrEmpty(panCertificate) ? DBNull.Value : panCertificate),
+                    new NpgsqlParameter("@Createddate", DateTime.Now)
                 };
                 _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
             }
@@ -224,15 +224,15 @@ namespace CateringEcommerce.BAL.Base.Owner
                 query.Append($@"INSERT INTO {Table.SysCateringOwnerBankDetails} 
                     (c_ownerid, c_account_holder_name, c_account_number, c_ifsc_code, c_cheque_path, c_upi_id, c_createddate) 
                     VALUES (@OwnerId, @AccountHolderName, @AccountNumber, @IfscCode, @ChequePath, @UpiId, @Createddate)");
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@AccountHolderName", accountHolderName),
-                    new SqlParameter("@AccountNumber", bankAccountNumber),
-                    new SqlParameter("@IfscCode", ifscCode),
-                    new SqlParameter("@ChequePath", !string.IsNullOrEmpty(chequePath) ? chequePath : DBNull.Value),
-                    new SqlParameter("@UpiId", !string.IsNullOrEmpty(upiId) ? upiId : DBNull.Value),
-                    new SqlParameter("@Createddate", DateTime.Now)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@AccountHolderName", accountHolderName),
+                    new NpgsqlParameter("@AccountNumber", bankAccountNumber),
+                    new NpgsqlParameter("@IfscCode", ifscCode),
+                    new NpgsqlParameter("@ChequePath", !string.IsNullOrEmpty(chequePath) ? chequePath : DBNull.Value),
+                    new NpgsqlParameter("@UpiId", !string.IsNullOrEmpty(upiId) ? upiId : DBNull.Value),
+                    new NpgsqlParameter("@Createddate", DateTime.Now)
                 };
                 _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
             }
@@ -251,11 +251,11 @@ namespace CateringEcommerce.BAL.Base.Owner
             StringBuilder query = new StringBuilder();
             string requestNumber = GenerateRunningNumber(ownerPkid, "PR");
             query.Append($@"UPDATE {Table.SysCateringOwner} SET c_logo_path = @LogoPath, c_partnernumber = @PartnerNumber WHERE c_ownerid = @OwnerPkid");
-            List<SqlParameter> parameters = new()
+            List<NpgsqlParameter> parameters = new()
             {
-                new SqlParameter("@LogoPath", logoPath),
-                new SqlParameter("@OwnerPkid", ownerPkid),
-                new SqlParameter("@PartnerNumber", requestNumber)
+                new NpgsqlParameter("@LogoPath", logoPath),
+                new NpgsqlParameter("@OwnerPkid", ownerPkid),
+                new NpgsqlParameter("@PartnerNumber", requestNumber)
             };
             _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
         }
@@ -317,18 +317,18 @@ namespace CateringEcommerce.BAL.Base.Owner
                     VALUES (@OwnerId, @AgreementText, @AgreementAccepted, @SignatureData, @SignaturePath,
                             @AgreementPdfPath, @IpAddress, @UserAgent, @AcceptanceDate, @Createddate)");
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@AgreementText", string.IsNullOrEmpty(agreementText) ? DBNull.Value : agreementText),
-                    new SqlParameter("@AgreementAccepted", agreementAccepted.ToBinary()),
-                    new SqlParameter("@SignatureData", string.IsNullOrEmpty(signatureBase64) ? DBNull.Value : signatureBase64),
-                    new SqlParameter("@SignaturePath", string.IsNullOrEmpty(signaturePath) ? DBNull.Value : signaturePath),
-                    new SqlParameter("@AgreementPdfPath", string.IsNullOrEmpty(agreementPdfPath) ? DBNull.Value : agreementPdfPath),
-                    new SqlParameter("@IpAddress", string.IsNullOrEmpty(ipAddress) ? DBNull.Value : ipAddress),
-                    new SqlParameter("@UserAgent", string.IsNullOrEmpty(userAgent) ? DBNull.Value : userAgent),
-                    new SqlParameter("@AcceptanceDate", DateTime.Now),
-                    new SqlParameter("@Createddate", DateTime.Now)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@AgreementText", string.IsNullOrEmpty(agreementText) ? DBNull.Value : agreementText),
+                    new NpgsqlParameter("@AgreementAccepted", agreementAccepted.ToString()),
+                    new NpgsqlParameter("@SignatureData", string.IsNullOrEmpty(signatureBase64) ? DBNull.Value : signatureBase64),
+                    new NpgsqlParameter("@SignaturePath", string.IsNullOrEmpty(signaturePath) ? DBNull.Value : signaturePath),
+                    new NpgsqlParameter("@AgreementPdfPath", string.IsNullOrEmpty(agreementPdfPath) ? DBNull.Value : agreementPdfPath),
+                    new NpgsqlParameter("@IpAddress", string.IsNullOrEmpty(ipAddress) ? DBNull.Value : ipAddress),
+                    new NpgsqlParameter("@UserAgent", string.IsNullOrEmpty(userAgent) ? DBNull.Value : userAgent),
+                    new NpgsqlParameter("@AcceptanceDate", DateTime.Now),
+                    new NpgsqlParameter("@Createddate", DateTime.Now)
                 };
 
                 _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
@@ -345,13 +345,13 @@ namespace CateringEcommerce.BAL.Base.Owner
                 throw new ArgumentException("Service Type ID must be greater than zero.", nameof(serviceTypeId));
             List<ServiceTypeDetails> serviceTypes = new List<ServiceTypeDetails>();
             StringBuilder query = new StringBuilder();
-            query.Append($@"SELECT c_typeid AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_is_active AS IsActive
+            query.Append($@"SELECT c_typeid AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_isactive AS IsActive
                             FROM {Table.SysCateringTypeMaster} 
-                            WHERE c_categoryid = @ServiceTypeId AND c_isactive = 1");
+                            WHERE c_categoryid = @ServiceTypeId AND c_isactive = TRUE");
 
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@ServiceTypeId", serviceTypeId)
+                new NpgsqlParameter("@ServiceTypeId", serviceTypeId)
             };
 
             try
@@ -392,7 +392,7 @@ namespace CateringEcommerce.BAL.Base.Owner
 
             int year = DateTime.UtcNow.Year;
 
-            // 🔑 Auto-adjust sequence length
+            // ðŸ”‘ Auto-adjust sequence length
             int actualLength = Math.Max(sequenceLength, pkid.ToString().Length);
 
             string paddedNumber = pkid.ToString().PadLeft(actualLength, '0');

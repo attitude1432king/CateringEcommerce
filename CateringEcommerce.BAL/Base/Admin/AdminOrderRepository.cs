@@ -2,7 +2,8 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
+using NpgsqlTypes;
 using System.Data;
 using System.Text;
 
@@ -24,22 +25,22 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PageNumber", request.PageNumber),
-                    new SqlParameter("@PageSize", request.PageSize),
-                    new SqlParameter("@SearchTerm", (object?)request.SearchTerm ?? DBNull.Value),
-                    new SqlParameter("@OrderStatus", (object?)request.OrderStatus ?? DBNull.Value),
-                    new SqlParameter("@PaymentStatus", (object?)request.PaymentStatus ?? DBNull.Value),
-                    new SqlParameter("@StartDate", (object?)request.StartDate ?? DBNull.Value),
-                    new SqlParameter("@EndDate", (object?)request.EndDate ?? DBNull.Value),
-                    new SqlParameter("@UserId", (object?)request.UserId ?? DBNull.Value),
-                    new SqlParameter("@CateringOwnerId", (object?)request.CateringOwnerId ?? DBNull.Value),
-                    new SqlParameter("@MinAmount", (object?)request.MinAmount ?? DBNull.Value),
-                    new SqlParameter("@MaxAmount", (object?)request.MaxAmount ?? DBNull.Value),
-                    new SqlParameter("@SortBy", request.SortBy ?? "CreatedDate"),
-                    new SqlParameter("@SortOrder", request.SortOrder ?? "DESC"),
-                    new SqlParameter("@TotalCount", SqlDbType.Int) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@PageNumber", request.PageNumber),
+                    new NpgsqlParameter("@PageSize", request.PageSize),
+                    new NpgsqlParameter("@SearchTerm", (object?)request.SearchTerm ?? DBNull.Value),
+                    new NpgsqlParameter("@OrderStatus", (object?)request.OrderStatus ?? DBNull.Value),
+                    new NpgsqlParameter("@PaymentStatus", (object?)request.PaymentStatus ?? DBNull.Value),
+                    new NpgsqlParameter("@StartDate", (object?)request.StartDate ?? DBNull.Value),
+                    new NpgsqlParameter("@EndDate", (object?)request.EndDate ?? DBNull.Value),
+                    new NpgsqlParameter("@UserId", (object?)request.UserId ?? DBNull.Value),
+                    new NpgsqlParameter("@CateringOwnerId", (object?)request.CateringOwnerId ?? DBNull.Value),
+                    new NpgsqlParameter("@MinAmount", (object?)request.MinAmount ?? DBNull.Value),
+                    new NpgsqlParameter("@MaxAmount", (object?)request.MaxAmount ?? DBNull.Value),
+                    new NpgsqlParameter("@SortBy", request.SortBy ?? "CreatedDate"),
+                    new NpgsqlParameter("@SortOrder", request.SortOrder ?? "DESC"),
+                    new NpgsqlParameter("@TotalCount", NpgsqlDbType.Integer) { Direction = ParameterDirection.Output }
                 };
 
                 var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetOrders", parameters);
@@ -111,9 +112,9 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetOrderById", parameters);
@@ -195,9 +196,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     ORDER BY c_order_item_id
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -252,9 +253,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     ORDER BY c_payment_stage_id
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -307,9 +308,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     ORDER BY c_modifieddate DESC
                 ";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -346,14 +347,14 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", request.OrderId),
-                    new SqlParameter("@NewStatus", request.NewStatus),
-                    new SqlParameter("@Remarks", (object?)request.Remarks ?? DBNull.Value),
-                    new SqlParameter("@UpdatedBy", request.UpdatedBy),
-                    new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                    new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@OrderId", request.OrderId),
+                    new NpgsqlParameter("@NewStatus", request.NewStatus),
+                    new NpgsqlParameter("@Remarks", (object?)request.Remarks ?? DBNull.Value),
+                    new NpgsqlParameter("@UpdatedBy", request.UpdatedBy),
+                    new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                    new NpgsqlParameter("@ErrorMessage", NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_Admin_UpdateOrderStatus", parameters);
@@ -381,7 +382,7 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetOrderStats", Array.Empty<SqlParameter>());
+                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetOrderStats", Array.Empty<NpgsqlParameter>());
 
                 if (dt == null || dt.Rows.Count == 0)
                 {
@@ -417,13 +418,13 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             try
             {
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@AdminId", adminId),
-                    new SqlParameter("@CancellationReason", reason),
-                    new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                    new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@AdminId", adminId),
+                    new NpgsqlParameter("@CancellationReason", reason),
+                    new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                    new NpgsqlParameter("@ErrorMessage", NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_Admin_CancelOrder", parameters);

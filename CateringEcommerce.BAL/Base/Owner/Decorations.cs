@@ -1,11 +1,11 @@
-﻿using CateringEcommerce.BAL.Common;
+using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Newtonsoft.Json;
 using System.Data;
 using System.Text;
@@ -32,9 +32,9 @@ namespace CateringEcommerce.BAL.Base.Owner
                 ? new DecorationFilter()
                 : JsonConvert.DeserializeObject<DecorationFilter>(filterJson) ?? new DecorationFilter();
 
-            List<SqlParameter> parameters = new()
+            List<NpgsqlParameter> parameters = new()
             {
-                new SqlParameter("@OwnerPKID", ownerPKID)
+                new NpgsqlParameter("@OwnerPKID", ownerPKID)
             };
 
             StringBuilder sql = new();
@@ -67,11 +67,11 @@ namespace CateringEcommerce.BAL.Base.Owner
 
                 int offset = (page - 1) * pageSize;
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Offset", offset),
-                    new SqlParameter("@PageSize", pageSize)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Offset", offset),
+                    new NpgsqlParameter("@PageSize", pageSize)
                 };
 
                 StringBuilder sql = new();
@@ -90,12 +90,12 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FROM {Table.SysCateringDecorations} cd
                     LEFT JOIN {Table.SysCateringThemeTypes} tt 
                         ON tt.c_theme_id = cd.c_theme_id
-                    OUTER APPLY (
-                        SELECT value 
-                        FROM STRING_SPLIT(cd.c_packageids, ',')
-                    ) AS split_ids
+                    LEFT JOIN LATERAL (
+                        SELECT value
+                        FROM unnest(string_to_array(cd.c_packageids, ',')) AS split_ids(value)
+                    ) AS split_ids ON TRUE
                     LEFT JOIN {Table.SysMenuPackage} p 
-                        ON p.c_packageid = TRY_CAST(split_ids.value AS INT)
+                        ON p.c_packageid = CAST(NULLIF(split_ids.value, '') AS INT)
                 ");
 
                 // Attach dynamic filters
@@ -107,8 +107,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                         tt.c_theme_name, cd.c_price, cd.c_status, cd.c_packageids
 
                     ORDER BY cd.c_decoration_id DESC
-                    OFFSET @Offset ROWS
-                    FETCH NEXT @PageSize ROWS ONLY;
+                    LIMIT @PageSize OFFSET @Offset;
                 ");
 
                 var raw = await _dbHelper.ExecuteAsync(sql.ToString(), parameters.ToArray());
@@ -122,7 +121,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 {
                     long decorationId = Convert.ToInt64(row["DecorationId"]);
 
-                    // 🔗 Parse linked packages
+                    // ?? Parse linked packages
                     List<LinkedPackageDto> packageList = new();
                     if (row["PackageData"] != DBNull.Value)
                     {
@@ -141,7 +140,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                         }
                     }
 
-                    // 📁 Load media files
+                    // ?? Load media files
                     var mediaFiles = await mediaRepo.GetMediaFiles(ownerPKID, Domain.Enums.DocumentType.EventSetup, decorationId);
 
                     decorations.Add(new DecorationsModel
@@ -187,19 +186,19 @@ namespace CateringEcommerce.BAL.Base.Owner
             {
                 string insertQuery = $@"INSERT INTO {Table.SysCateringDecorations} 
                                        (c_ownerid, c_decoration_name, c_description, c_packageids, c_theme_id, c_price, c_status)
-                                       VALUES (@OwnerPKID, @DecorationName, @Description, @PackageIDs, @ThemeID, @Price, @Status);
-                                       SELECT SCOPE_IDENTITY();";
+                                       VALUES (@OwnerPKID, @DecorationName, @Description, @PackageIDs, @ThemeID, @Price, @Status)
+                    RETURNING c_decoration_id;";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DecorationName", decoration.Name),
-                    new SqlParameter("@Description", decoration.Description ?? (object)DBNull.Value),
-                    new SqlParameter("@PackageIDs", decoration.LinkedPackageIds != null && decoration.LinkedPackageIds.Length > 0
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DecorationName", decoration.Name),
+                    new NpgsqlParameter("@Description", decoration.Description ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@PackageIDs", decoration.LinkedPackageIds != null && decoration.LinkedPackageIds.Length > 0
                     ? string.Join(",", decoration.LinkedPackageIds) : (object)DBNull.Value),
-                    new SqlParameter("@ThemeID", decoration.ThemeId),
-                    new SqlParameter("@Price", decoration.Price > 0 ? decoration.Price : (object)DBNull.Value),
-                    new SqlParameter("@Status", decoration.Status.ToBinary()) // Assuming 1 for active, 0 for inactive
+                    new NpgsqlParameter("@ThemeID", decoration.ThemeId),
+                    new NpgsqlParameter("@Price", decoration.Price > 0 ? decoration.Price : (object)DBNull.Value),
+                    new NpgsqlParameter("@Status", decoration.Status) // Assuming 1 for active, 0 for inactive
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(insertQuery.ToString(), parameters.ToArray());
@@ -222,12 +221,12 @@ namespace CateringEcommerce.BAL.Base.Owner
         {
             try
             {
-                string deleteQuery = $@"UPDATE {Table.SysCateringDecorations} SET c_is_deleted = 1, c_status = 0, c_modifieddate = GETDATE()
+                string deleteQuery = $@"UPDATE {Table.SysCateringDecorations} SET c_is_deleted = TRUE, c_status = 0, c_modifieddate = NOW()
                                     WHERE c_ownerid = @OwnerPKID AND c_decoration_id = @DecorationID";
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DecorationID", decorationID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DecorationID", decorationID)
                 };
 
                 return await _dbHelper.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
@@ -251,20 +250,20 @@ namespace CateringEcommerce.BAL.Base.Owner
             {
                 string updateQuery = $@"UPDATE {Table.SysCateringDecorations}
                                     SET c_decoration_name = @DecorationName, c_description = @Description, c_packageids = @PackageIDs,
-                                    c_theme_id = @ThemeID, c_price = @Price, c_status = @Status, c_modifieddate = GETDATE() 
+                                    c_theme_id = @ThemeID, c_price = @Price, c_status = @Status, c_modifieddate = NOW() 
                                     WHERE c_decoration_id = @DecorationID AND c_ownerid = @OwnerPKID";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DecorationID", decoration.Id),
-                    new SqlParameter("@DecorationName", decoration.Name),
-                    new SqlParameter("@Description", decoration.Description ?? (object)DBNull.Value),
-                    new SqlParameter("@PackageIDs", decoration.LinkedPackageIds != null && decoration.LinkedPackageIds.Length > 0
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DecorationID", decoration.Id),
+                    new NpgsqlParameter("@DecorationName", decoration.Name),
+                    new NpgsqlParameter("@Description", decoration.Description ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@PackageIDs", decoration.LinkedPackageIds != null && decoration.LinkedPackageIds.Length > 0
                     ? string.Join(",", decoration.LinkedPackageIds) : (object)DBNull.Value),
-                    new SqlParameter("@ThemeID", decoration.ThemeId),
-                    new SqlParameter("@Price", decoration.Price),
-                    new SqlParameter("@Status", decoration.Status.ToBinary()), // Assuming 1 for active, 0 for inactive
+                    new NpgsqlParameter("@ThemeID", decoration.ThemeId),
+                    new NpgsqlParameter("@Price", decoration.Price),
+                    new NpgsqlParameter("@Status", decoration.Status), // Assuming 1 for active, 0 for inactive
                 };
 
                 return await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
@@ -286,7 +285,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             {
                 string query = $@"SELECT c_theme_id AS ThemeId, c_theme_name AS ThemeName
                                  FROM {Table.SysCateringThemeTypes}
-                                 WHERE c_isactive = 1 ORDER BY c_theme_name";
+                                 WHERE c_isactive = TRUE ORDER BY c_theme_name";
                 var dt = await _dbHelper.ExecuteAsync(query);
                 List<DecorationThemeModel> themes = new List<DecorationThemeModel>();
                 foreach (System.Data.DataRow row in dt.Rows)
@@ -321,7 +320,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string query = $@"
                             SELECT COUNT(1)
                             FROM {Table.SysCateringDecorations}
-                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0
+                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = FALSE
                               AND LOWER(LTRIM(RTRIM(c_decoration_name))) = LOWER(LTRIM(RTRIM(@DecorationName)))";
 
                 // Exclude the current record in case of update
@@ -330,18 +329,18 @@ namespace CateringEcommerce.BAL.Base.Owner
                     query += " AND c_decoration_id <> @DecorationId";
                 }
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DecorationName", decorationName)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DecorationName", decorationName)
                 };
 
                 if (decorationId.HasValue && decorationId.Value > 0)
-                    parameters.Add(new SqlParameter("@DecorationId", decorationId.Value));
+                    parameters.Add(new NpgsqlParameter("@DecorationId", decorationId.Value));
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
-                return count > 0; // true → name already exists
+                return count > 0; // true ? name already exists
             }
             catch (Exception ex)
             {
@@ -364,18 +363,18 @@ namespace CateringEcommerce.BAL.Base.Owner
                         SELECT COUNT(1)
                         FROM {Table.SysCateringDecorations}
                         WHERE c_ownerid = @OwnerPKID
-                            AND c_decoration_id = @DecorationId AND c_is_deleted = 0";
+                            AND c_decoration_id = @DecorationId AND c_is_deleted = FALSE";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DecorationId", decorationId)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DecorationId", decorationId)
                 };
 
                 var result = _dbHelper.ExecuteScalar(selectQuery, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
 
-                // If count == 0 → ID does not belong to this owner
+                // If count == 0 ? ID does not belong to this owner
                 return count > 0;
             }
             catch (Exception ex)
@@ -400,11 +399,11 @@ namespace CateringEcommerce.BAL.Base.Owner
                                    WHERE c_ownerid = @OwnerPKID
                                     AND c_decoration_id = @DecorationId";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@DecorationId", decorationId),
-                    new SqlParameter("@Status", status.ToBinary())
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@DecorationId", decorationId),
+                    new NpgsqlParameter("@Status", status)
                 };
 
                 var result = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
@@ -421,16 +420,16 @@ namespace CateringEcommerce.BAL.Base.Owner
         /// <param name="filter"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        private string BuildDecorationFilterQuery(DecorationFilter filter, List<SqlParameter> parameters)
+        private string BuildDecorationFilterQuery(DecorationFilter filter, List<NpgsqlParameter> parameters)
         {
             StringBuilder where = new();
-            where.Append(" WHERE cd.c_ownerid = @OwnerPKID AND cd.c_is_deleted = 0 ");
+            where.Append(" WHERE cd.c_ownerid = @OwnerPKID AND cd.c_is_deleted = FALSE ");
 
             // Name search
             if (!string.IsNullOrWhiteSpace(filter.Name))
             {
-                where.Append(" AND LOWER(cd.c_decoration_name) LIKE LOWER('%' + @Name + '%') ");
-                parameters.Add(new SqlParameter("@Name", filter.Name));
+                where.Append(" AND LOWER(cd.c_decoration_name) LIKE LOWER('%' || @Name || '%') ");
+                parameters.Add(new NpgsqlParameter("@Name", filter.Name));
             }
 
             // Theme filter
@@ -443,7 +442,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             if (!string.IsNullOrWhiteSpace(filter.Status))
             {
                 where.Append(" AND cd.c_status = @Status ");
-                parameters.Add(new SqlParameter("@Status", filter.Status));
+                parameters.Add(new NpgsqlParameter("@Status", filter.Status));
             }
 
             // Linked Package filter
@@ -452,8 +451,8 @@ namespace CateringEcommerce.BAL.Base.Owner
                 where.Append(@"
                     AND EXISTS (
                         SELECT 1 
-                        FROM STRING_SPLIT(cd.c_packageids, ',') AS sp
-                        WHERE TRY_CAST(sp.value AS INT) IN (" + string.Join(",", filter.PackageIds) + @")
+                        FROM unnest(string_to_array(cd.c_packageids, ',')) AS sp(value)
+                        WHERE CAST(NULLIF(TRIM(sp.value), '') AS INT) IN (" + string.Join(",", filter.PackageIds) + @")
                     )
                 ");
             }
