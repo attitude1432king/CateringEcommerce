@@ -145,7 +145,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                             continue;
                         }
                         var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
-                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPKID, DocumentType.Food.GetDisplayName(), false, safeFilename);
+                        var path = await _fileStorageService.SaveRoleBaseFormFileAsync(file, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.Food.GetDisplayName(), false, safeFilename);
                         await _ownerRepository.SaveFilePath(path, ownerPKID, file.FileName, DocumentType.Food, foodItemID);
                     }
                 }
@@ -257,7 +257,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Menu
                             continue;
                         }
                         var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
-                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPKID, DocumentType.Food.GetDisplayName(), false, safeFilename);
+                        var path = await _fileStorageService.SaveRoleBaseFormFileAsync(file, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.Food.GetDisplayName(), false, safeFilename);
                         await _ownerRepository.SaveFilePath(path, ownerPKID, file.FileName, DocumentType.Food, foodItems.Id ?? 0);
                     }
                 }

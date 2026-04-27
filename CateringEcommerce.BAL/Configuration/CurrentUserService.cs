@@ -1,4 +1,5 @@
 ﻿using CateringEcommerce.Domain.Interfaces.Common;
+using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
 
 namespace CateringEcommerce.BAL.Configuration
@@ -30,7 +31,8 @@ namespace CateringEcommerce.BAL.Configuration
 
     public class EncryptionSettings
     {
-        public string CustomKey { get; set; }
+        [ConfigurationKeyName("ENCRYPTION_KEY")]
+        public string CustomKey { get; set; } = string.Empty;
     }
 
 }

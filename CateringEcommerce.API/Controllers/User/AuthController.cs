@@ -7,10 +7,12 @@ using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.User;
+using CateringEcommerce.Domain.Models.Configuration;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 
@@ -27,16 +29,16 @@ namespace CateringEcommerce.API.Controllers.User
         private readonly IUserRepository _userRepository;
         private readonly IAuthentication _authentication;
         private readonly IOwnerRepository _ownerRepository;
-        private readonly ISystemSettingsProvider _settings;
+        private readonly JwtSettings _jwtSettings;
 
-        public AuthController(ISmsService smsService, IOwnerRepository ownerRepository, ITokenService tokenService, IUserRepository userRepository, IAuthentication authentication, ISystemSettingsProvider settings)
+        public AuthController(ISmsService smsService, IOwnerRepository ownerRepository, ITokenService tokenService, IUserRepository userRepository, IAuthentication authentication, IOptions<JwtSettings> jwtOptions)
         {
             _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
             _ownerRepository = ownerRepository ?? throw new ArgumentNullException(nameof(ownerRepository));
             _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
             _userRepository = userRepository;
             _authentication = authentication;
-            _settings = settings;
+            _jwtSettings = jwtOptions?.Value ?? throw new ArgumentNullException(nameof(jwtOptions));
         }
 
         [AllowAnonymous]
@@ -146,7 +148,7 @@ namespace CateringEcommerce.API.Controllers.User
 
         [AllowAnonymous]
         [HttpPost("verify-otp")]
-        public IActionResult VerifyOtp([FromBody] OtpVerificationRequest request)
+        public async Task<IActionResult> VerifyOtp([FromBody] OtpVerificationRequest request)
         {
             // Retrieve the stored OTP for the phone number
             // Validate the OTP and its expiration
@@ -158,7 +160,7 @@ namespace CateringEcommerce.API.Controllers.User
                 {
                     if (!string.IsNullOrEmpty(request.PhoneNumber) && !string.IsNullOrEmpty(request.Name) && request.CurrentAction == "signup" && !request.IsPartnerLogin)
                     {
-                        _authentication.CreateUserAccount(request.Name, request.PhoneNumber);
+                        await _authentication.CreateUserAccount(request.Name, request.PhoneNumber);
                         msg = "Create & verify account successfully.";
                     }
                     else if (!string.IsNullOrEmpty(request.PhoneNumber) && request.CurrentAction == "login")
@@ -195,7 +197,7 @@ namespace CateringEcommerce.API.Controllers.User
                     string newToken = _tokenService.GenerateToken(pkId ?? "", roleName, additionalClaims);
 
                     // Set token in httpOnly cookie — not exposed to JavaScript
-                    var expireMinutes = _settings.GetInt("JWT.EXPIRE_MINUTES", 1440);
+                    var expireMinutes = _jwtSettings.ExpireMinutes;
                     Response.Cookies.Append("authToken", newToken, new CookieOptions
                     {
                         HttpOnly = true,
@@ -240,7 +242,7 @@ namespace CateringEcommerce.API.Controllers.User
                         { "isVerified", "true" },
                         { "pictureUrl", picture }
                     };
-                    int inserted = _authentication.CreateUserAccount(name: name, dicData: keyValuePairs);
+                    int inserted = await _authentication.CreateUserAccount(name: name, dicData: keyValuePairs);
 
                     // Fix: Check if the insertion was successful based on the returned integer value
                     if (inserted <= 0)

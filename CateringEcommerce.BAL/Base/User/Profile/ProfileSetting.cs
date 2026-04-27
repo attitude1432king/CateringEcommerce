@@ -93,7 +93,7 @@ namespace CateringEcommerce.BAL.Base.User.Profile
             }
         }
 
-        public string GetUserProfilePicture(long userPkid)
+        public async Task<string> GetUserProfilePicture(long userPkid)
         {
             try
             {
@@ -104,7 +104,7 @@ namespace CateringEcommerce.BAL.Base.User.Profile
                     new NpgsqlParameter("@UserPKID", userPkid)
                 };
 
-                var result = _dbHelper.ExecuteScalar(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
 
                 // Return the picture URL if it exists and is not empty, otherwise return empty string
                 return !string.IsNullOrEmpty(result?.ToString()) ? result.ToString() : string.Empty;

@@ -7,6 +7,9 @@ using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.User;
 using System.Net.Http;
 using System.Collections.Generic;
+using CateringEcommerce.Domain.Models.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace CateringEcommerce.BAL.Services
 {
@@ -21,11 +24,21 @@ namespace CateringEcommerce.BAL.Services
     public class NotificationService : INotificationService
     {
         private readonly ISystemSettingsProvider _settings;
+        private readonly SmtpSettings _smtpSettings;
+        private readonly SmsGatewaySettings _smsSettings;
+        private readonly ILogger<NotificationService> _logger;
         private readonly HttpClient _httpClient;
 
-        public NotificationService(ISystemSettingsProvider settings)
+        public NotificationService(
+            ISystemSettingsProvider settings,
+            IOptions<SmtpSettings> smtpOptions,
+            IOptions<SmsGatewaySettings> smsOptions,
+            ILogger<NotificationService> logger)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _smtpSettings = smtpOptions?.Value ?? throw new ArgumentNullException(nameof(smtpOptions));
+            _smsSettings = smsOptions?.Value ?? throw new ArgumentNullException(nameof(smsOptions));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _httpClient = new HttpClient();
         }
 
@@ -52,7 +65,7 @@ namespace CateringEcommerce.BAL.Services
             catch (Exception ex)
             {
                 // Log error but don't throw - notification failure shouldn't block order creation
-                Console.WriteLine($"Error sending order confirmation: {ex.Message}");
+                _logger.LogError(ex, "Error sending order confirmation notification");
             }
         }
 
@@ -79,7 +92,7 @@ namespace CateringEcommerce.BAL.Services
             catch (Exception ex)
             {
                 // Log error but don't throw
-                Console.WriteLine($"Error sending cancellation notification: {ex.Message}");
+                _logger.LogError(ex, "Error sending cancellation notification");
             }
         }
 
@@ -90,18 +103,20 @@ namespace CateringEcommerce.BAL.Services
         {
             try
             {
-                string smtpServer = _settings.GetString("EMAIL.SMTP_HOST", "smtp.gmail.com");
-                int smtpPort = _settings.GetInt("EMAIL.SMTP_PORT", 587);
-                string senderEmail = _settings.GetString("EMAIL.FROM_ADDRESS", "noreply@enyvora.com");
-                string senderName = _settings.GetString("EMAIL.FROM_NAME", "Enyvora Catering");
-                string username = _settings.GetString("EMAIL.SMTP_USERNAME");
-                string password = _settings.GetString("EMAIL.SMTP_PASSWORD");
-                bool enableSsl = _settings.GetBool("EMAIL.ENABLE_SSL", true);
+                string smtpServer = _smtpSettings.Host;
+                int smtpPort = _smtpSettings.Port;
+                string senderEmail = string.IsNullOrWhiteSpace(_smtpSettings.FromAddress)
+                    ? _smtpSettings.Username
+                    : _smtpSettings.FromAddress;
+                string senderName = _smtpSettings.FromName;
+                string username = _smtpSettings.Username;
+                string password = _smtpSettings.Password;
+                bool enableSsl = _smtpSettings.EnableSsl;
 
                 // Skip if no credentials configured
                 if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
                 {
-                    Console.WriteLine("Email credentials not configured. Skipping email send.");
+                    _logger.LogWarning("Email credentials are not configured. Skipping email send.");
                     return;
                 }
 
@@ -122,11 +137,11 @@ namespace CateringEcommerce.BAL.Services
                     }
                 }
 
-                Console.WriteLine($"Email sent successfully to {to}");
+                _logger.LogInformation("Email sent successfully to {Email}", MaskEmail(to));
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending email: {ex.Message}");
+                _logger.LogError(ex, "Error sending email to {Email}", MaskEmail(to));
                 throw;
             }
         }
@@ -138,12 +153,12 @@ namespace CateringEcommerce.BAL.Services
         {
             try
             {
-                string apiKey = _settings.GetString("SMS.API_KEY");
-                string senderId = _settings.GetString("SMS.SENDER_ID", "ENYVORA");
+                string apiKey = _smsSettings.ApiKey;
+                string senderId = _smsSettings.SenderId;
 
                 if (string.IsNullOrEmpty(apiKey))
                 {
-                    Console.WriteLine("SMS API key not configured. Skipping SMS send.");
+                    _logger.LogWarning("SMS API key is not configured. Skipping SMS send.");
                     return;
                 }
 
@@ -151,7 +166,7 @@ namespace CateringEcommerce.BAL.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending SMS: {ex.Message}");
+                _logger.LogError(ex, "Error sending SMS to {Phone}", MaskPhone(phoneNumber));
                 throw;
             }
         }
@@ -197,18 +212,41 @@ namespace CateringEcommerce.BAL.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"SMS sent successfully via MSG91 to {phoneNumber}");
+                    _logger.LogInformation("SMS sent successfully via MSG91 to {Phone}", MaskPhone(phoneNumber));
                 }
                 else
                 {
-                    Console.WriteLine($"MSG91 SMS failed: {responseBody}");
+                    _logger.LogWarning("MSG91 SMS failed for {Phone}. StatusCode: {StatusCode}, Body: {Body}",
+                        MaskPhone(phoneNumber), (int)response.StatusCode, MaskProviderResponse(responseBody));
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending SMS via MSG91: {ex.Message}");
+                _logger.LogError(ex, "Error sending SMS via MSG91 to {Phone}", MaskPhone(phoneNumber));
                 throw;
             }
+        }
+
+        private static string MaskPhone(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone) || phone.Length <= 4) return "****";
+            return phone[..^4] + "****";
+        }
+
+        private static string MaskEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return "***";
+            var atIndex = email.IndexOf('@');
+            if (atIndex <= 1) return "***";
+            return $"{email[0]}***{email[atIndex..]}";
+        }
+
+        private static string MaskProviderResponse(string responseBody)
+        {
+            if (string.IsNullOrWhiteSpace(responseBody)) return string.Empty;
+            return responseBody.Length <= 500
+                ? responseBody
+                : responseBody[..500];
         }
 
 // ===================================

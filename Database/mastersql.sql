@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS t_sys_catering_owner (
 	c_ownerid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 	c_catering_name VARCHAR(200) NOT NULL,
 	c_owner_name VARCHAR(200) NOT NULL,
-	c_partnernumber VARCHAR(50) NOT NULL,
+	c_partnernumber VARCHAR(50) NULL,
 	c_email VARCHAR(256) NOT NULL,
 	c_mobile VARCHAR(15) NOT NULL,
 	c_password_hash VARCHAR(512),
@@ -392,7 +392,7 @@ CREATE TABLE IF NOT EXISTS t_sys_catering_owner_operations (
 CREATE TABLE IF NOT EXISTS t_sys_catering_media_uploads (
 	c_media_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 	c_ownerid BIGINT NOT NULL,
-	c_reference_id BIGINT NOT NULL,
+	c_reference_id BIGINT NULL,
 	c_document_type_id INTEGER,
 	c_extension VARCHAR(20) NOT NULL,
 	c_file_name VARCHAR(255) NOT NULL,

@@ -109,9 +109,10 @@ namespace CateringEcommerce.BAL.Base.User
                         throw new InvalidOperationException(validation.ErrorMessage);
 
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(orderData.PaymentProof.FileName);
-                    paymentProofPath = await _fileStorageService.SaveFormFileAsync(
+                    paymentProofPath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                         orderData.PaymentProof,
                         orderData.CateringId,
+                        Role.Owner.GetDisplayName(),
                         DocumentType.PaymentProof.GetDisplayName(),
                         false,
                         safeFilename

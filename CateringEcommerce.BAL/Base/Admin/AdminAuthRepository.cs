@@ -79,7 +79,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                   AND c_isactive = TRUE";
 
             NpgsqlParameter[] parameters = {
-                new NpgsqlParameter("@Username", username)
+                new NpgsqlParameter("@Username", username.Trim())
             };
 
             var dt = _dbHelper.Execute(query, parameters);

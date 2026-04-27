@@ -3,6 +3,8 @@ using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
+using CateringEcommerce.Domain.Models.Configuration;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using System.Data;
 using System.Text.RegularExpressions;
@@ -13,13 +15,18 @@ namespace CateringEcommerce.BAL.Base.Admin
     {
         private readonly IDatabaseHelper _dbHelper;
         private readonly string _encryptionKey;
+        private readonly SmtpSettings _smtpSettings;
 
-        public SettingsRepository(IDatabaseHelper dbHelper, ISystemSettingsProvider settings)
+        public SettingsRepository(
+            IDatabaseHelper dbHelper,
+            IOptions<SecuritySettings> securityOptions,
+            IOptions<SmtpSettings> smtpOptions)
         {
             _dbHelper = dbHelper;
-            _encryptionKey = settings.GetString("SYSTEM.ENCRYPTION_KEY");
+            _encryptionKey = securityOptions?.Value?.EncryptionKey ?? string.Empty;
+            _smtpSettings = smtpOptions?.Value ?? throw new ArgumentNullException(nameof(smtpOptions));
             if (string.IsNullOrEmpty(_encryptionKey))
-                throw new InvalidOperationException("Encryption key not configured");
+                throw new InvalidOperationException("SYSTEM:ENCRYPTION_KEY is not configured in secure configuration");
         }
 
         // =============================================

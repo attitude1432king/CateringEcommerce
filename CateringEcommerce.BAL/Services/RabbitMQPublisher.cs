@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using RabbitMQ.Client;
 using System;
 using System.Text;
@@ -194,11 +195,22 @@ namespace CateringEcommerce.BAL.Services
     /// </summary>
     public class RabbitMQSettings
     {
+        [ConfigurationKeyName("ENABLED")]
         public bool Enabled { get; set; } = false;
+
+        [ConfigurationKeyName("HOSTNAME")]
         public string HostName { get; set; } = "localhost";
+
+        [ConfigurationKeyName("PORT")]
         public int Port { get; set; } = 5672;
+
+        [ConfigurationKeyName("USERNAME")]
         public string UserName { get; set; } = "guest";
+
+        [ConfigurationKeyName("PASSWORD")]
         public string Password { get; set; } = "guest";
+
+        [ConfigurationKeyName("VIRTUAL_HOST")]
         public string? VirtualHost { get; set; } = "/";
     }
 }

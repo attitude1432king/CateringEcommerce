@@ -476,7 +476,7 @@ export default function OwnerRegistrationPage() {
             if (!formData.foodTypeIds) newErrors.foodTypeIds = "Please select at least one food type.";
             if (!formData.serviceTypeIds) newErrors.serviceTypeIds = "Please select at least one service type.";
             if (!formData.eventTypeIds) newErrors.eventTypeIds = "Please select at least one event type.";
-            if (!formData.minOrderValue) newErrors.minOrderValue = "Minimum order value is required.";
+            if (!formData.minGuestCount) newErrors.minGuestCount = "Minimum order value is required.";
             if (formData.cateringMedia.length < 5) {
                 newErrors.cateringMedia = "Please upload at least 5 photos or videos.";
             } else if (formData.cateringMedia.length > 10) {

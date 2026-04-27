@@ -428,21 +428,22 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SampleData = sampleData
             });
 
-            var emailSettings = await GetSettingsByCategoryAsync("EMAIL");
-            var smtpHost = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.SMTP_HOST")?.SettingValue;
-            var smtpPort = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.SMTP_PORT")?.SettingValue;
-            var smtpUsername = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.SMTP_USERNAME")?.SettingValue;
-            var smtpPassword = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.SMTP_PASSWORD")?.SettingValue;
-            var enableSsl = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.ENABLE_SSL")?.SettingValue == "true";
-            var fromAddress = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.FROM_ADDRESS")?.SettingValue;
-            var fromName = emailSettings.FirstOrDefault(s => s.SettingKey == "EMAIL.FROM_NAME")?.SettingValue;
+            var smtpHost = _smtpSettings.Host;
+            var smtpPort = _smtpSettings.Port;
+            var smtpUsername = _smtpSettings.Username;
+            var smtpPassword = _smtpSettings.Password;
+            var enableSsl = _smtpSettings.EnableSsl;
+            var fromAddress = string.IsNullOrWhiteSpace(_smtpSettings.FromAddress)
+                ? _smtpSettings.Username
+                : _smtpSettings.FromAddress;
+            var fromName = _smtpSettings.FromName;
 
-            if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(smtpPort))
+            if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
                 throw new InvalidOperationException("SMTP settings not configured");
             }
 
-            using (var smtpClient = new System.Net.Mail.SmtpClient(smtpHost, int.Parse(smtpPort)))
+            using (var smtpClient = new System.Net.Mail.SmtpClient(smtpHost, smtpPort))
             {
                 smtpClient.Credentials = new System.Net.NetworkCredential(smtpUsername, smtpPassword);
                 smtpClient.EnableSsl = enableSsl;

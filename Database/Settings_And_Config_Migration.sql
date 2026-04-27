@@ -33,6 +33,22 @@ CREATE TABLE IF NOT EXISTS t_sys_settings (
 CREATE INDEX IF NOT EXISTS ix_settings_category ON t_sys_settings(c_category);
 CREATE INDEX IF NOT EXISTS ix_settings_active ON t_sys_settings(c_is_active);
 
+-- Production security cleanup: secrets must come from .NET configuration or environment variables, not t_sys_settings.
+DELETE FROM t_sys_settings
+WHERE c_setting_key IN (
+    'EMAIL.SMTP_USERNAME',
+    'EMAIL.SMTP_PASSWORD',
+    'PAYMENT.RAZORPAY_KEY_ID',
+    'PAYMENT.RAZORPAY_KEY_SECRET',
+    'PAYMENT.RAZORPAY_WEBHOOK_SECRET',
+    'JWT.KEY',
+    'AWS_SNS.ACCESS_KEY',
+    'AWS_SNS.SECRET_KEY',
+    'SYSTEM.ENCRYPTION_KEY',
+    'RABBITMQ.PASSWORD',
+    'MSG91.AUTH_KEY'
+);
+
 -- =============================================
 -- SECTION 2: Settings History Table
 -- =============================================
@@ -156,14 +172,6 @@ INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_
 SELECT 'EMAIL.SMTP_PORT', '587', 'EMAIL', 'NUMBER', 'SMTP Port', 'SMTP server port number', 2, '587', '^[0-9]+$'
 WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'EMAIL.SMTP_PORT');
 
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-SELECT 'EMAIL.SMTP_USERNAME', 'noreply@cateringecommerce.com', 'EMAIL', 'STRING', 'SMTP Username', 'SMTP authentication username', 3, 'noreply@cateringecommerce.com', TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'EMAIL.SMTP_USERNAME');
-
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-SELECT 'EMAIL.SMTP_PASSWORD', 'change_this_password', 'EMAIL', 'ENCRYPTED', 'SMTP Password', 'SMTP authentication password', 4, '', TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'EMAIL.SMTP_PASSWORD');
-
 INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
 SELECT 'EMAIL.ENABLE_SSL', 'true', 'EMAIL', 'BOOLEAN', 'Enable SSL', 'Use SSL/TLS for SMTP connection', 5, 'true'
 WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'EMAIL.ENABLE_SSL');
@@ -195,18 +203,6 @@ WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'EMAIL.RETR
 -- =============================================
 -- SECTION 7: Seed Data - PAYMENT Settings
 -- =============================================
-
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-SELECT 'PAYMENT.RAZORPAY_KEY_ID', 'rzp_test_xxxxxxxxxxxxxxxx', 'PAYMENT', 'STRING', 'Razorpay Key ID', 'Razorpay API Key ID', 1, '', TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'PAYMENT.RAZORPAY_KEY_ID');
-
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-SELECT 'PAYMENT.RAZORPAY_KEY_SECRET', 'xxxxxxxxxxxxxxxxxxxxxxxx', 'PAYMENT', 'ENCRYPTED', 'Razorpay Key Secret', 'Razorpay API Key Secret', 2, '', TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'PAYMENT.RAZORPAY_KEY_SECRET');
-
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-SELECT 'PAYMENT.RAZORPAY_WEBHOOK_SECRET', 'whsec_xxxxxxxxxxxxxxxx', 'PAYMENT', 'ENCRYPTED', 'Razorpay Webhook Secret', 'Razorpay Webhook Secret for verifying webhook signatures', 3, '', TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'PAYMENT.RAZORPAY_WEBHOOK_SECRET');
 
 INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_validation_regex)
 SELECT 'PAYMENT.PAYMENT_TIMEOUT_MINUTES', '15', 'PAYMENT', 'NUMBER', 'Payment Timeout (Minutes)', 'Time limit for completing payment', 4, '15', '^[0-9]+$'
@@ -1072,10 +1068,6 @@ WHERE NOT EXISTS (
 -- =============================================
 
 INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive, c_is_readonly)
-SELECT 'JWT.KEY','u83$9Sj@q!5#LmQzTNfT^PwBzEoRk1At','JWT','STRING','JWT Signing Key','Secret key used to sign JWT tokens',1,'',TRUE,FALSE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='JWT.KEY');
-
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive, c_is_readonly)
 SELECT 'JWT.ISSUER','https://localhost:44368','JWT','STRING','JWT Issuer','Issuer URL for JWT tokens',2,'https://localhost:44368',FALSE,FALSE
 WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='JWT.ISSUER');
 
@@ -1093,14 +1085,6 @@ WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='JWT.EXPIRE_M
 -- =============================================
 
 INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-SELECT 'AWS_SNS.ACCESS_KEY','','NOTIFICATION','ENCRYPTED','AWS SNS Access Key','AWS SNS IAM Access Key ID',1,'',TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='AWS_SNS.ACCESS_KEY');
-
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-SELECT 'AWS_SNS.SECRET_KEY','','NOTIFICATION','ENCRYPTED','AWS SNS Secret Key','AWS SNS IAM Secret Access Key',2,'',TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='AWS_SNS.SECRET_KEY');
-
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
 SELECT 'AWS_SNS.REGION','ap-south-1','NOTIFICATION','STRING','AWS SNS Region','AWS SNS Region',3,'ap-south-1',FALSE
 WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='AWS_SNS.REGION');
 
@@ -1112,10 +1096,6 @@ WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='AWS_SNS.SEND
 -- =============================================
 -- SECTION 14: SYSTEM SETTINGS
 -- =============================================
-
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_is_sensitive, c_is_readonly)
-SELECT 'SYSTEM.ENCRYPTION_KEY','p3d$Rsj@q!5#ShArP@#$^PwJ@!M@t@J1','SYSTEM','STRING','Encryption Key','Master encryption key',20,TRUE,TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='SYSTEM.ENCRYPTION_KEY');
 
 INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value)
 SELECT 'SYSTEM.API_BASE_URL','https://localhost:44368','SYSTEM','STRING','API Base URL','Base URL',21,'https://localhost:44368'
@@ -1284,11 +1264,6 @@ INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_
 SELECT 'RABBITMQ.USERNAME','guest','RABBITMQ','STRING','Username','MQ User',4,'guest','^.*$'
 WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='RABBITMQ.USERNAME');
 
-INSERT INTO t_sys_settings (c_setting_key, c_setting_value, c_category, c_value_type, c_display_name, c_description, c_display_order, c_default_value, c_is_sensitive)
-SELECT 'RABBITMQ.PASSWORD','guest','RABBITMQ','STRING','Password','MQ Password',5,'guest',TRUE
-WHERE NOT EXISTS (SELECT 1 FROM t_sys_settings WHERE c_setting_key='RABBITMQ.PASSWORD');
-
-
 -- =============================================
 -- SECTION 18: Seed Data - APP Settings (PostgreSQL)
 -- =============================================
@@ -1422,25 +1397,6 @@ WHERE NOT EXISTS (
 -- =============================================
 -- SECTION 19: MSG91 Provider Settings (PostgreSQL)
 -- =============================================
-
-INSERT INTO t_sys_settings (
-    c_setting_key, c_setting_value, c_category, c_value_type,
-    c_is_sensitive, c_display_name, c_description, c_display_order, c_default_value
-)
-SELECT 
-    'MSG91.AUTH_KEY',
-    '',
-    'MSG91',
-    'ENCRYPTED',
-    TRUE,
-    'MSG91 Auth Key',
-    'MSG91 API authentication key (keep secret)',
-    1,
-    ''
-WHERE NOT EXISTS (
-    SELECT 1 FROM t_sys_settings WHERE c_setting_key = 'MSG91.AUTH_KEY'
-);
-
 
 INSERT INTO t_sys_settings (
     c_setting_key, c_setting_value, c_category, c_value_type,

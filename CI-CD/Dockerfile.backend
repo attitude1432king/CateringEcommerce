@@ -1,0 +1,34 @@
+# Backend API Dockerfile
+
+# Use the official ASP.NET Core runtime as the base image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+
+# Use the .NET SDK image for building the application
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy the project files
+COPY CateringEcommerce.API/CateringEcommerce.API.csproj ./
+
+# Restore dependencies
+RUN dotnet restore CateringEcommerce.API.csproj
+
+# Copy the rest of the application files
+COPY . .
+
+# Publish the application
+RUN dotnet publish CateringEcommerce.API.csproj -c Release -o /app/publish
+
+# Build the runtime image
+FROM base AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# Create secure file storage directory (mount persistent disk here on Render)
+RUN mkdir -p /app/ProjectFiles
+
+# Set the entry point
+ENTRYPOINT ["dotnet", "CateringEcommerce.API.dll"]

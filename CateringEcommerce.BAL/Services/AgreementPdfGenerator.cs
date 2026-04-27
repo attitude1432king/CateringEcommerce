@@ -175,7 +175,7 @@ namespace CateringEcommerce.BAL.Services
             try
             {
                 // Create directory structure: secure_uploads/owner_{id}/agreements/
-                string ownerFolder = Path.Combine(baseUploadPath, "secure_uploads", $"owner{ownerId}", "Agreements");
+                string ownerFolder = Path.Combine(baseUploadPath, "secure_uploads", "Owners", $"owner{ownerId}", "Agreements");
 
                 if (!Directory.Exists(ownerFolder))
                 {

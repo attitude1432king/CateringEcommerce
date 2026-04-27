@@ -86,9 +86,10 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                         return ApiResponseHelper.Failure(validation.ErrorMessage, "warning");
 
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(NewLogoFile.FileName);
-                    newLogoPath = await _fileStorageService.SaveFormFileAsync(
+                    newLogoPath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                         NewLogoFile,
                         ownerPkid,
+                        Role.Owner.GetDisplayName(),
                         "Logo",
                         false,
                         safeFilename
@@ -100,7 +101,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                 {
                     string oldLogoPath = _ownerProfile.GetLogoPath(ownerPkid);
                     _fileStorageService.DeleteFilePath(oldLogoPath);
-                    _ownerRegister.UpdateLogoPath(ownerPkid, newLogoPath);
+                    await _ownerRegister.UpdateLogoPath(ownerPkid, newLogoPath);
                 }
 
                 if(businessDto != null)
@@ -177,7 +178,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
                         }
 
                         var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
-                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPkid, DocumentType.Kitchen.GetDisplayName(), false, safeFilename);
+                        var path = await _fileStorageService.SaveRoleBaseFormFileAsync(file, ownerPkid, Role.Owner.GetDisplayName(), DocumentType.Kitchen.GetDisplayName(), false, safeFilename);
                         await _ownerRepository.SaveFilePath(path, ownerPkid, file.FileName, DocumentType.Kitchen);
                     }
                 }

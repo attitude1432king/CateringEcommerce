@@ -7,6 +7,7 @@ using CateringEcommerce.Domain.Models.Owner;
 using Npgsql;
 using System.Data;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace CateringEcommerce.BAL.Base.Owner
 {
@@ -18,7 +19,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             _dbHelper = dbHelper;
         }
 
-        public Int64 CreateOwnerAccount(Dictionary<string, object> dicData)
+        public async Task<Int64> CreateOwnerAccount(Dictionary<string, object> dicData)
         {
             try
             {
@@ -54,16 +55,16 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new NpgsqlParameter("@OwnerName", ownerName),
                     new NpgsqlParameter("@Email", email),
                     new NpgsqlParameter("@StdNumber", string.IsNullOrEmpty(stdNumber) ? DBNull.Value : stdNumber),
-                    new NpgsqlParameter("@IsSameContact", isSameContact.ToString()),
-                    new NpgsqlParameter("@IsPhoneVerify", true.ToString()),
-                    new NpgsqlParameter("@IsEmailVerify", true.ToString()),
+                    new NpgsqlParameter("@IsSameContact", isSameContact),
+                    new NpgsqlParameter("@IsPhoneVerify", true),
+                    new NpgsqlParameter("@IsEmailVerify", true),
                     new NpgsqlParameter("@SupportContact", string.IsNullOrEmpty(supportContact) ? DBNull.Value : supportContact),
                     new NpgsqlParameter("@AlternateEmail", string.IsNullOrEmpty(alternateEmail) ? DBNull.Value : alternateEmail),
                     new NpgsqlParameter("@WhatsappNumber", string.IsNullOrEmpty(whatsappNumber) ? DBNull.Value : whatsappNumber),
                     new NpgsqlParameter("@CreatedDate", DateTime.Now)
                 };
 
-                var result = _dbHelper.ExecuteScalar(query.ToString(), parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query.ToString(), parameters.ToArray());
                 return result != null ? Convert.ToInt64(result) : 0;
             }
             catch (Exception ex)
@@ -72,7 +73,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-        public void RegisterAddress(Int64 onwerId, Dictionary<string, object> dicData)
+        public async Task RegisterAddress(Int64 onwerId, Dictionary<string, object> dicData)
         {
             if (dicData == null || dicData.Count == 0)
                 throw new ArgumentException("Address data cannot be null or empty.", nameof(dicData));
@@ -109,7 +110,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new NpgsqlParameter("@Createddate", DateTime.Now)
 
                 };
-                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -117,7 +118,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-        public void RegisterServices(Int64 ownerId, Dictionary<string, object> dicData)
+        public async Task RegisterServices(Int64 ownerId, Dictionary<string, object> dicData)
         {
             if (dicData == null || dicData.Count == 0)
                 throw new ArgumentException("Services data cannot be null or empty.", nameof(dicData));
@@ -135,8 +136,8 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 query.Append($@"INSERT INTO {Table.SysCateringOwnerService} 
-                    (c_ownerid, c_cuisine_types, c_service_types, c_event_types, c_food_types, c_min_dish_order, c_delivery_radius_km, c_daily_booking_capacity, c_serving_time_slots, c_createddate) 
-                    VALUES (@OwnerId, @CuisineType, @ServiceTypes, @EventTypes, @FoodTypes, @MinDishOrder, @RadiusKm, @DailyBookingCapacity, @ServingSlots, @Createddate)");
+                    (c_ownerid, c_cuisine_types, c_service_types, c_event_types, c_food_types, c_min_guest_count, c_delivery_radius_km, c_daily_booking_capacity, c_serving_time_slots, c_createddate) 
+                    VALUES (@OwnerId, @CuisineType, @ServiceTypes, @EventTypes, @FoodTypes, @MinGuestCount, @RadiusKm, @DailyBookingCapacity, @ServingSlots, @Createddate)");
                 List<NpgsqlParameter> parameters = new()
                 {
                     new NpgsqlParameter("@OwnerId", ownerId),
@@ -144,13 +145,13 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new NpgsqlParameter("@ServiceTypes", serviceTypes),
                     new NpgsqlParameter("@EventTypes", eventTypes),
                     new NpgsqlParameter("@FoodTypes", foodTypes),
-                    new NpgsqlParameter("@MinDishOrder", minGuestCount),
+                    new NpgsqlParameter("@MinGuestCount", minGuestCount > 0 ? minGuestCount : DBNull.Value),
                     new NpgsqlParameter("@RadiusKm", deliveryRediusKM > 0 ? deliveryRediusKM : DBNull.Value),
                     new NpgsqlParameter("@DailyBookingCapacity", dailyBookingCapacity > 0 ? dailyBookingCapacity : DBNull.Value),
                     new NpgsqlParameter("@ServingSlots", !string.IsNullOrEmpty(servingTimeSlots) ? servingTimeSlots : DBNull.Value),
                     new NpgsqlParameter("@Createddate", DateTime.Now)
                 };
-                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -158,7 +159,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-        public void RegisterLegalDocuments(Int64 ownerId, Dictionary<string, object> dicData)
+        public async Task RegisterLegalDocuments(Int64 ownerId, Dictionary<string, object> dicData)
         {
             if (dicData == null || dicData.Count == 0)
                 throw new ArgumentException("Legal documents data cannot be null or empty.", nameof(dicData));
@@ -189,9 +190,9 @@ namespace CateringEcommerce.BAL.Base.Owner
                 {
                     new NpgsqlParameter("@OwnerId", ownerId),
                     new NpgsqlParameter("@FssaiNumber", fssaiNumber),
-                    new NpgsqlParameter("@FssaiExpDate", fssaiExpiryDate.Date.ToString()),
+                    new NpgsqlParameter("@FssaiExpDate", fssaiExpiryDate.Date),
                     new NpgsqlParameter("@FssaiCertificate", string.IsNullOrEmpty(fssaiCertificate) ? DBNull.Value : fssaiCertificate),
-                    new NpgsqlParameter("@GstApplicable", isGstApplicable.ToString()),
+                    new NpgsqlParameter("@GstApplicable", isGstApplicable),
                     new NpgsqlParameter("@GstNumber", gstNumber),
                     new NpgsqlParameter("@GstCertificate", string.IsNullOrEmpty(gstCertificate) ? DBNull.Value : gstCertificate),
                     new NpgsqlParameter("@PanName", panName),
@@ -199,7 +200,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new NpgsqlParameter("@PanCertificate", string.IsNullOrEmpty(panCertificate) ? DBNull.Value : panCertificate),
                     new NpgsqlParameter("@Createddate", DateTime.Now)
                 };
-                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -207,7 +208,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-        public void RegisterBankDetails(Int64 ownerId, Dictionary<string, object> dicData)
+        public async Task RegisterBankDetails(Int64 ownerId, Dictionary<string, object> dicData)
         {
             if (dicData == null || dicData.Count == 0)
                 throw new ArgumentException("Bank details data cannot be null or empty.", nameof(dicData));
@@ -234,7 +235,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new NpgsqlParameter("@UpiId", !string.IsNullOrEmpty(upiId) ? upiId : DBNull.Value),
                     new NpgsqlParameter("@Createddate", DateTime.Now)
                 };
-                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {
@@ -242,7 +243,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             }
         }
 
-        public void UpdateLogoPath(Int64 ownerPkid, string logoPath)
+        public async Task UpdateLogoPath(Int64 ownerPkid, string logoPath)
         {
             if (ownerPkid <= 0)
                 throw new ArgumentException("Partner PKID must be greater than zero.", nameof(ownerPkid));
@@ -257,10 +258,10 @@ namespace CateringEcommerce.BAL.Base.Owner
                 new NpgsqlParameter("@OwnerPkid", ownerPkid),
                 new NpgsqlParameter("@PartnerNumber", requestNumber)
             };
-            _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+            await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
         }
 
-        public void RegisterAgreement(Int64 ownerId, Dictionary<string, object> dicData, string baseUploadPath)
+        public async Task RegisterAgreement(Int64 ownerId, Dictionary<string, object> dicData, string baseUploadPath)
         {
             if (dicData == null || dicData.Count == 0)
                 throw new ArgumentException("Agreement data cannot be null or empty.", nameof(dicData));
@@ -321,7 +322,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                 {
                     new NpgsqlParameter("@OwnerId", ownerId),
                     new NpgsqlParameter("@AgreementText", string.IsNullOrEmpty(agreementText) ? DBNull.Value : agreementText),
-                    new NpgsqlParameter("@AgreementAccepted", agreementAccepted.ToString()),
+                    new NpgsqlParameter("@AgreementAccepted", agreementAccepted),
                     new NpgsqlParameter("@SignatureData", string.IsNullOrEmpty(signatureBase64) ? DBNull.Value : signatureBase64),
                     new NpgsqlParameter("@SignaturePath", string.IsNullOrEmpty(signaturePath) ? DBNull.Value : signaturePath),
                     new NpgsqlParameter("@AgreementPdfPath", string.IsNullOrEmpty(agreementPdfPath) ? DBNull.Value : agreementPdfPath),
@@ -331,7 +332,7 @@ namespace CateringEcommerce.BAL.Base.Owner
                     new NpgsqlParameter("@Createddate", DateTime.Now)
                 };
 
-                _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray());
+                await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
             }
             catch (Exception ex)
             {

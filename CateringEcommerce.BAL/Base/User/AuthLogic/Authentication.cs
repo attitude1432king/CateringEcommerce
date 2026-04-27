@@ -23,7 +23,7 @@ namespace CateringEcommerce.BAL.Base.User.AuthLogic
         /// <param name="name"></param>
         /// <param name="phoneNumber"></param>
         /// <returns></returns>
-        public int CreateUserAccount(string name, string phoneNumber = null, Dictionary<string, string> dicData = null)
+        public async Task<int> CreateUserAccount(string name, string phoneNumber = null, Dictionary<string, string> dicData = null)
         {
             dicData ??= new Dictionary<string, string>();
 
@@ -63,11 +63,11 @@ namespace CateringEcommerce.BAL.Base.User.AuthLogic
                 parameters.Add(new NpgsqlParameter("p_isverified", true));
             }
 
-            return _dbHelper.ExecuteNonQuery(query, parameters.ToArray());
+            return await _dbHelper.ExecuteNonQueryAsync(query, parameters.ToArray());
         }
 
 
-        public UserModel? GetUserData(string? phoneNumber = null)
+        public async Task<UserModel?> GetUserData(string? phoneNumber = null)
         {
             string query = $"SELECT * FROM {Table.SysUser} WHERE c_mobile = @phoneNumber";
             NpgsqlParameter[] parameters = Array.Empty<NpgsqlParameter>();
@@ -80,7 +80,7 @@ namespace CateringEcommerce.BAL.Base.User.AuthLogic
                 };
             }
 
-            var dt = _dbHelper.Execute(query, parameters);
+            var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count > 0)
             {

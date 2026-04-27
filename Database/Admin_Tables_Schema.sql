@@ -61,7 +61,7 @@ INSERT INTO t_sys_admin
 VALUES
 (
     'admin',
-    'jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=',
+    '6G94qKPK8LYNjnTllCqm2G3BUM08AzOK7yW30tfjrMc=',
     'admin@cateringecommerce.com',
     'System Administrator',
     'Super Admin',

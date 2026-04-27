@@ -97,7 +97,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 Dictionary<string, object> dicData = AddedRegistionDataToDictionary(registrationData);
 
-                Int64 ownerPkid = _ownerRegister.CreateOwnerAccount(dicData);
+                Int64 ownerPkid = await _ownerRegister.CreateOwnerAccount(dicData);
                 if (ownerPkid <= 0)
                 {
                     _logger.LogError("Failed to create owner account in the database.");
@@ -116,7 +116,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(CateringLogo, logoExtensions, 5 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(CateringLogo.FileName);
-                    logoPath = await _fileStorageService.SaveFormFileAsync(CateringLogo, ownerPkid, DocumentType.Logo.GetDisplayName(), false, safeFilename);
+                    logoPath = await _fileStorageService.SaveRoleBaseFormFileAsync(CateringLogo, ownerPkid, Role.Owner.GetDisplayName(), DocumentType.Logo.GetDisplayName(), false, safeFilename);
                 }
 
                 // FSSAI Certificate
@@ -126,7 +126,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(FssaiCertificate, certExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(FssaiCertificate.FileName);
-                    fssaiPath = await _fileStorageService.SaveFormFileAsync(FssaiCertificate, ownerPkid, CertificateType.FSSAI.GetDisplayName(), true, safeFilename);
+                    fssaiPath = await _fileStorageService.SaveRoleBaseFormFileAsync(FssaiCertificate, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.FSSAI.GetDisplayName(), true, safeFilename);
                 }
 
                 // GST Certificate
@@ -136,7 +136,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(GstCertificate, certExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(GstCertificate.FileName);
-                    gstPath = await _fileStorageService.SaveFormFileAsync(GstCertificate, ownerPkid, CertificateType.GST.GetDisplayName(), true, safeFilename);
+                    gstPath = await _fileStorageService.SaveRoleBaseFormFileAsync(GstCertificate, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.GST.GetDisplayName(), true, safeFilename);
                 }
 
                 // PAN Card
@@ -146,7 +146,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(PanCard, certExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(PanCard.FileName);
-                    panPath = await _fileStorageService.SaveFormFileAsync(PanCard, ownerPkid, CertificateType.PAN.GetDisplayName(), true, safeFilename);
+                    panPath = await _fileStorageService.SaveRoleBaseFormFileAsync(PanCard, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.PAN.GetDisplayName(), true, safeFilename);
                 }
 
                 // Signature — save file first, then read bytes from disk for PDF embedding
@@ -156,7 +156,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 {
                     var v = FileValidationHelper.ValidateFile(Signature, sigExtensions, 2 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
-                    signaturePath = await _fileStorageService.SaveFormFileAsync(Signature, ownerPkid, CertificateType.Signature.GetDisplayName(), true, $"signature_{ownerPkid}.png");
+                    signaturePath = await _fileStorageService.SaveRoleBaseFormFileAsync(Signature, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.Signature.GetDisplayName(), true, $"signature_{ownerPkid}.png");
                     if (!string.IsNullOrEmpty(signaturePath))
                     {
                         var physicalPath = Path.Combine(_env.WebRootPath, signaturePath.TrimStart('/'));
@@ -175,7 +175,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(ChequeCopy, certExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(ChequeCopy.FileName);
-                    chequePath = await _fileStorageService.SaveFormFileAsync(ChequeCopy, ownerPkid, CertificateType.PAN.GetDisplayName(), true, safeFilename);
+                    chequePath = await _fileStorageService.SaveRoleBaseFormFileAsync(ChequeCopy, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.PAN.GetDisplayName(), true, safeFilename);
                 }
 
                 if (!string.IsNullOrEmpty(gstPath))
@@ -191,11 +191,11 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 #region Register the owner catering other details
                 if (!string.IsNullOrEmpty(logoPath))
-                    _ownerRegister.UpdateLogoPath(ownerPkid, logoPath);
-                _ownerRegister.RegisterAddress(ownerPkid, dicData);
-                _ownerRegister.RegisterServices(ownerPkid, dicData);
-                _ownerRegister.RegisterLegalDocuments(ownerPkid, dicData);
-                _ownerRegister.RegisterBankDetails(ownerPkid, dicData);
+                    await _ownerRegister.UpdateLogoPath(ownerPkid, logoPath);
+                await _ownerRegister.RegisterAddress(ownerPkid, dicData);
+                await _ownerRegister.RegisterServices(ownerPkid, dicData);
+                await _ownerRegister.RegisterLegalDocuments(ownerPkid, dicData);
+                await _ownerRegister.RegisterBankDetails(ownerPkid, dicData);
 
                 string agreementText = GetDefaultAgreementText();
                 dicData.Add("AgreementText", agreementText);
@@ -203,7 +203,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 dicData.Add("IpAddress", GetClientIpAddress());
                 dicData.Add("UserAgent", Request.Headers["User-Agent"].ToString());
 
-                _ownerRegister.RegisterAgreement(ownerPkid, dicData, _env.WebRootPath);
+                await _ownerRegister.RegisterAgreement(ownerPkid, dicData, _env.WebRootPath);
 
                 _logger.LogInformation("Logo saved at: {LogoPath}", logoPath);
                 _logger.LogInformation("FSSAI saved at: {FssaiPath}", fssaiPath);
@@ -396,9 +396,10 @@ namespace CateringEcommerce.API.Controllers.Owner
             {
                 var safeFilename = FileValidationHelper.GenerateSafeFilename(cateringMedia.FileName);
 
-                string savedPath = await _fileStorageService.SaveFormFileAsync(
+                string savedPath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                     cateringMedia,
                     ownerPkid,
+                    Role.Owner.GetDisplayName(),
                     DocumentType.Kitchen.GetDisplayName(),
                     isSecure: false,
                     safeFilename
@@ -538,7 +539,7 @@ Version: 1.0";
                 { "ServiceTypes", registrationData.ServiceTypeIds ?? string.Empty },
                 { "FoodTypes", registrationData.FoodTypeIds ?? string.Empty },
                 { "EventTypes", registrationData.EventTypeIds ?? string.Empty },
-                { "MinOrderValue", registrationData.MinOrderValue.ToString() },
+                { "MinGuestCount", registrationData.MinGuestCount.HasValue ? registrationData.MinGuestCount.Value.ToString() : string.Empty },
                 { "FssaiNumber", registrationData.FssaiNumber ?? string.Empty },
                 { "FssaiExpiryDate", registrationData.FssaiExpiry ?? string.Empty },
                 { "GstNumber", registrationData.GstNumber ?? string.Empty },

@@ -75,9 +75,22 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
     };
 
     const handleLogoCropped = (blob) => {
-        const url = URL.createObjectURL(blob);
+        // Generate file name (you can customize this)
+        const fileName = `cropped_logo_${Date.now()}.jpg`;
+
+        // Convert Blob to File
+        const file = new File([blob], fileName, {
+            type: blob.type,
+            lastModified: Date.now(),
+        });
+
+        // Preview URL
+        const url = URL.createObjectURL(file);
+
         setLogoPreviewUrl(url);
-        setFormData({ ...formData, cateringLogo: blob });
+
+        // Store file instead of blob
+        setFormData({ ...formData, cateringLogo: file });
     };
 
     return (

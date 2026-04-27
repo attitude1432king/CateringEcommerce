@@ -75,7 +75,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT
                     COUNT(*) AS Total,
-                    COUNT(CASE WHEN COALESCE(c_isblocked, FALSE) = 0 THEN 1 END) AS Active,
+                    COUNT(CASE WHEN COALESCE(c_isblocked, FALSE) = FALSE THEN TRUE END) AS Active,
                     COUNT(CASE WHEN CAST(c_createddate AS DATE) = CAST(NOW() AS DATE) THEN 1 END) AS Today,
                     COUNT(CASE WHEN EXTRACT(MONTH FROM c_createddate) = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM c_createddate) = EXTRACT(YEAR FROM NOW()) THEN 1 END) AS ThisMonth
                 FROM {Table.SysUser}";
