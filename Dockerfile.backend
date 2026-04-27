@@ -1,0 +1,39 @@
+# =========================
+# Build Stage
+# =========================
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+# Copy only csproj first (better caching)
+COPY CateringEcommerce.API/CateringEcommerce.API.csproj CateringEcommerce.API/
+COPY CateringEcommerce.BAL/CateringEcommerce.BAL.csproj CateringEcommerce.BAL/
+COPY CateringEcommerce.Domain/CateringEcommerce.Domain.csproj CateringEcommerce.Domain/
+
+# Restore dependencies
+RUN dotnet restore CateringEcommerce.API/CateringEcommerce.API.csproj
+
+# Copy all files
+COPY . .
+
+# Publish app
+RUN dotnet publish CateringEcommerce.API/CateringEcommerce.API.csproj \
+    -c Release \
+    -o /app/publish \
+    /p:UseAppHost=false
+
+# =========================
+# Runtime Stage
+# =========================
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+WORKDIR /app
+
+# Render requires this
+ENV ASPNETCORE_URLS=http://+:8080
+
+EXPOSE 8080
+
+# Copy published files
+COPY --from=build /app/publish .
+
+# Run app
+ENTRYPOINT ["dotnet", "CateringEcommerce.API.dll"]
