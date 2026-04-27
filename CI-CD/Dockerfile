@@ -58,12 +58,10 @@ RUN mkdir -p /app/backend /app/frontend /var/log/supervisor
 # Copy backend files
 COPY --from=backend-build /app/backend /app/backend
 
-# Copy frontend build files
-COPY --from=frontend-build /app/CateringEcommerce.Web/dist /app/frontend
 
-# Copy Nginx configuration
-RUN rm -rf /var/www/html
-ln -s /app/frontend /var/www/html
+# Copy frontend build files directly to Nginx's default directory
+RUN rm -rf /var/www/html/*
+COPY --from=frontend-build /app/CateringEcommerce.Web/dist /var/www/html
 
 # Copy supervisor configuration
 RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
