@@ -4,7 +4,7 @@
 # ============================================
 # STAGE 1: Build Backend API
 # ============================================
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS backend-build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS backend-build
 WORKDIR /src
 
 # Copy backend project files
@@ -43,7 +43,7 @@ RUN npm run build
 # ============================================
 # STAGE 3: Final Runtime Image
 # ============================================
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
 # Install Nginx and supervisor for managing multiple processes
