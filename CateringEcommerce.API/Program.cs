@@ -47,7 +47,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Core helpers
 builder.Services.AddScoped<IDatabaseHelper, SqlDatabaseManager>();
-
+builder.Configuration.AddEnvironmentVariables();
 // System Settings Provider (Singleton - loads all config from t_sys_settings)
 var settingsProvider = new CateringEcommerce.BAL.Configuration.SystemSettingsProvider(builder.Configuration);
 await settingsProvider.RefreshAsync();

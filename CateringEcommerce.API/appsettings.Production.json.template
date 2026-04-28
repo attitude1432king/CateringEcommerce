@@ -12,28 +12,28 @@
     }
   },
   "ConnectionStrings": {
-    "DefaultConnection": "${ConnectionStrings}"
+    "DefaultConnection": ""
   },
   "JWT": {
-    "KEY": "${JWT_KEY}",
-    "ISSUER": "${JWT_ISSUER}",
-    "AUDIENCE": "${JWT_AUDIENCE}",
-    "EXPIRE_MINUTES": "${JWT_EXPIRE_MINUTES}"
+    "KEY": "",
+    "ISSUER": "",
+    "AUDIENCE": "",
+    "EXPIRE_MINUTES": ""
   },
   "EMAIL": {
-    "SMTP_HOST": "${SMTP_HOST}",
-    "SMTP_PORT": "${SMTP_PORT}",
-    "SMTP_USERNAME": "${SMTP_USERNAME}",
-    "SMTP_PASSWORD": "${SMTP_PASSWORD}",
-    "ENABLE_SSL": "${ENABLE_SSL}",
-    "FROM_ADDRESS": "${FROM_ADDRESS}",
-    "FROM_NAME": "${FROM_NAME}"
+    "SMTP_HOST": "",
+    "SMTP_PORT": "",
+    "SMTP_USERNAME": "",
+    "SMTP_PASSWORD": "",
+    "ENABLE_SSL": "",
+    "FROM_ADDRESS": "",
+    "FROM_NAME": ""
   },
   "AwsSns": {
-    "AccessKey": "${AWS_SNS_ACCESS_KEY}",
-    "SecretKey": "${AWS_SNS_SECRET_KEY}",
-    "Region": "${AWS_SNS_REGION:ap-south-1}",
-    "SenderId": "${AWS_SNS_SENDER_ID:ENYVORA}"
+    "AccessKey": "",
+    "SecretKey": "",
+    "Region": "",
+    "SenderId": ""
   },
   "AllowedHosts": "${ALLOWED_HOSTS:*}",
   "SMS": {
@@ -41,26 +41,26 @@
     "SENDER_ID": "${SMS_SENDER_ID:ENYVORA}"
   },
   "RABBITMQ": {
-    "ENABLED": "${RABBITMQ_ENABLED:false}",
-    "HOSTNAME": "${RABBITMQ_HOSTNAME:localhost}",
-    "PORT": "${RABBITMQ_PORT:5672}",
-    "USERNAME": "${RABBITMQ_USERNAME:guest}",
-    "PASSWORD": "${RABBITMQ_PASSWORD:}",
-    "VIRTUAL_HOST": "${RABBITMQ_VIRTUAL_HOST:/}"
+    "ENABLED": "",
+    "HOSTNAME": "",
+    "PORT": "",
+    "USERNAME": "",
+    "PASSWORD": "",
+    "VIRTUAL_HOST": ""
   },
   "SYSTEM": {
-    "ENCRYPTION_KEY": "${SYSTEM_ENCRYPTION_KEY}"
+    "ENCRYPTION_KEY": ""
   },
   "MSG91": {
-    "AUTH_KEY": "${MSG91_AUTH_KEY}",
-    "SENDER_ID": "${MSG91_SENDER_ID:CATAPP}",
-    "TEMPLATE_ID": "${MSG91_TEMPLATE_ID}",
-    "ROUTE": "${MSG91_ROUTE:4}"
+    "AUTH_KEY": "",
+    "SENDER_ID": "",
+    "TEMPLATE_ID": "",
+    "ROUTE": ""
   },
   "PAYMENT": {
-    "RAZORPAY_KEY_ID": "${RAZORPAY_KEY_ID}",
-    "RAZORPAY_KEY_SECRET": "${RAZORPAY_KEY_SECRET}",
-    "RAZORPAY_WEBHOOK_SECRET": "${RAZORPAY_WEBHOOK_SECRET}"
+    "RAZORPAY_KEY_ID": "",
+    "RAZORPAY_KEY_SECRET": "",
+    "RAZORPAY_WEBHOOK_SECRET": ""
   },
   "Pdf": {
     "LogoPath": "wwwroot/logo.png",
@@ -68,16 +68,16 @@
     "FontFamily": "Calibri"
   },
   "EncryptionSettings": {
-    "CustomKey": "${ENCRYPTION_CUSTOM_KEY}"
+    "CustomKey": ""
   },
   "Company": {
-    "Name": "${COMPANY_NAME:Enyvora Pvt. Ltd.}",
-    "GSTIN": "${COMPANY_GSTIN:27AABCU9603R1ZM}",
-    "Address": "${COMPANY_ADDRESS:123 Business Park, Mumbai, Maharashtra 400001, India}",
-    "Phone": "${COMPANY_PHONE:+91 22 1234 5678}",
-    "Email": "${COMPANY_EMAIL:invoices@enyvora.com}",
-    "Website": "${COMPANY_WEBSITE:www.enyvora.com}",
-    "PAN": "${COMPANY_PAN:AABCU9603R}",
-    "SAC": "${COMPANY_SAC:996331}"
+    "Name": "Enyvora Pvt. Ltd.",
+    "GSTIN": "27AABCU9603R1ZM",
+    "Address": "123 Business Park, Mumbai, Maharashtra 400001, India",
+    "Phone": "+91 22 1234 5678",
+    "Email": "invoices@enyvora.com",
+    "Website": "www.enyvora.com",
+    "PAN": "AABCU9603R",
+    "SAC": "996331"
   }
 }
