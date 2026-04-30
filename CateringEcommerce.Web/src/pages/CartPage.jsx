@@ -6,7 +6,7 @@ import GuestCountSelector from '../components/user/cart/GuestCountSelector';
 import CouponSection from '../components/user/cart/CouponSection';
 import PriceSummaryCard from '../components/user/cart/PriceSummaryCard';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 /**
  * Modern Cart Page - Full Page View

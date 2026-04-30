@@ -7,7 +7,7 @@ Modal form for creating/editing banners
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../../contexts/ToastContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }) {
     const { showToast } = useToast();

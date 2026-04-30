@@ -4,7 +4,7 @@ import { Heart, Trash2, MapPin, Star, Users, Loader2, Search, Filter } from 'luc
 import { getFavorites, removeFromFavorites } from '../services/favoritesApi';
 import { useAuth } from '../contexts/AuthContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 /**
  * WishlistPage - Display user's favorite caterings

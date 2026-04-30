@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 /**
  * Shared Media Viewer Component

@@ -10,7 +10,7 @@ import ToggleSwitch from '../../../common/ToggleSwitch';
 import MediaGridUploader from '../../../common/MediaGridUploader';
 import MediaLightbox from '../../../common/MediaLightbox';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 // Reusable sub-components for the form
 const RequiredAsterisk = () => <span className="text-red-500 ml-1">*</span>;

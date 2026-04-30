@@ -2,7 +2,7 @@ import React from 'react';
 import { formatEventDate, formatEventTime, getEventTypeDisplay } from '../../../../utils/checkoutValidator';
 import { calculateCartTotals, normalizeDecorationOrNull, normalizeDecorations } from '../../../../utils/cartPricing';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 /**
  * Cart Summary Component - Sticky Right Column

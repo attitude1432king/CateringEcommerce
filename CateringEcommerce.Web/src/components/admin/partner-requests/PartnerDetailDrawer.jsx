@@ -6,7 +6,7 @@ import { PermissionButton } from '../ui/PermissionButton';
 import { ApprovalStatus } from '../../../services/partnerApprovalApi';
 import MediaViewer from '../ui/MediaViewer';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 
 /**

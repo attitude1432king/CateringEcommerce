@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import VegNonVegIcon from '../common/VegNonVegIcon';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 export default function SampleTasteModal({
     isOpen,

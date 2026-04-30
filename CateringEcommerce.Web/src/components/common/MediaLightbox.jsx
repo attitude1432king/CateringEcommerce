@@ -8,7 +8,7 @@ import React from 'react';
 import ReactDOM from 'react-dom'; // Import ReactDOM for portals
 import { ownerApiService } from '../../services/ownerApi';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 export default function MediaLightbox({ mediaItem, onClose }) {
     // FIX: Check for null mediaItem at the very beginning of the component.

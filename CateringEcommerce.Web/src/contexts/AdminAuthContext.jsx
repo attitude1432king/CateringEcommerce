@@ -4,7 +4,7 @@ import { fetchApi } from '../services/apiUtils';
 
 const AdminAuthContext = createContext(null);
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 export const useAdminAuth = () => {
     const context = useContext(AdminAuthContext);

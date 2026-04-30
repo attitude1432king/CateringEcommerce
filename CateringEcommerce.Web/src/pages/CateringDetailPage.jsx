@@ -24,7 +24,7 @@ import { useAuthGuard } from '../hooks/useAuthGuard';
 import AuthModal from '../components/user/AuthModal';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 const formatDateToYmd = (date) => {
     const year = date.getFullYear();

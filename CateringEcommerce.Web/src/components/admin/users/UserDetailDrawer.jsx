@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 const UserDetailDrawer = ({ user, onClose, onBlockUnblock, onDelete, onRestore }) => {
     if (!user) return null;
