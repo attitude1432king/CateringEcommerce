@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getFeaturedCaterers } from '../../services/homeApi';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function FeaturedCaterers() {
     const [featuredList, setFeaturedList] = useState([]);

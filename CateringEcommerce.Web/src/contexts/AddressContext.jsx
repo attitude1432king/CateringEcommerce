@@ -20,7 +20,7 @@ export const AddressProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const API_BASE_URL = getSetting('SYSTEM.API_BASE_URL', import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368') + '/api';
+  const API_BASE_URL = getSetting('SYSTEM.API_BASE_URL', import.meta.env.VITE_API_BASE_URL) + '/api';
 
   // Fetch user's saved addresses
   const fetchAddresses = async () => {

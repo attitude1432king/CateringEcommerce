@@ -3,7 +3,7 @@ import { fetchApi } from '../../services/apiUtils';
 import SampleTasteSelectionPanel from './SampleTasteSelectionPanel';
 import MediaViewer from '../admin/ui/MediaViewer';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * Utility function to detect media type based on file extension

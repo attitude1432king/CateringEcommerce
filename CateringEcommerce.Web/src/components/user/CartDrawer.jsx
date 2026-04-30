@@ -9,7 +9,7 @@ import { useCart } from '../../contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 import { useAppSettings } from '../../contexts/AppSettingsContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function CartDrawer() {
     const { cart, isCartOpen, setIsCartOpen, clearCart, updateCart, removeAdditionalItem } = useCart();

@@ -7,7 +7,7 @@ import axios from 'axios';
 import { sanitizeForLogging } from '../../../utils/securityUtils';
 
 // Base API URL from environment variable
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Create axios instance with default config
 // SECURITY: withCredentials sends the httpOnly supervisorToken cookie automatically.
