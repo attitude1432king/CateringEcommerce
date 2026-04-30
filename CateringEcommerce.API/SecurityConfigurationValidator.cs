@@ -8,12 +8,12 @@ namespace CateringEcommerce.API
         {
             "ConnectionStrings:DefaultConnection",
             "JWT:KEY",
-            "PAYMENT:RAZORPAY_KEY_ID",
-            "PAYMENT:RAZORPAY_KEY_SECRET",
-            "PAYMENT:RAZORPAY_WEBHOOK_SECRET",
-            "MSG91:AUTH_KEY",
-            "EMAIL:SMTP_USERNAME",
-            "EMAIL:SMTP_PASSWORD",
+            //"PAYMENT:RAZORPAY_KEY_ID",
+            //"PAYMENT:RAZORPAY_KEY_SECRET",
+            //"PAYMENT:RAZORPAY_WEBHOOK_SECRET",
+            //"MSG91:AUTH_KEY",
+            //"EMAIL:SMTP_USERNAME",
+            //"EMAIL:SMTP_PASSWORD",
             "SYSTEM:ENCRYPTION_KEY"
         };
 
