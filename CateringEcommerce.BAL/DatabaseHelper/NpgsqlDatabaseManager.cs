@@ -6,11 +6,11 @@ using CateringEcommerce.Domain.Interfaces;
 
 namespace CateringEcommerce.BAL.DatabaseHelper
 {
-    public sealed class SqlDatabaseManager : DatabaseHelperBase
+    public sealed class NpgsqlDatabaseManager : DatabaseHelperBase
     {
         private const int DefaultTimeout = 60;
 
-        public SqlDatabaseManager(IConfiguration configuration)
+        public NpgsqlDatabaseManager(IConfiguration configuration)
             : base(configuration)
         {
         }

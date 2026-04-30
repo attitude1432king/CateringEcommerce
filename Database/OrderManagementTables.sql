@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS t_sys_orders (
     c_commission_rate DECIMAL(5,2) NOT NULL DEFAULT 10.00,
     c_extra_charges DECIMAL(18,2) NOT NULL DEFAULT 0.00,
     c_total_paid_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
-    c_payment_progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0.00
+    c_payment_progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0.00,
     c_payment_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
     c_order_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
     c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),

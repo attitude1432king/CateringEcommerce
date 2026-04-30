@@ -205,17 +205,6 @@ CREATE TABLE IF NOT EXISTS t_sys_invoice_audit_log (
     CONSTRAINT fk_audit_order FOREIGN KEY (c_orderid) REFERENCES t_sys_orders (c_orderid)
 );
 
--- STEP 6: Alter t_sys_orders Table (Add New Columns)
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_guest_lock_date TIMESTAMP NULL;
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_menu_lock_date TIMESTAMP NULL;
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_guest_locked BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_menu_locked BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_original_guest_count INTEGER NULL;
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_final_guest_count INTEGER NULL;
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_extra_charges DECIMAL(18,2) NOT NULL DEFAULT 0.00;
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_total_paid_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00;
-ALTER TABLE t_sys_orders ADD COLUMN IF NOT EXISTS c_payment_progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0.00;
-
 -- STEP 7: Create Indexes for Performance
 CREATE INDEX IF NOT EXISTS ix_invoice_order_id ON t_sys_invoice (c_orderid);
 CREATE INDEX IF NOT EXISTS ix_invoice_type ON t_sys_invoice (c_invoice_type);

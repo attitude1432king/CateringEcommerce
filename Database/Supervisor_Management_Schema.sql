@@ -419,7 +419,7 @@ CREATE TABLE IF NOT EXISTS t_sys_supervisor_assignment (
     c_event_completion_photos TEXT NULL,
     c_event_completion_signature_url VARCHAR(500) NULL,
     c_report_verified_by_admin BIGINT NULL,
-    c_report_verification_date TIMESTAMP NULL
+    c_report_verification_date TIMESTAMP NULL,
 
     -- Event Supervision Report
     c_quality_check_done BOOLEAN NOT NULL DEFAULT FALSE,
@@ -456,7 +456,7 @@ CREATE TABLE IF NOT EXISTS t_sys_supervisor_assignment (
         CHECK (c_client_approval_method IN ('IN_APP', 'OTP', 'SIGNATURE', NULL)),
             
     CONSTRAINT ck_client_approval_status 
-        CHECK (c_client_approval_status IN ('PENDING', 'APPROVED', 'REJECTED', NULL));
+        CHECK (c_client_approval_status IN ('PENDING', 'APPROVED', 'REJECTED', NULL)),
 
     -- Constraints
     CONSTRAINT fk_assignment_supervisor
@@ -470,7 +470,7 @@ CREATE TABLE IF NOT EXISTS t_sys_supervisor_assignment (
         )),
     
     CONSTRAINT ck_pre_event_verification_status 
-        CHECK (c_pre_event_verification_status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'ISSUES_FOUND'));
+        CHECK (c_pre_event_verification_status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'ISSUES_FOUND')),
 
     CONSTRAINT chk_payout_status
         CHECK (c_supervisor_payout_status IN ('PENDING', 'PROCESSED', 'PAID', 'FAILED'))
