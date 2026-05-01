@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Threading.Tasks;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Models.Supervisor;
+using NpgsqlTypes;
 
 namespace CateringEcommerce.BAL.Base.Supervisor
 {
@@ -26,13 +27,13 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@EventDate", criteria.EventDate),
-                new SqlParameter("@EventType", criteria.EventType),
-                new SqlParameter("@OrderValue", criteria.OrderValue),
-                new SqlParameter("@GuestCount", criteria.GuestCount),
-                new SqlParameter("@ZoneId", (object)criteria.ZoneId ?? DBNull.Value),
-                new SqlParameter("@IsVIPEvent", criteria.IsVIPEvent),
-                new SqlParameter("@IsNewVendor", criteria.IsNewVendor)
+                new NpgsqlParameter("@EventDate", criteria.EventDate),
+                new NpgsqlParameter("@EventType", criteria.EventType),
+                new NpgsqlParameter("@OrderValue", criteria.OrderValue),
+                new NpgsqlParameter("@GuestCount", criteria.GuestCount),
+                new NpgsqlParameter("@ZoneId", (object)criteria.ZoneId ?? DBNull.Value),
+                new NpgsqlParameter("@IsVIPEvent", criteria.IsVIPEvent),
+                new NpgsqlParameter("@IsNewVendor", criteria.IsNewVendor)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<EligibleSupervisorDto>>(
@@ -43,14 +44,14 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", assignment.OrderId),
-                new SqlParameter("@SupervisorId", assignment.SupervisorId),
-                new SqlParameter("@EventDate", assignment.EventDate),
-                new SqlParameter("@EventLocation", assignment.EventLocation),
-                new SqlParameter("@SupervisorFee", assignment.SupervisorFee),
-                new SqlParameter("@AssignmentNotes", (object)assignment.AssignmentNotes ?? DBNull.Value),
-                new SqlParameter("@AssignedBy", assignment.AssignedBy),
-                new SqlParameter("@AssignmentId", SqlDbType.BigInt) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@OrderId", assignment.OrderId),
+                new NpgsqlParameter("@SupervisorId", assignment.SupervisorId),
+                new NpgsqlParameter("@EventDate", assignment.EventDate),
+                new NpgsqlParameter("@EventLocation", assignment.EventLocation),
+                new NpgsqlParameter("@SupervisorFee", assignment.SupervisorFee),
+                new NpgsqlParameter("@AssignmentNotes", (object)assignment.AssignmentNotes ?? DBNull.Value),
+                new NpgsqlParameter("@AssignedBy", assignment.AssignedBy),
+                new NpgsqlParameter("@AssignmentId", NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<object>("sp_AssignSupervisorToEvent", parameters);
@@ -66,10 +67,10 @@ namespace CateringEcommerce.BAL.Base.Supervisor
             {
                 var parameters = new[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@SupervisorId", supervisorId),
-                    new SqlParameter("@AssignedBy", assignedBy),
-                    new SqlParameter("@AssignmentId", SqlDbType.BigInt) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@SupervisorId", supervisorId),
+                    new NpgsqlParameter("@AssignedBy", assignedBy),
+                    new NpgsqlParameter("@AssignmentId", NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output }
                 };
 
                 await _dbHelper.ExecuteStoredProcedureAsync<object>("sp_BulkAssignSupervisor", parameters);
@@ -90,7 +91,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId)
+                new NpgsqlParameter("@AssignmentId", assignmentId)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<SupervisorAssignmentModel>(
@@ -101,8 +102,8 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@SupervisorId", supervisorId),
-                new SqlParameter("@Status", (object)status ?? DBNull.Value)
+                new NpgsqlParameter("@SupervisorId", supervisorId),
+                new NpgsqlParameter("@Status", (object)status ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<SupervisorAssignmentModel>>(
@@ -113,7 +114,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<SupervisorAssignmentModel>>(
@@ -124,8 +125,8 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@FromDate", (object)fromDate ?? DBNull.Value),
-                new SqlParameter("@ToDate", (object)toDate ?? DBNull.Value)
+                new NpgsqlParameter("@FromDate", (object)fromDate ?? DBNull.Value),
+                new NpgsqlParameter("@ToDate", (object)toDate ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<SupervisorAssignmentModel>>(
@@ -140,8 +141,8 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@SupervisorId", supervisorId)
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@SupervisorId", supervisorId)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_AcceptAssignment", parameters);
@@ -151,9 +152,9 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@SupervisorId", supervisorId),
-                new SqlParameter("@Reason", reason)
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@SupervisorId", supervisorId),
+                new NpgsqlParameter("@Reason", reason)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_RejectAssignment", parameters);
@@ -163,11 +164,11 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", checkIn.AssignmentId),
-                new SqlParameter("@SupervisorId", checkIn.SupervisorId),
-                new SqlParameter("@GPSLocation", (object)checkIn.GPSLocation ?? DBNull.Value),
-                new SqlParameter("@CheckInPhoto", (object)checkIn.CheckInPhoto ?? DBNull.Value),
-                new SqlParameter("@CheckInTime", checkIn.CheckInTime)
+                new NpgsqlParameter("@AssignmentId", checkIn.AssignmentId),
+                new NpgsqlParameter("@SupervisorId", checkIn.SupervisorId),
+                new NpgsqlParameter("@GPSLocation", (object)checkIn.GPSLocation ?? DBNull.Value),
+                new NpgsqlParameter("@CheckInPhoto", (object)checkIn.CheckInPhoto ?? DBNull.Value),
+                new NpgsqlParameter("@CheckInTime", checkIn.CheckInTime)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_SupervisorCheckIn", parameters);
@@ -177,11 +178,11 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@SupervisorId", supervisorId),
-                new SqlParameter("@Amount", amount),
-                new SqlParameter("@DirectRelease", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                new SqlParameter("@RequiresApproval", SqlDbType.Bit) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@SupervisorId", supervisorId),
+                new NpgsqlParameter("@Amount", amount),
+                new NpgsqlParameter("@DirectRelease", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@RequiresApproval", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output }
             };
 
             await _dbHelper.ExecuteStoredProcedureAsync<object>("sp_RequestPaymentRelease", parameters);
@@ -204,9 +205,9 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@ApprovedBy", approvedBy),
-                new SqlParameter("@Notes", (object)notes ?? DBNull.Value)
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@ApprovedBy", approvedBy),
+                new NpgsqlParameter("@Notes", (object)notes ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_ApprovePaymentRelease", parameters);
@@ -220,10 +221,10 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@NewStatus", newStatus),
-                new SqlParameter("@UpdatedBy", updatedBy),
-                new SqlParameter("@Notes", (object)notes ?? DBNull.Value)
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@NewStatus", newStatus),
+                new NpgsqlParameter("@UpdatedBy", updatedBy),
+                new NpgsqlParameter("@Notes", (object)notes ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_UpdateAssignmentStatus", parameters);
@@ -233,9 +234,9 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@CancelledBy", cancelledBy),
-                new SqlParameter("@Reason", reason)
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@CancelledBy", cancelledBy),
+                new NpgsqlParameter("@Reason", reason)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_CancelAssignment", parameters);
@@ -245,8 +246,8 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@AssignmentId", assignmentId),
-                new SqlParameter("@CompletedBy", completedBy)
+                new NpgsqlParameter("@AssignmentId", assignmentId),
+                new NpgsqlParameter("@CompletedBy", completedBy)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<bool>("sp_CompleteAssignment", parameters);
@@ -260,7 +261,7 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@DaysAhead", daysAhead)
+                new NpgsqlParameter("@DaysAhead", daysAhead)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<AssignmentSummaryDto>>(
@@ -277,8 +278,8 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@FromDate", fromDate),
-                new SqlParameter("@ToDate", toDate)
+                new NpgsqlParameter("@FromDate", fromDate),
+                new NpgsqlParameter("@ToDate", toDate)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<AssignmentStatisticsDto>(
@@ -289,8 +290,8 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@FromDate", fromDate),
-                new SqlParameter("@ToDate", toDate)
+                new NpgsqlParameter("@FromDate", fromDate),
+                new NpgsqlParameter("@ToDate", toDate)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<SupervisorWorkloadDto>>(
@@ -305,13 +306,13 @@ namespace CateringEcommerce.BAL.Base.Supervisor
         {
             var parameters = new[]
             {
-                new SqlParameter("@SupervisorId", (object)filters.SupervisorId ?? DBNull.Value),
-                new SqlParameter("@OrderId", (object)filters.OrderId ?? DBNull.Value),
-                new SqlParameter("@Status", (object)filters.Status ?? DBNull.Value),
-                new SqlParameter("@EventDateFrom", (object)filters.EventDateFrom ?? DBNull.Value),
-                new SqlParameter("@EventDateTo", (object)filters.EventDateTo ?? DBNull.Value),
-                new SqlParameter("@SupervisorType", (object)filters.SupervisorType?.ToString() ?? DBNull.Value),
-                new SqlParameter("@PaymentReleased", (object)filters.PaymentReleased ?? DBNull.Value)
+                new NpgsqlParameter("@SupervisorId", (object)filters.SupervisorId ?? DBNull.Value),
+                new NpgsqlParameter("@OrderId", (object)filters.OrderId ?? DBNull.Value),
+                new NpgsqlParameter("@Status", (object)filters.Status ?? DBNull.Value),
+                new NpgsqlParameter("@EventDateFrom", (object)filters.EventDateFrom ?? DBNull.Value),
+                new NpgsqlParameter("@EventDateTo", (object)filters.EventDateTo ?? DBNull.Value),
+                new NpgsqlParameter("@SupervisorType", (object)filters.SupervisorType?.ToString() ?? DBNull.Value),
+                new NpgsqlParameter("@PaymentReleased", (object)filters.PaymentReleased ?? DBNull.Value)
             };
 
             return await _dbHelper.ExecuteStoredProcedureAsync<List<SupervisorAssignmentModel>>(

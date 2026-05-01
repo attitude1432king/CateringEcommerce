@@ -11,7 +11,7 @@ import { useToast } from '../../../../contexts/ToastContext';
 import MediaLightbox from '../../../common/MediaLightbox';
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 
 // Reusing helper components
@@ -149,7 +149,7 @@ export default function ServicesSettings({ initialData, onUpdate, isSaving }) {
         if (currentData.serviceTypeIds?.length === 0) newErrors.serviceTypeIds = 'Please select at least one service type.';
         if (currentData.eventTypeIds?.length === 0) newErrors.eventTypeIds = 'Please select at least one event type.';
         if (currentData.servingSlots?.length === 0) newErrors.servingSlots = 'Please select at least one serving slot.';
-        if (!currentData.minOrderValue || currentData.minOrderValue <= 0) newErrors.minOrderValue = 'Minimum order value is required.';
+        if (!currentData.minGuestCount || currentData.minGuestCount <= 0) newErrors.minGuestCount = 'Minimum order value is required.';
         if (!currentData.deliveryRediusKm || currentData.deliveryRediusKm <= 0) newErrors.deliveryRediusKm = 'Delivery radius is required.';
         if (currentData.kitchenMedia?.length < 5) newErrors.kitchenMedia = 'Minimum 5 photos/videos are required.';
         if (currentData.kitchenMedia?.length > 10) newErrors.kitchenMedia = 'Maximum 10 photos/videos are allowed.';
@@ -270,9 +270,9 @@ export default function ServicesSettings({ initialData, onUpdate, isSaving }) {
                         />
 
                         <div>
-                            <label htmlFor="minOrderValue" className="block text-sm font-medium text-neutral-700 mb-1">Minimum Order Value (?) <RequiredAsterisk /></label>
-                            <input type="number" name="minOrderValue" id="minOrderValue" value={formData.minOrderValue || ''} onChange={handleChange} className="w-full p-2 border border-neutral-300 rounded-md" />
-                            <ValidationError message={errors.minOrderValue} />
+                            <label htmlFor="minGuestCount" className="block text-sm font-medium text-neutral-700 mb-1">Minimum Guest Count (?) <RequiredAsterisk /></label>
+                            <input type="number" name="minGuestCount" id="minGuestCount" value={formData.minGuestCount || ''} onChange={handleChange} className="w-full p-2 border border-neutral-300 rounded-md" />
+                            <ValidationError message={errors.minGuestCount} />
                         </div>
 
                         <div>

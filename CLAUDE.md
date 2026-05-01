@@ -145,8 +145,8 @@ private readonly IDatabaseHelper _db;
 // Execute stored procedure
 var result = await _db.ExecuteQueryAsync<YourModel>(
     "sp_YourProcedure",
-    new SqlParameter[] {
-        new SqlParameter("@Param", value)
+    new NpgsqlParameter[] {
+        new NpgsqlParameter("@Param", value)
     },
     CommandType.StoredProcedure
 );
@@ -242,7 +242,7 @@ All API calls are centralized in `src/services/`:
 - **OAuth:** Google/Facebook login support (`OAuthRepository`)
 
 ### Common Vulnerabilities Addressed
-- SQL Injection: Parameterized queries via `SqlParameter`
+- SQL Injection: Parameterized queries via `NpgsqlParameter`
 - XSS: DOMPurify on frontend, CSP headers
 - CSRF: Anti-forgery middleware
 - Clickjacking: X-Frame-Options: DENY

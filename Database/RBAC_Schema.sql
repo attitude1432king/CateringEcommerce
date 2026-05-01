@@ -3,128 +3,266 @@
 -- Enterprise-Grade Permission System
 -- =====================================================
 
-USE CateringDB;
-GO
+-- =====================================================
+-- 1. ADMIN USERS TABLE
+-- Compatibility table used by RBAC/admin management code paths
+-- =====================================================
+CREATE TABLE IF NOT EXISTS t_sys_admin_users (
+    c_adminid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_username VARCHAR(50) NOT NULL UNIQUE,
+    c_passwordhash VARCHAR(255) NOT NULL,
+    c_email VARCHAR(100) NOT NULL UNIQUE,
+    c_fullname VARCHAR(100) NOT NULL,
+    c_role VARCHAR(50) NOT NULL DEFAULT 'System Admin',
+    c_role_id BIGINT,
+    c_mobile VARCHAR(20),
+    c_profilephoto VARCHAR(500),
+    c_force_password_reset BOOLEAN DEFAULT FALSE,
+    c_is_temporary_password BOOLEAN NOT NULL DEFAULT FALSE,
+    c_isactive BOOLEAN NOT NULL DEFAULT TRUE,
+    c_failedloginattempts INTEGER NOT NULL DEFAULT 0,
+    c_islocked BOOLEAN NOT NULL DEFAULT FALSE,
+    c_lockeduntil TIMESTAMP,
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    c_createdby BIGINT,
+    c_lastlogin TIMESTAMP,
+    c_lastmodified TIMESTAMP,
+    c_modifiedby BIGINT
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_users_role_id
+ON t_sys_admin_users (c_role_id);
+
+CREATE INDEX IF NOT EXISTS idx_admin_users_isactive
+ON t_sys_admin_users (c_isactive);
+
+CREATE INDEX IF NOT EXISTS idx_admin_users_createddate
+ON t_sys_admin_users (c_createddate DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_username
+ON t_sys_admin_users (c_username);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_email
+ON t_sys_admin_users (c_email);
 
 -- =====================================================
--- 1. ROLES TABLE
+-- 2. ROLES TABLE
 -- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_admin_roles')
+CREATE TABLE IF NOT EXISTS t_sys_admin_roles (
+    c_role_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_role_code VARCHAR(50) NOT NULL UNIQUE,
+    c_role_name VARCHAR(100) NOT NULL,
+    c_description VARCHAR(500),
+    c_color VARCHAR(20) DEFAULT '#6366f1',
+    c_is_system_role BOOLEAN DEFAULT FALSE,
+    c_is_active BOOLEAN DEFAULT TRUE,
+    c_createddate TIMESTAMP DEFAULT NOW(),
+    c_createdby BIGINT,
+    c_modifieddate TIMESTAMP,
+    c_updated_by BIGINT
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_admin_roles_code
+ON t_sys_admin_roles (c_role_code);
+
+CREATE INDEX IF NOT EXISTS idx_admin_roles_active
+ON t_sys_admin_roles (c_is_active);
+
+-- =====================================================
+-- 3. PERMISSIONS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS t_sys_admin_permissions (
+    c_permission_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_permission_code VARCHAR(50) NOT NULL UNIQUE,
+    c_permission_name VARCHAR(100) NOT NULL,
+    c_description VARCHAR(500),
+    c_module VARCHAR(50),  -- CATERING, USER, REVIEW, EARNINGS, etc.
+    c_action VARCHAR(50),  -- VIEW, CREATE, EDIT, DELETE, BLOCK, etc.
+    c_is_active BOOLEAN DEFAULT TRUE,
+    c_createddate TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_permissions_module
+ON t_sys_admin_permissions (c_module);
+
+CREATE INDEX IF NOT EXISTS idx_permissions_active
+ON t_sys_admin_permissions (c_is_active);
+
+-- =====================================================
+-- 4. ROLE-PERMISSION JUNCTION TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS t_sys_admin_role_permissions (
+    c_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_role_id BIGINT NOT NULL,
+    c_permission_id BIGINT NOT NULL,
+    c_assigned_date TIMESTAMP DEFAULT NOW(),
+    c_assigned_by BIGINT,
+
+    CONSTRAINT fk_role_permissions_role 
+        FOREIGN KEY (c_role_id) 
+        REFERENCES t_sys_admin_roles(c_role_id) ON DELETE CASCADE,
+
+    CONSTRAINT fk_role_permissions_permission 
+        FOREIGN KEY (c_permission_id) 
+        REFERENCES t_sys_admin_permissions(c_permission_id) ON DELETE CASCADE,
+
+    CONSTRAINT uq_role_permission UNIQUE (c_role_id, c_permission_id)
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role
+ON t_sys_admin_role_permissions (c_role_id);
+
+CREATE INDEX IF NOT EXISTS idx_role_permissions_permission
+ON t_sys_admin_role_permissions (c_permission_id);
+
+-- =====================================================
+-- 5. ADMIN USER-ROLE JUNCTION TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS t_sys_admin_user_roles (
+    c_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_adminid BIGINT NOT NULL,
+    c_role_id BIGINT NOT NULL,
+    c_assigned_date TIMESTAMP DEFAULT NOW(),
+    c_assigned_by BIGINT,
+    c_is_active BOOLEAN DEFAULT TRUE,
+
+    CONSTRAINT fk_user_roles_admin 
+        FOREIGN KEY (c_adminid) 
+        REFERENCES t_sys_admin_users(c_adminid) ON DELETE CASCADE,
+
+    CONSTRAINT fk_user_roles_role 
+        FOREIGN KEY (c_role_id) 
+        REFERENCES t_sys_admin_roles(c_role_id) ON DELETE CASCADE,
+
+    CONSTRAINT uq_admin_role UNIQUE (c_adminid, c_role_id)
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_user_roles_admin
+ON t_sys_admin_user_roles (c_adminid);
+
+CREATE INDEX IF NOT EXISTS idx_user_roles_role
+ON t_sys_admin_user_roles (c_role_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_roles_active
+ON t_sys_admin_user_roles (c_is_active);
+
+-- =====================================================
+-- 6. AUDIT LOG TABLE (Enhanced)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS t_sys_admin_audit_logs (
+    c_audit_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_adminid BIGINT NOT NULL,
+    c_admin_name VARCHAR(200),
+    c_action VARCHAR(200) NOT NULL,
+    c_module VARCHAR(50),  -- CATERING, USER, REVIEW, etc.
+    c_target_id BIGINT,
+    c_target_type VARCHAR(50),
+    c_details TEXT,
+    c_ip_address VARCHAR(50),
+    c_user_agent VARCHAR(500),
+    c_timestamp TIMESTAMP DEFAULT NOW(),
+    c_status VARCHAR(20),
+    c_error_message TEXT
+);
+
+-- Indexes (separate statements)
+CREATE INDEX IF NOT EXISTS idx_admin_audit_adminid
+ON t_sys_admin_audit_logs (c_adminid);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_timestamp
+ON t_sys_admin_audit_logs (c_timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_module
+ON t_sys_admin_audit_logs (c_module);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_action
+ON t_sys_admin_audit_logs (c_action);
+
+DO $$
 BEGIN
-    CREATE TABLE t_sys_admin_roles (
-        c_role_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_role_code NVARCHAR(50) NOT NULL UNIQUE,
-        c_role_name NVARCHAR(100) NOT NULL,
-        c_description NVARCHAR(500),
-        c_color NVARCHAR(20) DEFAULT '#6366f1',
-        c_is_system_role BIT DEFAULT 0,  -- Cannot be deleted if true
-        c_is_active BIT DEFAULT 1,
-        c_createddate DATETIME DEFAULT GETDATE(),
-        c_createdby BIGINT,
-        c_modifieddate DATETIME,
-        c_updated_by BIGINT,
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE table_name = 't_sys_admin_users'
+          AND constraint_name = 'fk_admin_users_role'
+    ) THEN
+        ALTER TABLE t_sys_admin_users
+        ADD CONSTRAINT fk_admin_users_role
+            FOREIGN KEY (c_role_id)
+            REFERENCES t_sys_admin_roles(c_role_id);
+    END IF;
+END $$;
 
-        INDEX IX_role_code (c_role_code),
-        INDEX IX_active (c_is_active)
-    );
-END
-GO
-
--- =====================================================
--- 2. PERMISSIONS TABLE
--- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_admin_permissions')
+DO $$
 BEGIN
-    CREATE TABLE t_sys_admin_permissions (
-        c_permission_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_permission_code NVARCHAR(50) NOT NULL UNIQUE,
-        c_permission_name NVARCHAR(100) NOT NULL,
-        c_description NVARCHAR(500),
-        c_module NVARCHAR(50),  -- CATERING, USER, REVIEW, EARNINGS, etc.
-        c_action NVARCHAR(50),  -- VIEW, CREATE, EDIT, DELETE, BLOCK, etc.
-        c_is_active BIT DEFAULT 1,
-        c_createddate DATETIME DEFAULT GETDATE(),
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 't_sys_admin'
+    ) THEN
+        INSERT INTO t_sys_admin_users (
+            c_adminid,
+            c_username,
+            c_passwordhash,
+            c_email,
+            c_fullname,
+            c_role,
+            c_role_id,
+            c_mobile,
+            c_profilephoto,
+            c_force_password_reset,
+            c_is_temporary_password,
+            c_isactive,
+            c_failedloginattempts,
+            c_islocked,
+            c_lockeduntil,
+            c_createddate,
+            c_createdby,
+            c_lastlogin,
+            c_lastmodified,
+            c_modifiedby
+        )
+        OVERRIDING SYSTEM VALUE
+        SELECT
+            a.c_adminid,
+            a.c_username,
+            a.c_passwordhash,
+            a.c_email,
+            a.c_fullname,
+            a.c_role,
+            a.c_role_id,
+            a.c_mobile,
+            a.c_profilephoto,
+            COALESCE(a.c_force_password_reset, FALSE),
+            COALESCE(a.c_is_temporary_password, FALSE),
+            COALESCE(a.c_isactive, TRUE),
+            COALESCE(a.c_failedloginattempts, 0),
+            COALESCE(a.c_islocked, FALSE),
+            a.c_lockeduntil,
+            COALESCE(a.c_createddate, NOW()),
+            a.c_createdby,
+            a.c_lastlogin,
+            a.c_lastmodified,
+            a.c_modifiedby
+        FROM t_sys_admin a
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM t_sys_admin_users u
+            WHERE u.c_adminid = a.c_adminid
+        );
 
-        INDEX IX_permission_code (c_permission_code),
-        INDEX IX_module (c_module),
-        INDEX IX_active (c_is_active)
-    );
-END
-GO
-
--- =====================================================
--- 3. ROLE-PERMISSION JUNCTION TABLE
--- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_admin_role_permissions')
-BEGIN
-    CREATE TABLE t_sys_admin_role_permissions (
-        c_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_role_id BIGINT NOT NULL,
-        c_permission_id BIGINT NOT NULL,
-        c_assigned_date DATETIME DEFAULT GETDATE(),
-        c_assigned_by BIGINT,
-
-        FOREIGN KEY (c_role_id) REFERENCES t_sys_admin_roles(c_role_id) ON DELETE CASCADE,
-        FOREIGN KEY (c_permission_id) REFERENCES t_sys_admin_permissions(c_permission_id) ON DELETE CASCADE,
-        UNIQUE (c_role_id, c_permission_id),
-
-        INDEX IX_role_id (c_role_id),
-        INDEX IX_permission_id (c_permission_id)
-    );
-END
-GO
-
--- =====================================================
--- 4. ADMIN USER-ROLE JUNCTION TABLE
--- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_admin_user_roles')
-BEGIN
-    CREATE TABLE t_sys_admin_user_roles (
-        c_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_adminid BIGINT NOT NULL,
-        c_role_id BIGINT NOT NULL,
-        c_assigned_date DATETIME DEFAULT GETDATE(),
-        c_assigned_by BIGINT,
-        c_is_active BIT DEFAULT 1,
-
-        FOREIGN KEY (c_adminid) REFERENCES t_sys_admin_users(c_adminid) ON DELETE CASCADE,
-        FOREIGN KEY (c_role_id) REFERENCES t_sys_admin_roles(c_role_id) ON DELETE CASCADE,
-        UNIQUE (c_adminid, c_role_id),
-
-        INDEX IX_admin_id (c_adminid),
-        INDEX IX_role_id (c_role_id),
-        INDEX IX_active (c_is_active)
-    );
-END
-GO
-
--- =====================================================
--- 5. AUDIT LOG TABLE (Enhanced)
--- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_sys_admin_audit_logs')
-BEGIN
-    CREATE TABLE t_sys_admin_audit_logs (
-        c_audit_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-        c_adminid BIGINT NOT NULL,
-        c_admin_name NVARCHAR(200),
-        c_action NVARCHAR(200) NOT NULL,
-        c_module NVARCHAR(50),  -- CATERING, USER, REVIEW, etc.
-        c_target_id BIGINT,  -- ID of affected entity
-        c_target_type NVARCHAR(50),  -- Entity type
-        c_details NVARCHAR(MAX),  -- JSON or text details
-        c_ip_address NVARCHAR(50),
-        c_user_agent NVARCHAR(500),
-        c_timestamp DATETIME DEFAULT GETDATE(),
-        c_status NVARCHAR(20),  -- SUCCESS, FAILED, UNAUTHORIZED
-        c_error_message NVARCHAR(MAX),
-
-        INDEX IX_admin_id (c_adminid),
-        INDEX IX_timestamp (c_timestamp DESC),
-        INDEX IX_module (c_module),
-        INDEX IX_action (c_action)
-    );
-END
-GO
+        PERFORM setval(
+            pg_get_serial_sequence('t_sys_admin_users', 'c_adminid'),
+            GREATEST(COALESCE((SELECT MAX(c_adminid) FROM t_sys_admin_users), 0), 1),
+            TRUE
+        );
+    END IF;
+END $$;
 
 -- =====================================================
 -- SEED DEFAULT PERMISSIONS
@@ -285,67 +423,58 @@ INSERT INTO t_sys_admin_permissions (c_permission_code, c_permission_name, c_des
 SELECT 'SYSTEM_CONFIG', 'System Config', 'Configure system settings', 'SYSTEM', 'CONFIG'
 WHERE NOT EXISTS (SELECT 1 FROM t_sys_admin_permissions WHERE c_permission_code = 'SYSTEM_CONFIG');
 
-GO
-
 -- =====================================================
 -- SEED DEFAULT ROLES
 -- =====================================================
 
 -- SUPER_ADMIN Role
-DECLARE @SuperAdminRoleId BIGINT;
+INSERT INTO t_sys_admin_roles (c_role_code, c_role_name, c_description, c_color, c_is_system_role)
+SELECT 'SUPER_ADMIN', 'Super Administrator', 'Full system access - can manage roles, permissions, and all admins', '#dc2626', TRUE
+WHERE NOT EXISTS (SELECT 1 FROM t_sys_admin_roles WHERE c_role_code = 'SUPER_ADMIN');
 
-IF NOT EXISTS (SELECT 1 FROM t_sys_admin_roles WHERE c_role_code = 'SUPER_ADMIN')
-BEGIN
-    INSERT INTO t_sys_admin_roles (c_role_code, c_role_name, c_description, c_color, c_is_system_role)
-    VALUES ('SUPER_ADMIN', 'Super Administrator', 'Full system access - can manage roles, permissions, and all admins', '#dc2626', 1);
-
-    SET @SuperAdminRoleId = SCOPE_IDENTITY();
-
-    -- Assign ALL permissions to SUPER_ADMIN
-    INSERT INTO t_sys_admin_role_permissions (c_role_id, c_permission_id)
-    SELECT @SuperAdminRoleId, c_permission_id
-    FROM t_sys_admin_permissions
-    WHERE c_is_active = 1;
-END
-ELSE
-BEGIN
-    SELECT @SuperAdminRoleId = c_role_id FROM t_sys_admin_roles WHERE c_role_code = 'SUPER_ADMIN';
-END
+INSERT INTO t_sys_admin_role_permissions (c_role_id, c_permission_id)
+SELECT
+    (SELECT c_role_id FROM t_sys_admin_roles WHERE c_role_code = 'SUPER_ADMIN'),
+    c_permission_id
+FROM t_sys_admin_permissions
+WHERE c_is_active = TRUE
+    AND NOT EXISTS (
+        SELECT 1 FROM t_sys_admin_role_permissions rp
+        WHERE rp.c_role_id = (SELECT c_role_id FROM t_sys_admin_roles WHERE c_role_code = 'SUPER_ADMIN')
+        AND rp.c_permission_id = t_sys_admin_permissions.c_permission_id
+    );
 
 -- CATERING_ADMIN Role
-DECLARE @CateringAdminRoleId BIGINT;
+INSERT INTO t_sys_admin_roles (c_role_code, c_role_name, c_description, c_color, c_is_system_role)
+SELECT 'CATERING_ADMIN', 'Catering Manager', 'Manages catering providers, menus, and verification', '#6366f1', FALSE
+WHERE NOT EXISTS (SELECT 1 FROM t_sys_admin_roles WHERE c_role_code = 'CATERING_ADMIN');
 
-IF NOT EXISTS (SELECT 1 FROM t_sys_admin_roles WHERE c_role_code = 'CATERING_ADMIN')
-BEGIN
-    INSERT INTO t_sys_admin_roles (c_role_code, c_role_name, c_description, c_color, c_is_system_role)
-    VALUES ('CATERING_ADMIN', 'Catering Manager', 'Manages catering providers, menus, and verification', '#6366f1', 0);
-
-    SET @CateringAdminRoleId = SCOPE_IDENTITY();
-
-    -- Assign catering permissions
-    INSERT INTO t_sys_admin_role_permissions (c_role_id, c_permission_id)
-    SELECT @CateringAdminRoleId, c_permission_id
-    FROM t_sys_admin_permissions
-    WHERE c_permission_code IN ('CATERING_VIEW', 'CATERING_VERIFY', 'CATERING_BLOCK', 'CATERING_EDIT');
-END
+INSERT INTO t_sys_admin_role_permissions (c_role_id, c_permission_id)
+SELECT
+    (SELECT c_role_id FROM t_sys_admin_roles WHERE c_role_code = 'CATERING_ADMIN'),
+    c_permission_id
+FROM t_sys_admin_permissions
+WHERE c_permission_code IN ('CATERING_VIEW', 'CATERING_VERIFY', 'CATERING_BLOCK', 'CATERING_EDIT')
+    AND NOT EXISTS (
+        SELECT 1 FROM t_sys_admin_role_permissions rp
+        WHERE rp.c_role_id = (SELECT c_role_id FROM t_sys_admin_roles WHERE c_role_code = 'CATERING_ADMIN')
+        AND rp.c_permission_id = t_sys_admin_permissions.c_permission_id
+    );
 
 -- MARKETING_ADMIN Role
-DECLARE @MarketingAdminRoleId BIGINT;
+INSERT INTO t_sys_admin_roles (c_role_code, c_role_name, c_description, c_color, c_is_system_role)
+SELECT 'MARKETING_ADMIN', 'Marketing Manager', 'Manages discounts, banners, and promotional campaigns', '#ec4899', FALSE
+WHERE NOT EXISTS (SELECT 1 FROM t_sys_admin_roles WHERE c_role_code = 'MARKETING_ADMIN');
 
-IF NOT EXISTS (SELECT 1 FROM t_sys_admin_roles WHERE c_role_code = 'MARKETING_ADMIN')
-BEGIN
-    INSERT INTO t_sys_admin_roles (c_role_code, c_role_name, c_description, c_color, c_is_system_role)
-    VALUES ('MARKETING_ADMIN', 'Marketing Manager', 'Manages discounts, banners, and promotional campaigns', '#ec4899', 0);
+INSERT INTO t_sys_admin_role_permissions (c_role_id, c_permission_id)
+SELECT
+    (SELECT c_role_id FROM t_sys_admin_roles WHERE c_role_code = 'MARKETING_ADMIN'),
+    c_permission_id
+FROM t_sys_admin_permissions
+WHERE c_permission_code IN ('DISCOUNT_VIEW', 'DISCOUNT_CREATE', 'DISCOUNT_EDIT', 'DISCOUNT_DELETE', 'BANNER_MANAGE', 'CAMPAIGN_CREATE')
+    AND NOT EXISTS (
+        SELECT 1 FROM t_sys_admin_role_permissions rp
+        WHERE rp.c_role_id = (SELECT c_role_id FROM t_sys_admin_roles WHERE c_role_code = 'MARKETING_ADMIN')
+        AND rp.c_permission_id = t_sys_admin_permissions.c_permission_id
+    );
 
-    SET @MarketingAdminRoleId = SCOPE_IDENTITY();
-
-    -- Assign marketing permissions
-    INSERT INTO t_sys_admin_role_permissions (c_role_id, c_permission_id)
-    SELECT @MarketingAdminRoleId, c_permission_id
-    FROM t_sys_admin_permissions
-    WHERE c_permission_code IN ('DISCOUNT_VIEW', 'DISCOUNT_CREATE', 'DISCOUNT_EDIT', 'DISCOUNT_DELETE', 'BANNER_MANAGE', 'CAMPAIGN_CREATE');
-END
-
-GO
-
-PRINT 'RBAC Schema and seed data created successfully!';

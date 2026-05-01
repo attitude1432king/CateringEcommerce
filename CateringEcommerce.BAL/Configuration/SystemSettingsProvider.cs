@@ -1,15 +1,15 @@
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 using System.Collections.Concurrent;
-using System.Data;
 
 namespace CateringEcommerce.BAL.Configuration
 {
     public class SystemSettingsProvider : ISystemSettingsProvider
     {
         private readonly string _connectionString;
+        private readonly string _encryptionKey;
         private ConcurrentDictionary<string, string> _settings = new();
         private HashSet<string> _sensitiveKeys = new();
         private bool _initialized = false;
@@ -19,6 +19,7 @@ namespace CateringEcommerce.BAL.Configuration
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("DefaultConnection not configured");
+            _encryptionKey = configuration["SYSTEM:ENCRYPTION_KEY"] ?? string.Empty;
         }
 
         private async Task EnsureInitializedAsync()
@@ -48,20 +49,18 @@ namespace CateringEcommerce.BAL.Configuration
         {
             var newSettings = new ConcurrentDictionary<string, string>();
             var newSensitiveKeys = new HashSet<string>();
-            string? encryptionKey = null;
-
-            // First pass: load all settings and find the encryption key (stored as raw STRING)
+            // First pass: load all active non-secret settings.
             var rawSettings = new List<(string Key, string Value, string ValueType, bool IsSensitive)>();
 
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = new NpgsqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
 
                 var query = $@"SELECT c_setting_key, c_setting_value, c_value_type, c_is_sensitive
                               FROM {Table.SysSettings}
-                              WHERE c_is_active = 1";
+                              WHERE c_is_active = TRUE";
 
-                using (var command = new SqlCommand(query, connection))
+                using (var command = new NpgsqlCommand(query, connection))
                 {
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -74,10 +73,6 @@ namespace CateringEcommerce.BAL.Configuration
 
                             rawSettings.Add((key, value, valueType, isSensitive));
 
-                            if (key == "SYSTEM.ENCRYPTION_KEY")
-                            {
-                                encryptionKey = value;
-                            }
                         }
                     }
                 }
@@ -91,11 +86,11 @@ namespace CateringEcommerce.BAL.Configuration
                     newSensitiveKeys.Add(key);
                 }
 
-                if (valueType == "ENCRYPTED" && !string.IsNullOrEmpty(encryptionKey) && key != "SYSTEM.ENCRYPTION_KEY")
+                if (valueType == "ENCRYPTED" && !string.IsNullOrEmpty(_encryptionKey))
                 {
                     try
                     {
-                        newSettings[key] = CryptoHelper.Decrypt(value, encryptionKey);
+                        newSettings[key] = CryptoHelper.Decrypt(value, _encryptionKey);
                     }
                     catch
                     {

@@ -3,7 +3,7 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using System.Text;
 
@@ -26,7 +26,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
         {
             try
             {
-                string query = "SELECT c_categoryid, c_categoryname FROM " + Table.SysFoodCategory + " WHERE c_isactive = 1";
+                string query = "SELECT c_categoryid, c_categoryname FROM " + Table.SysFoodCategory + " WHERE c_isactive = TRUE";
                 var dtCategory = await _dbHelper.ExecuteAsync(query);
                 var foodCategoryList = new List<FoodCategoryDto>();
                 if (dtCategory.Rows.Count > 0)
@@ -64,13 +64,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             try
             {
                 string insertQuery = $@"INSERT INTO {Table.SysMenuPackage} (c_packagename, c_description, c_price, c_ownerid) VALUES 
-                                (@PackageName, @Description, @Price, @OwnerPKID); SELECT CAST(SCOPE_IDENTITY() AS int); ";
-                SqlParameter[] parameters = new SqlParameter[]
+                                (@PackageName, @Description, @Price, @OwnerPKID) RETURNING c_packageid; ";
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PackageName", packageDto.Name),
-                    new SqlParameter("@Description", packageDto.Description),
-                    new SqlParameter("@Price", packageDto.Price),
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new NpgsqlParameter("@PackageName", packageDto.Name),
+                    new NpgsqlParameter("@Description", packageDto.Description),
+                    new NpgsqlParameter("@Price", packageDto.Price),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID)
                 };
                 var result = await _dbHelper.ExecuteScalarAsync(insertQuery.ToString(), parameters);
                 return result != null ? Convert.ToInt64(result) : 0;
@@ -93,18 +93,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             {
                 StringBuilder selectQuery = new StringBuilder();
                 selectQuery.Append($@"SELECT COUNT(*) FROM {Table.SysMenuPackage}
-                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0");
+                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = FALSE");
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID)
                 };
 
-                // 🔍 Apply Search Filter (case-insensitive)
+                // ðŸ” Apply Search Filter (case-insensitive)
                 if (!string.IsNullOrWhiteSpace(searchPackageName))
                 {
                     selectQuery.Append(" AND LOWER(c_packagename) LIKE LOWER(@Search) ");
-                    parameters.Add(new SqlParameter("@Search", $"%{searchPackageName.ToLower()}%"));
+                    parameters.Add(new NpgsqlParameter("@Search", $"%{searchPackageName.ToLower()}%"));
                 }
 
                 var resultObj = await _dbHelper.ExecuteScalarAsync(selectQuery.ToString(), parameters.ToArray());
@@ -139,7 +139,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 sql1.Append($@"
                     SELECT DISTINCT p.c_packageid
                     FROM {Table.SysMenuPackage} p
-                    WHERE p.c_ownerid = @OwnerPKID AND c_is_deleted = 0
+                    WHERE p.c_ownerid = @OwnerPKID AND c_is_deleted = FALSE
                 ");
 
                 if (!string.IsNullOrWhiteSpace(searchPackageName))
@@ -153,15 +153,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     FETCH NEXT @PageSize ROWS ONLY;
                 ");
 
-                List<SqlParameter> p1 = new()
+                List<NpgsqlParameter> p1 = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Offset", offset),
-                    new SqlParameter("@PageSize", pageSize)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Offset", offset),
+                    new NpgsqlParameter("@PageSize", pageSize)
                 };
 
                 if (!string.IsNullOrWhiteSpace(searchPackageName))
-                    p1.Add(new SqlParameter("@Search", $"%{searchPackageName.ToLower()}%"));
+                    p1.Add(new NpgsqlParameter("@Search", $"%{searchPackageName.ToLower()}%"));
 
                 var idTable = await _dbHelper.ExecuteAsync(sql1.ToString(), p1.ToArray());
 
@@ -250,14 +250,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 updateQuery.Append($@"UPDATE {Table.SysMenuPackage} SET c_packagename = @PackageName, c_description = @Description,
                                    c_price = @Price, c_modifieddate = @ModifiedDate WHERE c_packageid = @PackagePKID AND c_ownerid = @OwnerPKID");
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PackageName", packageDto.Name),
-                    new SqlParameter("@Description", packageDto.Description),
-                    new SqlParameter("@Price", packageDto.Price),
-                    new SqlParameter("@ModifiedDate", DateTime.Now),
-                    new SqlParameter("@PackagePKID", packageDto.PackageId),
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new NpgsqlParameter("@PackageName", packageDto.Name),
+                    new NpgsqlParameter("@Description", packageDto.Description),
+                    new NpgsqlParameter("@Price", packageDto.Price),
+                    new NpgsqlParameter("@ModifiedDate", DateTime.Now),
+                    new NpgsqlParameter("@PackagePKID", packageDto.PackageId),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID)
                 };
                 var result = await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters);
 
@@ -281,11 +281,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             {
                 string insertQuery = $@"INSERT INTO {Table.SysMenuPackageItems} (c_packageid, c_categoryid, c_quantity) VALUES 
                                 (@PackagePKID, @CategoryId, @Quantity)";
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PackagePKID", packagePKID),
-                    new SqlParameter("@CategoryId", packageItem.CategoryId),
-                    new SqlParameter("@Quantity", packageItem.Quantity),
+                    new NpgsqlParameter("@PackagePKID", packagePKID),
+                    new NpgsqlParameter("@CategoryId", packageItem.CategoryId),
+                    new NpgsqlParameter("@Quantity", packageItem.Quantity),
                 };
                 var result = await _dbHelper.ExecuteNonQueryAsync(insertQuery.ToString(), parameters);
             }
@@ -312,13 +312,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 }
                 string insertQuery = $@"UPDATE {Table.SysMenuPackageItems} SET c_categoryid = @CategoryId, c_quantity = @Quantity, c_modifieddate = @ModifiedDate  
                                  WHERE c_itemid = @ItemId AND c_packageid = @PackagePKID";
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PackagePKID", packagePKID),
-                    new SqlParameter("@ItemId", packageItem.PackageItemId),
-                    new SqlParameter("@CategoryId", packageItem.CategoryId),
-                    new SqlParameter("@Quantity", packageItem.Quantity),
-                    new SqlParameter("@ModifiedDate", DateTime.Now),
+                    new NpgsqlParameter("@PackagePKID", packagePKID),
+                    new NpgsqlParameter("@ItemId", packageItem.PackageItemId),
+                    new NpgsqlParameter("@CategoryId", packageItem.CategoryId),
+                    new NpgsqlParameter("@Quantity", packageItem.Quantity),
+                    new NpgsqlParameter("@ModifiedDate", DateTime.Now),
                 };
                 var result = await _dbHelper.ExecuteNonQueryAsync(insertQuery.ToString(), parameters);
             }
@@ -340,15 +340,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             {
                 StringBuilder deleteQuery = new StringBuilder();
                 deleteQuery.Append($@"DELETE FROM {Table.SysMenuPackageItems} WHERE c_packageid = @packagePKID");
-                List<SqlParameter> parameters = new List<SqlParameter>
+                List<NpgsqlParameter> parameters = new List<NpgsqlParameter>
                 {
-                   new SqlParameter("@PackagePKID", packagePKID)
+                   new NpgsqlParameter("@PackagePKID", packagePKID)
                 };
 
                 if(packageItemId > 0)
                 {
                     deleteQuery.Append(" AND c_itemid = @ItemId");
-                    parameters.Add(new SqlParameter("@ItemId", packageItemId));
+                    parameters.Add(new NpgsqlParameter("@ItemId", packageItemId));
                 }
                 var result = await _dbHelper.ExecuteNonQueryAsync(deleteQuery.ToString(), parameters.ToArray());
             }
@@ -367,10 +367,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
         {
             try
             {
-                string query = $@"UPDATE {Table.SysMenuPackage} SET c_is_deleted = 1, c_is_active = 0, c_modifieddate = GETDATE() WHERE c_packageid = @packagePKID"; 
-                SqlParameter[] parameters = new SqlParameter[]
+                string query = $@"UPDATE {Table.SysMenuPackage} SET c_is_deleted = TRUE, c_is_active = FALSE, c_modifieddate = NOW() WHERE c_packageid = @packagePKID"; 
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PackagePKID", packagePKID),
+                    new NpgsqlParameter("@PackagePKID", packagePKID),
                 };
                 var result = await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters);
             }
@@ -391,11 +391,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             try
             {
                 string selectQuery = $@"SELECT COUNT(c_packagename) FROM {Table.SysMenuPackage} WHERE c_packagename = @PackageName
-                                    AND c_ownerid = @OwnerPKID AND c_is_deleted = 0";
-                SqlParameter[] parameters = new SqlParameter[]
+                                    AND c_ownerid = @OwnerPKID AND c_is_deleted = FALSE";
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PackageName", packageName),
-                    new SqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@PackageName", packageName),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
                 };
 
                 return Convert.ToInt16(_dbHelper.ExecuteScalar(selectQuery, parameters)) > 0;
@@ -416,9 +416,9 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             try
             {
                 string selectQuery = $@"SELECT c_itemid, c_categoryid, c_quantity FROM {Table.SysMenuPackageItems} WHERE c_packageid = @PackagePKID";
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PackagePKID", packagePKID),
+                    new NpgsqlParameter("@PackagePKID", packagePKID),
                 };
 
                 var packageItemList = await _dbHelper.ExecuteAsync(selectQuery, parameters);
@@ -460,10 +460,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             try
             {
                 string selectQuery = $@"SELECT c_packageid, c_packagename FROM {Table.SysMenuPackage} 
-                                    WHERE c_ownerid = @OwnerPKID AND c_is_active = 1";
-                SqlParameter[] parameters = new SqlParameter[]
+                                    WHERE c_ownerid = @OwnerPKID AND c_is_active = TRUE";
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
                 };
                 var packageData = await _dbHelper.ExecuteAsync(selectQuery, parameters);
                 if (packageData.Rows.Count > 0)
@@ -496,11 +496,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             try
             {
                 string selectQuery = $@"SELECT COUNT(c_packageid) FROM {Table.SysMenuPackage} 
-                                    WHERE c_ownerid = @OwnerPKID AND c_packageid = @PackagePKID AND c_is_deleted = 0";
-                SqlParameter[] parameters = new SqlParameter[]
+                                    WHERE c_ownerid = @OwnerPKID AND c_packageid = @PackagePKID AND c_is_deleted = FALSE";
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@PackagePKID", packagePKID),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@PackagePKID", packagePKID),
                 };
                 return Convert.ToInt16(await _dbHelper.ExecuteScalarAsync(selectQuery, parameters)) > 0;
             }

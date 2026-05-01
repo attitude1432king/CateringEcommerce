@@ -9,7 +9,6 @@ using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.APIModels.Owner;
-using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -19,7 +18,6 @@ using System.Text.Json;
 
 namespace CateringEcommerce.API.Controllers.Owner
 {
-    [OwnerAuthorize]
     [ApiController]
     [Route("api/Auth/Owner")]
     public class RegistrationController : ControllerBase
@@ -99,7 +97,7 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 Dictionary<string, object> dicData = AddedRegistionDataToDictionary(registrationData);
 
-                Int64 ownerPkid = _ownerRegister.CreateOwnerAccount(dicData);
+                Int64 ownerPkid = await _ownerRegister.CreateOwnerAccount(dicData);
                 if (ownerPkid <= 0)
                 {
                     _logger.LogError("Failed to create owner account in the database.");
@@ -118,7 +116,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(CateringLogo, logoExtensions, 5 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(CateringLogo.FileName);
-                    logoPath = await _fileStorageService.SaveFormFileAsync(CateringLogo, ownerPkid, DocumentType.Logo.GetDisplayName(), false, safeFilename);
+                    logoPath = await _fileStorageService.SaveRoleBaseFormFileAsync(CateringLogo, ownerPkid, Role.Owner.GetDisplayName(), DocumentType.Logo.GetDisplayName(), false, safeFilename);
                 }
 
                 // FSSAI Certificate
@@ -128,7 +126,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(FssaiCertificate, certExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(FssaiCertificate.FileName);
-                    fssaiPath = await _fileStorageService.SaveFormFileAsync(FssaiCertificate, ownerPkid, CertificateType.FSSAI.GetDisplayName(), true, safeFilename);
+                    fssaiPath = await _fileStorageService.SaveRoleBaseFormFileAsync(FssaiCertificate, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.FSSAI.GetDisplayName(), true, safeFilename);
                 }
 
                 // GST Certificate
@@ -138,7 +136,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(GstCertificate, certExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(GstCertificate.FileName);
-                    gstPath = await _fileStorageService.SaveFormFileAsync(GstCertificate, ownerPkid, CertificateType.GST.GetDisplayName(), true, safeFilename);
+                    gstPath = await _fileStorageService.SaveRoleBaseFormFileAsync(GstCertificate, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.GST.GetDisplayName(), true, safeFilename);
                 }
 
                 // PAN Card
@@ -148,7 +146,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(PanCard, certExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(PanCard.FileName);
-                    panPath = await _fileStorageService.SaveFormFileAsync(PanCard, ownerPkid, CertificateType.PAN.GetDisplayName(), true, safeFilename);
+                    panPath = await _fileStorageService.SaveRoleBaseFormFileAsync(PanCard, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.PAN.GetDisplayName(), true, safeFilename);
                 }
 
                 // Signature — save file first, then read bytes from disk for PDF embedding
@@ -158,7 +156,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 {
                     var v = FileValidationHelper.ValidateFile(Signature, sigExtensions, 2 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
-                    signaturePath = await _fileStorageService.SaveFormFileAsync(Signature, ownerPkid, CertificateType.Signature.GetDisplayName(), true, $"signature_{ownerPkid}.png");
+                    signaturePath = await _fileStorageService.SaveRoleBaseFormFileAsync(Signature, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.Signature.GetDisplayName(), true, $"signature_{ownerPkid}.png");
                     if (!string.IsNullOrEmpty(signaturePath))
                     {
                         var physicalPath = Path.Combine(_env.WebRootPath, signaturePath.TrimStart('/'));
@@ -177,7 +175,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(ChequeCopy, certExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(ChequeCopy.FileName);
-                    chequePath = await _fileStorageService.SaveFormFileAsync(ChequeCopy, ownerPkid, CertificateType.PAN.GetDisplayName(), true, safeFilename);
+                    chequePath = await _fileStorageService.SaveRoleBaseFormFileAsync(ChequeCopy, ownerPkid, Role.Owner.GetDisplayName(), CertificateType.PAN.GetDisplayName(), true, safeFilename);
                 }
 
                 if (!string.IsNullOrEmpty(gstPath))
@@ -193,11 +191,11 @@ namespace CateringEcommerce.API.Controllers.Owner
 
                 #region Register the owner catering other details
                 if (!string.IsNullOrEmpty(logoPath))
-                    _ownerRegister.UpdateLogoPath(ownerPkid, logoPath);
-                _ownerRegister.RegisterAddress(ownerPkid, dicData);
-                _ownerRegister.RegisterServices(ownerPkid, dicData);
-                _ownerRegister.RegisterLegalDocuments(ownerPkid, dicData);
-                _ownerRegister.RegisterBankDetails(ownerPkid, dicData);
+                    await _ownerRegister.UpdateLogoPath(ownerPkid, logoPath);
+                await _ownerRegister.RegisterAddress(ownerPkid, dicData);
+                await _ownerRegister.RegisterServices(ownerPkid, dicData);
+                await _ownerRegister.RegisterLegalDocuments(ownerPkid, dicData);
+                await _ownerRegister.RegisterBankDetails(ownerPkid, dicData);
 
                 string agreementText = GetDefaultAgreementText();
                 dicData.Add("AgreementText", agreementText);
@@ -205,7 +203,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                 dicData.Add("IpAddress", GetClientIpAddress());
                 dicData.Add("UserAgent", Request.Headers["User-Agent"].ToString());
 
-                _ownerRegister.RegisterAgreement(ownerPkid, dicData, _env.WebRootPath);
+                await _ownerRegister.RegisterAgreement(ownerPkid, dicData, _env.WebRootPath);
 
                 _logger.LogInformation("Logo saved at: {LogoPath}", logoPath);
                 _logger.LogInformation("FSSAI saved at: {FssaiPath}", fssaiPath);
@@ -269,64 +267,64 @@ namespace CateringEcommerce.API.Controllers.Owner
                 // Default agreement text - can be updated to fetch from database or file
                 string agreementText = @"PARTNER AGREEMENT
 
-This Partner Agreement (""Agreement"") is entered into between ENYVORA (""Company"") and the Partner (""You"" or ""Partner"").
+                    This Partner Agreement (""Agreement"") is entered into between ENYVORA (""Company"") and the Partner (""You"" or ""Partner"").
 
-1. PARTNERSHIP TERMS
-By signing this agreement, the Partner agrees to list their catering services on the ENYVORA platform and comply with all terms and conditions outlined herein.
+                    1. PARTNERSHIP TERMS
+                    By signing this agreement, the Partner agrees to list their catering services on the ENYVORA platform and comply with all terms and conditions outlined herein.
 
-2. SERVICES
-The Partner agrees to:
-- Provide accurate business information including business name, contact details, and address
-- Maintain valid FSSAI, GST, PAN, and other required licenses at all times
-- Upload authentic photographs of kitchen facilities, food items, and event setups
-- Honor all orders received through the platform within agreed delivery timelines
-- Maintain quality standards as per food safety regulations
-- Respond to customer inquiries and complaints in a timely manner
+                    2. SERVICES
+                    The Partner agrees to:
+                    - Provide accurate business information including business name, contact details, and address
+                    - Maintain valid FSSAI, GST, PAN, and other required licenses at all times
+                    - Upload authentic photographs of kitchen facilities, food items, and event setups
+                    - Honor all orders received through the platform within agreed delivery timelines
+                    - Maintain quality standards as per food safety regulations
+                    - Respond to customer inquiries and complaints in a timely manner
 
-3. QUALITY STANDARDS
-- All food items must be prepared in hygienic conditions
-- FSSAI license must be valid and displayed at business premises
-- Quality of food and service must match the descriptions provided on platform
-- Partner must inform customers of any allergens or dietary restrictions
+                    3. QUALITY STANDARDS
+                    - All food items must be prepared in hygienic conditions
+                    - FSSAI license must be valid and displayed at business premises
+                    - Quality of food and service must match the descriptions provided on platform
+                    - Partner must inform customers of any allergens or dietary restrictions
 
-4. PRICING AND PAYMENTS
-- Partner has the right to set their own pricing for services
-- Company will process payments on behalf of customers
-- Payouts will be made weekly to the Partner's registered bank account
-- Platform commission rates will be communicated separately and may be revised with prior notice
-- All taxes are the responsibility of the Partner
+                    4. PRICING AND PAYMENTS
+                    - Partner has the right to set their own pricing for services
+                    - Company will process payments on behalf of customers
+                    - Payouts will be made weekly to the Partner's registered bank account
+                    - Platform commission rates will be communicated separately and may be revised with prior notice
+                    - All taxes are the responsibility of the Partner
 
-5. CANCELLATIONS AND REFUNDS
-- Partner must honor confirmed bookings unless circumstances are beyond control
-- Any cancellations must be communicated immediately to customers and the Company
-- Refund policies must comply with platform guidelines
+                    5. CANCELLATIONS AND REFUNDS
+                    - Partner must honor confirmed bookings unless circumstances are beyond control
+                    - Any cancellations must be communicated immediately to customers and the Company
+                    - Refund policies must comply with platform guidelines
 
-6. INTELLECTUAL PROPERTY
-- Partner grants Company the right to use business name, logo, and photographs for marketing
-- All content uploaded by Partner must be owned or properly licensed
-- Partner must not use Company's intellectual property without authorization
+                    6. INTELLECTUAL PROPERTY
+                    - Partner grants Company the right to use business name, logo, and photographs for marketing
+                    - All content uploaded by Partner must be owned or properly licensed
+                    - Partner must not use Company's intellectual property without authorization
 
-7. DATA PRIVACY
-- Partner agrees to comply with data protection laws
-- Customer information must be kept confidential and used only for order fulfillment
-- Partner will not share customer data with third parties
+                    7. DATA PRIVACY
+                    - Partner agrees to comply with data protection laws
+                    - Customer information must be kept confidential and used only for order fulfillment
+                    - Partner will not share customer data with third parties
 
-8. TERMINATION
-- Either party may terminate this agreement with 30 days written notice
-- Company reserves the right to suspend or terminate accounts for violation of terms
-- Upon termination, all pending orders must be fulfilled
+                    8. TERMINATION
+                    - Either party may terminate this agreement with 30 days written notice
+                    - Company reserves the right to suspend or terminate accounts for violation of terms
+                    - Upon termination, all pending orders must be fulfilled
 
-9. LIABILITY
-- Partner is solely responsible for food quality, safety, and customer satisfaction
-- Company is not liable for any issues arising from Partner's services
-- Partner must maintain appropriate insurance coverage
+                    9. LIABILITY
+                    - Partner is solely responsible for food quality, safety, and customer satisfaction
+                    - Company is not liable for any issues arising from Partner's services
+                    - Partner must maintain appropriate insurance coverage
 
-10. ACCEPTANCE
-By signing below, the Partner acknowledges that they have read, understood, and agree to be bound by all terms and conditions of this Agreement.
+                    10. ACCEPTANCE
+                    By signing below, the Partner acknowledges that they have read, understood, and agree to be bound by all terms and conditions of this Agreement.
 
-Date: {CurrentDate}
-Platform: Feasto Partners
-Version: 1.0";
+                    Date: {CurrentDate}
+                    Platform: Feasto Partners
+                    Version: 1.0";
 
                 agreementText = agreementText.Replace("{CurrentDate}", DateTime.Now.ToString("MMMM dd, yyyy"));
 
@@ -398,9 +396,10 @@ Version: 1.0";
             {
                 var safeFilename = FileValidationHelper.GenerateSafeFilename(cateringMedia.FileName);
 
-                string savedPath = await _fileStorageService.SaveFormFileAsync(
+                string savedPath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                     cateringMedia,
                     ownerPkid,
+                    Role.Owner.GetDisplayName(),
                     DocumentType.Kitchen.GetDisplayName(),
                     isSecure: false,
                     safeFilename
@@ -540,7 +539,7 @@ Version: 1.0";
                 { "ServiceTypes", registrationData.ServiceTypeIds ?? string.Empty },
                 { "FoodTypes", registrationData.FoodTypeIds ?? string.Empty },
                 { "EventTypes", registrationData.EventTypeIds ?? string.Empty },
-                { "MinOrderValue", registrationData.MinOrderValue.ToString() },
+                { "MinGuestCount", registrationData.MinGuestCount.HasValue ? registrationData.MinGuestCount.Value.ToString() : string.Empty },
                 { "FssaiNumber", registrationData.FssaiNumber ?? string.Empty },
                 { "FssaiExpiryDate", registrationData.FssaiExpiry ?? string.Empty },
                 { "GstNumber", registrationData.GstNumber ?? string.Empty },

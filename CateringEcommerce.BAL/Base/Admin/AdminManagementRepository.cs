@@ -1,9 +1,9 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.Admin
@@ -24,27 +24,27 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<AdminListResponse> GetAllAdminsAsync(AdminListRequest request)
         {
             var conditions = new List<string>();
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             // Search filter
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 conditions.Add("(a.c_fullname LIKE @SearchTerm OR a.c_email LIKE @SearchTerm OR a.c_username LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
             }
 
             // Role filter
             if (request.RoleId.HasValue)
             {
                 conditions.Add("a.c_role_id = @RoleId");
-                parameters.Add(new SqlParameter("@RoleId", request.RoleId.Value));
+                parameters.Add(new NpgsqlParameter("@RoleId", request.RoleId.Value));
             }
 
             // Active status filter
             if (request.IsActive.HasValue)
             {
                 conditions.Add("a.c_isactive = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             var whereClause = conditions.Count > 0 ? "WHERE " + string.Join(" AND ", conditions) : "";
@@ -93,8 +93,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 ORDER BY {sortColumn} {sortOrder}
                 OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dt = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
             var admins = new List<AdminListItem>();
@@ -146,7 +146,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysAdmin} modifier ON a.c_modifiedby = modifier.c_adminid
                 WHERE a.c_adminid = @AdminId";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -188,9 +188,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SELECT p.c_permission_code
                 FROM {Table.SysAdminPermissions} p
                 INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
-                WHERE rp.c_role_id = @RoleId AND p.c_is_active = 1";
+                WHERE rp.c_role_id = @RoleId AND p.c_is_active = TRUE";
 
-            var permParams = new SqlParameter[] { new SqlParameter("@RoleId", response.Role.RoleId) };
+            var permParams = new NpgsqlParameter[] { new NpgsqlParameter("@RoleId", response.Role.RoleId) };
             var permDt = await _dbHelper.ExecuteAsync(permQuery, permParams);
 
             foreach (DataRow permRow in permDt.Rows)
@@ -207,7 +207,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<CreateAdminResponseDto> CreateAdminAsync(CreateAdminRequest request, long createdBy)
         {
-            // Server generates a secure temporary password — client never sends one
+            // Server generates a secure temporary password â€” client never sends one
             var plainTextPassword = TempPasswordGenerator.Generate();
             var hashedPassword = HashHelper.HashPassword(plainTextPassword);
 
@@ -217,19 +217,19 @@ namespace CateringEcommerce.BAL.Base.Admin
                  c_isactive, c_is_temporary_password, c_createddate, c_createdby)
                 VALUES
                 (@Username, @PasswordHash, @Email, @FullName, @Mobile, @RoleId,
-                 @IsActive, 1, GETDATE(), @CreatedBy);
-                SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
+                 @IsActive, 1, NOW(), @CreatedBy)
+                    RETURNING c_adminid;";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@Username", request.Username),
-                new SqlParameter("@PasswordHash", hashedPassword),
-                new SqlParameter("@Email", request.Email),
-                new SqlParameter("@FullName", request.FullName),
-                new SqlParameter("@Mobile", request.Mobile ?? (object)DBNull.Value),
-                new SqlParameter("@RoleId", request.RoleId),
-                new SqlParameter("@IsActive", request.IsActive),
-                new SqlParameter("@CreatedBy", createdBy)
+                new NpgsqlParameter("@Username", request.Username),
+                new NpgsqlParameter("@PasswordHash", hashedPassword),
+                new NpgsqlParameter("@Email", request.Email),
+                new NpgsqlParameter("@FullName", request.FullName),
+                new NpgsqlParameter("@Mobile", request.Mobile ?? (object)DBNull.Value),
+                new NpgsqlParameter("@RoleId", request.RoleId),
+                new NpgsqlParameter("@IsActive", request.IsActive),
+                new NpgsqlParameter("@CreatedBy", createdBy)
             };
 
             var newAdminId = Convert.ToInt64(await _dbHelper.ExecuteScalarAsync(query, parameters));
@@ -252,18 +252,18 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_fullname = @FullName,
                     c_mobile = @Mobile,
                     c_profilephoto = @ProfilePhoto,
-                    c_lastmodified = GETDATE(),
+                    c_lastmodified = NOW(),
                     c_modifiedby = @ModifiedBy
                 WHERE c_adminid = @AdminId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", request.AdminId),
-                new SqlParameter("@Email", request.Email),
-                new SqlParameter("@FullName", request.FullName),
-                new SqlParameter("@Mobile", request.Mobile ?? (object)DBNull.Value),
-                new SqlParameter("@ProfilePhoto", request.ProfilePhoto ?? (object)DBNull.Value),
-                new SqlParameter("@ModifiedBy", updatedBy)
+                new NpgsqlParameter("@AdminId", request.AdminId),
+                new NpgsqlParameter("@Email", request.Email),
+                new NpgsqlParameter("@FullName", request.FullName),
+                new NpgsqlParameter("@Mobile", request.Mobile ?? (object)DBNull.Value),
+                new NpgsqlParameter("@ProfilePhoto", request.ProfilePhoto ?? (object)DBNull.Value),
+                new NpgsqlParameter("@ModifiedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -276,9 +276,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                 DELETE FROM {Table.SysAdmin}
                 WHERE c_adminid = @AdminId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", adminId)
+                new NpgsqlParameter("@AdminId", adminId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -290,7 +290,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 DELETE FROM {Table.SysAdminUsers}
                 WHERE c_adminid = @AdminId";
-            var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             return rowsAffected > 0;
         }
@@ -304,15 +304,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.SysAdmin}
                 SET c_isactive = @IsActive,
-                    c_lastmodified = GETDATE(),
+                    c_lastmodified = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_adminid = @AdminId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@IsActive", isActive),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@IsActive", isActive),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -324,15 +324,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.SysAdmin}
                 SET c_role_id = @RoleId,
-                    c_lastmodified = GETDATE(),
+                    c_lastmodified = NOW(),
                     c_modifiedby = @AssignedBy
                 WHERE c_adminid = @AdminId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@RoleId", roleId),
-                new SqlParameter("@AssignedBy", assignedBy)
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@RoleId", roleId),
+                new NpgsqlParameter("@AssignedBy", assignedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -350,18 +350,18 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_passwordhash = @NewPasswordHash,
                     c_force_password_reset = @ForceReset,
                     c_failedloginattempts = 0,
-                    c_islocked = 0,
+                    c_islocked = FALSE,
                     c_lockeduntil = NULL,
-                    c_lastmodified = GETDATE(),
+                    c_lastmodified = NOW(),
                     c_modifiedby = @ResetBy
                 WHERE c_adminid = @AdminId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@NewPasswordHash", newPasswordHash),
-                new SqlParameter("@ForceReset", forceReset),
-                new SqlParameter("@ResetBy", resetBy)
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@NewPasswordHash", newPasswordHash),
+                new NpgsqlParameter("@ForceReset", forceReset),
+                new NpgsqlParameter("@ResetBy", resetBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -373,14 +373,14 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 UPDATE {Table.SysAdmin}
                 SET c_force_password_reset = 1,
-                    c_lastmodified = GETDATE(),
+                    c_lastmodified = NOW(),
                     c_modifiedby = @UpdatedBy
                 WHERE c_adminid = @AdminId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -398,15 +398,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdmin}
                 WHERE c_username = @Username";
 
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@Username", username)
+                new NpgsqlParameter("@Username", username)
             };
 
             if (excludeAdminId.HasValue)
             {
                 query += " AND c_adminid != @ExcludeAdminId";
-                parameters.Add(new SqlParameter("@ExcludeAdminId", excludeAdminId.Value));
+                parameters.Add(new NpgsqlParameter("@ExcludeAdminId", excludeAdminId.Value));
             }
 
             var count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray()));
@@ -420,15 +420,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdmin}
                 WHERE c_email = @Email";
 
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@Email", email)
+                new NpgsqlParameter("@Email", email)
             };
 
             if (excludeAdminId.HasValue)
             {
                 query += " AND c_adminid != @ExcludeAdminId";
-                parameters.Add(new SqlParameter("@ExcludeAdminId", excludeAdminId.Value));
+                parameters.Add(new NpgsqlParameter("@ExcludeAdminId", excludeAdminId.Value));
             }
 
             var count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray()));
@@ -445,7 +445,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SELECT COUNT(*)
                 FROM {Table.SysAdmin} a
                 INNER JOIN {Table.SysAdminRoles} r ON a.c_role_id = r.c_role_id
-                WHERE r.c_role_code = 'SUPER_ADMIN' AND a.c_isactive = 1";
+                WHERE r.c_role_code = 'SUPER_ADMIN' AND a.c_isactive = TRUE";
 
             return Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, null));
         }
@@ -458,7 +458,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INNER JOIN {Table.SysAdminRoles} r ON a.c_role_id = r.c_role_id
                 WHERE a.c_adminid = @AdminId AND r.c_role_code = 'SUPER_ADMIN'";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             var count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters));
             return count > 0;
         }
@@ -480,9 +480,9 @@ namespace CateringEcommerce.BAL.Base.Admin
             return activeSuperAdminCount > 1;
         }
 
-        private static SqlParameter CloneParameter(SqlParameter p)
+        private static NpgsqlParameter CloneParameter(NpgsqlParameter p)
         {
-            return new SqlParameter(p.ParameterName, p.Value)
+            return new NpgsqlParameter(p.ParameterName, p.Value)
             {
                 DbType = p.DbType,
                 Size = p.Size,

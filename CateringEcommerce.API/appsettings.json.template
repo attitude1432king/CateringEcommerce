@@ -1,0 +1,82 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=CateringDB;Username=postgres;Password=Pankaj@Lohar;Pooling=true;"
+  },
+  "EncryptionSettings": {
+    "CustomKey": "166fc04fE671N46e6Y8093VOR@"
+  },
+  "JWT": {
+    "KEY": "u83$9Sj@q!5#LmQzTNfT^PwBzEoRk1At",
+    "ISSUER": "https://localhost:44368",
+    "AUDIENCE": "https://localhost:5173",
+    "EXPIRE_MINUTES": 1440
+  },
+  "MSG91": {
+    "AUTH_KEY": "",
+    "SENDER_ID": "CATAPP",
+    "TEMPLATE_ID": "",
+    "ROUTE": "4"
+  },
+  "PAYMENT": {
+    "RAZORPAY_KEY_ID": "",
+    "RAZORPAY_KEY_SECRET": "",
+    "RAZORPAY_WEBHOOK_SECRET": ""
+  },
+  "EMAIL": {
+    "SMTP_HOST": "smtp.gmail.com",
+    "SMTP_PORT": 587,
+    "SMTP_USERNAME": "",
+    "SMTP_PASSWORD": "",
+    "ENABLE_SSL": true,
+    "FROM_ADDRESS": "noreply@enyvora.com",
+    "FROM_NAME": "Enyvora Catering"
+  },
+  "SMS": {
+    "API_KEY": "",
+    "SENDER_ID": "ENYVORA"
+  },
+  "RABBITMQ": {
+    "ENABLED": false,
+    "HOSTNAME": "localhost",
+    "PORT": 5672,
+    "USERNAME": "guest",
+    "PASSWORD": "",
+    "VIRTUAL_HOST": "/"
+  },
+  "SYSTEM": {
+    "ENCRYPTION_KEY": ""
+  },
+  "AwsSns": {
+    "AccessKey": "",
+    "SecretKey": "",
+    "Region": "ap-south-1",
+    "SenderId": "ENYVORA"
+  },
+  "AllowedHosts": "*",
+
+  "Pdf": {
+    "LogoPath": "wwwroot/logo.png",
+    "OutputPath": "wwwroot/invoices",
+    "FontFamily": "Calibri"
+  },
+
+  "Company": {
+    "Name": "Enyvora Pvt. Ltd.",
+    "GSTIN": "27AABCU9603R1ZM",
+    "Address": "123 Business Park, Mumbai, Maharashtra 400001, India",
+    "Phone": "+91 22 1234 5678",
+    "Email": "invoices@enyvora.com",
+    "Website": "www.enyvora.com",
+    "PAN": "AABCU9603R",
+    "SAC": "996331"
+  },
+
+  "_SECURITY_WARNING": "DO NOT COMMIT THIS FILE WITH REAL CREDENTIALS! This file should be in .gitignore. Use appsettings.Development.json.template as reference."
+}
+

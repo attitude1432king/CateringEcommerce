@@ -1,9 +1,9 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.Admin
@@ -75,9 +75,9 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT
                     COUNT(*) AS Total,
-                    COUNT(CASE WHEN ISNULL(c_isblocked, 0) = 0 THEN 1 END) AS Active,
-                    COUNT(CASE WHEN CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE) THEN 1 END) AS Today,
-                    COUNT(CASE WHEN MONTH(c_createddate) = MONTH(GETDATE()) AND YEAR(c_createddate) = YEAR(GETDATE()) THEN 1 END) AS ThisMonth
+                    COUNT(CASE WHEN COALESCE(c_isblocked, FALSE) = FALSE THEN TRUE END) AS Active,
+                    COUNT(CASE WHEN CAST(c_createddate AS DATE) = CAST(NOW() AS DATE) THEN 1 END) AS Today,
+                    COUNT(CASE WHEN EXTRACT(MONTH FROM c_createddate) = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM c_createddate) = EXTRACT(YEAR FROM NOW()) THEN 1 END) AS ThisMonth
                 FROM {Table.SysUser}";
 
             var dt = _dbHelper.Execute(query);
@@ -99,10 +99,10 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT
                     COUNT(*) AS Total,
-                    COUNT(CASE WHEN c_isactive = 1 THEN 1 END) AS Active,
+                    COUNT(CASE WHEN c_isactive = TRUE THEN 1 END) AS Active,
                     COUNT(CASE WHEN c_approval_status = 1 THEN 1 END) AS Pending,
-                    COUNT(CASE WHEN CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE) THEN 1 END) AS Today,
-                    COUNT(CASE WHEN MONTH(c_createddate) = MONTH(GETDATE()) AND YEAR(c_createddate) = YEAR(GETDATE()) THEN 1 END) AS ThisMonth
+                    COUNT(CASE WHEN CAST(c_createddate AS DATE) = CAST(NOW() AS DATE) THEN 1 END) AS Today,
+                    COUNT(CASE WHEN EXTRACT(MONTH FROM c_createddate) = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM c_createddate) = EXTRACT(YEAR FROM NOW()) THEN 1 END) AS ThisMonth
                 FROM {Table.SysCateringOwner}";
 
             var dt = _dbHelper.Execute(query);
@@ -128,8 +128,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     COUNT(CASE WHEN c_order_status = 'Pending' THEN 1 END) AS Pending,
                     COUNT(CASE WHEN c_order_status = 'Completed' THEN 1 END) AS Completed,
                     COUNT(CASE WHEN c_order_status = 'Cancelled' THEN 1 END) AS Cancelled,
-                    COUNT(CASE WHEN CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE) THEN 1 END) AS Today,
-                    COUNT(CASE WHEN MONTH(c_createddate) = MONTH(GETDATE()) AND YEAR(c_createddate) = YEAR(GETDATE()) THEN 1 END) AS ThisMonth
+                    COUNT(CASE WHEN CAST(c_createddate AS DATE) = CAST(NOW() AS DATE) THEN 1 END) AS Today,
+                    COUNT(CASE WHEN EXTRACT(MONTH FROM c_createddate) = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM c_createddate) = EXTRACT(YEAR FROM NOW()) THEN 1 END) AS ThisMonth
                 FROM {Table.SysOrders}";
 
             var dt = _dbHelper.Execute(query);
@@ -152,12 +152,12 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT
-                    ISNULL(SUM(CASE WHEN c_order_status = 'Completed' THEN c_total_amount ELSE 0 END), 0) AS Total,
-                    ISNULL(SUM(CASE WHEN c_order_status = 'Completed' AND CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE) THEN c_total_amount ELSE 0 END), 0) AS Today,
-                    ISNULL(SUM(CASE WHEN c_order_status = 'Completed' AND MONTH(c_createddate) = MONTH(GETDATE()) AND YEAR(c_createddate) = YEAR(GETDATE()) THEN c_total_amount ELSE 0 END), 0) AS ThisMonth,
-                    ISNULL(SUM(CASE WHEN c_order_status = 'Completed' THEN c_platform_commission ELSE 0 END), 0) AS Commission,
+                    COALESCE(SUM(CASE WHEN c_order_status = 'Completed' THEN c_total_amount ELSE 0 END), 0) AS Total,
+                    COALESCE(SUM(CASE WHEN c_order_status = 'Completed' AND CAST(c_createddate AS DATE) = CAST(NOW() AS DATE) THEN c_total_amount ELSE 0 END), 0) AS Today,
+                    COALESCE(SUM(CASE WHEN c_order_status = 'Completed' AND EXTRACT(MONTH FROM c_createddate) = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM c_createddate) = EXTRACT(YEAR FROM NOW()) THEN c_total_amount ELSE 0 END), 0) AS ThisMonth,
+                    COALESCE(SUM(CASE WHEN c_order_status = 'Completed' THEN c_platform_commission ELSE 0 END), 0) AS Commission,
                     CASE WHEN COUNT(CASE WHEN c_order_status = 'Completed' THEN 1 END) > 0
-                         THEN ISNULL(SUM(CASE WHEN c_order_status = 'Completed' THEN c_total_amount ELSE 0 END), 0) / COUNT(CASE WHEN c_order_status = 'Completed' THEN 1 END)
+                         THEN COALESCE(SUM(CASE WHEN c_order_status = 'Completed' THEN c_total_amount ELSE 0 END), 0) / COUNT(CASE WHEN c_order_status = 'Completed' THEN 1 END)
                          ELSE 0 END AS AvgOrderValue
                 FROM {Table.SysOrders}";
 
@@ -180,9 +180,9 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT
-                    ISNULL(AVG(CAST(c_overall_rating AS DECIMAL(3,2))), 0) AS AvgRating,
+                    COALESCE(AVG(CAST(c_overall_rating AS DECIMAL(3,2))), 0) AS AvgRating,
                     COUNT(*) AS Total,
-                    COUNT(CASE WHEN MONTH(c_createddate) = MONTH(GETDATE()) AND YEAR(c_createddate) = YEAR(GETDATE()) THEN 1 END) AS ThisMonth
+                    COUNT(CASE WHEN EXTRACT(MONTH FROM c_createddate) = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM c_createddate) = EXTRACT(YEAR FROM NOW()) THEN 1 END) AS ThisMonth
                 FROM {Table.SysCateringReview}";
 
             var dt = _dbHelper.Execute(query);
@@ -201,21 +201,22 @@ namespace CateringEcommerce.BAL.Base.Admin
         private List<AdminTopCatering> GetTopCaterings()
         {
             string query = $@"
-                SELECT TOP 5
+                SELECT
                     co.c_ownerid AS CateringId,
                     co.c_catering_name AS BusinessName,
                     c.c_cityname AS City,
-                    ISNULL(SUM(o.c_total_amount), 0) AS TotalEarnings,
+                    COALESCE(SUM(o.c_total_amount), 0) AS TotalEarnings,
                     COUNT(o.c_orderid) AS TotalOrders,
-                    ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating
+                    COALESCE(AVG(CAST(r.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating
                 FROM {Table.SysCateringOwner} co
                 LEFT JOIN {Table.SysOrders} o ON co.c_ownerid = o.c_ownerid AND o.c_order_status = 'Completed'
                 LEFT JOIN {Table.SysCateringReview} r ON co.c_ownerid = r.c_ownerid
                 LEFT JOIN {Table.SysCateringOwnerAddress} ad ON co.c_ownerid = ad.c_ownerid
                 LEFT JOIN {Table.City} c ON ad.c_cityid = c.c_cityid
-                WHERE co.c_isactive = 1
+                WHERE co.c_isactive = TRUE
                 GROUP BY co.c_ownerid, co.c_catering_name, c.c_cityname
-                ORDER BY TotalEarnings DESC";
+                ORDER BY TotalEarnings DESC
+                LIMIT 5";
 
             var dt = _dbHelper.Execute(query);
             var result = new List<AdminTopCatering>();
@@ -239,7 +240,7 @@ namespace CateringEcommerce.BAL.Base.Admin
         private List<AdminRecentOrder> GetRecentOrders()
         {
             string query = $@"
-                SELECT TOP 10
+                SELECT
                     o.c_orderid AS OrderId,
                     u.c_name AS CustomerName,
                     co.c_catering_name AS CateringName,
@@ -250,7 +251,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysOrders} o
                 JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
                 JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
-                ORDER BY o.c_createddate DESC";
+                ORDER BY o.c_createddate DESC
+                LIMIT 10";
 
             var dt = _dbHelper.Execute(query);
             var result = new List<AdminRecentOrder>();
@@ -277,12 +279,12 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT
                     CAST(o.c_createddate AS DATE) AS Date,
-                    ISNULL(SUM(o.c_total_amount), 0) AS Revenue,
-                    ISNULL(SUM(o.c_platform_commission), 0) AS Commission,
+                    COALESCE(SUM(o.c_total_amount), 0) AS Revenue,
+                    COALESCE(SUM(o.c_platform_commission), 0) AS Commission,
                     COUNT(o.c_orderid) AS OrderCount
                 FROM {Table.SysOrders} o
                 WHERE o.c_order_status = 'Completed'
-                  AND o.c_createddate >= DATEADD(DAY, -7, GETDATE())
+                  AND o.c_createddate >= NOW() - INTERVAL '7 days'
                 GROUP BY CAST(o.c_createddate AS DATE)
                 ORDER BY Date";
 
@@ -304,3 +306,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         }
     }
 }
+

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using CateringEcommerce.BAL.Common;
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Services;
@@ -45,8 +45,8 @@ namespace CateringEcommerce.BAL.Base.Owner
                 ValidateModificationData(modificationData);
 
                 // Block modifications during live event
-                string statusCheckQuery = $"SELECT c_order_status FROM {Table.SysOrders} WHERE c_orderid = @OrderId AND c_isactive = 1";
-                var statusParams = new SqlParameter[] { new SqlParameter("@OrderId", modificationData.OrderId) };
+                string statusCheckQuery = $"SELECT c_order_status FROM {Table.SysOrders} WHERE c_orderid = @OrderId AND c_isactive = TRUE";
+                var statusParams = new NpgsqlParameter[] { new NpgsqlParameter("@OrderId", modificationData.OrderId) };
                 DataTable statusDt = await _dbHelper.ExecuteAsync(statusCheckQuery, statusParams);
                 if (statusDt.Rows.Count > 0 && statusDt.Rows[0]["c_order_status"]?.ToString() == "InProgress")
                 {

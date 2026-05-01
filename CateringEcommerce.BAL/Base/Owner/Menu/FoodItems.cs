@@ -5,7 +5,7 @@ using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Collections.Generic;
 using System.Text;
 
@@ -32,9 +32,9 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             {
                 StringBuilder countQuery = new StringBuilder();
                 countQuery.Append($@"SELECT COUNT(*) FROM {Table.SysFoodItems} ft");
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID)
                 };
                 countQuery.Append(BuildFilterQuery(filter, parameters));
                 var result = await _dbHelper.ExecuteScalarAsync(countQuery.ToString(), parameters.ToArray());
@@ -59,22 +59,22 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             {
                 string insertQuery = $@"INSERT INTO {Table.SysFoodItems}
                                        (c_ownerid, c_foodname, c_description, c_categoryid, c_cuisinetypeid, c_price, c_isveg, c_islive_counter, c_ispackage_item, c_issample_tasted, c_status)
-                                       VALUES (@OwnerPKID, @FoodName, @Description, @CategoryID, @CuisineID, @Price, @IsVeg, @IsLiveCounter, @IsPackageItem, @IsSampleTaste,  @Status);
-                                       SELECT SCOPE_IDENTITY();";
+                                       VALUES (@OwnerPKID, @FoodName, @Description, @CategoryID, @CuisineID, @Price, @IsVeg, @IsLiveCounter, @IsPackageItem, @IsSampleTaste,  @Status)
+                    RETURNING c_foodid;";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@FoodName", foodItem.Name),
-                    new SqlParameter("@Description", foodItem.Description ?? (object)DBNull.Value),
-                    new SqlParameter("@CategoryID", foodItem.CategoryId),
-                    new SqlParameter("@CuisineID", foodItem.TypeId ?? (object)DBNull.Value),
-                    new SqlParameter("@Price", foodItem.Price),
-                    new SqlParameter("@IsVeg", foodItem.IsVeg.ToBinary()),
-                    new SqlParameter("@IsLiveCounter", foodItem.IsLiveCounter.ToBinary()),
-                    new SqlParameter("@IsPackageItem", foodItem.IsPackageItem.ToBinary()),
-                    new SqlParameter("@IsSampleTaste", foodItem.IsSampleTaste.ToBinary()),
-                    new SqlParameter("@Status", foodItem.Status.ToBinary()) // Assuming 1 for active, 0 for inactive
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@FoodName", foodItem.Name),
+                    new NpgsqlParameter("@Description", foodItem.Description ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@CategoryID", foodItem.CategoryId),
+                    new NpgsqlParameter("@CuisineID", foodItem.TypeId ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@Price", foodItem.Price),
+                    new NpgsqlParameter("@IsVeg", foodItem.IsVeg.ToString()),
+                    new NpgsqlParameter("@IsLiveCounter", foodItem.IsLiveCounter.ToString()),
+                    new NpgsqlParameter("@IsPackageItem", foodItem.IsPackageItem.ToString()),
+                    new NpgsqlParameter("@IsSampleTaste", foodItem.IsSampleTaste.ToString()),
+                    new NpgsqlParameter("@Status", foodItem.Status.ToString()) // Assuming 1 for active, 0 for inactive
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(insertQuery.ToString(), parameters.ToArray());
@@ -107,11 +107,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                                     FROM {Table.SysFoodItems} ft 
                                     LEFT JOIN {Table.SysFoodCategory} fc ON ft.c_categoryid = fc.c_categoryid 
                                     LEFT JOIN {Table.SysCateringTypeMaster} tm ON ft.c_cuisinetypeid = tm.c_typeid");
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Offset", offset),
-                    new SqlParameter("@PageSize", pageSize),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Offset", offset),
+                    new NpgsqlParameter("@PageSize", pageSize),
                 };
 
                 selectQuery.Append(BuildFilterQuery(filter, parameters));
@@ -179,23 +179,23 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 string updateQuery = $@"UPDATE {Table.SysFoodItems}
                        SET c_foodname = @FoodName, c_description = @Description, c_categoryid = @CategoryID, 
                         c_cuisinetypeid = @CuisineID, c_price = @Price, c_ispackage_item = @IsPackageItem, c_isveg = @IsVeg,
-                        c_issample_tasted = @IsSampleTaste, c_islive_counter = @IsLiveCounter, c_status = @Status, c_modifieddate = GETDATE()
+                        c_issample_tasted = @IsSampleTaste, c_islive_counter = @IsLiveCounter, c_status = @Status, c_modifieddate = NOW()
                         WHERE c_foodid = @FoodID AND c_ownerid = @OwnerPKID";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@FoodName", foodItem.Name),
-                    new SqlParameter("@Description", foodItem.Description ?? (object)DBNull.Value),
-                    new SqlParameter("@CategoryID", foodItem.CategoryId),
-                    new SqlParameter("@CuisineID", foodItem.TypeId ?? (object)DBNull.Value),
-                    new SqlParameter("@Price", foodItem.Price),
-                    new SqlParameter("@IsVeg", foodItem.IsVeg.ToBinary()),
-                    new SqlParameter("@IsLiveCounter", foodItem.IsLiveCounter.ToBinary()),
-                    new SqlParameter("@IsPackageItem", foodItem.IsPackageItem.ToBinary()),
-                    new SqlParameter("@FoodID", foodItem.Id),
-                    new SqlParameter("@Status", foodItem.Status.ToBinary()), // Assuming 1 for active, 0 for inactive
-                    new SqlParameter("@IsSampleTaste", foodItem.IsSampleTaste.ToBinary()),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@FoodName", foodItem.Name),
+                    new NpgsqlParameter("@Description", foodItem.Description ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@CategoryID", foodItem.CategoryId),
+                    new NpgsqlParameter("@CuisineID", foodItem.TypeId ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@Price", foodItem.Price),
+                    new NpgsqlParameter("@IsVeg", foodItem.IsVeg.ToString()),
+                    new NpgsqlParameter("@IsLiveCounter", foodItem.IsLiveCounter.ToString()),
+                    new NpgsqlParameter("@IsPackageItem", foodItem.IsPackageItem.ToString()),
+                    new NpgsqlParameter("@FoodID", foodItem.Id),
+                    new NpgsqlParameter("@Status", foodItem.Status.ToString()), // Assuming 1 for active, 0 for inactive
+                    new NpgsqlParameter("@IsSampleTaste", foodItem.IsSampleTaste.ToString()),
                 };
 
                 return await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
@@ -217,12 +217,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
         {
             try
             {
-                string deleteQuery = $@"UPDATE {Table.SysFoodItems} SET c_is_deleted = 1, c_status = 0, c_modifieddate = GETDATE()
+                string deleteQuery = $@"UPDATE {Table.SysFoodItems} SET c_is_deleted = TRUE, c_status = 0, c_modifieddate = NOW()
                                      WHERE c_ownerid = @OwnerPKID AND c_foodid = @FoodID";
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@FoodID", foodItemPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@FoodID", foodItemPKID)
                 };
 
                 return await _dbHelper.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
@@ -249,7 +249,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 string query = $@"
                             SELECT COUNT(1)
                             FROM {Table.SysFoodItems}
-                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0
+                            WHERE c_ownerid = @OwnerPKID AND c_is_deleted = FALSE
                               AND LOWER(LTRIM(RTRIM(c_foodname))) = LOWER(LTRIM(RTRIM(@FoodItemName)))";
 
                 // Exclude the current record in case of update
@@ -258,14 +258,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                     query += " AND c_foodid <> @FoodID";
                 }
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@FoodItemName", foodItemName)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@FoodItemName", foodItemName)
                 };
 
                 if (foodItemPKID.HasValue && foodItemPKID.Value > 0)
-                    parameters.Add(new SqlParameter("@FoodID", foodItemPKID.Value));
+                    parameters.Add(new NpgsqlParameter("@FoodID", foodItemPKID.Value));
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;
@@ -283,15 +283,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
         /// <param name="filter"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        private string BuildFilterQuery(FoodItemFilter filter, List<SqlParameter> parameters)
+        private string BuildFilterQuery(FoodItemFilter filter, List<NpgsqlParameter> parameters)
         {
             StringBuilder where = new();
-            where.Append("  WHERE c_ownerid = @OwnerPKID AND c_is_deleted = 0");
+            where.Append("  WHERE c_ownerid = @OwnerPKID AND c_is_deleted = FALSE");
             // Search by name
             if (!string.IsNullOrWhiteSpace(filter.Name))
             {
-                where.Append(" AND LOWER(ft.c_foodname) LIKE LOWER('%' + @SearchName + '%') ");
-                parameters.Add(new SqlParameter("@SearchName", filter.Name));
+                where.Append(" AND LOWER(ft.c_foodname) LIKE LOWER('%' || @SearchName || '%') ");
+                parameters.Add(new NpgsqlParameter("@SearchName", filter.Name));
             }
 
             // Category multi-select
@@ -310,19 +310,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             if (!string.IsNullOrWhiteSpace(filter.Status))
             {
                 where.Append($" AND ft.c_status = @Status ");
-                parameters.Add(new SqlParameter("@Status", filter.Status));
+                parameters.Add(new NpgsqlParameter("@Status", filter.Status));
             }
 
             // Toggle: Package Item?
             if (filter.IsPackageItem == true)
             {
-                where.Append(" AND ft.c_ispackage_item = 1 ");
+                where.Append(" AND ft.c_ispackage_item = TRUE ");
             }
 
             // Toggle: Sample Taste?
             if (filter.IsSampleTaste == true)
             {
-                where.Append(" AND ft.c_issample_tasted = 1 ");
+                where.Append(" AND ft.c_issample_tasted = TRUE ");
             }
 
             return where.ToString();
@@ -339,10 +339,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             try
             {
                 string selectQuery = $@"SELECT c_foodid AS ID, c_foodname AS Name FROM {Table.SysFoodItems} 
-                                    WHERE c_ownerid = @OwnerPKID AND c_status = 1 and c_ispackage_item = 0";
-                SqlParameter[] parameters = new SqlParameter[]
+                                    WHERE c_ownerid = @OwnerPKID AND c_status = 1 and c_ispackage_item = FALSE";
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
                 };
                 var packageData = await _dbHelper.ExecuteAsync(selectQuery, parameters);
                 if (packageData.Rows.Count > 0)
@@ -377,11 +377,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
                 string query = $@"
                             SELECT COUNT(1)
                             FROM {Table.SysFoodItems}
-                            WHERE c_ownerid = @OwnerPKID AND c_foodid = @FoodItemID AND c_is_deleted = 0";
-                var parameters = new List<SqlParameter>
+                            WHERE c_ownerid = @OwnerPKID AND c_foodid = @FoodItemID AND c_is_deleted = FALSE";
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@FoodItemID", foodItemPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@FoodItemID", foodItemPKID)
                 };
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
                 int count = result != null ? Convert.ToInt32(result) : 0;

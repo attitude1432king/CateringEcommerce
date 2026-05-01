@@ -1,7 +1,5 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Data;
-using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -13,6 +11,7 @@ using CateringEcommerce.Domain.Interfaces.Security;
 using CateringEcommerce.Domain.Models.Security;
 using Microsoft.Extensions.Configuration;
 using CateringEcommerce.BAL.Configuration;
+using Npgsql;
 
 namespace CateringEcommerce.BAL.Base.Security
 {
@@ -39,7 +38,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<OAuthProviderModel> GetProviderAsync(string providerName)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
                 SELECT c_provider_id AS ProviderId, c_provider_name AS ProviderName,
                        c_client_id AS ClientId, c_client_secret AS ClientSecret,
@@ -48,14 +47,14 @@ namespace CateringEcommerce.BAL.Base.Security
                        c_scope AS Scope, c_is_active AS IsActive,
                        c_createddate AS CreatedDate, c_modifieddate AS ModifiedDate
                 FROM {Table.SysOAuthProvider}
-                WHERE c_provider_name = @ProviderName AND c_is_active = 1";
+                WHERE c_provider_name = @ProviderName AND c_is_active = TRUE";
 
             return await connection.QueryFirstOrDefaultAsync<OAuthProviderModel>(sql, new { ProviderName = providerName.ToUpper() });
         }
 
         public async Task<List<OAuthProviderModel>> GetActiveProvidersAsync()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
                 SELECT c_provider_id AS ProviderId, c_provider_name AS ProviderName,
                        c_client_id AS ClientId, c_redirect_uri AS RedirectUri,
@@ -64,7 +63,7 @@ namespace CateringEcommerce.BAL.Base.Security
                        c_scope AS Scope, c_is_active AS IsActive,
                        c_createddate AS CreatedDate, c_modifieddate AS ModifiedDate
                 FROM {Table.SysOAuthProvider}
-                WHERE c_is_active = 1
+                WHERE c_is_active = TRUE
                 ORDER BY c_provider_name";
 
             var result = await connection.QueryAsync<OAuthProviderModel>(sql);
@@ -73,7 +72,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<bool> UpdateProviderConfigAsync(OAuthProviderModel provider)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
                 UPDATE {Table.SysOAuthProvider}
                 SET c_client_id = @ClientId,
@@ -84,7 +83,7 @@ namespace CateringEcommerce.BAL.Base.Security
                     c_user_info_endpoint = @UserInfoEndpoint,
                     c_scope = @Scope,
                     c_is_active = @IsActive,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_provider_id = @ProviderId";
 
             var rowsAffected = await connection.ExecuteAsync(sql, provider);
@@ -135,7 +134,7 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<string> CreateStateTokenAsync(string providerName, string redirectUrl, string additionalData,
             string ipAddress, string userAgent)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
 
             // Generate cryptographically secure random state token
             var stateToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
@@ -149,7 +148,7 @@ namespace CateringEcommerce.BAL.Base.Security
                  c_ip_address, c_user_agent, c_createddate, c_expires_at, c_used, c_used_date)
                 VALUES
                 (@StateToken, @ProviderName, @RedirectUrl, @AdditionalData,
-                 @IpAddress, @UserAgent, GETDATE(), DATEADD(MINUTE, 10, GETDATE()), 0, NULL)";
+                 @IpAddress, @UserAgent, NOW(), NOW() + INTERVAL '10 minutes', FALSE, NULL)";
 
             await connection.ExecuteAsync(sql, new
             {
@@ -166,7 +165,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<OAuthStateModel> ValidateStateTokenAsync(string stateToken)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
                 SELECT c_state_id AS StateId, c_state_token AS StateToken,
                        c_provider_name AS ProviderName, c_redirect_url AS RedirectUrl,
@@ -175,18 +174,18 @@ namespace CateringEcommerce.BAL.Base.Security
                        c_expires_at AS ExpiresAt, c_used AS Used, c_used_date AS UsedDate
                 FROM {Table.SysOAuthState}
                 WHERE c_state_token = @StateToken
-                  AND c_used = 0
-                  AND c_expires_at > GETDATE()";
+                  AND c_used = FALSE
+                  AND c_expires_at > NOW()";
 
             return await connection.QueryFirstOrDefaultAsync<OAuthStateModel>(sql, new { StateToken = stateToken });
         }
 
         public async Task<bool> MarkStateTokenUsedAsync(string stateToken)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
                 UPDATE {Table.SysOAuthState}
-                SET c_used = 1, c_used_date = GETDATE()
+                SET c_used = TRUE, c_used_date = NOW()
                 WHERE c_state_token = @StateToken";
 
             var rowsAffected = await connection.ExecuteAsync(sql, new { StateToken = stateToken });
@@ -297,7 +296,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<UserOAuthModel> GetOAuthConnectionAsync(string providerName, string providerUserId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
                 SELECT o.c_oauth_id AS OAuthId, o.c_userid AS UserId, o.c_provider_id AS ProviderId,
                        o.c_provider_user_id AS ProviderUserId, o.c_provider_email AS ProviderEmail,
@@ -321,14 +320,14 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<long?> FindUserByEmailAsync(string email)
         {
-            using var connection = new SqlConnection(_connectionString);
-            var sql = $"SELECT c_userid FROM {Table.SysUser} WHERE c_email = @Email AND c_isactive = 1";
+            using var connection = new NpgsqlConnection(_connectionString);
+            var sql = $"SELECT c_userid FROM {Table.SysUser} WHERE c_email = @Email AND c_isactive = TRUE";
             return await connection.QueryFirstOrDefaultAsync<long?>(sql, new { Email = email });
         }
 
         public async Task<long> CreateUserFromOAuthAsync(OAuthUserInfo userInfo, string providerName)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
 
             // Generate a random password (user won't use it, but database might require it)
             var randomPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -336,9 +335,9 @@ namespace CateringEcommerce.BAL.Base.Security
             var sql = $@"
                 INSERT INTO {Table.SysUser} (c_email, c_password_hash, c_name, c_mobile,
                                        c_isemailverified, c_isactive, c_createddate, c_modifieddate, c_picture)
-                OUTPUT INSERTED.c_userid
                 VALUES (@Email, @PasswordHash, @Name, '',
-                        1, 1, GETDATE(), GETDATE(), @Picture)";
+                        TRUE, TRUE, NOW(), NOW(), @Picture)
+                RETURNING c_userid;";
 
             var userId = await connection.QuerySingleAsync<long>(sql, new
             {
@@ -358,7 +357,7 @@ namespace CateringEcommerce.BAL.Base.Security
             if (provider == null)
                 throw new InvalidOperationException($"OAuth provider '{providerName}' not found");
 
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
 
             // Check if this OAuth account is already linked to another user
             var existingConnection = await GetOAuthConnectionAsync(providerName, userInfo.Id);
@@ -389,8 +388,8 @@ namespace CateringEcommerce.BAL.Base.Security
                  c_createddate, c_modifieddate)
                 VALUES
                 (@UserId, @ProviderId, @ProviderUserId, @ProviderEmail, @ProviderName, @ProviderPicture,
-                 @AccessToken, @RefreshToken, @TokenExpiresAt, @IsPrimary, GETDATE(), GETDATE(),
-                 GETDATE(), GETDATE())";
+                 @AccessToken, @RefreshToken, @TokenExpiresAt, @IsPrimary, NOW(), NOW(),
+                 NOW(), NOW())";
 
             var rowsAffected = await connection.ExecuteAsync(insertSql, new
             {
@@ -416,7 +415,7 @@ namespace CateringEcommerce.BAL.Base.Security
             if (!canUnlink)
                 throw new InvalidOperationException("Cannot unlink - this is your only login method. Set a password first.");
 
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $"DELETE FROM {Table.SysUserOAuth} WHERE c_oauth_id = @OAuthId AND c_userid = @UserId";
             var rowsAffected = await connection.ExecuteAsync(sql, new { OAuthId = oauthId, UserId = userId });
             return rowsAffected > 0;
@@ -424,14 +423,14 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<bool> UpdateOAuthTokensAsync(long oauthId, OAuthTokenResponse tokens)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
 
             var sql = $@"
                 UPDATE {Table.SysUserOAuth}
                 SET c_access_token = @AccessToken,
                     c_refresh_token = COALESCE(@RefreshToken, c_refresh_token),
                     c_token_expires_at = @TokenExpiresAt,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_oauth_id = @OAuthId";
 
             var rowsAffected = await connection.ExecuteAsync(sql, new
@@ -447,8 +446,8 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<bool> UpdateLastLoginAsync(long oauthId)
         {
-            using var connection = new SqlConnection(_connectionString);
-            var sql = $"UPDATE {Table.SysUserOAuth} SET c_last_login = GETDATE(), c_modifieddate = GETDATE() WHERE c_oauth_id = @OAuthId";
+            using var connection = new NpgsqlConnection(_connectionString);
+            var sql = $"UPDATE {Table.SysUserOAuth} SET c_last_login = NOW(), c_modifieddate = NOW() WHERE c_oauth_id = @OAuthId";
             var rowsAffected = await connection.ExecuteAsync(sql, new { OAuthId = oauthId });
             return rowsAffected > 0;
         }
@@ -459,7 +458,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<List<ConnectedOAuthAccountDto>> GetUserOAuthConnectionsAsync(long userId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
                 SELECT o.c_oauth_id AS OAuthId, p.c_provider_name AS Provider, o.c_provider_email AS ProviderEmail,
                        o.c_provider_name AS ProviderName, o.c_provider_picture AS ProviderPicture,
@@ -482,7 +481,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<bool> HasOAuthConnectionsAsync(long userId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $"SELECT COUNT(*) FROM {Table.SysUserOAuth} WHERE c_userid = @UserId";
             var count = await connection.QuerySingleAsync<int>(sql, new { UserId = userId });
             return count > 0;
@@ -490,11 +489,11 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<bool> CanUnlinkOAuthAccountAsync(long userId, long oauthId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
 
             // Check if user has a password
             var hasPasswordSql = $@"
-                SELECT CASE WHEN c_password_hash IS NOT NULL AND c_password_hash <> '' THEN 1 ELSE 0 END
+                SELECT CASE WHEN c_password_hash IS NOT NULL AND c_password_hash <> '' THEN TRUE ELSE FALSE END
                 FROM {Table.SysUser} WHERE c_userid = @UserId";
             var hasPassword = await connection.QuerySingleAsync<bool>(hasPasswordSql, new { UserId = userId });
 
@@ -510,9 +509,9 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<UserOAuthModel> GetPrimaryOAuthConnectionAsync(long userId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
-                SELECT TOP 1 o.c_oauth_id AS OAuthId, o.c_userid AS UserId, o.c_provider_id AS ProviderId,
+                SELECT o.c_oauth_id AS OAuthId, o.c_userid AS UserId, o.c_provider_id AS ProviderId,
                        o.c_provider_user_id AS ProviderUserId, o.c_provider_email AS ProviderEmail,
                        o.c_provider_name AS ProviderName, o.c_provider_picture AS ProviderPicture,
                        o.c_access_token AS AccessToken, o.c_refresh_token AS RefreshToken,
@@ -523,25 +522,26 @@ namespace CateringEcommerce.BAL.Base.Security
                 FROM {Table.SysUserOAuth} o
                 INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
                 WHERE o.c_userid = @UserId
-                ORDER BY o.c_is_primary DESC, o.c_linked_date ASC";
+                ORDER BY o.c_is_primary DESC, o.c_linked_date ASC
+                LIMIT 1";
 
             return await connection.QueryFirstOrDefaultAsync<UserOAuthModel>(sql, new { UserId = userId });
         }
 
         public async Task<bool> SetPrimaryOAuthConnectionAsync(long userId, long oauthId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync();
             using var transaction = connection.BeginTransaction();
 
             try
             {
                 // Remove primary from all connections
-                var clearPrimarySql = $"UPDATE {Table.SysUserOAuth} SET c_is_primary = 0 WHERE c_userid = @UserId";
+                var clearPrimarySql = $"UPDATE {Table.SysUserOAuth} SET c_is_primary = FALSE WHERE c_userid = @UserId";
                 await connection.ExecuteAsync(clearPrimarySql, new { UserId = userId }, transaction);
 
                 // Set new primary
-                var setPrimarySql = $"UPDATE {Table.SysUserOAuth} SET c_is_primary = 1 WHERE c_oauth_id = @OAuthId AND c_userid = @UserId";
+                var setPrimarySql = $"UPDATE {Table.SysUserOAuth} SET c_is_primary = TRUE WHERE c_oauth_id = @OAuthId AND c_userid = @UserId";
                 var rowsAffected = await connection.ExecuteAsync(setPrimarySql, new { OAuthId = oauthId, UserId = userId }, transaction);
 
                 transaction.Commit();
@@ -560,19 +560,20 @@ namespace CateringEcommerce.BAL.Base.Security
 
         public async Task<(int DeletedStates, int DeletedConnections)> CleanupExpiredDataAsync()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
 
             // Delete expired state tokens (older than 1 day)
-            var deleteStatesSql = $"DELETE FROM {Table.SysOAuthState} WHERE c_expires_at < DATEADD(DAY, -1, GETDATE())";
+            var deleteStatesSql = $"DELETE FROM {Table.SysOAuthState} WHERE c_expires_at < NOW() - INTERVAL '1 day'";
             var deletedStates = await connection.ExecuteAsync(deleteStatesSql);
 
             // Delete OAuth connections for deleted users (if any)
             var deleteConnectionsSql = $@"
                 DELETE FROM {Table.SysUserOAuth}
-                WHERE c_userid NOT IN (SELECT c_userid FROM {Table.SysUser} WHERE c_isactive = 1)";
+                WHERE c_userid NOT IN (SELECT c_userid FROM {Table.SysUser} WHERE c_isactive = TRUE)";
             var deletedConnections = await connection.ExecuteAsync(deleteConnectionsSql);
 
             return (deletedStates, deletedConnections);
         }
     }
 }
+

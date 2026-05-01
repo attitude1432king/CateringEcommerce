@@ -1,9 +1,9 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using System.Text;
 
@@ -37,60 +37,60 @@ namespace CateringEcommerce.BAL.Base.Admin
                     co.c_email AS Email,
                     c.c_cityname AS City,
                     s.c_statename AS State,
-                    ISNULL(co.c_approval_status, 'PENDING') AS Status,
-                    ISNULL(co.c_priority, 'NORMAL') AS Priority,
+                    COALESCE(co.c_approval_status, 'PENDING') AS Status,
+                    COALESCE(co.c_priority, 'NORMAL') AS Priority,
                     co.c_createddate AS SubmittedDate,
                     co.c_reviewed_date AS ReviewedDate,
-                    (SELECT COUNT(*) FROM {Table.SysCateringMediaUploads} WHERE c_ownerid = co.c_ownerid AND c_is_deleted = 0) AS DocumentCount
+                    (SELECT COUNT(*) FROM {Table.SysCateringMediaUploads} WHERE c_ownerid = co.c_ownerid AND c_is_deleted = FALSE) AS DocumentCount
                 FROM {Table.SysCateringOwner} co
                 LEFT JOIN {Table.SysCateringOwnerAddress} addr ON co.c_ownerid = addr.c_ownerid
                 LEFT JOIN {Table.City} c ON addr.c_cityid = c.c_cityid
                 LEFT JOIN {Table.State} s ON addr.c_stateid = s.c_stateid
                 WHERE 1=1");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             // Apply filters
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 queryBuilder.Append(" AND (co.c_catering_name LIKE @SearchTerm OR co.c_owner_name LIKE @SearchTerm OR co.c_mobile LIKE @SearchTerm OR co.c_email LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
             }
 
             if (!string.IsNullOrEmpty(request.Status))
             {
                 queryBuilder.Append(" AND co.c_approval_status = @Status");
-                parameters.Add(new SqlParameter("@Status", request.Status));
+                parameters.Add(new NpgsqlParameter("@Status", request.Status));
             }
 
             if (request.CityId.HasValue)
             {
                 queryBuilder.Append(" AND addr.c_cityid = @CityId");
-                parameters.Add(new SqlParameter("@CityId", request.CityId.Value));
+                parameters.Add(new NpgsqlParameter("@CityId", request.CityId.Value));
             }
 
             if (!string.IsNullOrEmpty(request.State))
             {
                 queryBuilder.Append(" AND s.c_statename = @State");
-                parameters.Add(new SqlParameter("@State", request.State));
+                parameters.Add(new NpgsqlParameter("@State", request.State));
             }
 
             if (request.FromDate.HasValue)
             {
                 queryBuilder.Append(" AND co.c_createddate >= @FromDate");
-                parameters.Add(new SqlParameter("@FromDate", request.FromDate.Value));
+                parameters.Add(new NpgsqlParameter("@FromDate", request.FromDate.Value));
             }
 
             if (request.ToDate.HasValue)
             {
                 queryBuilder.Append(" AND co.c_createddate <= @ToDate");
-                parameters.Add(new SqlParameter("@ToDate", request.ToDate.Value));
+                parameters.Add(new NpgsqlParameter("@ToDate", request.ToDate.Value));
             }
 
             if (!string.IsNullOrEmpty(request.Priority))
             {
                 queryBuilder.Append(" AND co.c_priority = @Priority");
-                parameters.Add(new SqlParameter("@Priority", request.Priority));
+                parameters.Add(new NpgsqlParameter("@Priority", request.Priority));
             }
 
             // Get total count
@@ -105,7 +105,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             // Add pagination
             var offset = (request.PageNumber - 1) * request.PageSize;
-            queryBuilder.Append($" OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY");
+            queryBuilder.Append($" LIMIT {request.PageSize} OFFSET {offset}");
 
             // Execute query
             var dataTable = _dbHelper.Execute(queryBuilder.ToString(), parameters.ToArray());
@@ -144,7 +144,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 SELECT
                     COUNT(*) AS TotalRequests,
-                    SUM(CASE WHEN ISNULL(c_approval_status, 'PENDING') = 'PENDING' THEN 1 ELSE 0 END) AS PendingCount,
+                    SUM(CASE WHEN COALESCE(c_approval_status, 'PENDING') = 'PENDING' THEN 1 ELSE 0 END) AS PendingCount,
                     SUM(CASE WHEN c_approval_status = 'UNDER_REVIEW' THEN 1 ELSE 0 END) AS UnderReviewCount,
                     SUM(CASE WHEN c_approval_status = 'APPROVED' THEN 1 ELSE 0 END) AS ApprovedCount,
                     SUM(CASE WHEN c_approval_status = 'REJECTED' THEN 1 ELSE 0 END) AS RejectedCount,
@@ -185,8 +185,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     co.c_catering_number AS CateringNumber,
                     co.c_std_number AS StdNumber,
                     co.c_logo_path AS LogoUrl,
-                    ISNULL(co.c_approval_status, 'PENDING') AS Status,
-                    ISNULL(co.c_priority, 'NORMAL') AS Priority,
+                    COALESCE(co.c_approval_status, 'PENDING') AS Status,
+                    COALESCE(co.c_priority, 'NORMAL') AS Priority,
                     co.c_createddate AS SubmittedDate,
                     co.c_reviewed_date AS ReviewedDate,
                     co.c_reviewed_by AS ReviewedBy,
@@ -201,7 +201,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysCateringOwner} co
                 WHERE co.c_ownerid = @OwnerId";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             if (dataTable.Rows.Count == 0)
@@ -269,7 +269,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.City} c ON addr.c_cityid = c.c_cityid
                 WHERE addr.c_ownerid = @OwnerId";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             if (dataTable.Rows.Count == 0)
@@ -310,7 +310,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysCateringOwnerLegal}
                 WHERE c_ownerid = @OwnerId";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             if (dataTable.Rows.Count == 0)
@@ -345,7 +345,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysCateringOwnerBankDetails}
                 WHERE c_ownerid = @OwnerId";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             if (dataTable.Rows.Count == 0)
@@ -372,14 +372,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_service_types AS ServiceTypes,
                     c_event_types AS EventTypes,
                     c_food_types AS FoodTypes,
-                    c_min_dish_order AS MinDishOrder,
+                    c_min_guest_count AS MinGuestCount,
                     c_delivery_available AS DeliveryAvailable,
                     c_delivery_radius_km AS DeliveryRadiusKm,
                     c_serving_time_slots AS ServingTimeSlots
                 FROM {Table.SysCateringOwnerService}
                 WHERE c_ownerid = @OwnerId";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             if (dataTable.Rows.Count == 0)
@@ -393,7 +393,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 ServiceTypes = row["ServiceTypes"] != DBNull.Value ? row["ServiceTypes"].ToString() : null,
                 EventTypes = row["EventTypes"] != DBNull.Value ? row["EventTypes"].ToString() : null,
                 FoodTypes = row["FoodTypes"] != DBNull.Value ? row["FoodTypes"].ToString() : null,
-                MinDishOrder = row["MinDishOrder"] != DBNull.Value ? Convert.ToDecimal(row["MinDishOrder"]) : null,
+                MinGuestCount = row["MinGuestCount"] != DBNull.Value ? Convert.ToInt16(row["MinGuestCount"]) : null,
                 DeliveryAvailable = row["DeliveryAvailable"] != DBNull.Value && Convert.ToBoolean(row["DeliveryAvailable"]),
                 DeliveryRadiusKm = row["DeliveryRadiusKm"] != DBNull.Value ? Convert.ToInt32(row["DeliveryRadiusKm"]) : null,
                 ServingTimeSlots = row["ServingTimeSlots"] != DBNull.Value ? row["ServingTimeSlots"].ToString() : null
@@ -416,10 +416,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysCateringMediaUploads} m
                 LEFT JOIN {Table.SysCateringDocumentTypes} dt ON m.c_document_type_id = dt.c_documenttype_id
                 WHERE m.c_ownerid = @OwnerId
-                AND m.c_is_deleted = 0
+                AND m.c_is_deleted = FALSE
                 AND m.c_document_type_id IS NOT NULL";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             foreach (DataRow row in dataTable.Rows)
@@ -452,10 +452,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_uploaded_at AS UploadedAt
                 FROM {Table.SysCateringMediaUploads}
                 WHERE c_ownerid = @OwnerId
-                AND c_is_deleted = 0
+                AND c_is_deleted = FALSE
                 AND (c_document_type_id IS NULL OR c_document_type_id = 0)";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             foreach (DataRow row in dataTable.Rows)
@@ -488,17 +488,17 @@ namespace CateringEcommerce.BAL.Base.Admin
                 var updateQuery = $@"
                     UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = 'APPROVED',
-                        c_approved_date = GETDATE(),
+                        c_approved_date = NOW(),
                         c_approved_by = @AdminId,
-                        c_verified_by_admin = 1,
-                        c_isactive = 1,
-                        c_modifieddate = GETDATE()
+                        c_verified_by_admin = TRUE,
+                        c_isactive = TRUE,
+                        c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", request.OwnerId),
-                    new SqlParameter("@AdminId", adminId)
+                    new NpgsqlParameter("@OwnerId", request.OwnerId),
+                    new NpgsqlParameter("@AdminId", adminId)
                 };
 
                 _dbHelper.ExecuteNonQuery(updateQuery, parameters);
@@ -537,17 +537,17 @@ namespace CateringEcommerce.BAL.Base.Admin
                 var updateQuery = $@"
                     UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = 'REJECTED',
-                        c_approved_date = GETDATE(),
+                        c_approved_date = NOW(),
                         c_approved_by = @AdminId,
                         c_rejection_reason = @RejectionReason,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", request.OwnerId),
-                    new SqlParameter("@AdminId", adminId),
-                    new SqlParameter("@RejectionReason", (object?)request.RejectionReason ?? DBNull.Value)
+                    new NpgsqlParameter("@OwnerId", request.OwnerId),
+                    new NpgsqlParameter("@AdminId", adminId),
+                    new NpgsqlParameter("@RejectionReason", (object?)request.RejectionReason ?? DBNull.Value)
                 };
 
                 _dbHelper.ExecuteNonQuery(updateQuery, parameters);
@@ -585,15 +585,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                 var updateQuery = $@"
                     UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = 'INFO_REQUESTED',
-                        c_reviewed_date = GETDATE(),
+                        c_reviewed_date = NOW(),
                         c_reviewed_by = @AdminId,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", request.OwnerId),
-                    new SqlParameter("@AdminId", adminId)
+                    new NpgsqlParameter("@OwnerId", request.OwnerId),
+                    new NpgsqlParameter("@AdminId", adminId)
                 };
 
                 _dbHelper.ExecuteNonQuery(updateQuery, parameters);
@@ -638,13 +638,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                 var updateQuery = $@"
                     UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = @NewStatus,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@NewStatus", newStatus)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@NewStatus", newStatus)
                 };
 
                 _dbHelper.ExecuteNonQuery(updateQuery, parameters);
@@ -665,13 +665,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                 var updateQuery = @$"
                     UPDATE {Table.SysCateringOwner}
                     SET c_internal_notes = @Notes,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@Notes", notes)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@Notes", notes)
                 };
 
                 _dbHelper.ExecuteNonQuery(updateQuery, parameters);
@@ -692,13 +692,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                 var updateQuery = $@"
                     UPDATE {Table.SysCateringOwner}
                     SET c_priority = @Priority,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@Priority", priority)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@Priority", priority)
                 };
 
                 _dbHelper.ExecuteNonQuery(updateQuery, parameters);
@@ -736,7 +736,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 WHERE a.c_ownerid = @OwnerId
                 ORDER BY a.c_action_date DESC";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             foreach (DataRow row in dataTable.Rows)
@@ -766,17 +766,17 @@ namespace CateringEcommerce.BAL.Base.Admin
                     INSERT INTO {Table.SysPartnerRequestActions}
                     (c_ownerid, c_adminid, c_action_type, c_old_status, c_new_status, c_remarks, c_ip_address, c_action_date)
                     VALUES
-                    (@OwnerId, @AdminId, @ActionType, @OldStatus, @NewStatus, @Remarks, @IpAddress, GETDATE())";
+                    (@OwnerId, @AdminId, @ActionType, @OldStatus, @NewStatus, @Remarks, @IpAddress, NOW())";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@AdminId", adminId),
-                    new SqlParameter("@ActionType", actionType),
-                    new SqlParameter("@OldStatus", (object?)oldStatus ?? DBNull.Value),
-                    new SqlParameter("@NewStatus", (object?)newStatus ?? DBNull.Value),
-                    new SqlParameter("@Remarks", (object?)remarks ?? DBNull.Value),
-                    new SqlParameter("@IpAddress", (object?)ipAddress ?? DBNull.Value)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@AdminId", adminId),
+                    new NpgsqlParameter("@ActionType", actionType),
+                    new NpgsqlParameter("@OldStatus", (object?)oldStatus ?? DBNull.Value),
+                    new NpgsqlParameter("@NewStatus", (object?)newStatus ?? DBNull.Value),
+                    new NpgsqlParameter("@Remarks", (object?)remarks ?? DBNull.Value),
+                    new NpgsqlParameter("@IpAddress", (object?)ipAddress ?? DBNull.Value)
                 };
 
                 _dbHelper.ExecuteNonQuery(query, parameters);
@@ -803,24 +803,24 @@ namespace CateringEcommerce.BAL.Base.Admin
                     INSERT INTO {Table.SysPartnerRequestCommunications}
                     (c_ownerid, c_adminid, c_communication_type, c_subject, c_message, c_sent_to_email, c_sent_to_phone, c_email_sent, c_sms_sent, c_email_status, c_sms_status, c_sent_date)
                     VALUES
-                    (@OwnerId, @AdminId, @CommunicationType, @Subject, @Message, @SentToEmail, @SentToPhone, @EmailSent, @SmsSent, @EmailStatus, @SmsStatus, GETDATE())";
+                    (@OwnerId, @AdminId, @CommunicationType, @Subject, @Message, @SentToEmail, @SentToPhone, @EmailSent, @SmsSent, @EmailStatus, @SmsStatus, NOW())";
 
                 var emailSent = request.CommunicationType == "EMAIL" || request.CommunicationType == "BOTH";
                 var smsSent = request.CommunicationType == "SMS" || request.CommunicationType == "BOTH";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OwnerId", request.OwnerId),
-                    new SqlParameter("@AdminId", adminId),
-                    new SqlParameter("@CommunicationType", request.CommunicationType),
-                    new SqlParameter("@Subject", (object?)request.Subject ?? DBNull.Value),
-                    new SqlParameter("@Message", request.Message),
-                    new SqlParameter("@SentToEmail", (object?)request.SentToEmail ?? DBNull.Value),
-                    new SqlParameter("@SentToPhone", (object?)request.SentToPhone ?? DBNull.Value),
-                    new SqlParameter("@EmailSent", emailSent),
-                    new SqlParameter("@SmsSent", smsSent),
-                    new SqlParameter("@EmailStatus", emailSent ? "SENT" : DBNull.Value),
-                    new SqlParameter("@SmsStatus", smsSent ? "SENT" : DBNull.Value)
+                    new NpgsqlParameter("@OwnerId", request.OwnerId),
+                    new NpgsqlParameter("@AdminId", adminId),
+                    new NpgsqlParameter("@CommunicationType", request.CommunicationType),
+                    new NpgsqlParameter("@Subject", (object?)request.Subject ?? DBNull.Value),
+                    new NpgsqlParameter("@Message", request.Message),
+                    new NpgsqlParameter("@SentToEmail", (object?)request.SentToEmail ?? DBNull.Value),
+                    new NpgsqlParameter("@SentToPhone", (object?)request.SentToPhone ?? DBNull.Value),
+                    new NpgsqlParameter("@EmailSent", emailSent),
+                    new NpgsqlParameter("@SmsSent", smsSent),
+                    new NpgsqlParameter("@EmailStatus", emailSent ? "SENT" : DBNull.Value),
+                    new NpgsqlParameter("@SmsStatus", smsSent ? "SENT" : DBNull.Value)
                 };
 
                 _dbHelper.ExecuteNonQuery(query, parameters);
@@ -866,7 +866,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 WHERE c.c_ownerid = @OwnerId
                 ORDER BY c.c_sent_date DESC";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = _dbHelper.Execute(query, parameters);
 
             foreach (DataRow row in dataTable.Rows)
@@ -953,3 +953,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         #endregion
     }
 }
+

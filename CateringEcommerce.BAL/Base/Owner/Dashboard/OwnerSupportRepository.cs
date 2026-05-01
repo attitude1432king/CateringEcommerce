@@ -2,7 +2,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -29,7 +29,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             var dateStr = DateTime.Now.ToString("yyyyMMdd");
             var countSql = $@"
                 SELECT COUNT(*) + 1 FROM {Table.SysSupportTickets}
-                WHERE CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE)";
+                WHERE CAST(c_createddate AS DATE) = CAST(NOW() AS DATE)";
 
             var seqObj = await _dbHelper.ExecuteScalarAsync(countSql);
             var seqNum = seqObj == null || seqObj == DBNull.Value ? 1 : Convert.ToInt32(seqObj);
@@ -40,18 +40,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 INSERT INTO {Table.SysSupportTickets}
                     (c_ticket_number, c_ownerid, c_subject, c_description, c_category, c_priority, c_status, c_related_order_id, c_createddate)
                 VALUES
-                    (@TicketNumber, @OwnerId, @Subject, @Description, @Category, @Priority, 'Open', @RelatedOrderId, GETDATE());
-                SELECT SCOPE_IDENTITY();";
+                    (@TicketNumber, @OwnerId, @Subject, @Description, @Category, @Priority, 'Open', @RelatedOrderId, NOW())
+                RETURNING c_ticket_id;";
 
             var insertParams = new[]
             {
-                new SqlParameter("@TicketNumber", ticketNumber),
-                new SqlParameter("@OwnerId", ownerId),
-                new SqlParameter("@Subject", dto.Subject),
-                new SqlParameter("@Description", dto.Description),
-                new SqlParameter("@Category", dto.Category),
-                new SqlParameter("@Priority", dto.Priority ?? "Medium"),
-                new SqlParameter("@RelatedOrderId", (object?)dto.RelatedOrderId ?? DBNull.Value)
+                new NpgsqlParameter("@TicketNumber", ticketNumber),
+                new NpgsqlParameter("@OwnerId", ownerId),
+                new NpgsqlParameter("@Subject", dto.Subject),
+                new NpgsqlParameter("@Description", dto.Description),
+                new NpgsqlParameter("@Category", dto.Category),
+                new NpgsqlParameter("@Priority", dto.Priority ?? "Medium"),
+                new NpgsqlParameter("@RelatedOrderId", (object?)dto.RelatedOrderId ?? DBNull.Value)
             };
 
             var ticketIdObj = await _dbHelper.ExecuteScalarAsync(insertSql, insertParams);
@@ -92,14 +92,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
             // Count
             var countSql = $"SELECT COUNT(*) FROM {Table.SysSupportTickets} t {where}";
-            var countParams = new List<SqlParameter>
+            var countParams = new List<NpgsqlParameter>
             {
-                new SqlParameter("@OwnerId", ownerId)
+                new NpgsqlParameter("@OwnerId", ownerId)
             };
             if (!string.IsNullOrEmpty(filter.Status))
-                countParams.Add(new SqlParameter("@Status", filter.Status));
+                countParams.Add(new NpgsqlParameter("@Status", filter.Status));
             if (!string.IsNullOrEmpty(filter.Category))
-                countParams.Add(new SqlParameter("@Category", filter.Category));
+                countParams.Add(new NpgsqlParameter("@Category", filter.Category));
 
             var totalObj = await _dbHelper.ExecuteScalarAsync(countSql, countParams.ToArray());
             result.TotalCount = totalObj == null || totalObj == DBNull.Value ? 0 : Convert.ToInt32(totalObj);
@@ -133,18 +133,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 FROM {Table.SysSupportTickets} t
                 {where}
                 ORDER BY {sortExpression} {sortDir}
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
-            var dataParams = new List<SqlParameter>
+            var dataParams = new List<NpgsqlParameter>
             {
-                new SqlParameter("@OwnerId", ownerId),
-                new SqlParameter("@Offset", (filter.Page - 1) * filter.PageSize),
-                new SqlParameter("@PageSize", filter.PageSize)
+                new NpgsqlParameter("@OwnerId", ownerId),
+                new NpgsqlParameter("@Offset", (filter.Page - 1) * filter.PageSize),
+                new NpgsqlParameter("@PageSize", filter.PageSize)
             };
             if (!string.IsNullOrEmpty(filter.Status))
-                dataParams.Add(new SqlParameter("@Status", filter.Status));
+                dataParams.Add(new NpgsqlParameter("@Status", filter.Status));
             if (!string.IsNullOrEmpty(filter.Category))
-                dataParams.Add(new SqlParameter("@Category", filter.Category));
+                dataParams.Add(new NpgsqlParameter("@Category", filter.Category));
 
             var dataTable = await _dbHelper.ExecuteAsync(dataSql, dataParams.ToArray());
             foreach (DataRow row in dataTable.Rows)
@@ -185,8 +185,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             SupportTicketDetailDto? detail = null;
             var ticketParams = new[]
             {
-                new SqlParameter("@TicketId", ticketId),
-                new SqlParameter("@OwnerId", ownerId)
+                new NpgsqlParameter("@TicketId", ticketId),
+                new NpgsqlParameter("@OwnerId", ownerId)
             };
             var ticketTable = await _dbHelper.ExecuteAsync(ticketSql, ticketParams);
 
@@ -218,7 +218,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 WHERE c_ticket_id = @TicketId
                 ORDER BY c_createddate ASC";
 
-            var msgParams = new[] { new SqlParameter("@TicketId", ticketId) };
+            var msgParams = new[] { new NpgsqlParameter("@TicketId", ticketId) };
             var msgTable = await _dbHelper.ExecuteAsync(msgSql, msgParams);
             foreach (DataRow row in msgTable.Rows)
             {
@@ -243,8 +243,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             var verifySql = $"SELECT c_status FROM {Table.SysSupportTickets} WHERE c_ticket_id = @TicketId AND c_ownerid = @OwnerId";
             var verifyParams = new[]
             {
-                new SqlParameter("@TicketId", ticketId),
-                new SqlParameter("@OwnerId", ownerId)
+                new NpgsqlParameter("@TicketId", ticketId),
+                new NpgsqlParameter("@OwnerId", ownerId)
             };
             var statusObj = await _dbHelper.ExecuteScalarAsync(verifySql, verifyParams);
             var status = statusObj?.ToString();
@@ -257,14 +257,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 INSERT INTO {Table.SysSupportTicketMessages}
                     (c_ticket_id, c_sender_type, c_sender_id, c_message_text, c_createddate)
                 VALUES
-                    (@TicketId, 'Owner', @OwnerId, @MessageText, GETDATE());
-                SELECT SCOPE_IDENTITY();";
+                    (@TicketId, 'Owner', @OwnerId, @MessageText, NOW())
+                RETURNING c_message_id;";
 
             var insertParams = new[]
             {
-                new SqlParameter("@TicketId", ticketId),
-                new SqlParameter("@OwnerId", ownerId),
-                new SqlParameter("@MessageText", messageText)
+                new NpgsqlParameter("@TicketId", ticketId),
+                new NpgsqlParameter("@OwnerId", ownerId),
+                new NpgsqlParameter("@MessageText", messageText)
             };
             var messageIdObj = await _dbHelper.ExecuteScalarAsync(insertSql, insertParams);
             var messageId = messageIdObj == null || messageIdObj == DBNull.Value ? 0L : Convert.ToInt64(messageIdObj);
@@ -293,7 +293,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 FROM {Table.SysSupportTickets}
                 WHERE c_ownerid = @OwnerId";
 
-            var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
             var dataTable = await _dbHelper.ExecuteAsync(sql, parameters);
             if (dataTable.Rows.Count > 0)
             {
@@ -312,3 +312,4 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         }
     }
 }
+

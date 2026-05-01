@@ -3,7 +3,7 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using System.Linq;
 using System.Text;
@@ -29,7 +29,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     u.c_name AS UserName,
                     r.c_overall_rating AS Rating,
                     r.c_review_comment AS Comment,
-                    ISNULL(r.c_ishidden, 0) AS IsHidden,
+                    COALESCE(r.c_ishidden, 0) AS IsHidden,
                     r.c_hidden_reason AS HiddenReason,
                     r.c_createddate AS ReviewDate,
                     r.c_orderid AS OrderId
@@ -38,36 +38,36 @@ namespace CateringEcommerce.BAL.Base.Admin
                 JOIN {Table.SysUser} u ON r.c_userid = u.c_userid
                 WHERE 1=1");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             if (request.CateringId.HasValue)
             {
                 queryBuilder.Append(" AND r.c_ownerid = @CateringId");
-                parameters.Add(new SqlParameter("@CateringId", request.CateringId.Value));
+                parameters.Add(new NpgsqlParameter("@CateringId", request.CateringId.Value));
             }
 
             if (request.UserId.HasValue)
             {
                 queryBuilder.Append(" AND r.c_userid = @UserId");
-                parameters.Add(new SqlParameter("@UserId", request.UserId.Value));
+                parameters.Add(new NpgsqlParameter("@UserId", request.UserId.Value));
             }
 
             if (request.MinRating.HasValue)
             {
                 queryBuilder.Append(" AND r.c_overall_rating >= @MinRating");
-                parameters.Add(new SqlParameter("@MinRating", request.MinRating.Value));
+                parameters.Add(new NpgsqlParameter("@MinRating", request.MinRating.Value));
             }
 
             if (request.MaxRating.HasValue)
             {
                 queryBuilder.Append(" AND r.c_overall_rating <= @MaxRating");
-                parameters.Add(new SqlParameter("@MaxRating", request.MaxRating.Value));
+                parameters.Add(new NpgsqlParameter("@MaxRating", request.MaxRating.Value));
             }
 
             if (request.IsHidden.HasValue)
             {
-                queryBuilder.Append(" AND ISNULL(r.c_ishidden, 0) = @IsHidden");
-                parameters.Add(new SqlParameter("@IsHidden", request.IsHidden.Value));
+                queryBuilder.Append(" AND COALESCE(r.c_ishidden, 0) = @IsHidden");
+                parameters.Add(new NpgsqlParameter("@IsHidden", request.IsHidden.Value));
             }
 
             string sortColumn = request.SortBy switch
@@ -87,7 +87,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             int totalRecords = Convert.ToInt32(_dbHelper.ExecuteScalar(countQuery, CloneParameters(parameters)));
 
             int offset = (request.PageNumber - 1) * request.PageSize;
-            queryBuilder.Append($" OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY");
+            queryBuilder.Append($" LIMIT {request.PageSize} OFFSET {offset}");
 
             var dt = _dbHelper.Execute(queryBuilder.ToString(), CloneParameters(parameters));
             if (dt == null)
@@ -138,7 +138,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     r.c_reviewid, r.c_ownerid, co.c_catering_name AS CateringName,
                     r.c_userid, u.c_name AS UserName, u.c_mobile AS UserPhone,
                     r.c_overall_rating, r.c_review_comment,
-                    ISNULL(r.c_ishidden, 0) AS IsHidden,
+                    COALESCE(r.c_ishidden, 0) AS IsHidden,
                     r.c_hidden_reason, r.c_hidden_by, r.c_hidden_date,
                     r.c_createddate, r.c_orderid
                 FROM {Table.SysCateringReview} r
@@ -146,7 +146,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 JOIN {Table.SysUser} u ON r.c_userid = u.c_userid
                 WHERE r.c_reviewid = @ReviewId";
 
-            SqlParameter[] parameters = { new SqlParameter("@ReviewId", reviewId) };
+            NpgsqlParameter[] parameters = { new NpgsqlParameter("@ReviewId", reviewId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             if (dt == null || dt.Rows.Count == 0) return null;
@@ -180,14 +180,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_ishidden = @IsHidden,
                     c_hidden_reason = @Reason,
                     c_hidden_by = @UpdatedBy,
-                    c_hidden_date = CASE WHEN @IsHidden = 1 THEN GETDATE() ELSE NULL END
+                    c_hidden_date = CASE WHEN @IsHidden = 1 THEN NOW() ELSE NULL END
                 WHERE c_reviewid = @ReviewId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@ReviewId", request.ReviewId),
-                new SqlParameter("@IsHidden", request.IsHidden),
-                new SqlParameter("@Reason", (object?)request.Reason ?? DBNull.Value),
-                new SqlParameter("@UpdatedBy", request.UpdatedBy)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@ReviewId", request.ReviewId),
+                new NpgsqlParameter("@IsHidden", request.IsHidden),
+                new NpgsqlParameter("@Reason", (object?)request.Reason ?? DBNull.Value),
+                new NpgsqlParameter("@UpdatedBy", request.UpdatedBy)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -200,8 +200,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 DELETE FROM {Table.SysCateringReview}
                 WHERE c_reviewid = @ReviewId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@ReviewId", reviewId)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@ReviewId", reviewId)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -225,18 +225,18 @@ namespace CateringEcommerce.BAL.Base.Admin
                 whereBuilder.Append(" AND r.c_overall_rating <= @MaxRating");
 
             if (request.IsHidden.HasValue)
-                whereBuilder.Append($" AND ISNULL(r.c_ishidden, 0) = {(request.IsHidden.Value ? "1" : "0")}");
+                whereBuilder.Append($" AND COALESCE(r.c_ishidden, 0) = {(request.IsHidden.Value ? "1" : "0")}");
 
             return whereBuilder.ToString();
         }
 
-        private static SqlParameter[] CloneParameters(IEnumerable<SqlParameter> source)
+        private static NpgsqlParameter[] CloneParameters(IEnumerable<NpgsqlParameter> source)
         {
             return source
-                .Select(p => new SqlParameter
+                .Select(p => new NpgsqlParameter
                 {
                     ParameterName = p.ParameterName,
-                    SqlDbType = p.SqlDbType,
+                    NpgsqlDbType = p.NpgsqlDbType,
                     Size = p.Size,
                     Precision = p.Precision,
                     Scale = p.Scale,
@@ -248,3 +248,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         }
     }
 }
+

@@ -1,345 +1,228 @@
-/*
-====================================================
-CATERING OWNER PAYMENT & SETTLEMENT SYSTEM
-====================================================
-Correct Domain Model: Owner/Partner (NOT Vendor)
-
-Tables:
-- t_owner_payment
-- t_owner_settlement
-- t_owner_payout_schedule
-- t_partner_approval_request
-
-Author: System Architect
-Date: 2026-01-30
-====================================================
-*/
-
-USE CateringDB;
-GO
+-- =============================================
+-- OWNER PAYMENT & SETTLEMENT SYSTEM (PostgreSQL)
+-- =============================================
 
 -- =============================================
 -- TABLE: t_owner_payment
--- Owner payment settlements for individual orders
 -- =============================================
+CREATE TABLE IF NOT EXISTS t_owner_payment (
+    c_owner_payment_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_ownerid BIGINT NOT NULL,
+    c_orderid BIGINT NOT NULL,
 
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_owner_payment')
-BEGIN
-    CREATE TABLE t_owner_payment (
-        c_owner_payment_id BIGINT PRIMARY KEY IDENTITY(1,1),
-        c_owner_id BIGINT NOT NULL,
-        c_order_id BIGINT NOT NULL,
+    c_settlement_amount DECIMAL(18,2) NOT NULL,
+    c_platform_service_fee DECIMAL(18,2) NOT NULL DEFAULT 0,
+    c_net_settlement_amount DECIMAL(18,2) NOT NULL,
 
-        -- Settlement amounts
-        c_settlement_amount DECIMAL(18,2) NOT NULL,
-        c_platform_service_fee DECIMAL(18,2) NOT NULL DEFAULT 0,
-        c_net_settlement_amount DECIMAL(18,2) NOT NULL,
+    c_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
 
-        -- Status tracking
-        c_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-        -- PENDING, ESCROWED, RELEASED, FAILED, REFUNDED, CANCELLED
+    c_payment_method VARCHAR(50),
+    c_transaction_reference VARCHAR(100),
 
-        -- Payment details
-        c_payment_method VARCHAR(50) NULL,
-        c_transaction_reference VARCHAR(100) NULL,
+    c_escrowed_at TIMESTAMP,
+    c_released_at TIMESTAMP,
+    c_failed_at TIMESTAMP,
+    c_failure_reason VARCHAR(500),
 
-        -- Timestamps
-        c_escrowed_at DATETIME2 NULL,
-        c_released_at DATETIME2 NULL,
-        c_failed_at DATETIME2 NULL,
-        c_failure_reason NVARCHAR(500) NULL,
+    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_modifieddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_createdby BIGINT,
+    c_updated_by BIGINT,
 
-        -- Audit
-        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_createdby BIGINT NULL,
-        c_updated_by BIGINT NULL,
+    CONSTRAINT fk_ownerpayment_owner FOREIGN KEY (c_ownerid)
+        REFERENCES t_sys_catering_owner(c_ownerid),
 
-        -- Foreign keys
-        CONSTRAINT FK_OwnerPayment_Owner FOREIGN KEY (c_owner_id)
-            REFERENCES t_sys_owner(c_owner_id),
-        CONSTRAINT FK_OwnerPayment_Order FOREIGN KEY (c_order_id)
-            REFERENCES t_order(c_order_id),
+    CONSTRAINT fk_ownerpayment_order FOREIGN KEY (c_orderid)
+        REFERENCES t_sys_orders(c_orderid),
 
-        -- Constraints
-        CONSTRAINT CHK_OwnerPayment_Status CHECK (c_status IN ('PENDING', 'ESCROWED', 'RELEASED', 'FAILED', 'REFUNDED', 'CANCELLED')),
-        CONSTRAINT CHK_OwnerPayment_Amounts CHECK (c_settlement_amount >= 0 AND c_platform_service_fee >= 0 AND c_net_settlement_amount >= 0)
-    );
+    CONSTRAINT chk_ownerpayment_status CHECK 
+    (c_status IN ('PENDING','ESCROWED','RELEASED','FAILED','REFUNDED','CANCELLED')),
 
-    CREATE INDEX IX_OwnerPayment_OwnerId ON t_owner_payment(c_owner_id);
-    CREATE INDEX IX_OwnerPayment_OrderId ON t_owner_payment(c_order_id);
-    CREATE INDEX IX_OwnerPayment_Status ON t_owner_payment(c_status);
-    CREATE INDEX IX_OwnerPayment_ReleasedAt ON t_owner_payment(c_released_at);
-END
-GO
+    CONSTRAINT chk_ownerpayment_amounts CHECK 
+    (c_settlement_amount >= 0 AND c_platform_service_fee >= 0 AND c_net_settlement_amount >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS ix_ownerpayment_ownerid ON t_owner_payment(c_ownerid);
+CREATE INDEX IF NOT EXISTS ix_ownerpayment_orderid ON t_owner_payment(c_orderid);
+CREATE INDEX IF NOT EXISTS ix_ownerpayment_status ON t_owner_payment(c_status);
+CREATE INDEX IF NOT EXISTS ix_ownerpayment_releasedat ON t_owner_payment(c_released_at);
 
 -- =============================================
 -- TABLE: t_owner_settlement
--- Aggregated settlements for catering partners
 -- =============================================
+CREATE TABLE IF NOT EXISTS t_owner_settlement (
+    c_settlement_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_ownerid BIGINT NOT NULL,
 
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_owner_settlement')
-BEGIN
-    CREATE TABLE t_owner_settlement (
-        c_settlement_id BIGINT PRIMARY KEY IDENTITY(1,1),
-        c_owner_id BIGINT NOT NULL,
+    c_settlement_period_start TIMESTAMP NOT NULL,
+    c_settlement_period_end TIMESTAMP NOT NULL,
 
-        -- Settlement period
-        c_settlement_period_start DATETIME2 NOT NULL,
-        c_settlement_period_end DATETIME2 NOT NULL,
+    c_total_gross_amount DECIMAL(18,2) NOT NULL,
+    c_total_platform_fee DECIMAL(18,2) NOT NULL DEFAULT 0,
+    c_total_adjustments DECIMAL(18,2) NOT NULL DEFAULT 0,
+    c_net_settlement_amount DECIMAL(18,2) NOT NULL,
 
-        -- Settlement amounts
-        c_total_gross_amount DECIMAL(18,2) NOT NULL,
-        c_total_platform_fee DECIMAL(18,2) NOT NULL DEFAULT 0,
-        c_total_adjustments DECIMAL(18,2) NOT NULL DEFAULT 0,
-        c_net_settlement_amount DECIMAL(18,2) NOT NULL,
+    c_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
 
-        -- Status tracking
-        c_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-        -- PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED
+    c_processed_at TIMESTAMP,
+    c_payment_batch_id VARCHAR(100),
+    c_bank_reference VARCHAR(100),
 
-        -- Processing details
-        c_processed_at DATETIME2 NULL,
-        c_payment_batch_id VARCHAR(100) NULL,
-        c_bank_reference VARCHAR(100) NULL,
+    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_modifieddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_createdby BIGINT,
+    c_updated_by BIGINT,
 
-        -- Audit
-        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_createdby BIGINT NULL,
-        c_updated_by BIGINT NULL,
+    CONSTRAINT fk_ownersettlement_owner FOREIGN KEY (c_ownerid)
+        REFERENCES t_sys_catering_owner(c_ownerid),
 
-        -- Foreign key
-        CONSTRAINT FK_OwnerSettlement_Owner FOREIGN KEY (c_owner_id)
-            REFERENCES t_sys_owner(c_owner_id),
+    CONSTRAINT chk_ownersettlement_status CHECK 
+    (c_status IN ('PENDING','PROCESSING','COMPLETED','FAILED','CANCELLED')),
 
-        -- Constraints
-        CONSTRAINT CHK_OwnerSettlement_Status CHECK (c_status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED')),
-        CONSTRAINT CHK_OwnerSettlement_Period CHECK (c_settlement_period_end > c_settlement_period_start)
-    );
+    CONSTRAINT chk_ownersettlement_period CHECK 
+    (c_settlement_period_end > c_settlement_period_start)
+);
 
-    CREATE INDEX IX_OwnerSettlement_OwnerId ON t_owner_settlement(c_owner_id);
-    CREATE INDEX IX_OwnerSettlement_Status ON t_owner_settlement(c_status);
-    CREATE INDEX IX_OwnerSettlement_Period ON t_owner_settlement(c_settlement_period_start, c_settlement_period_end);
-END
-GO
+CREATE INDEX IF NOT EXISTS ix_ownersettlement_ownerid ON t_owner_settlement(c_ownerid);
+CREATE INDEX IF NOT EXISTS ix_ownersettlement_status ON t_owner_settlement(c_status);
+CREATE INDEX IF NOT EXISTS ix_ownersettlement_period 
+ON t_owner_settlement(c_settlement_period_start, c_settlement_period_end);
 
 -- =============================================
 -- TABLE: t_owner_payout_schedule
--- Scheduled payouts for catering partners
 -- =============================================
+CREATE TABLE IF NOT EXISTS t_owner_payout_schedule (
+    c_schedule_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_ownerid BIGINT NOT NULL,
+    c_settlement_id BIGINT,
 
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_owner_payout_schedule')
-BEGIN
-    CREATE TABLE t_owner_payout_schedule (
-        c_schedule_id BIGINT PRIMARY KEY IDENTITY(1,1),
-        c_owner_id BIGINT NOT NULL,
-        c_settlement_id BIGINT NULL,
+    c_scheduled_amount DECIMAL(18,2) NOT NULL,
+    c_scheduled_date TIMESTAMP NOT NULL,
 
-        -- Schedule details
-        c_scheduled_amount DECIMAL(18,2) NOT NULL,
-        c_scheduled_date DATETIME2 NOT NULL,
+    c_is_released BOOLEAN NOT NULL DEFAULT FALSE,
+    c_released_at TIMESTAMP,
+    c_release_method VARCHAR(50),
 
-        -- Release tracking
-        c_is_released BIT NOT NULL DEFAULT 0,
-        c_released_at DATETIME2 NULL,
-        c_release_method VARCHAR(50) NULL,
-        -- BANK_TRANSFER, UPI, WALLET, CHECK
+    c_transaction_id VARCHAR(100),
+    c_bank_account_id BIGINT,
 
-        -- Transaction details
-        c_transaction_id VARCHAR(100) NULL,
-        c_bank_account_id BIGINT NULL,
+    c_status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED',
 
-        -- Status
-        c_status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED',
-        -- SCHEDULED, PROCESSING, RELEASED, FAILED, CANCELLED
+    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_modifieddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-        -- Audit
-        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT fk_ownerpayout_owner FOREIGN KEY (c_ownerid)
+        REFERENCES t_sys_catering_owner(c_ownerid),
 
-        -- Foreign keys
-        CONSTRAINT FK_OwnerPayoutSchedule_Owner FOREIGN KEY (c_owner_id)
-            REFERENCES t_sys_owner(c_owner_id),
-        CONSTRAINT FK_OwnerPayoutSchedule_Settlement FOREIGN KEY (c_settlement_id)
-            REFERENCES t_owner_settlement(c_settlement_id),
+    CONSTRAINT fk_ownerpayout_settlement FOREIGN KEY (c_settlement_id)
+        REFERENCES t_owner_settlement(c_settlement_id),
 
-        -- Constraints
-        CONSTRAINT CHK_OwnerPayoutSchedule_Status CHECK (c_status IN ('SCHEDULED', 'PROCESSING', 'RELEASED', 'FAILED', 'CANCELLED')),
-        CONSTRAINT CHK_OwnerPayoutSchedule_Amount CHECK (c_scheduled_amount > 0)
-    );
+    CONSTRAINT chk_ownerpayout_status CHECK 
+    (c_status IN ('SCHEDULED','PROCESSING','RELEASED','FAILED','CANCELLED')),
 
-    CREATE INDEX IX_OwnerPayoutSchedule_OwnerId ON t_owner_payout_schedule(c_owner_id);
-    CREATE INDEX IX_OwnerPayoutSchedule_ScheduledDate ON t_owner_payout_schedule(c_scheduled_date);
-    CREATE INDEX IX_OwnerPayoutSchedule_Status ON t_owner_payout_schedule(c_status);
-END
-GO
+    CONSTRAINT chk_ownerpayout_amount CHECK (c_scheduled_amount > 0)
+);
+
+CREATE INDEX IF NOT EXISTS ix_ownerpayout_ownerid ON t_owner_payout_schedule(c_ownerid);
+CREATE INDEX IF NOT EXISTS ix_ownerpayout_date ON t_owner_payout_schedule(c_scheduled_date);
+CREATE INDEX IF NOT EXISTS ix_ownerpayout_status ON t_owner_payout_schedule(c_status);
 
 -- =============================================
 -- TABLE: t_partner_approval_request
--- Approval requests requiring catering partner response
 -- =============================================
+CREATE TABLE IF NOT EXISTS t_partner_approval_request (
+    c_approval_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_ownerid BIGINT NOT NULL,
+    c_orderid BIGINT NOT NULL,
 
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_partner_approval_request')
-BEGIN
-    CREATE TABLE t_partner_approval_request (
-        c_approval_id BIGINT PRIMARY KEY IDENTITY(1,1),
-        c_owner_id BIGINT NOT NULL,
-        c_order_id BIGINT NOT NULL,
+    c_request_type VARCHAR(50) NOT NULL,
+    c_description TEXT NOT NULL,
+    c_request_data TEXT,
 
-        -- Request details
-        c_request_type VARCHAR(50) NOT NULL,
-        -- MENU_CHANGE, GUEST_COUNT_INCREASE, SPECIAL_REQUEST, EVENT_MODIFICATION
+    c_requested_by_user_id BIGINT NOT NULL,
+    c_requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-        c_description NVARCHAR(1000) NOT NULL,
-        c_request_data NVARCHAR(MAX) NULL, -- JSON payload
+    c_deadline TIMESTAMP NOT NULL,
+    c_response_time_hours INT NOT NULL DEFAULT 24,
 
-        -- Requester info
-        c_requested_by_user_id BIGINT NOT NULL,
-        c_requested_at DATETIME2 NOT NULL DEFAULT GETDATE(),
+    c_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
 
-        -- Deadline tracking
-        c_deadline DATETIME2 NOT NULL,
-        c_response_time_hours INT NOT NULL DEFAULT 24,
+    c_approved_at TIMESTAMP,
+    c_approved_by_owner_id BIGINT,
 
-        -- Status tracking
-        c_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-        -- PENDING, APPROVED, REJECTED, EXPIRED, CANCELLED
+    c_rejected_at TIMESTAMP,
+    c_rejection_reason VARCHAR(500),
 
-        -- Approval details
-        c_approved_at DATETIME2 NULL,
-        c_approved_by_owner_id BIGINT NULL,
+    c_partner_notes TEXT,
 
-        -- Rejection details
-        c_rejected_at DATETIME2 NULL,
-        c_rejection_reason NVARCHAR(500) NULL,
+    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_modifieddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-        -- Partner notes
-        c_partner_notes NVARCHAR(1000) NULL,
+    CONSTRAINT fk_partnerapproval_owner FOREIGN KEY (c_ownerid)
+        REFERENCES t_sys_catering_owner(c_ownerid),
 
-        -- Audit
-        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT fk_partnerapproval_order FOREIGN KEY (c_orderid)
+        REFERENCES t_sys_orders(c_orderid),
 
-        -- Foreign keys
-        CONSTRAINT FK_PartnerApproval_Owner FOREIGN KEY (c_owner_id)
-            REFERENCES t_sys_owner(c_owner_id),
-        CONSTRAINT FK_PartnerApproval_Order FOREIGN KEY (c_order_id)
-            REFERENCES t_order(c_order_id),
+    CONSTRAINT chk_partnerapproval_status CHECK 
+    (c_status IN ('PENDING','APPROVED','REJECTED','EXPIRED','CANCELLED')),
 
-        -- Constraints
-        CONSTRAINT CHK_PartnerApproval_Status CHECK (c_status IN ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'CANCELLED')),
-        CONSTRAINT CHK_PartnerApproval_RequestType CHECK (c_request_type IN ('MENU_CHANGE', 'GUEST_COUNT_INCREASE', 'SPECIAL_REQUEST', 'EVENT_MODIFICATION'))
-    );
+    CONSTRAINT chk_partnerapproval_type CHECK 
+    (c_request_type IN ('MENU_CHANGE','GUEST_COUNT_INCREASE','SPECIAL_REQUEST','EVENT_MODIFICATION'))
+);
 
-    CREATE INDEX IX_PartnerApproval_OwnerId ON t_partner_approval_request(c_owner_id);
-    CREATE INDEX IX_PartnerApproval_OrderId ON t_partner_approval_request(c_order_id);
-    CREATE INDEX IX_PartnerApproval_Status ON t_partner_approval_request(c_status);
-    CREATE INDEX IX_PartnerApproval_Deadline ON t_partner_approval_request(c_deadline);
-END
-GO
+CREATE INDEX IF NOT EXISTS ix_partnerapproval_ownerid ON t_partner_approval_request(c_ownerid);
+CREATE INDEX IF NOT EXISTS ix_partnerapproval_orderid ON t_partner_approval_request(c_orderid);
+CREATE INDEX IF NOT EXISTS ix_partnerapproval_status ON t_partner_approval_request(c_status);
+CREATE INDEX IF NOT EXISTS ix_partnerapproval_deadline ON t_partner_approval_request(c_deadline);
 
 -- =============================================
 -- TABLE: t_partner_response_history
--- Track all partner responses to complaints/issues
 -- =============================================
+CREATE TABLE IF NOT EXISTS t_partner_response_history (
+    c_response_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_ownerid BIGINT NOT NULL,
+    c_complaint_id BIGINT,
+    c_orderid BIGINT NOT NULL,
 
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_partner_response_history')
-BEGIN
-    CREATE TABLE t_partner_response_history (
-        c_response_id BIGINT PRIMARY KEY IDENTITY(1,1),
-        c_owner_id BIGINT NOT NULL,
-        c_complaint_id BIGINT NULL,
-        c_order_id BIGINT NOT NULL,
+    c_response_type VARCHAR(50) NOT NULL,
+    c_response_text TEXT NOT NULL,
+    c_response_status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED',
 
-        -- Response details
-        c_response_type VARCHAR(50) NOT NULL,
-        -- COMPLAINT_RESPONSE, QUALITY_DISPUTE, SERVICE_ISSUE
+    c_evidence_urls TEXT,
+    c_evidence_count INT NOT NULL DEFAULT 0,
 
-        c_response_text NVARCHAR(2000) NOT NULL,
-        c_response_status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED',
-        -- SUBMITTED, UNDER_REVIEW, ACCEPTED, REJECTED
+    c_responded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_reviewed_at TIMESTAMP,
 
-        -- Evidence
-        c_evidence_urls NVARCHAR(MAX) NULL, -- JSON array
-        c_evidence_count INT NOT NULL DEFAULT 0,
+    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_modifieddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-        -- Timestamps
-        c_responded_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_reviewed_at DATETIME2 NULL,
+    CONSTRAINT fk_partnerresponse_owner FOREIGN KEY (c_ownerid)
+        REFERENCES t_sys_catering_owner(c_ownerid),
 
-        -- Audit
-        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT fk_partnerresponse_order FOREIGN KEY (c_orderid)
+        REFERENCES t_sys_orders(c_orderid)
+);
 
-        -- Foreign keys
-        CONSTRAINT FK_PartnerResponse_Owner FOREIGN KEY (c_owner_id)
-            REFERENCES t_sys_owner(c_owner_id),
-        CONSTRAINT FK_PartnerResponse_Order FOREIGN KEY (c_order_id)
-            REFERENCES t_order(c_order_id)
-    );
-
-    CREATE INDEX IX_PartnerResponse_OwnerId ON t_partner_response_history(c_owner_id);
-    CREATE INDEX IX_PartnerResponse_ComplaintId ON t_partner_response_history(c_complaint_id);
-    CREATE INDEX IX_PartnerResponse_Status ON t_partner_response_history(c_response_status);
-END
-GO
+CREATE INDEX IF NOT EXISTS ix_partnerresponse_ownerid ON t_partner_response_history(c_ownerid);
+CREATE INDEX IF NOT EXISTS ix_partnerresponse_complaintid ON t_partner_response_history(c_complaint_id);
+CREATE INDEX IF NOT EXISTS ix_partnerresponse_status ON t_partner_response_history(c_response_status);
 
 -- =============================================
--- COMPUTED COLUMNS & TRIGGERS
+-- TABLE: t_platform_fee_config
 -- =============================================
+CREATE TABLE IF NOT EXISTS t_platform_fee_config (
+    c_config_id SERIAL PRIMARY KEY,
+    c_fee_type VARCHAR(50) NOT NULL,
+    c_fee_value DECIMAL(18,2) NOT NULL,
+    c_min_amount DECIMAL(18,2),
+    c_max_amount DECIMAL(18,2),
+    c_is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    c_modifieddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
--- Trigger to update c_modifieddate automatically
-IF NOT EXISTS (SELECT * FROM sys.triggers WHERE name = 'TR_OwnerPayment_UpdateTimestamp')
-BEGIN
-    EXEC('
-    CREATE TRIGGER TR_OwnerPayment_UpdateTimestamp
-    ON t_owner_payment
-    AFTER UPDATE
-    AS
-    BEGIN
-        UPDATE t_owner_payment
-        SET c_modifieddate = GETDATE()
-        WHERE c_owner_payment_id IN (SELECT c_owner_payment_id FROM inserted)
-    END
-    ')
-END
-GO
-
--- =============================================
--- SAMPLE DATA / DEFAULT VALUES
--- =============================================
-
--- Platform service fee configuration (can be stored in settings table)
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 't_platform_fee_config')
-BEGIN
-    CREATE TABLE t_platform_fee_config (
-        c_config_id INT PRIMARY KEY IDENTITY(1,1),
-        c_fee_type VARCHAR(50) NOT NULL,
-        -- PERCENTAGE, FLAT_FEE, TIERED
-
-        c_fee_value DECIMAL(18,2) NOT NULL,
-        c_min_amount DECIMAL(18,2) NULL,
-        c_max_amount DECIMAL(18,2) NULL,
-
-        c_is_active BIT NOT NULL DEFAULT 1,
-        c_createddate DATETIME2 NOT NULL DEFAULT GETDATE(),
-        c_modifieddate DATETIME2 NOT NULL DEFAULT GETDATE()
-    );
-
-    -- Insert default platform service fee (e.g., 10%)
-    INSERT INTO t_platform_fee_config (c_fee_type, c_fee_value)
-    VALUES ('PERCENTAGE', 10.00);
-END
-GO
-
-PRINT 'Owner Payment & Settlement System Schema Created Successfully';
-PRINT 'Tables Created:';
-PRINT '  - t_owner_payment';
-PRINT '  - t_owner_settlement';
-PRINT '  - t_owner_payout_schedule';
-PRINT '  - t_partner_approval_request';
-PRINT '  - t_partner_response_history';
-PRINT '  - t_platform_fee_config';
-PRINT '';
-PRINT '✅ All tables use OWNER/PARTNER terminology (NO VENDOR)';
+INSERT INTO t_platform_fee_config (c_fee_type, c_fee_value)
+VALUES ('PERCENTAGE', 10.00)
+ON CONFLICT DO NOTHING;

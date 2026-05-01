@@ -1,10 +1,10 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -34,89 +34,86 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             FROM {Table.SysOrders} o
             INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
 
-            OUTER APPLY (
-                SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+            LEFT JOIN LATERAL (
+                SELECT SUM(COALESCE(p.c_paid_amount, p.c_amount)) AS PaidAmount
                 FROM {Table.SysOrderPayments} p
                 WHERE p.c_orderid = o.c_orderid
-                  AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
-            ) pay
+                  AND COALESCE(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+            ) pay ON TRUE
 
-            OUTER APPLY (
-                SELECT STUFF((
-                    SELECT TOP 6 ', ' + src.FoodName
+            LEFT JOIN LATERAL (
+                SELECT STRING_AGG(src.FoodName, ', ' ORDER BY src.FoodName) AS MenuItemNames
+                FROM (
+                    SELECT src.FoodName
                     FROM (
-
                         -- Source 1: Direct FoodItem rows
                         SELECT f.c_foodname AS FoodName
                         FROM {Table.SysOrderItems} oi
                         INNER JOIN {Table.SysFoodItems} f ON oi.c_item_id = f.c_foodid
                         WHERE oi.c_orderid   = o.c_orderid
                           AND oi.c_item_type = 'FoodItem'
-                          AND f.c_is_deleted = 0
+                          AND f.c_is_deleted = FALSE
 
                         UNION ALL
 
                         -- Source 2: Food names inside Package JSON
-                        -- JSON path: $.selections[*].selectedItems[*].foodName
-                        SELECT JSON_VALUE(si.value, '$.foodName') AS FoodName
+                        SELECT si.value ->> 'foodName' AS FoodName
                         FROM {Table.SysOrderItems} oi
-                        CROSS APPLY OPENJSON(
-                            TRY_CAST(oi.c_package_selections AS NVARCHAR(MAX)),
-                            '$.selections'
-                        ) sel
-                        CROSS APPLY OPENJSON(sel.value, '$.selectedItems') si
+                        CROSS JOIN LATERAL jsonb_array_elements((oi.c_package_selections::jsonb) -> 'selections') sel(value)
+                        CROSS JOIN LATERAL jsonb_array_elements(sel.value -> 'selectedItems') si(value)
                         WHERE oi.c_orderid   = o.c_orderid
                           AND oi.c_item_type = 'Package'
                           AND oi.c_package_selections IS NOT NULL
-                          AND JSON_VALUE(si.value, '$.foodName') IS NOT NULL
+                          AND si.value ->> 'foodName' IS NOT NULL
 
                     ) src
-                    FOR XML PATH(''), TYPE
-                ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS MenuItemNames
-            ) menu
+                    WHERE src.FoodName IS NOT NULL
+                    LIMIT 6
+                ) src
+            ) menu ON TRUE
 
             WHERE o.c_ownerid = @OwnerId";
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
         {
-            new SqlParameter("@OwnerId", ownerId)
+            new NpgsqlParameter("@OwnerId", ownerId)
         };
 
-                // ── Filters ───────────────────────────────────────────────────────────
+                // â”€â”€ Filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if (!string.IsNullOrEmpty(filter.OrderStatus) && filter.OrderStatus.ToLower() != "all")
                 {
                     baseQuery += " AND o.c_order_status = @OrderStatus";
-                    parameters.Add(new SqlParameter("@OrderStatus", filter.OrderStatus));
+                    parameters.Add(new NpgsqlParameter("@OrderStatus", filter.OrderStatus));
                 }
 
                 if (filter.StartDate.HasValue)
                 {
                     baseQuery += " AND o.c_createddate >= @StartDate";
-                    parameters.Add(new SqlParameter("@StartDate", filter.StartDate.Value));
+                    parameters.Add(new NpgsqlParameter("@StartDate", filter.StartDate.Value));
                 }
 
                 if (filter.EndDate.HasValue)
                 {
                     baseQuery += " AND o.c_createddate <= @EndDate";
-                    parameters.Add(new SqlParameter("@EndDate", filter.EndDate.Value.AddDays(1).AddSeconds(-1)));
+                    parameters.Add(new NpgsqlParameter("@EndDate", filter.EndDate.Value.AddDays(1).AddSeconds(-1)));
                 }
 
                 if (!string.IsNullOrEmpty(filter.EventType))
                 {
                     baseQuery += " AND o.c_event_type = @EventType";
-                    parameters.Add(new SqlParameter("@EventType", filter.EventType));
+                    parameters.Add(new NpgsqlParameter("@EventType", filter.EventType));
                 }
 
                 if (filter.MinAmount.HasValue)
                 {
                     baseQuery += " AND o.c_total_amount >= @MinAmount";
-                    parameters.Add(new SqlParameter("@MinAmount", filter.MinAmount.Value));
+                    parameters.Add(new NpgsqlParameter("@MinAmount", filter.MinAmount.Value));
                 }
 
                 if (filter.MaxAmount.HasValue)
                 {
                     baseQuery += " AND o.c_total_amount <= @MaxAmount";
-                    parameters.Add(new SqlParameter("@MaxAmount", filter.MaxAmount.Value));
+                    parameters.Add(new NpgsqlParameter("@MaxAmount", filter.MaxAmount.Value));
                 }
 
                 if (!string.IsNullOrEmpty(filter.SearchTerm))
@@ -124,7 +121,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     baseQuery += @" AND (o.c_order_number LIKE @SearchTerm
                             OR u.c_name           LIKE @SearchTerm
                             OR u.c_mobile         LIKE @SearchTerm)";
-                    parameters.Add(new SqlParameter("@SearchTerm", $"%{filter.SearchTerm}%"));
+                    parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{filter.SearchTerm}%"));
                 }
 
                 if (filter.ExcludeStatuses?.Count > 0)
@@ -132,16 +129,16 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     var placeholders = string.Join(",", filter.ExcludeStatuses
                         .Select((s, i) =>
                         {
-                            parameters.Add(new SqlParameter($"@ExclStatus{i}", s));
+                            parameters.Add(new NpgsqlParameter($"@ExclStatus{i}", s));
                             return $"@ExclStatus{i}";
                         }));
                     baseQuery += $" AND o.c_order_status NOT IN ({placeholders})";
                 }
 
-                // ── Count query ───────────────────────────────────────────────────────
+                // â”€â”€ Count query â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 countQuery.Append($"SELECT COUNT(*) AS TotalCount {baseQuery}");
 
-                // ── Data query ────────────────────────────────────────────────────────
+                // â”€â”€ Data query â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 query.Append($@"
             SELECT
                 o.c_orderid                                                    AS OrderId,
@@ -152,19 +149,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 o.c_event_date                                                 AS EventDate,
                 o.c_createddate                                                AS OrderDate,
                 o.c_total_amount                                               AS TotalAmount,
-                ISNULL(pay.PaidAmount, 0)                                      AS PaidAmount,
-                (o.c_total_amount - ISNULL(pay.PaidAmount, 0))                AS BalanceAmount,
+                COALESCE(pay.PaidAmount, 0)                                      AS PaidAmount,
+                (o.c_total_amount - COALESCE(pay.PaidAmount, 0))                AS BalanceAmount,
                 o.c_order_status                                               AS OrderStatus,
                 o.c_payment_status                                             AS PaymentStatus,
                 o.c_guest_count                                                AS GuestCount,
-                DATEDIFF(DAY, GETDATE(), o.c_event_date)                      AS DaysUntilEvent,
-                ISNULL(o.c_event_time, '')                                    AS EventTime,
-                ISNULL(o.c_event_location, ISNULL(o.c_delivery_address, '')) AS VenueAddress,
-                ISNULL(menu.MenuItemNames, '')                                AS MenuItemNames
+                (o.c_event_date::date - CURRENT_DATE)                     AS DaysUntilEvent,
+                COALESCE(o.c_event_time, '')                                    AS EventTime,
+                COALESCE(o.c_event_location, COALESCE(o.c_delivery_address, '')) AS VenueAddress,
+                COALESCE(menu.MenuItemNames, '')                                AS MenuItemNames
             {baseQuery}
             ORDER BY ");
 
-                // ── Sorting ───────────────────────────────────────────────────────────
+                // â”€â”€ Sorting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 switch (filter.SortBy?.ToLower())
                 {
                     case "eventdate": query.Append("o.c_event_date"); break;
@@ -175,18 +172,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 query.Append(filter.SortOrder?.ToUpper() == "ASC" ? " ASC" : " DESC");
 
-                // ── Pagination ────────────────────────────────────────────────────────
+                // â”€â”€ Pagination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 int offset = (filter.Page - 1) * filter.PageSize;
-                query.Append($" OFFSET {offset} ROWS FETCH NEXT {filter.PageSize} ROWS ONLY");
+                query.Append($" LIMIT {filter.PageSize} OFFSET {offset}");
 
-                // ── Execute count ─────────────────────────────────────────────────────
+                // â”€â”€ Execute count â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 var totalCount = 0;
                 var countResult = await Task.Run(() =>
                     _dbHelper.ExecuteScalar(countQuery.ToString(), CloneParameters(parameters)));
                 if (countResult != null)
                     totalCount = Convert.ToInt32(countResult);
 
-                // ── Execute data ──────────────────────────────────────────────────────
+                // â”€â”€ Execute data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 var dataTable = await Task.Run(() =>
                     _dbHelper.ExecuteAsync(query.ToString(), CloneParameters(parameters)));
 
@@ -266,7 +263,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         o.c_guest_count AS GuestCount,
                         o.c_event_location AS EventLocation,
                         o.c_delivery_address AS DeliveryAddress,
-                        ISNULL(o.c_event_location, ISNULL(o.c_delivery_address, '')) AS VenueAddress,
+                        COALESCE(o.c_event_location, COALESCE(o.c_delivery_address, '')) AS VenueAddress,
                         '' AS VenueCity,
                         '' AS VenueState,
                         '' AS VenuePincode,
@@ -278,26 +275,26 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         o.c_contact_phone AS ContactPhone,
                         o.c_contact_email AS ContactEmail,
                         o.c_special_instructions AS SpecialInstructions,
-                        ISNULL(o.c_base_amount, 0) AS SubTotal,
-                        ISNULL(o.c_tax_amount, 0) AS TaxAmount,
-                        ISNULL(o.c_discount_amount, 0) AS DiscountAmount,
-                        ISNULL(o.c_delivery_charges, 0) AS DeliveryCharges,
+                        COALESCE(o.c_base_amount, 0) AS SubTotal,
+                        COALESCE(o.c_tax_amount, 0) AS TaxAmount,
+                        COALESCE(o.c_discount_amount, 0) AS DiscountAmount,
+                        COALESCE(o.c_delivery_charges, 0) AS DeliveryCharges,
                         o.c_total_amount AS TotalAmount,
-                        ISNULL(o.c_payment_split_enabled, 0) AS PaymentSplitEnabled,
+                        COALESCE(o.c_payment_split_enabled, 0) AS PaymentSplitEnabled,
                         o.c_prebooking_amount AS PreBookingAmount,
                         o.c_postevent_amount AS PostEventAmount,
                         o.c_prebooking_status AS PreBookingStatus,
                         o.c_postevent_status AS PostEventStatus,
-                        ISNULL(pay.PaidAmount, 0) AS PaidAmount,
-                        (o.c_total_amount - ISNULL(pay.PaidAmount, 0)) AS BalanceAmount
+                        COALESCE(pay.PaidAmount, 0) AS PaidAmount,
+                        (o.c_total_amount - COALESCE(pay.PaidAmount, 0)) AS BalanceAmount
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
-                    OUTER APPLY (
-                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                    LEFT JOIN LATERAL (
+                        SELECT SUM(COALESCE(p.c_paid_amount, p.c_amount)) AS PaidAmount
                         FROM {Table.SysOrderPayments} p
                         WHERE p.c_orderid = o.c_orderid
-                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
-                    ) pay
+                          AND COALESCE(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay ON TRUE
                     WHERE o.c_orderid = @OrderId;
 
                     -- Order Items (Food Items and Packages)
@@ -306,10 +303,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         oi.c_item_id AS MenuItemId,
                         oi.c_item_name AS MenuItemName,
                         CASE
-                            WHEN oi.c_item_type = 'FoodItem' THEN ISNULL(fc.c_categoryname, 'Food Item')
+                            WHEN oi.c_item_type = 'FoodItem' THEN COALESCE(fc.c_categoryname, 'Food Item')
                             WHEN oi.c_item_type = 'Package' THEN 'Package'
                             WHEN oi.c_item_type = 'Decoration' THEN 'Decoration'
-                            ELSE ISNULL(oi.c_item_type, 'Item')
+                            ELSE COALESCE(oi.c_item_type, 'Item')
                         END AS Category,
                         oi.c_item_type AS ItemType,
                         oi.c_quantity AS Quantity,
@@ -326,7 +323,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     WHERE oi.c_orderid = @OrderId
                     ORDER BY oi.c_order_item_id ASC;";
 
-                var parameters = new[] { new SqlParameter("@OrderId", orderId) };
+                var parameters = new[] { new NpgsqlParameter("@OrderId", orderId) };
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
 
                 if (dataSet.Tables.Count == 0 || dataSet.Tables[0].Rows.Count == 0)
@@ -426,17 +423,17 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     SET c_order_status = @NewStatus,
                         c_modifieddate = @ModifiedDate");
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@NewStatus", statusUpdate.NewStatus),
-                    new SqlParameter("@ModifiedDate", DateTime.Now)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@NewStatus", statusUpdate.NewStatus),
+                    new NpgsqlParameter("@ModifiedDate", DateTime.Now)
                 };
 
                 if (statusUpdate.EstimatedDeliveryTime.HasValue)
                 {
                     query.Append(", c_estimated_delivery_time = @EstimatedDeliveryTime");
-                    parameters.Add(new SqlParameter("@EstimatedDeliveryTime", statusUpdate.EstimatedDeliveryTime.Value));
+                    parameters.Add(new NpgsqlParameter("@EstimatedDeliveryTime", statusUpdate.EstimatedDeliveryTime.Value));
                 }
 
                 query.Append(" WHERE c_orderid = @OrderId;");
@@ -447,7 +444,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     (c_orderid, c_status, c_remarks, c_modifieddate)
                     VALUES (@OrderId, @NewStatus, @Comments, @ModifiedDate);");
 
-                parameters.Add(new SqlParameter("@Comments", statusUpdate.Comments ?? ""));
+                parameters.Add(new NpgsqlParameter("@Comments", statusUpdate.Comments ?? ""));
 
                 var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(query.ToString(), parameters.ToArray()));
 
@@ -474,7 +471,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     WHERE c_orderid = @OrderId
                     ORDER BY c_modifieddate DESC";
 
-                var parameters = new[] { new SqlParameter("@OrderId", orderId) };
+                var parameters = new[] { new NpgsqlParameter("@OrderId", orderId) };
                 var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, parameters));
 
                 var history = new List<OrderStatusHistoryDto>();
@@ -510,12 +507,12 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         SUM(CASE WHEN c_order_status = 'Confirmed' THEN 1 ELSE 0 END) AS ConfirmedOrders,
                         SUM(CASE WHEN c_order_status = 'Completed' THEN 1 ELSE 0 END) AS CompletedOrders,
                         SUM(CASE WHEN c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS CancelledOrders,
-                        ISNULL(SUM(c_total_amount), 0) AS TotalRevenue,
-                        ISNULL(AVG(c_total_amount), 0) AS AverageOrderValue
+                        COALESCE(SUM(c_total_amount), 0) AS TotalRevenue,
+                        COALESCE(AVG(c_total_amount), 0) AS AverageOrderValue
                     FROM {Table.SysOrders}
                     WHERE c_ownerid = @OwnerId";
 
-                var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+                var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
                 var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, parameters));
 
                 if (dataTable.Rows.Count > 0)
@@ -550,16 +547,16 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             {
                 var query = $@"
                     SELECT
-                        SUM(CASE WHEN CAST(c_createddate AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END) AS TodayRequests,
-                        SUM(CASE WHEN c_createddate >= DATEADD(DAY, -7, GETDATE()) THEN 1 ELSE 0 END) AS WeekRequests,
-                        SUM(CASE WHEN c_createddate >= DATEADD(DAY, -30, GETDATE()) THEN 1 ELSE 0 END) AS MonthRequests,
+                        SUM(CASE WHEN CAST(c_createddate AS DATE) = CAST(NOW() AS DATE) THEN 1 ELSE 0 END) AS TodayRequests,
+                        SUM(CASE WHEN c_createddate >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) AS WeekRequests,
+                        SUM(CASE WHEN c_createddate >= NOW() - INTERVAL '30 days' THEN 1 ELSE 0 END) AS MonthRequests,
                         SUM(CASE WHEN c_order_status = 'Pending' THEN 1 ELSE 0 END) AS TotalPending,
                         SUM(CASE WHEN c_order_status = 'Confirmed' THEN 1 ELSE 0 END) AS TotalConfirmed,
                         SUM(CASE WHEN c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS TotalRejected
                     FROM {Table.SysOrders}
-                    WHERE c_ownerid = @OwnerId AND c_isactive = 1";
+                    WHERE c_ownerid = @OwnerId AND c_isactive = TRUE";
 
-                var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+                var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
                 var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, parameters));
 
                 if (dataTable.Rows.Count > 0)
@@ -594,8 +591,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@OwnerId", ownerId)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@OwnerId", ownerId)
                 };
 
                 var result = await Task.Run(() => _dbHelper.ExecuteScalar(query, parameters));
@@ -614,19 +611,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         {
             try
             {
-                var whereClause = "WHERE so.c_ownerid = @OwnerId AND so.c_is_deleted = 0";
-                var parameters = new List<SqlParameter> { new SqlParameter("@OwnerId", ownerId) };
+                var whereClause = "WHERE so.c_ownerid = @OwnerId AND so.c_is_deleted = FALSE";
+                var parameters = new List<NpgsqlParameter> { new NpgsqlParameter("@OwnerId", ownerId) };
 
                 if (!string.IsNullOrEmpty(statusFilter))
                 {
                     whereClause += " AND so.c_status = @StatusFilter";
-                    parameters.Add(new SqlParameter("@StatusFilter", statusFilter));
+                    parameters.Add(new NpgsqlParameter("@StatusFilter", statusFilter));
                 }
 
                 if (!string.IsNullOrEmpty(searchTerm))
                 {
                     whereClause += " AND (u.c_name LIKE @SearchTerm OR CAST(so.c_sample_order_id AS NVARCHAR) LIKE @SearchTerm)";
-                    parameters.Add(new SqlParameter("@SearchTerm", $"%{searchTerm}%"));
+                    parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{searchTerm}%"));
                 }
 
                 var dataQuery = $@"
@@ -646,17 +643,18 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         so.c_pickup_address    AS PickupAddress,
                         so.c_createddate       AS RequestedDate,
                         so.c_rejection_reason  AS RejectionReason,
-                        ISNULL(items.ItemNames, '') AS ItemNames
+                        COALESCE(items.ItemNames, '') AS ItemNames
                     FROM {Table.SysSampleOrders} so
                     INNER JOIN {Table.SysUser} u ON so.c_userid = u.c_userid
-                    OUTER APPLY (
-                        SELECT STUFF((
-                            SELECT TOP 6 ', ' + ISNULL(soi.c_menu_item_name, '')
+                    LEFT JOIN LATERAL (
+                        SELECT STRING_AGG(COALESCE(soi.c_menu_item_name, ''), ', ' ORDER BY soi.c_menu_item_name) AS ItemNames
+                        FROM (
+                            SELECT c_menu_item_name
                             FROM {Table.SysSampleOrderItems} soi
                             WHERE soi.c_sample_order_id = so.c_sample_order_id
-                            FOR XML PATH(''), TYPE
-                        ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS ItemNames
-                    ) items
+                            LIMIT 6
+                        ) soi
+                    ) items ON TRUE
                     {whereClause}
                     ORDER BY so.c_createddate DESC";
 
@@ -735,11 +733,11 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 }
 
                 // Validate ownership
-                var validateQuery = $"SELECT COUNT(*) FROM {Table.SysSampleOrders} WHERE c_sample_order_id = @SampleOrderId AND c_ownerid = @OwnerId AND c_is_deleted = 0";
+                var validateQuery = $"SELECT COUNT(*) FROM {Table.SysSampleOrders} WHERE c_sample_order_id = @SampleOrderId AND c_ownerid = @OwnerId AND c_is_deleted = FALSE";
                 var validateParams = new[]
                 {
-                    new SqlParameter("@SampleOrderId", sampleOrderId),
-                    new SqlParameter("@OwnerId", ownerId)
+                    new NpgsqlParameter("@SampleOrderId", sampleOrderId),
+                    new NpgsqlParameter("@OwnerId", ownerId)
                 };
                 var validateResult = await Task.Run(() => _dbHelper.ExecuteScalar(validateQuery, validateParams));
                 if (validateResult == null || Convert.ToInt32(validateResult) == 0)
@@ -747,7 +745,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 string newStatus;
                 string updateQuery;
-                SqlParameter[] updateParams;
+                NpgsqlParameter[] updateParams;
 
                 if (action.Action?.Equals("Accept", StringComparison.OrdinalIgnoreCase) == true)
                 {
@@ -755,13 +753,13 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     updateQuery = $@"
                         UPDATE {Table.SysSampleOrders}
                         SET c_status = @Status,
-                            c_partner_response_date = GETDATE(),
-                            c_modifieddate = GETDATE()
+                            c_partner_response_date = NOW(),
+                            c_modifieddate = NOW()
                         WHERE c_sample_order_id = @SampleOrderId";
                     updateParams = new[]
                     {
-                        new SqlParameter("@Status", newStatus),
-                        new SqlParameter("@SampleOrderId", sampleOrderId)
+                        new NpgsqlParameter("@Status", newStatus),
+                        new NpgsqlParameter("@SampleOrderId", sampleOrderId)
                     };
                 }
                 else
@@ -771,14 +769,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         UPDATE {Table.SysSampleOrders}
                         SET c_status = @Status,
                             c_rejection_reason = @RejectionReason,
-                            c_partner_response_date = GETDATE(),
-                            c_modifieddate = GETDATE()
+                            c_partner_response_date = NOW(),
+                            c_modifieddate = NOW()
                         WHERE c_sample_order_id = @SampleOrderId";
                     updateParams = new[]
                     {
-                        new SqlParameter("@Status", newStatus),
-                        new SqlParameter("@RejectionReason", action.RejectionReason ?? string.Empty),
-                        new SqlParameter("@SampleOrderId", sampleOrderId)
+                        new NpgsqlParameter("@Status", newStatus),
+                        new NpgsqlParameter("@RejectionReason", action.RejectionReason ?? string.Empty),
+                        new NpgsqlParameter("@SampleOrderId", sampleOrderId)
                     };
                 }
 
@@ -808,10 +806,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 INNER JOIN {Table.SysOrderItems} oi ON o.c_orderid = oi.c_orderid
                 INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
                 WHERE o.c_ownerid = @OwnerId
-                  AND ISNULL(oi.c_package_selections, '') <> ''
+                  AND COALESCE(oi.c_package_selections, '') <> ''
                   AND oi.c_package_selections LIKE '%sampleTasteSelections%'";
 
-            var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, new[] { new SqlParameter("@OwnerId", ownerId) }));
+            var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, new[] { new NpgsqlParameter("@OwnerId", ownerId) }));
             var results = new List<SampleRequestListItemDto>();
 
             foreach (DataRow row in dataTable.Rows)
@@ -887,18 +885,19 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         private async Task<bool> ActionOrderLinkedSampleRequest(long ownerId, long sampleOrderId, SampleRequestActionDto action)
         {
             var query = $@"
-                SELECT TOP 1
+                SELECT
                     oi.c_order_item_id AS OrderItemId,
                     oi.c_package_selections AS PackageSelections
                 FROM {Table.SysOrderItems} oi
                 INNER JOIN {Table.SysOrders} o ON oi.c_orderid = o.c_orderid
                 WHERE o.c_ownerid = @OwnerId
-                  AND oi.c_order_item_id = @OrderItemId";
+                  AND oi.c_order_item_id = @OrderItemId
+                LIMIT 1";
 
             var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, new[]
             {
-                new SqlParameter("@OwnerId", ownerId),
-                new SqlParameter("@OrderItemId", action.LinkedOrderItemId ?? sampleOrderId)
+                new NpgsqlParameter("@OwnerId", ownerId),
+                new NpgsqlParameter("@OrderItemId", action.LinkedOrderItemId ?? sampleOrderId)
             }));
 
             if (dataTable.Rows.Count == 0)
@@ -923,23 +922,24 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
             var updated = await Task.Run(() => _dbHelper.ExecuteNonQuery(updateQuery, new[]
             {
-                new SqlParameter("@PackageSelections", payload.ToString()),
-                new SqlParameter("@OrderItemId", action.LinkedOrderItemId ?? sampleOrderId)
+                new NpgsqlParameter("@PackageSelections", payload.ToString()),
+                new NpgsqlParameter("@OrderItemId", action.LinkedOrderItemId ?? sampleOrderId)
             }));
 
             return updated > 0;
         }
 
-        private static SqlParameter[] CloneParameters(List<SqlParameter> parameters)
+        private static NpgsqlParameter[] CloneParameters(List<NpgsqlParameter> parameters)
         {
-            var cloned = new SqlParameter[parameters.Count];
+            var cloned = new NpgsqlParameter[parameters.Count];
             for (var i = 0; i < parameters.Count; i++)
             {
                 var parameter = parameters[i];
-                cloned[i] = new SqlParameter(parameter.ParameterName, parameter.Value ?? DBNull.Value);
+                cloned[i] = new NpgsqlParameter(parameter.ParameterName, parameter.Value ?? DBNull.Value);
             }
 
             return cloned;
         }
     }
 }
+

@@ -9,7 +9,7 @@ using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.User
@@ -109,9 +109,10 @@ namespace CateringEcommerce.BAL.Base.User
                         throw new InvalidOperationException(validation.ErrorMessage);
 
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(orderData.PaymentProof.FileName);
-                    paymentProofPath = await _fileStorageService.SaveFormFileAsync(
+                    paymentProofPath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                         orderData.PaymentProof,
                         orderData.CateringId,
+                        Role.Owner.GetDisplayName(),
                         DocumentType.PaymentProof.GetDisplayName(),
                         false,
                         safeFilename
@@ -373,9 +374,9 @@ namespace CateringEcommerce.BAL.Base.User
                     WHERE c_ownerid = @CateringId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@CateringId", cateringId)
+                    new NpgsqlParameter("@CateringId", cateringId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -441,13 +442,13 @@ namespace CateringEcommerce.BAL.Base.User
                     FROM {Table.SysMenuPackage}
                     WHERE c_packageid = @PackageId
                       AND c_ownerid = @CateringId
-                      AND c_is_active = 1
+                      AND c_is_active = TRUE
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@PackageId", packageId),
-                    new SqlParameter("@CateringId", cateringId)
+                    new NpgsqlParameter("@PackageId", packageId),
+                    new NpgsqlParameter("@CateringId", cateringId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -474,13 +475,13 @@ namespace CateringEcommerce.BAL.Base.User
                     FROM {Table.SysFoodItems}
                     WHERE c_foodid = @FoodItemId
                       AND c_ownerid = @CateringId
-                      AND c_isactive = 1
+                      AND c_isactive = TRUE
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@FoodItemId", foodItemId),
-                    new SqlParameter("@CateringId", cateringId)
+                    new NpgsqlParameter("@FoodItemId", foodItemId),
+                    new NpgsqlParameter("@CateringId", cateringId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -508,13 +509,13 @@ namespace CateringEcommerce.BAL.Base.User
                     WHERE c_decoration_id = @DecorationId
                       AND c_ownerid = @CateringId
                       AND c_status = 1
-                      AND c_is_deleted = 0
+                      AND c_is_deleted = FALSE
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@DecorationId", decorationId),
-                    new SqlParameter("@CateringId", cateringId)
+                    new NpgsqlParameter("@DecorationId", decorationId),
+                    new NpgsqlParameter("@CateringId", cateringId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);

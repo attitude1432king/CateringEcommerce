@@ -1,7 +1,7 @@
 using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.Admin
@@ -15,30 +15,30 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<CommissionListResponse> GetCommissionConfigsAsync(CommissionListRequest request)
         {
             var conditions = new List<string>();
-            var baseParameters = new List<SqlParameter>();
+            var baseParameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrWhiteSpace(request.ConfigType))
             {
                 conditions.Add("c.c_config_type = @ConfigType");
-                baseParameters.Add(new SqlParameter("@ConfigType", request.ConfigType));
+                baseParameters.Add(new NpgsqlParameter("@ConfigType", request.ConfigType));
             }
 
             if (request.CateringOwnerId.HasValue)
             {
                 conditions.Add("c.c_ownerid = @CateringOwnerId");
-                baseParameters.Add(new SqlParameter("@CateringOwnerId", request.CateringOwnerId.Value));
+                baseParameters.Add(new NpgsqlParameter("@CateringOwnerId", request.CateringOwnerId.Value));
             }
 
             if (request.IsActive.HasValue)
             {
                 conditions.Add("c.c_is_active = @IsActive");
-                baseParameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                baseParameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             if (request.EffectiveDate.HasValue)
             {
                 conditions.Add("(c.c_effective_from <= @EffectiveDate AND (c.c_effective_to IS NULL OR c.c_effective_to >= @EffectiveDate))");
-                baseParameters.Add(new SqlParameter("@EffectiveDate", request.EffectiveDate.Value));
+                baseParameters.Add(new NpgsqlParameter("@EffectiveDate", request.EffectiveDate.Value));
             }
 
             string whereClause = conditions.Count > 0
@@ -76,8 +76,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 .Select(CloneParameter)
                 .ToList();
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dataQuery = $@"
                 SELECT
@@ -102,8 +102,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysCateringOwner} o ON c.c_ownerid = o.c_ownerid
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
-                OFFSET @Offset ROWS
-                FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
             var configs = new List<CommissionConfigItem>();
 
@@ -171,7 +170,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var parameters = new[]
             {
-                new SqlParameter("@ConfigId", configId)
+                new NpgsqlParameter("@ConfigId", configId)
             };
 
             var configTable = await _dbHelper.ExecuteAsync(query, parameters);
@@ -229,25 +228,25 @@ namespace CateringEcommerce.BAL.Base.Admin
                 (c_config_name, c_config_type, c_ownerid, c_commission_rate, c_fixed_fee,
                  c_min_order_value, c_max_order_value, c_is_active, c_effective_from, c_effective_to,
                  c_createdby, c_createddate)
-                OUTPUT INSERTED.c_config_id
                 VALUES
                 (@ConfigName, @ConfigType, @CateringOwnerId, @CommissionRate, @FixedFee,
                  @MinOrderValue, @MaxOrderValue, @IsActive, @EffectiveFrom, @EffectiveTo,
-                 @CreatedBy, GETDATE())";
+                 @CreatedBy, NOW())
+                RETURNING c_config_id";
 
             var parameters = new[]
             {
-                new SqlParameter("@ConfigName", request.ConfigName),
-                new SqlParameter("@ConfigType", request.ConfigType),
-                new SqlParameter("@CateringOwnerId", (object)request.CateringOwnerId ?? DBNull.Value),
-                new SqlParameter("@CommissionRate", request.CommissionRate),
-                new SqlParameter("@FixedFee", request.FixedFee),
-                new SqlParameter("@MinOrderValue", (object)request.MinOrderValue ?? DBNull.Value),
-                new SqlParameter("@MaxOrderValue", (object)request.MaxOrderValue ?? DBNull.Value),
-                new SqlParameter("@IsActive", request.IsActive),
-                new SqlParameter("@EffectiveFrom", request.EffectiveFrom),
-                new SqlParameter("@EffectiveTo", (object)request.EffectiveTo ?? DBNull.Value),
-                new SqlParameter("@CreatedBy", adminId)
+                new NpgsqlParameter("@ConfigName", request.ConfigName),
+                new NpgsqlParameter("@ConfigType", request.ConfigType),
+                new NpgsqlParameter("@CateringOwnerId", (object)request.CateringOwnerId ?? DBNull.Value),
+                new NpgsqlParameter("@CommissionRate", request.CommissionRate),
+                new NpgsqlParameter("@FixedFee", request.FixedFee),
+                new NpgsqlParameter("@MinOrderValue", (object)request.MinOrderValue ?? DBNull.Value),
+                new NpgsqlParameter("@MaxOrderValue", (object)request.MaxOrderValue ?? DBNull.Value),
+                new NpgsqlParameter("@IsActive", request.IsActive),
+                new NpgsqlParameter("@EffectiveFrom", request.EffectiveFrom),
+                new NpgsqlParameter("@EffectiveTo", (object)request.EffectiveTo ?? DBNull.Value),
+                new NpgsqlParameter("@CreatedBy", adminId)
             };
 
             var configId = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -289,21 +288,21 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_effective_from = @EffectiveFrom,
                     c_effective_to = @EffectiveTo,
                     c_modifiedby = @ModifiedBy,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_config_id = @ConfigId";
 
             var parameters = new[]
             {
-                new SqlParameter("@ConfigName", request.ConfigName),
-                new SqlParameter("@CommissionRate", request.CommissionRate),
-                new SqlParameter("@FixedFee", request.FixedFee),
-                new SqlParameter("@MinOrderValue", (object)request.MinOrderValue ?? DBNull.Value),
-                new SqlParameter("@MaxOrderValue", (object)request.MaxOrderValue ?? DBNull.Value),
-                new SqlParameter("@IsActive", request.IsActive),
-                new SqlParameter("@EffectiveFrom", request.EffectiveFrom),
-                new SqlParameter("@EffectiveTo", (object)request.EffectiveTo ?? DBNull.Value),
-                new SqlParameter("@ModifiedBy", adminId),
-                new SqlParameter("@ConfigId", request.ConfigId)
+                new NpgsqlParameter("@ConfigName", request.ConfigName),
+                new NpgsqlParameter("@CommissionRate", request.CommissionRate),
+                new NpgsqlParameter("@FixedFee", request.FixedFee),
+                new NpgsqlParameter("@MinOrderValue", (object)request.MinOrderValue ?? DBNull.Value),
+                new NpgsqlParameter("@MaxOrderValue", (object)request.MaxOrderValue ?? DBNull.Value),
+                new NpgsqlParameter("@IsActive", request.IsActive),
+                new NpgsqlParameter("@EffectiveFrom", request.EffectiveFrom),
+                new NpgsqlParameter("@EffectiveTo", (object)request.EffectiveTo ?? DBNull.Value),
+                new NpgsqlParameter("@ModifiedBy", adminId),
+                new NpgsqlParameter("@ConfigId", request.ConfigId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -318,7 +317,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var parameters = new[]
             {
-                new SqlParameter("@ConfigId", configId)
+                new NpgsqlParameter("@ConfigId", configId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -333,7 +332,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             if (cateringOwnerId.HasValue)
             {
                 var specificQuery = $@"
-                    SELECT TOP 1
+                    SELECT
                         c_config_id AS ConfigId,
                         c_config_name AS ConfigName,
                         c_config_type AS ConfigType,
@@ -342,15 +341,16 @@ namespace CateringEcommerce.BAL.Base.Admin
                     FROM {Table.SysCommissionConfig}
                     WHERE c_config_type = 'CATERING_SPECIFIC'
                         AND c_ownerid = @CateringOwnerId
-                        AND c_is_active = 1
+                        AND c_is_active = TRUE
                         AND c_effective_from <= @OrderDate
                         AND (c_effective_to IS NULL OR c_effective_to >= @OrderDate)
-                    ORDER BY c_effective_from DESC";
+                    ORDER BY c_effective_from DESC
+                    LIMIT 1";
 
                 var specificParams = new[]
                 {
-                    new SqlParameter("@CateringOwnerId", cateringOwnerId.Value),
-                    new SqlParameter("@OrderDate", orderDate)
+                    new NpgsqlParameter("@CateringOwnerId", cateringOwnerId.Value),
+                    new NpgsqlParameter("@OrderDate", orderDate)
                 };
 
                 var specificTable = await _dbHelper.ExecuteAsync(specificQuery, specificParams);
@@ -374,7 +374,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             // 2. Check for Tiered config
             var tieredQuery = $@"
-                SELECT TOP 1
+                SELECT
                     c_config_id AS ConfigId,
                     c_config_name AS ConfigName,
                     c_config_type AS ConfigType,
@@ -382,17 +382,18 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_fixed_fee AS FixedFee
                 FROM {Table.SysCommissionConfig}
                 WHERE c_config_type = 'TIERED'
-                    AND c_is_active = 1
+                    AND c_is_active = TRUE
                     AND c_effective_from <= @OrderDate
                     AND (c_effective_to IS NULL OR c_effective_to >= @OrderDate)
-                    AND @OrderValue >= ISNULL(c_min_order_value, 0)
-                    AND @OrderValue <= ISNULL(c_max_order_value, 999999999)
-                ORDER BY c_effective_from DESC";
+                    AND @OrderValue >= COALESCE(c_min_order_value, 0)
+                    AND @OrderValue <= COALESCE(c_max_order_value, 999999999)
+                ORDER BY c_effective_from DESC
+                LIMIT 1";
 
             var tieredParams = new[]
             {
-                new SqlParameter("@OrderDate", orderDate),
-                new SqlParameter("@OrderValue", orderValue)
+                new NpgsqlParameter("@OrderDate", orderDate),
+                new NpgsqlParameter("@OrderValue", orderValue)
             };
 
             var tieredTable = await _dbHelper.ExecuteAsync(tieredQuery, tieredParams);
@@ -415,7 +416,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             // 3. Fall back to Global config
             var globalQuery = $@"
-                SELECT TOP 1
+                SELECT
                     c_config_id AS ConfigId,
                     c_config_name AS ConfigName,
                     c_config_type AS ConfigType,
@@ -423,14 +424,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_fixed_fee AS FixedFee
                 FROM {Table.SysCommissionConfig}
                 WHERE c_config_type = 'GLOBAL'
-                    AND c_is_active = 1
+                    AND c_is_active = TRUE
                     AND c_effective_from <= @OrderDate
                     AND (c_effective_to IS NULL OR c_effective_to >= @OrderDate)
-                ORDER BY c_effective_from DESC";
+                ORDER BY c_effective_from DESC
+                LIMIT 1";
 
             var globalParams = new[]
             {
-                new SqlParameter("@OrderDate", orderDate)
+                new NpgsqlParameter("@OrderDate", orderDate)
             };
 
             var globalTable = await _dbHelper.ExecuteAsync(globalQuery, globalParams);
@@ -460,31 +462,31 @@ namespace CateringEcommerce.BAL.Base.Admin
             var conditions = new List<string>
             {
                 "c_config_type = @ConfigType",
-                "c_is_active = 1"
+                "c_is_active = TRUE"
             };
 
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@ConfigType", configType),
-                new SqlParameter("@EffectiveFrom", effectiveFrom)
+                new NpgsqlParameter("@ConfigType", configType),
+                new NpgsqlParameter("@EffectiveFrom", effectiveFrom)
             };
 
             if (configType == "CATERING_SPECIFIC" && cateringOwnerId.HasValue)
             {
                 conditions.Add("c_ownerid = @CateringOwnerId");
-                parameters.Add(new SqlParameter("@CateringOwnerId", cateringOwnerId.Value));
+                parameters.Add(new NpgsqlParameter("@CateringOwnerId", cateringOwnerId.Value));
             }
 
             if (excludeConfigId.HasValue)
             {
                 conditions.Add("c_config_id != @ExcludeConfigId");
-                parameters.Add(new SqlParameter("@ExcludeConfigId", excludeConfigId.Value));
+                parameters.Add(new NpgsqlParameter("@ExcludeConfigId", excludeConfigId.Value));
             }
 
             // Check for date overlap
             if (effectiveTo.HasValue)
             {
-                parameters.Add(new SqlParameter("@EffectiveTo", effectiveTo.Value));
+                parameters.Add(new NpgsqlParameter("@EffectiveTo", effectiveTo.Value));
                 conditions.Add(@"
                     (
                         (c_effective_from <= @EffectiveTo AND (c_effective_to IS NULL OR c_effective_to >= @EffectiveFrom))
@@ -512,3 +514,5 @@ namespace CateringEcommerce.BAL.Base.Admin
         }
     }
 }
+
+

@@ -48,20 +48,20 @@ BEGIN
             @DateOfBirth, @Address, '', '', '',
             @ResumeUrl, @YearsOfExperience, @PreviousEmployer,
             'APPLIED', 'BASIC',
-            'MONTHLY_SALARY', GETDATE()
+            'MONTHLY_SALARY', NOW()
         );
 
         SET @SupervisorId = SCOPE_IDENTITY();
 
         -- Create careers application record
-        DECLARE @AppNumber VARCHAR(50) = 'CAR-' + FORMAT(GETDATE(), 'yyyyMMdd') + '-' + CAST(@SupervisorId AS VARCHAR(10));
+        DECLARE @AppNumber VARCHAR(50) = 'CAR-' + FORMAT(NOW(), 'yyyyMMdd') + '-' + CAST(@SupervisorId AS VARCHAR(10));
 
         INSERT INTO t_sys_careers_application (
             c_supervisor_id, c_application_number, c_applied_date,
             c_source
         )
         VALUES (
-            @SupervisorId, @AppNumber, GETDATE(),
+            @SupervisorId, @AppNumber, NOW(),
             'WEBSITE'
         );
 
@@ -121,17 +121,17 @@ BEGIN
 
     UPDATE t_sys_careers_application
     SET c_final_decision = 'REJECTED',
-        c_final_decision_date = GETDATE(),
+        c_final_decision_date = NOW(),
         c_final_decision_by = @RejectedBy,
         c_rejection_reason = @Reason,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     -- Update supervisor status
     UPDATE s
     SET s.c_current_status = 'REJECTED',
         s.c_status_reason = @Reason,
-        s.c_modifieddate = GETDATE(),
+        s.c_modifieddate = NOW(),
         s.c_modifiedby = @RejectedBy
     FROM t_sys_supervisor s
     INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
@@ -158,10 +158,10 @@ BEGIN
     UPDATE t_sys_careers_application
     SET c_resume_screened = 1,
         c_resume_screened_by = @ScreenedBy,
-        c_resume_screened_date = GETDATE(),
+        c_resume_screened_date = NOW(),
         c_resume_screening_notes = @ScreeningNotes,
         c_resume_screening_status = CASE WHEN @Passed = 1 THEN 'PASSED' ELSE 'FAILED' END,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     -- Update supervisor status if passed
@@ -169,7 +169,7 @@ BEGIN
     BEGIN
         UPDATE s
         SET s.c_current_status = 'RESUME_SCREENED',
-            s.c_modifieddate = GETDATE()
+            s.c_modifieddate = NOW()
         FROM t_sys_supervisor s
         INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
         WHERE a.c_application_id = @ApplicationId;
@@ -213,7 +213,7 @@ BEGIN
         c_interview_date = @InterviewDateTime,
         c_interview_mode = @InterviewType,
         c_interviewer_id = @ScheduledBy,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     SELECT 1 AS Success;
@@ -235,14 +235,14 @@ BEGIN
         c_interview_feedback = @InterviewNotes,
         c_interview_score = @InterviewScore,
         c_interview_result = CASE WHEN @Passed = 1 THEN 'PASSED' ELSE 'FAILED' END,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     IF @Passed = 1
     BEGIN
         UPDATE s
         SET s.c_current_status = 'INTERVIEW_PASSED',
-            s.c_modifieddate = GETDATE()
+            s.c_modifieddate = NOW()
         FROM t_sys_supervisor s
         INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
         WHERE a.c_application_id = @ApplicationId;
@@ -279,15 +279,15 @@ BEGIN
 
     UPDATE t_sys_careers_application
     SET c_background_verification_initiated = 1,
-        c_background_verification_date = GETDATE(),
+        c_background_verification_date = NOW(),
         c_background_verification_result = 'PENDING',
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     UPDATE s
     SET s.c_current_status = 'BACKGROUND_VERIFICATION',
         s.c_background_check_status = 'PENDING',
-        s.c_modifieddate = GETDATE()
+        s.c_modifieddate = NOW()
     FROM t_sys_supervisor s
     INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
     WHERE a.c_application_id = @ApplicationId;
@@ -313,13 +313,13 @@ BEGIN
         c_background_verification_agency = @VerificationAgency,
         c_background_verification_date = @VerificationDate,
         c_background_verification_report_url = @VerificationReportUrl,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     UPDATE s
     SET s.c_background_check_status = CASE WHEN @Passed = 1 THEN 'PASSED' ELSE 'FAILED' END,
         s.c_background_check_date = @VerificationDate,
-        s.c_modifieddate = GETDATE()
+        s.c_modifieddate = NOW()
     FROM t_sys_supervisor s
     INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
     WHERE a.c_application_id = @ApplicationId;
@@ -359,14 +359,14 @@ BEGIN
 
     -- Update application
     UPDATE t_sys_careers_application
-    SET c_training_start_date = CAST(GETDATE() AS DATE),
-        c_modifieddate = GETDATE()
+    SET c_training_start_date = CAST(NOW() AS DATE),
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     -- Update supervisor status
     UPDATE t_sys_supervisor
     SET c_current_status = 'TRAINING',
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_supervisor_id = @SupervisorId;
 
     -- Insert training progress for each module
@@ -374,7 +374,7 @@ BEGIN
     DECLARE @Pos INT = 1;
     DECLARE @Len INT;
 
-    WHILE @Pos <= LEN(@ModuleIds)
+    WHILE @Pos <= LENGTH(@ModuleIds)
     BEGIN
         SET @Len = CHARINDEX(',', @ModuleIds + ',', @Pos) - @Pos;
         SET @ModuleId = CAST(SUBSTRING(@ModuleIds, @Pos, @Len) AS BIGINT);
@@ -382,7 +382,7 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM t_sys_supervisor_training_progress WHERE c_supervisor_id = @SupervisorId AND c_module_id = @ModuleId)
         BEGIN
             INSERT INTO t_sys_supervisor_training_progress (c_supervisor_id, c_module_id, c_started_date)
-            VALUES (@SupervisorId, @ModuleId, GETDATE());
+            VALUES (@SupervisorId, @ModuleId, NOW());
         END
 
         SET @Pos = @Pos + @Len + 1;
@@ -405,9 +405,9 @@ BEGIN
 
     UPDATE t_sys_supervisor_training_progress
     SET c_completion_percentage = @ProgressPercentage,
-        c_last_attempt_date = GETDATE(),
+        c_last_attempt_date = NOW(),
         c_passed = CASE WHEN @ProgressPercentage >= 100 THEN 1 ELSE 0 END,
-        c_completed_date = CASE WHEN @ProgressPercentage >= 100 THEN GETDATE() ELSE NULL END
+        c_completed_date = CASE WHEN @ProgressPercentage >= 100 THEN NOW() ELSE NULL END
     WHERE c_supervisor_id = @SupervisorId AND c_module_id = @ModuleId;
 
     -- Update overall training attendance in application
@@ -418,7 +418,7 @@ BEGIN
 
     UPDATE t_sys_careers_application
     SET c_training_attendance_percentage = @OverallProgress,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     SELECT 1 AS Success;
@@ -434,15 +434,15 @@ BEGIN
 
     UPDATE t_sys_careers_application
     SET c_training_completed = 1,
-        c_training_end_date = CAST(GETDATE() AS DATE),
+        c_training_end_date = CAST(NOW() AS DATE),
         c_training_attendance_percentage = 100.00,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     -- Update supervisor training date
     UPDATE s
-    SET s.c_training_completed_date = GETDATE(),
-        s.c_modifieddate = GETDATE()
+    SET s.c_training_completed_date = NOW(),
+        s.c_modifieddate = NOW()
     FROM t_sys_supervisor s
     INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
     WHERE a.c_application_id = @ApplicationId;
@@ -480,7 +480,7 @@ BEGIN
 
     UPDATE t_sys_careers_application
     SET c_certification_test_date = @ExamDate,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     SELECT 1 AS Success;
@@ -503,7 +503,7 @@ BEGIN
     SET c_certification_test_score = @ExamScore,
         c_certification_passed = @Passed,
         c_certification_certificate_url = @CertificateUrl,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     IF @Passed = 1
@@ -513,7 +513,7 @@ BEGIN
             s.c_certification_status = 'CERTIFIED',
             s.c_certification_valid_until = DATEADD(YEAR, 1, @ExamDate),
             s.c_current_status = 'CERTIFIED',
-            s.c_modifieddate = GETDATE()
+            s.c_modifieddate = NOW()
         FROM t_sys_supervisor s
         INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
         WHERE a.c_application_id = @ApplicationId;
@@ -551,16 +551,16 @@ BEGIN
 
     UPDATE t_sys_careers_application
     SET c_probation_assigned = 1,
-        c_probation_start_date = CAST(GETDATE() AS DATE),
+        c_probation_start_date = CAST(NOW() AS DATE),
         c_probation_duration_days = @ProbationDays,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     UPDATE s
     SET s.c_current_status = 'PROBATION',
-        s.c_probation_start_date = CAST(GETDATE() AS DATE),
-        s.c_probation_end_date = DATEADD(DAY, @ProbationDays, CAST(GETDATE() AS DATE)),
-        s.c_modifieddate = GETDATE()
+        s.c_probation_start_date = CAST(NOW() AS DATE),
+        s.c_probation_end_date = DATEADD(DAY, @ProbationDays, CAST(NOW() AS DATE)),
+        s.c_modifieddate = NOW()
     FROM t_sys_supervisor s
     INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
     WHERE a.c_application_id = @ApplicationId;
@@ -579,15 +579,15 @@ BEGIN
     SET NOCOUNT ON;
 
     UPDATE t_sys_careers_application
-    SET c_probation_evaluation_date = CAST(GETDATE() AS DATE),
+    SET c_probation_evaluation_date = CAST(NOW() AS DATE),
         c_probation_evaluation_notes = @Evaluation,
         c_probation_passed = @Passed,
-        c_modifieddate = GETDATE()
+        c_modifieddate = NOW()
     WHERE c_application_id = @ApplicationId;
 
     UPDATE s
     SET s.c_is_probation_passed = @Passed,
-        s.c_modifieddate = GETDATE()
+        s.c_modifieddate = NOW()
     FROM t_sys_supervisor s
     INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
     WHERE a.c_application_id = @ApplicationId;
@@ -628,11 +628,11 @@ BEGIN
         -- Update application
         UPDATE t_sys_careers_application
         SET c_final_decision = 'ACCEPTED',
-            c_final_decision_date = GETDATE(),
+            c_final_decision_date = NOW(),
             c_final_decision_by = @ActivatedBy,
             c_onboarding_completed = 1,
-            c_joining_date = CAST(GETDATE() AS DATE),
-            c_modifieddate = GETDATE()
+            c_joining_date = CAST(NOW() AS DATE),
+            c_modifieddate = NOW()
         WHERE c_application_id = @ApplicationId;
 
         -- Update supervisor to ACTIVE with elevated authority
@@ -640,7 +640,7 @@ BEGIN
         SET s.c_current_status = 'ACTIVE',
             s.c_authority_level = 'INTERMEDIATE',
             s.c_is_available = 1,
-            s.c_modifieddate = GETDATE(),
+            s.c_modifieddate = NOW(),
             s.c_modifiedby = @ActivatedBy
         FROM t_sys_supervisor s
         INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
@@ -857,3 +857,4 @@ PRINT 'Supervisor Careers Application Stored Procedures Created';
 PRINT '29 Stored Procedures for CareersApplicationRepository.cs';
 PRINT '================================================';
 GO
+

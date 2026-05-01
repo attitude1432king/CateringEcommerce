@@ -1,4 +1,6 @@
 using CateringEcommerce.Domain.Interfaces;
+using CateringEcommerce.Domain.Models.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -15,11 +17,11 @@ namespace CateringEcommerce.BAL.Configuration
     /// </summary>
     public class TokenService : ITokenService
     {
-        private readonly ISystemSettingsProvider _settings;
+        private readonly JwtSettings _jwtSettings;
 
-        public TokenService(ISystemSettingsProvider settings)
+        public TokenService(IOptions<JwtSettings> jwtOptions)
         {
-            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _jwtSettings = jwtOptions?.Value ?? throw new ArgumentNullException(nameof(jwtOptions));
         }
 
         /// <summary>
@@ -27,10 +29,10 @@ namespace CateringEcommerce.BAL.Configuration
         /// </summary>
         public string GenerateToken(string userId, string role, Dictionary<string, string>? additionalClaims = null)
         {
-            var jwtKey = _settings.GetString("JWT.KEY");
-            var jwtIssuer = _settings.GetString("JWT.ISSUER");
-            var jwtAudience = _settings.GetString("JWT.AUDIENCE");
-            var expireMinutes = _settings.GetInt("JWT.EXPIRE_MINUTES", 1440);
+            var jwtKey = _jwtSettings.Key;
+            var jwtIssuer = _jwtSettings.Issuer;
+            var jwtAudience = _jwtSettings.Audience;
+            var expireMinutes = _jwtSettings.ExpireMinutes;
 
             var claims = new List<Claim>
             {
@@ -71,7 +73,7 @@ namespace CateringEcommerce.BAL.Configuration
                 return false;
 
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_settings.GetString("JWT.KEY"));
+            var key = Encoding.UTF8.GetBytes(_jwtSettings.Key);
 
             try
             {
@@ -80,9 +82,9 @@ namespace CateringEcommerce.BAL.Configuration
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = true,
-                    ValidIssuer = _settings.GetString("JWT.ISSUER"),
+                    ValidIssuer = _jwtSettings.Issuer,
                     ValidateAudience = true,
-                    ValidAudience = _settings.GetString("JWT.AUDIENCE"),
+                    ValidAudience = _jwtSettings.Audience,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 }, out SecurityToken validatedToken);

@@ -1,7 +1,9 @@
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
+using CateringEcommerce.Domain.Models.Configuration;
 using CateringEcommerce.Domain.Models.Common;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
@@ -12,23 +14,25 @@ namespace CateringEcommerce.BAL.Configuration
     public class EmailService : IEmailService
     {
         private readonly ISystemSettingsProvider _settings;
+        private readonly SmtpSettings _smtpSettings;
         private readonly IDistributedCache _cache;
         private const string OtpCacheKeyPrefix = "email_otp:";
 
-        public EmailService(ISystemSettingsProvider settings, IDistributedCache cache)
+        public EmailService(ISystemSettingsProvider settings, IOptions<SmtpSettings> smtpOptions, IDistributedCache cache)
         {
             _settings = settings;
+            _smtpSettings = smtpOptions?.Value ?? throw new ArgumentNullException(nameof(smtpOptions));
             _cache = cache;
         }
 
         public async Task SendOtpAsync(string toEmail, string otp)
         {
-            var fromEmail = _settings.GetString("EMAIL.FROM_ADDRESS", _settings.GetString("EMAIL.SMTP_USERNAME"));
-            var smtpHost = _settings.GetString("EMAIL.SMTP_HOST", "smtp.gmail.com");
-            var smtpPort = _settings.GetInt("EMAIL.SMTP_PORT", 587);
-            var smtpUsername = _settings.GetString("EMAIL.SMTP_USERNAME");
-            var smtpPassword = _settings.GetString("EMAIL.SMTP_PASSWORD");
-            var enableSsl = _settings.GetBool("EMAIL.ENABLE_SSL", true);
+            var fromEmail = ResolveFromEmail();
+            var smtpHost = _smtpSettings.Host;
+            var smtpPort = _smtpSettings.Port;
+            var smtpUsername = _smtpSettings.Username;
+            var smtpPassword = _smtpSettings.Password;
+            var enableSsl = _smtpSettings.EnableSsl;
 
             var email = new MailMessage();
             email.From = new MailAddress(fromEmail);
@@ -86,12 +90,12 @@ namespace CateringEcommerce.BAL.Configuration
 
         public async Task SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true)
         {
-            var fromEmail = _settings.GetString("EMAIL.FROM_ADDRESS", _settings.GetString("EMAIL.SMTP_USERNAME"));
-            var smtpHost = _settings.GetString("EMAIL.SMTP_HOST", "smtp.gmail.com");
-            var smtpPort = _settings.GetInt("EMAIL.SMTP_PORT", 587);
-            var smtpUsername = _settings.GetString("EMAIL.SMTP_USERNAME");
-            var smtpPassword = _settings.GetString("EMAIL.SMTP_PASSWORD");
-            var enableSsl = _settings.GetBool("EMAIL.ENABLE_SSL", true);
+            var fromEmail = ResolveFromEmail();
+            var smtpHost = _smtpSettings.Host;
+            var smtpPort = _smtpSettings.Port;
+            var smtpUsername = _smtpSettings.Username;
+            var smtpPassword = _smtpSettings.Password;
+            var enableSsl = _smtpSettings.EnableSsl;
 
             var email = new MailMessage
             {
@@ -119,12 +123,12 @@ namespace CateringEcommerce.BAL.Configuration
             string attachmentFileName,
             bool isHtml = true)
         {
-            var fromEmail = _settings.GetString("EMAIL.FROM_ADDRESS", _settings.GetString("EMAIL.SMTP_USERNAME"));
-            var smtpHost = _settings.GetString("EMAIL.SMTP_HOST", "smtp.gmail.com");
-            var smtpPort = _settings.GetInt("EMAIL.SMTP_PORT", 587);
-            var smtpUsername = _settings.GetString("EMAIL.SMTP_USERNAME");
-            var smtpPassword = _settings.GetString("EMAIL.SMTP_PASSWORD");
-            var enableSsl = _settings.GetBool("EMAIL.ENABLE_SSL", true);
+            var fromEmail = ResolveFromEmail();
+            var smtpHost = _smtpSettings.Host;
+            var smtpPort = _smtpSettings.Port;
+            var smtpUsername = _smtpSettings.Username;
+            var smtpPassword = _smtpSettings.Password;
+            var enableSsl = _smtpSettings.EnableSsl;
 
             var email = new MailMessage
             {
@@ -148,6 +152,13 @@ namespace CateringEcommerce.BAL.Configuration
             };
 
             await Task.Run(() => smtp.Send(email));
+        }
+
+        private string ResolveFromEmail()
+        {
+            return string.IsNullOrWhiteSpace(_smtpSettings.FromAddress)
+                ? _smtpSettings.Username
+                : _smtpSettings.FromAddress;
         }
     }
 

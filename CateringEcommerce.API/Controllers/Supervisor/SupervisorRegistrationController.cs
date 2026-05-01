@@ -272,8 +272,8 @@ namespace CateringEcommerce.API.Controllers.Supervisor
                         request.File,
                         supervisorId,
                         Role.Supervisor.GetDisplayName(),
-                        true,
-                        request.DocumentType);
+                        request.DocumentType,
+                        true);
 
                     if (string.IsNullOrWhiteSpace(documentUrl))
                     {

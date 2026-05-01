@@ -2,7 +2,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -35,27 +35,27 @@ namespace CateringEcommerce.BAL.Base.User
                     (c_userid, c_ownerid, c_packageid, c_guest_count, c_event_date, c_event_type,
                      c_event_location, c_special_requirements, c_decoration_id, c_base_amount,
                      c_decoration_amount, c_tax_amount, c_total_amount, c_createddate)
-                    OUTPUT INSERTED.c_cartid
                     VALUES
                     (@UserId, @CateringId, @PackageId, @GuestCount, @EventDate, @EventType,
                      @EventLocation, @SpecialRequirements, @DecorationId, @BaseAmount,
-                     @DecorationAmount, @TaxAmount, @TotalAmount, GETDATE())";
+                     @DecorationAmount, @TaxAmount, @TotalAmount, NOW())
+                    RETURNING c_cartid";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@CateringId", cartDto.CateringId),
-                    new SqlParameter("@PackageId", (object?)cartDto.PackageId ?? DBNull.Value),
-                    new SqlParameter("@GuestCount", cartDto.GuestCount),
-                    new SqlParameter("@EventDate", (object?)cartDto.EventDate ?? DBNull.Value),
-                    new SqlParameter("@EventType", (object?)cartDto.EventType ?? DBNull.Value),
-                    new SqlParameter("@EventLocation", (object?)cartDto.EventLocation ?? DBNull.Value),
-                    new SqlParameter("@SpecialRequirements", (object?)cartDto.SpecialRequirements ?? DBNull.Value),
-                    new SqlParameter("@DecorationId", (object?)primaryDecorationId ?? DBNull.Value),
-                    new SqlParameter("@BaseAmount", cartDto.BaseAmount),
-                    new SqlParameter("@DecorationAmount", cartDto.DecorationAmount),
-                    new SqlParameter("@TaxAmount", cartDto.TaxAmount),
-                    new SqlParameter("@TotalAmount", cartDto.TotalAmount)
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@CateringId", cartDto.CateringId),
+                    new NpgsqlParameter("@PackageId", (object?)cartDto.PackageId ?? DBNull.Value),
+                    new NpgsqlParameter("@GuestCount", cartDto.GuestCount),
+                    new NpgsqlParameter("@EventDate", (object?)cartDto.EventDate ?? DBNull.Value),
+                    new NpgsqlParameter("@EventType", (object?)cartDto.EventType ?? DBNull.Value),
+                    new NpgsqlParameter("@EventLocation", (object?)cartDto.EventLocation ?? DBNull.Value),
+                    new NpgsqlParameter("@SpecialRequirements", (object?)cartDto.SpecialRequirements ?? DBNull.Value),
+                    new NpgsqlParameter("@DecorationId", (object?)primaryDecorationId ?? DBNull.Value),
+                    new NpgsqlParameter("@BaseAmount", cartDto.BaseAmount),
+                    new NpgsqlParameter("@DecorationAmount", cartDto.DecorationAmount),
+                    new NpgsqlParameter("@TaxAmount", cartDto.TaxAmount),
+                    new NpgsqlParameter("@TotalAmount", cartDto.TotalAmount)
                 };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
@@ -103,7 +103,7 @@ namespace CateringEcommerce.BAL.Base.User
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
@@ -186,8 +186,8 @@ namespace CateringEcommerce.BAL.Base.User
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CartId", cart.CartId),
-                    new SqlParameter("@FoodId", foodId)
+                    new NpgsqlParameter("@CartId", cart.CartId),
+                    new NpgsqlParameter("@FoodId", foodId)
                 };
 
                 var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(query, parameters));
@@ -210,7 +210,7 @@ namespace CateringEcommerce.BAL.Base.User
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(query, parameters));
@@ -257,7 +257,7 @@ namespace CateringEcommerce.BAL.Base.User
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CartId", cartId)
+                    new NpgsqlParameter("@CartId", cartId)
                 };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
@@ -299,7 +299,7 @@ namespace CateringEcommerce.BAL.Base.User
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CartId", cartId)
+                    new NpgsqlParameter("@CartId", cartId)
                 };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
@@ -328,16 +328,17 @@ namespace CateringEcommerce.BAL.Base.User
             try
             {
                 var query = $@"
-                    SELECT TOP 1
+                    SELECT
                         d.c_decoration_id,
                         d.c_decoration_name,
                         d.c_price
                     FROM {Table.SysCateringDecorations} d
-                    WHERE d.c_decoration_id = @DecorationId";
+                    WHERE d.c_decoration_id = @DecorationId
+                    LIMIT 1";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@DecorationId", decorationId)
+                    new NpgsqlParameter("@DecorationId", decorationId)
                 };
 
                 var dt = await Task.Run(() => _dbHelper.Execute(query, parameters));
@@ -368,14 +369,14 @@ namespace CateringEcommerce.BAL.Base.User
                 var query = $@"
                     INSERT INTO {Table.SysCartFoodItems}
                     (c_cartid, c_foodid, c_quantity, c_price, c_createddate)
-                    VALUES (@CartId, @FoodId, @Quantity, @Price, GETDATE())";
+                    VALUES (@CartId, @FoodId, @Quantity, @Price, NOW())";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CartId", cartId),
-                    new SqlParameter("@FoodId", item.FoodId),
-                    new SqlParameter("@Quantity", item.Quantity),
-                    new SqlParameter("@Price", item.Price)
+                    new NpgsqlParameter("@CartId", cartId),
+                    new NpgsqlParameter("@FoodId", item.FoodId),
+                    new NpgsqlParameter("@Quantity", item.Quantity),
+                    new NpgsqlParameter("@Price", item.Price)
                 };
 
                 var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(query, parameters));
@@ -395,13 +396,13 @@ namespace CateringEcommerce.BAL.Base.User
                 var query = $@"
                     INSERT INTO {Table.SysCartDecorations}
                     (c_cartid, c_decoration_id, c_price, c_createddate)
-                    VALUES (@CartId, @DecorationId, @Price, GETDATE())";
+                    VALUES (@CartId, @DecorationId, @Price, NOW())";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CartId", cartId),
-                    new SqlParameter("@DecorationId", decoration.DecorationId),
-                    new SqlParameter("@Price", decoration.Price)
+                    new NpgsqlParameter("@CartId", cartId),
+                    new NpgsqlParameter("@DecorationId", decoration.DecorationId),
+                    new NpgsqlParameter("@Price", decoration.Price)
                 };
 
                 var result = await Task.Run(() => _dbHelper.ExecuteNonQuery(query, parameters));
@@ -414,3 +415,4 @@ namespace CateringEcommerce.BAL.Base.User
         }
     }
 }
+

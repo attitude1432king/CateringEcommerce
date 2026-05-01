@@ -5,7 +5,7 @@ using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace CateringEcommerce.BAL.Base.Owner
 {
@@ -54,9 +54,9 @@ namespace CateringEcommerce.BAL.Base.Owner
                 FROM {Table.SysCateringAvailabilityGlobal}
                 WHERE c_ownerid = @OwnerId";
 
-                SqlParameter[] sqlParameter = new SqlParameter[]
+                NpgsqlParameter[] sqlParameter = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@OwnerId", ownerId),
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, sqlParameter);
@@ -89,15 +89,15 @@ namespace CateringEcommerce.BAL.Base.Owner
                 SELECT c_date, c_status, c_note
                 FROM {Table.SysCateringAvailabilityDate}
                 WHERE c_ownerid = @OwnerId
-                  AND c_date >= DATEFROMPARTS(@Year, @Month, 1)
-                  AND c_date <  DATEADD(MONTH, 1, DATEFROMPARTS(@Year, @Month, 1))
+                  AND c_date >= MAKE_DATE(@Year, @Month, 1)
+                  AND c_date <  MAKE_DATE(@Year, @Month, 1) + INTERVAL '1 month'
                 ORDER BY c_date";
 
-                SqlParameter[] sqlParameter = new SqlParameter[]
+                NpgsqlParameter[] sqlParameter = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@Year", year),
-                    new SqlParameter("@Month", month)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@Year", year),
+                    new NpgsqlParameter("@Month", month)
                 };
 
                 var dataTable = await _dbHelper.ExecuteAsync(query, sqlParameter);
@@ -137,20 +137,17 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 var sql = $@"
-                IF EXISTS (SELECT 1 FROM {Table.SysCateringAvailabilityGlobal} WHERE c_ownerid=@OwnerId)
-                    UPDATE t_catering_availability_global
-                    SET c_global_status=@Status,
-                        c_modifieddate=GETDATE()
-                    WHERE c_ownerid=@OwnerId
-                ELSE
-                    INSERT INTO {Table.SysCateringAvailabilityGlobal}
+                INSERT INTO {Table.SysCateringAvailabilityGlobal}
                     (c_ownerid, c_global_status, c_modifieddate)
-                    VALUES (@OwnerId, @Status, GETDATE())";
+                VALUES (@OwnerId, @Status, NOW())
+                ON CONFLICT (c_ownerid) DO UPDATE
+                    SET c_global_status = EXCLUDED.c_global_status,
+                        c_modifieddate = NOW()";
 
-                SqlParameter[] sqlParameter = new SqlParameter[]
+                NpgsqlParameter[] sqlParameter = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerId", ownerId),
-                    new SqlParameter("@Status", status)
+                    new NpgsqlParameter("@OwnerId", ownerId),
+                    new NpgsqlParameter("@Status", status)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(sql, sqlParameter);
@@ -182,26 +179,20 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 var sql = $@"
-                IF EXISTS (
-                    SELECT 1 FROM {Table.SysCateringAvailabilityDate}
-                    WHERE c_ownerid=@OwnerId AND c_date=@Date
-                )
-                    UPDATE t_catering_availability_dates
-                    SET c_status=@Status,
-                        c_note=@Note,
-                        c_modifieddate=GETDATE()
-                    WHERE c_ownerid=@OwnerId AND c_date=@Date
-                ELSE
                 INSERT INTO {Table.SysCateringAvailabilityDate}
-                (c_ownerid, c_date, c_status, c_note, c_createddate, c_modifieddate)
-                VALUES (@OwnerId, @Date, @Status, @Note, GETDATE(), GETDATE())";
+                    (c_ownerid, c_date, c_status, c_note, c_createddate, c_modifieddate)
+                VALUES (@OwnerId, @Date, @Status, @Note, NOW(), NOW())
+                ON CONFLICT (c_ownerid, c_date) DO UPDATE
+                    SET c_status = EXCLUDED.c_status,
+                        c_note = EXCLUDED.c_note,
+                        c_modifieddate = NOW()";
 
-                SqlParameter[] sqlParameter = new SqlParameter[]
+                NpgsqlParameter[] sqlParameter = new NpgsqlParameter[]
                 {
-                new SqlParameter("@OwnerId", ownerId),
-                new SqlParameter("@Status", status),
-                new SqlParameter("@Date", date.Date.ToString("yyyy-MM-dd")),
-                new SqlParameter("@Note", (object?)note ?? DBNull.Value)
+                new NpgsqlParameter("@OwnerId", ownerId),
+                new NpgsqlParameter("@Status", status),
+                new NpgsqlParameter("@Date", date.Date.ToString("yyyy-MM-dd")),
+                new NpgsqlParameter("@Note", (object?)note ?? DBNull.Value)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(sql, sqlParameter);
@@ -213,3 +204,4 @@ namespace CateringEcommerce.BAL.Base.Owner
         }
     }
 }
+

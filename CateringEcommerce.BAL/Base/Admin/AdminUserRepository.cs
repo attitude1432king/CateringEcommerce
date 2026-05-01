@@ -1,9 +1,9 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using System.Text;
 
@@ -27,13 +27,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                     u.c_email AS Email,
                     u.c_isemailverified AS IsEmailVerified,
                     u.c_isphoneverified AS IsPhoneVerified,
-                    ISNULL(u.c_isactive, 1) AS IsActive,
-                    ISNULL(u.c_isblocked, 0) AS IsBlocked,
-                    ISNULL(u.c_isdeleted, 0) AS IsDeleted,
+                    COALESCE(u.c_isactive, 1) AS IsActive,
+                    COALESCE(u.c_isblocked, 0) AS IsBlocked,
+                    COALESCE(u.c_is_deleted, 0) AS IsDeleted,
                     c.c_cityname AS CityName,
                     s.c_statename AS StateName,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
-                    ISNULL(SUM(o.c_total_amount), 0) AS TotalSpent,
+                    COALESCE(SUM(o.c_total_amount), 0) AS TotalSpent,
                     COUNT(DISTINCT r.c_reviewid) AS TotalReviews,
                     u.c_createddate AS CreatedDate,
                     u.c_last_login AS LastLogin
@@ -44,14 +44,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.SysCateringReview} r ON u.c_userid = r.c_userid
                 WHERE 1=1");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             AppendFilters(queryBuilder, parameters, request);
 
             queryBuilder.Append(@"
                 GROUP BY u.c_userid, u.c_name, u.c_mobile, u.c_email,
                          u.c_isemailverified, u.c_isphoneverified, u.c_isactive,
-                         u.c_isblocked, u.c_isdeleted,
+                         u.c_isblocked, u.c_is_deleted,
                          c.c_cityname, s.c_statename,
                          u.c_createddate, u.c_last_login");
 
@@ -73,7 +73,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             int totalRecords = GetTotalCount(request);
 
             int offset = (request.PageNumber - 1) * request.PageSize;
-            queryBuilder.Append($" OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY");
+            queryBuilder.Append($" LIMIT {request.PageSize} OFFSET {offset}");
 
             var dt = _dbHelper.Execute(queryBuilder.ToString(), parameters.ToArray());
 
@@ -99,9 +99,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SELECT
                     u.c_userid, u.c_name, u.c_mobile, u.c_email, u.c_picture,
                     u.c_isemailverified, u.c_isphoneverified,
-                    ISNULL(u.c_isactive, 1) AS IsActive,
-                    ISNULL(u.c_isblocked, 0) AS IsBlocked,
-                    ISNULL(u.c_isdeleted, 0) AS IsDeleted,
+                    COALESCE(u.c_isactive, 1) AS IsActive,
+                    COALESCE(u.c_isblocked, 0) AS IsBlocked,
+                    COALESCE(u.c_is_deleted, 0) AS IsDeleted,
                     u.c_block_reason, u.c_description,
                     c.c_cityname AS CityName,
                     s.c_statename AS StateName,
@@ -111,7 +111,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.State} s ON u.c_stateid = s.c_stateid
                 WHERE u.c_userid = @UserId";
 
-            SqlParameter[] parameters = { new SqlParameter("@UserId", userId) };
+            NpgsqlParameter[] parameters = { new NpgsqlParameter("@UserId", userId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -155,13 +155,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                 UPDATE {Table.SysUser}
                 SET c_isblocked = @IsBlocked,
                     c_block_reason = @Reason,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_userid = @UserId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@UserId", request.UserId),
-                new SqlParameter("@IsBlocked", request.IsBlocked),
-                new SqlParameter("@Reason", (object?)request.Reason ?? DBNull.Value)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@UserId", request.UserId),
+                new NpgsqlParameter("@IsBlocked", request.IsBlocked),
+                new NpgsqlParameter("@Reason", (object?)request.Reason ?? DBNull.Value)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -172,16 +172,16 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 UPDATE {Table.SysUser}
-                SET c_isdeleted = 1,
-                    c_isactive = 0,
+                SET c_is_deleted = TRUE,
+                    c_isactive = FALSE,
                     c_deleted_by = @AdminId,
-                    c_deleted_date = GETDATE(),
-                    c_modifieddate = GETDATE()
-                WHERE c_userid = @UserId AND ISNULL(c_isdeleted, 0) = 0";
+                    c_deleted_date = NOW(),
+                    c_modifieddate = NOW()
+                WHERE c_userid = @UserId AND COALESCE(c_is_deleted, FALSE) = 0";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@AdminId", adminId)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@AdminId", adminId)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -192,16 +192,16 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 UPDATE {Table.SysUser}
-                SET c_isdeleted = 0,
-                    c_isactive = 1,
+                SET c_is_deleted = FALSE,
+                    c_isactive = TRUE,
                     c_deleted_by = NULL,
                     c_deleted_date = NULL,
-                    c_modifieddate = GETDATE()
-                WHERE c_userid = @UserId AND c_isdeleted = 1";
+                    c_modifieddate = NOW()
+                WHERE c_userid = @UserId AND c_is_deleted = TRUE";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@AdminId", adminId)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@AdminId", adminId)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -218,48 +218,48 @@ namespace CateringEcommerce.BAL.Base.Admin
                     u.c_email AS Email,
                     c.c_cityname AS CityName,
                     s.c_statename AS StateName,
-                    ISNULL(u.c_isactive, 1) AS IsActive,
-                    ISNULL(u.c_isblocked, 0) AS IsBlocked,
+                    COALESCE(u.c_isactive, 1) AS IsActive,
+                    COALESCE(u.c_isblocked, 0) AS IsBlocked,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
-                    ISNULL(SUM(o.c_total_amount), 0) AS TotalSpent,
+                    COALESCE(SUM(o.c_total_amount), 0) AS TotalSpent,
                     u.c_createddate AS CreatedDate,
                     u.c_last_login AS LastLogin
                 FROM {Table.SysUser} u
                 LEFT JOIN {Table.City} c ON u.c_cityid = c.c_cityid
                 LEFT JOIN {Table.State} s ON u.c_stateid = s.c_stateid
                 LEFT JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
-                WHERE ISNULL(u.c_isdeleted, 0) = 0");
+                WHERE COALESCE(u.c_is_deleted, 0) = 0");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 queryBuilder.Append(" AND (u.c_name LIKE @SearchTerm OR u.c_mobile LIKE @SearchTerm OR u.c_email LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
             }
 
             if (request.IsActive.HasValue)
             {
-                queryBuilder.Append(" AND ISNULL(u.c_isactive, 1) = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                queryBuilder.Append(" AND COALESCE(u.c_isactive, 1) = @IsActive");
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             if (request.IsBlocked.HasValue)
             {
-                queryBuilder.Append(" AND ISNULL(u.c_isblocked, 0) = @IsBlocked");
-                parameters.Add(new SqlParameter("@IsBlocked", request.IsBlocked.Value));
+                queryBuilder.Append(" AND COALESCE(u.c_isblocked, 0) = @IsBlocked");
+                parameters.Add(new NpgsqlParameter("@IsBlocked", request.IsBlocked.Value));
             }
 
             if (request.StateId.HasValue)
             {
                 queryBuilder.Append(" AND u.c_stateid = @StateId");
-                parameters.Add(new SqlParameter("@StateId", request.StateId.Value));
+                parameters.Add(new NpgsqlParameter("@StateId", request.StateId.Value));
             }
 
             if (request.CityId.HasValue)
             {
                 queryBuilder.Append(" AND u.c_cityid = @CityId");
-                parameters.Add(new SqlParameter("@CityId", request.CityId.Value));
+                parameters.Add(new NpgsqlParameter("@CityId", request.CityId.Value));
             }
 
             queryBuilder.Append(@"
@@ -295,47 +295,47 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         #region Private Helpers
 
-        private void AppendFilters(StringBuilder queryBuilder, List<SqlParameter> parameters, AdminUserListRequest request)
+        private void AppendFilters(StringBuilder queryBuilder, List<NpgsqlParameter> parameters, AdminUserListRequest request)
         {
             // By default, hide deleted users unless explicitly requested
             if (request.IsDeleted.HasValue)
             {
-                queryBuilder.Append(" AND ISNULL(u.c_isdeleted, 0) = @IsDeleted");
-                parameters.Add(new SqlParameter("@IsDeleted", request.IsDeleted.Value));
+                queryBuilder.Append(" AND COALESCE(u.c_is_deleted, 0) = @IsDeleted");
+                parameters.Add(new NpgsqlParameter("@IsDeleted", request.IsDeleted.Value));
             }
             else
             {
-                queryBuilder.Append(" AND ISNULL(u.c_isdeleted, 0) = 0");
+                queryBuilder.Append(" AND COALESCE(u.c_is_deleted, 0) = 0");
             }
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 queryBuilder.Append(" AND (u.c_name LIKE @SearchTerm OR u.c_mobile LIKE @SearchTerm OR u.c_email LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
             }
 
             if (request.IsBlocked.HasValue)
             {
-                queryBuilder.Append(" AND ISNULL(u.c_isblocked, 0) = @IsBlocked");
-                parameters.Add(new SqlParameter("@IsBlocked", request.IsBlocked.Value));
+                queryBuilder.Append(" AND COALESCE(u.c_isblocked, 0) = @IsBlocked");
+                parameters.Add(new NpgsqlParameter("@IsBlocked", request.IsBlocked.Value));
             }
 
             if (request.IsActive.HasValue)
             {
-                queryBuilder.Append(" AND ISNULL(u.c_isactive, 1) = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                queryBuilder.Append(" AND COALESCE(u.c_isactive, 1) = @IsActive");
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             if (request.StateId.HasValue)
             {
                 queryBuilder.Append(" AND u.c_stateid = @StateId");
-                parameters.Add(new SqlParameter("@StateId", request.StateId.Value));
+                parameters.Add(new NpgsqlParameter("@StateId", request.StateId.Value));
             }
 
             if (request.CityId.HasValue)
             {
                 queryBuilder.Append(" AND u.c_cityid = @CityId");
-                parameters.Add(new SqlParameter("@CityId", request.CityId.Value));
+                parameters.Add(new NpgsqlParameter("@CityId", request.CityId.Value));
             }
         }
 
@@ -346,7 +346,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysUser} u
                 WHERE 1=1");
 
-            var countParams = new List<SqlParameter>();
+            var countParams = new List<NpgsqlParameter>();
             AppendFilters(countBuilder, countParams, request);
 
             return Convert.ToInt32(_dbHelper.ExecuteScalar(countBuilder.ToString(), countParams.ToArray()));
@@ -380,15 +380,15 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
-                    ISNULL(SUM(o.c_total_amount), 0) AS TotalSpent,
+                    COALESCE(SUM(o.c_total_amount), 0) AS TotalSpent,
                     COUNT(DISTINCT r.c_reviewid) AS TotalReviews,
-                    ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(3,2))), 0) AS AvgRating
+                    COALESCE(AVG(CAST(r.c_overall_rating AS DECIMAL(3,2))), 0) AS AvgRating
                 FROM {Table.SysUser} u
                 LEFT JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                 LEFT JOIN {Table.SysCateringReview} r ON u.c_userid = r.c_userid
                 WHERE u.c_userid = @UserId";
 
-            SqlParameter[] parameters = { new SqlParameter("@UserId", userId) };
+            NpgsqlParameter[] parameters = { new NpgsqlParameter("@UserId", userId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             if (dt.Rows.Count > 0)
@@ -408,15 +408,16 @@ namespace CateringEcommerce.BAL.Base.Admin
         private List<AdminUserOrderSummary> GetUserRecentOrders(long userId)
         {
             string query = $@"
-                SELECT TOP 5
+                SELECT
                     o.c_orderid, co.c_catering_name, o.c_total_amount,
                     o.c_order_status, o.c_createddate, o.c_event_date
                 FROM {Table.SysOrders} o
                 JOIN {Table.SysCateringOwner} co ON o.c_ownerid = co.c_ownerid
                 WHERE o.c_userid = @UserId
-                ORDER BY o.c_createddate DESC";
+                ORDER BY o.c_createddate DESC
+                LIMIT 5";
 
-            SqlParameter[] parameters = { new SqlParameter("@UserId", userId) };
+            NpgsqlParameter[] parameters = { new NpgsqlParameter("@UserId", userId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             var orders = new List<AdminUserOrderSummary>();
@@ -439,15 +440,16 @@ namespace CateringEcommerce.BAL.Base.Admin
         private List<AdminUserReviewSummary> GetUserRecentReviews(long userId)
         {
             string query = $@"
-                SELECT TOP 5
+                SELECT
                     r.c_reviewid, co.c_catering_name, r.c_overall_rating,
                     r.c_review_comment, r.c_createddate
                 FROM {Table.SysCateringReview} r
                 JOIN {Table.SysCateringOwner} co ON r.c_ownerid = co.c_ownerid
                 WHERE r.c_userid = @UserId
-                ORDER BY r.c_createddate DESC";
+                ORDER BY r.c_createddate DESC
+                LIMIT 5";
 
-            SqlParameter[] parameters = { new SqlParameter("@UserId", userId) };
+            NpgsqlParameter[] parameters = { new NpgsqlParameter("@UserId", userId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             var reviews = new List<AdminUserReviewSummary>();
@@ -469,3 +471,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         #endregion
     }
 }
+

@@ -3,264 +3,343 @@
 -- Comprehensive analytics for admin dashboard
 -- ===============================================
 
-USE CateringDB;
-GO
 
 -- ===============================================
 -- 1. Get Admin Dashboard Metrics with Date Range
 -- ===============================================
-CREATE OR ALTER PROCEDURE [dbo].[sp_Admin_GetDashboardMetrics]
-    @FromDate DATE = NULL,
-    @ToDate DATE = NULL
-AS
+CREATE OR REPLACE FUNCTION sp_Admin_GetDashboardMetrics(
+    p_FromDate DATE DEFAULT NULL,
+    p_ToDate   DATE DEFAULT NULL
+)
+RETURNS TABLE (
+    TotalUsers              INTEGER,
+    UsersChangePercent      DECIMAL(5,2),
+    ActiveCaterings         INTEGER,
+    CateringsChangePercent  DECIMAL(5,2),
+    TotalOrders             INTEGER,
+    OrdersChangePercent     DECIMAL(5,2),
+    TotalRevenue            DECIMAL(18,2),
+    RevenueChangePercent    DECIMAL(5,2),
+    TotalCommission         DECIMAL(18,2),
+    AverageOrderValue       DECIMAL(18,2),
+    PendingApprovals        INTEGER,
+    AverageRating           DECIMAL(3,2),
+    PeriodStart             DATE,
+    PeriodEnd               DATE
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_FromDate              DATE;
+    v_ToDate                DATE;
+    v_DaysDiff              INTEGER;
+    v_PrevFromDate          DATE;
+    v_PrevToDate            DATE;
+
+    v_TotalUsers            INTEGER;
+    v_PrevTotalUsers        INTEGER;
+    v_ActiveCaterings       INTEGER;
+    v_PrevActiveCaterings   INTEGER;
+    v_TotalOrders           INTEGER;
+    v_PrevTotalOrders       INTEGER;
+    v_TotalRevenue          DECIMAL(18,2);
+    v_PrevTotalRevenue      DECIMAL(18,2);
+    v_TotalCommission       DECIMAL(18,2);
+    v_AvgOrderValue         DECIMAL(18,2);
+    v_PendingApprovals      INTEGER;
+    v_AvgRating             DECIMAL(3,2);
+
+    v_UsersChange           DECIMAL(5,2);
+    v_CateringsChange       DECIMAL(5,2);
+    v_OrdersChange          DECIMAL(5,2);
+    v_RevenueChange         DECIMAL(5,2);
 BEGIN
-    SET NOCOUNT ON;
-
     -- Default date range: last 30 days
-    IF @FromDate IS NULL
-        SET @FromDate = DATEADD(DAY, -30, GETDATE());
-
-    IF @ToDate IS NULL
-        SET @ToDate = GETDATE();
+    v_FromDate := COALESCE(p_FromDate, (NOW() - INTERVAL '30 days')::DATE);
+    v_ToDate   := COALESCE(p_ToDate, NOW()::DATE);
 
     -- Calculate previous period for comparison
-    DECLARE @DaysDiff INT = DATEDIFF(DAY, @FromDate, @ToDate);
-    DECLARE @PrevFromDate DATE = DATEADD(DAY, -@DaysDiff, @FromDate);
-    DECLARE @PrevToDate DATE = @FromDate;
+    v_DaysDiff     := v_ToDate - v_FromDate;
+    v_PrevFromDate := v_FromDate - v_DaysDiff;
+    v_PrevToDate   := v_FromDate;
 
     -- Total Users (Current and Previous Period)
-    DECLARE @TotalUsers INT, @PrevTotalUsers INT;
-    SELECT @TotalUsers = COUNT(*) FROM t_sys_user WHERE c_createddate <= @ToDate AND c_isactive = 1;
-    SELECT @PrevTotalUsers = COUNT(*) FROM t_sys_user WHERE c_createddate <= @PrevToDate AND c_isactive = 1;
+    SELECT COUNT(*) INTO v_TotalUsers
+    FROM t_sys_user
+    WHERE c_createddate::DATE <= v_ToDate AND c_isactive = TRUE;
+
+    SELECT COUNT(*) INTO v_PrevTotalUsers
+    FROM t_sys_user
+    WHERE c_createddate::DATE <= v_PrevToDate AND c_isactive = TRUE;
 
     -- Active Caterings (Current and Previous Period)
-    DECLARE @ActiveCaterings INT, @PrevActiveCaterings INT;
-    SELECT @ActiveCaterings = COUNT(*) FROM t_sys_catering_owner WHERE c_isactive = 1 AND c_approval_status = 2;
-    SELECT @PrevActiveCaterings = COUNT(*) FROM t_sys_catering_owner WHERE c_createddate <= @PrevToDate AND c_isactive = 1 AND c_approval_status = 2;
+    SELECT COUNT(*) INTO v_ActiveCaterings
+    FROM t_sys_catering_owner
+    WHERE c_isactive = TRUE AND c_approval_status = 2;
+
+    SELECT COUNT(*) INTO v_PrevActiveCaterings
+    FROM t_sys_catering_owner
+    WHERE c_createddate::DATE <= v_PrevToDate
+      AND c_isactive = TRUE AND c_approval_status = 2;
 
     -- Total Orders (Current and Previous Period)
-    DECLARE @TotalOrders INT, @PrevTotalOrders INT;
-    SELECT @TotalOrders = COUNT(*)
+    SELECT COUNT(*) INTO v_TotalOrders
     FROM t_sys_orders
-    WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate;
+    WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate;
 
-    SELECT @PrevTotalOrders = COUNT(*)
+    SELECT COUNT(*) INTO v_PrevTotalOrders
     FROM t_sys_orders
-    WHERE CAST(c_createddate AS DATE) BETWEEN @PrevFromDate AND @PrevToDate;
+    WHERE c_createddate::DATE BETWEEN v_PrevFromDate AND v_PrevToDate;
 
     -- Total Revenue (Current and Previous Period)
-    DECLARE @TotalRevenue DECIMAL(18,2), @PrevTotalRevenue DECIMAL(18,2);
-    SELECT @TotalRevenue = ISNULL(SUM(c_total_amount), 0)
+    SELECT COALESCE(SUM(c_total_amount), 0) INTO v_TotalRevenue
     FROM t_sys_orders
-    WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-        AND c_payment_status IN ('Completed', 'Paid');
+    WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+      AND c_payment_status IN ('Completed', 'Paid');
 
-    SELECT @PrevTotalRevenue = ISNULL(SUM(c_total_amount), 0)
+    SELECT COALESCE(SUM(c_total_amount), 0) INTO v_PrevTotalRevenue
     FROM t_sys_orders
-    WHERE CAST(c_createddate AS DATE) BETWEEN @PrevFromDate AND @PrevToDate
-        AND c_payment_status IN ('Completed', 'Paid');
+    WHERE c_createddate::DATE BETWEEN v_PrevFromDate AND v_PrevToDate
+      AND c_payment_status IN ('Completed', 'Paid');
 
     -- Total Commission
-    DECLARE @TotalCommission DECIMAL(18,2);
-    SELECT @TotalCommission = ISNULL(SUM(c_commission_rate), 0)
+    SELECT COALESCE(SUM(c_commission_rate), 0) INTO v_TotalCommission
     FROM t_sys_orders
-    WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-        AND c_payment_status IN ('Completed', 'Paid');
+    WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+      AND c_payment_status IN ('Completed', 'Paid');
 
     -- Average Order Value
-    DECLARE @AvgOrderValue DECIMAL(18,2);
-    SELECT @AvgOrderValue = ISNULL(AVG(c_total_amount), 0)
+    SELECT COALESCE(AVG(c_total_amount), 0) INTO v_AvgOrderValue
     FROM t_sys_orders
-    WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate;
+    WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate;
 
     -- Pending Partner Approvals
-    DECLARE @PendingApprovals INT;
-    SELECT @PendingApprovals = COUNT(*)
+    SELECT COUNT(*) INTO v_PendingApprovals
     FROM t_sys_catering_owner
     WHERE c_approval_status = 1;
 
     -- Average Platform Rating
-    DECLARE @AvgRating DECIMAL(3,2);
-    SELECT @AvgRating = ISNULL(AVG(CAST(c_overall_rating AS DECIMAL(3,2))), 0)
+    SELECT COALESCE(AVG(c_overall_rating::DECIMAL(3,2)), 0) INTO v_AvgRating
     FROM t_sys_catering_review
-    WHERE c_is_verified = 1;
+    WHERE c_is_verified = TRUE;
 
     -- Calculate percentage changes
-    DECLARE @UsersChange DECIMAL(5,2) =
-        CASE WHEN @PrevTotalUsers > 0
-        THEN ((@TotalUsers - @PrevTotalUsers) * 100.0 / @PrevTotalUsers)
+    v_UsersChange := CASE
+        WHEN v_PrevTotalUsers > 0
+        THEN (v_TotalUsers - v_PrevTotalUsers) * 100.0 / v_PrevTotalUsers
         ELSE 0 END;
 
-    DECLARE @CateringsChange DECIMAL(5,2) =
-        CASE WHEN @PrevActiveCaterings > 0
-        THEN ((@ActiveCaterings - @PrevActiveCaterings) * 100.0 / @PrevActiveCaterings)
+    v_CateringsChange := CASE
+        WHEN v_PrevActiveCaterings > 0
+        THEN (v_ActiveCaterings - v_PrevActiveCaterings) * 100.0 / v_PrevActiveCaterings
         ELSE 0 END;
 
-    DECLARE @OrdersChange DECIMAL(5,2) =
-        CASE WHEN @PrevTotalOrders > 0
-        THEN ((@TotalOrders - @PrevTotalOrders) * 100.0 / @PrevTotalOrders)
+    v_OrdersChange := CASE
+        WHEN v_PrevTotalOrders > 0
+        THEN (v_TotalOrders - v_PrevTotalOrders) * 100.0 / v_PrevTotalOrders
         ELSE 0 END;
 
-    DECLARE @RevenueChange DECIMAL(5,2) =
-        CASE WHEN @PrevTotalRevenue > 0
-        THEN ((@TotalRevenue - @PrevTotalRevenue) * 100.0 / @PrevTotalRevenue)
+    v_RevenueChange := CASE
+        WHEN v_PrevTotalRevenue > 0
+        THEN (v_TotalRevenue - v_PrevTotalRevenue) * 100.0 / v_PrevTotalRevenue
         ELSE 0 END;
 
     -- Return Main Metrics
+    RETURN QUERY
     SELECT
-        @TotalUsers AS TotalUsers,
-        @UsersChange AS UsersChangePercent,
-        @ActiveCaterings AS ActiveCaterings,
-        @CateringsChange AS CateringsChangePercent,
-        @TotalOrders AS TotalOrders,
-        @OrdersChange AS OrdersChangePercent,
-        @TotalRevenue AS TotalRevenue,
-        @RevenueChange AS RevenueChangePercent,
-        @TotalCommission AS TotalCommission,
-        @AvgOrderValue AS AverageOrderValue,
-        @PendingApprovals AS PendingApprovals,
-        @AvgRating AS AverageRating,
-        @FromDate AS PeriodStart,
-        @ToDate AS PeriodEnd;
-END
-GO
+        v_TotalUsers,
+        v_UsersChange,
+        v_ActiveCaterings,
+        v_CateringsChange,
+        v_TotalOrders,
+        v_OrdersChange,
+        v_TotalRevenue,
+        v_RevenueChange,
+        v_TotalCommission,
+        v_AvgOrderValue,
+        v_PendingApprovals,
+        v_AvgRating,
+        v_FromDate,
+        v_ToDate;
+END;
+$$;
+
 
 -- ===============================================
 -- 2. Get Revenue Chart Data
 -- ===============================================
-CREATE OR ALTER PROCEDURE [dbo].[sp_Admin_GetRevenueChart]
-    @FromDate DATE = NULL,
-    @ToDate DATE = NULL,
-    @Granularity VARCHAR(10) = 'day' -- 'day', 'week', 'month'
-AS
+CREATE OR REPLACE FUNCTION sp_Admin_GetRevenueChart(
+    p_FromDate    DATE DEFAULT NULL,
+    p_ToDate      DATE DEFAULT NULL,
+    p_Granularity VARCHAR(10) DEFAULT 'day'
+)
+RETURNS TABLE (
+    Date        DATE,
+    Label       TEXT,
+    Revenue     DECIMAL(18,2),
+    Commission  DECIMAL(18,2),
+    OrderCount  BIGINT
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_FromDate DATE;
+    v_ToDate   DATE;
 BEGIN
-    SET NOCOUNT ON;
+    v_FromDate := COALESCE(p_FromDate, (NOW() - INTERVAL '30 days')::DATE);
+    v_ToDate   := COALESCE(p_ToDate, NOW()::DATE);
 
-    -- Default date range: last 30 days
-    IF @FromDate IS NULL
-        SET @FromDate = DATEADD(DAY, -30, GETDATE());
-
-    IF @ToDate IS NULL
-        SET @ToDate = GETDATE();
-
-    IF @Granularity = 'day'
-    BEGIN
+    IF p_Granularity = 'day' THEN
+        RETURN QUERY
         SELECT
-            CAST(c_createddate AS DATE) AS Date,
-            FORMAT(CAST(c_createddate AS DATE), 'MMM dd') AS Label,
-            ISNULL(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_total_amount ELSE 0 END), 0) AS Revenue,
-            ISNULL(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_commission_rate ELSE 0 END), 0) AS Commission,
+            c_createddate::DATE AS Date,
+            TO_CHAR(c_createddate::DATE, 'Mon DD') AS Label,
+            COALESCE(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_total_amount ELSE 0 END), 0)::DECIMAL(18,2) AS Revenue,
+            COALESCE(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_commission_rate ELSE 0 END), 0)::DECIMAL(18,2) AS Commission,
             COUNT(*) AS OrderCount
         FROM t_sys_orders
-        WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-        GROUP BY CAST(c_createddate AS DATE)
+        WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+        GROUP BY c_createddate::DATE
         ORDER BY Date;
-    END
-    ELSE IF @Granularity = 'week'
-    BEGIN
+
+    ELSIF p_Granularity = 'week' THEN
+        RETURN QUERY
         SELECT
-            DATEADD(WEEK, DATEDIFF(WEEK, 0, c_createddate), 0) AS Date,
-            'Week ' + CAST(DATEPART(WEEK, c_createddate) AS VARCHAR(2)) AS Label,
-            ISNULL(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_total_amount ELSE 0 END), 0) AS Revenue,
-            ISNULL(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_commission_rate ELSE 0 END), 0) AS Commission,
+            DATE_TRUNC('week', c_createddate)::DATE AS Date,
+            'Week ' || TO_CHAR(c_createddate, 'IW') AS Label,
+            COALESCE(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_total_amount ELSE 0 END), 0)::DECIMAL(18,2) AS Revenue,
+            COALESCE(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_commission_rate ELSE 0 END), 0)::DECIMAL(18,2) AS Commission,
             COUNT(*) AS OrderCount
         FROM t_sys_orders
-        WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-        GROUP BY DATEADD(WEEK, DATEDIFF(WEEK, 0, c_createddate), 0), DATEPART(WEEK, c_createddate)
+        WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+        GROUP BY DATE_TRUNC('week', c_createddate)::DATE, TO_CHAR(c_createddate, 'IW')
         ORDER BY Date;
-    END
-    ELSE IF @Granularity = 'month'
-    BEGIN
+
+    ELSIF p_Granularity = 'month' THEN
+        RETURN QUERY
         SELECT
-            DATEFROMPARTS(YEAR(c_createddate), MONTH(c_createddate), 1) AS Date,
-            FORMAT(DATEFROMPARTS(YEAR(c_createddate), MONTH(c_createddate), 1), 'MMM yyyy') AS Label,
-            ISNULL(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_total_amount ELSE 0 END), 0) AS Revenue,
-            ISNULL(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_commission_rate ELSE 0 END), 0) AS Commission,
+            DATE_TRUNC('month', c_createddate)::DATE AS Date,
+            TO_CHAR(DATE_TRUNC('month', c_createddate), 'Mon YYYY') AS Label,
+            COALESCE(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_total_amount ELSE 0 END), 0)::DECIMAL(18,2) AS Revenue,
+            COALESCE(SUM(CASE WHEN c_payment_status IN ('Completed', 'Paid') THEN c_commission_rate ELSE 0 END), 0)::DECIMAL(18,2) AS Commission,
             COUNT(*) AS OrderCount
         FROM t_sys_orders
-        WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-        GROUP BY YEAR(c_createddate), MONTH(c_createddate)
+        WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+        GROUP BY DATE_TRUNC('month', c_createddate)
         ORDER BY Date;
-    END
-END
-GO
+    END IF;
+END;
+$$;
+
 
 -- ===============================================
 -- 3. Get Order Status Distribution
 -- ===============================================
-CREATE OR ALTER PROCEDURE [dbo].[sp_Admin_GetOrderStatusDistribution]
-    @FromDate DATE = NULL,
-    @ToDate DATE = NULL
-AS
+CREATE OR REPLACE FUNCTION sp_Admin_GetOrderStatusDistribution(
+    p_FromDate DATE DEFAULT NULL,
+    p_ToDate   DATE DEFAULT NULL
+)
+RETURNS TABLE (
+    Status      TEXT,
+    Count       BIGINT,
+    Percentage  DECIMAL(5,2)
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_FromDate DATE;
+    v_ToDate   DATE;
 BEGIN
-    SET NOCOUNT ON;
+    v_FromDate := COALESCE(p_FromDate, (NOW() - INTERVAL '30 days')::DATE);
+    v_ToDate   := COALESCE(p_ToDate, NOW()::DATE);
 
-    IF @FromDate IS NULL
-        SET @FromDate = DATEADD(DAY, -30, GETDATE());
-
-    IF @ToDate IS NULL
-        SET @ToDate = GETDATE();
-
+    RETURN QUERY
     SELECT
         c_order_status AS Status,
         COUNT(*) AS Count,
-        CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM t_sys_orders WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate) AS DECIMAL(5,2)) AS Percentage
+        (COUNT(*) * 100.0 / (
+            SELECT COUNT(*)
+            FROM t_sys_orders
+            WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+        ))::DECIMAL(5,2) AS Percentage
     FROM t_sys_orders
-    WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
+    WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
     GROUP BY c_order_status
     ORDER BY Count DESC;
-END
-GO
+END;
+$$;
+
 
 -- ===============================================
 -- 4. Get Top Performing Partners
 -- ===============================================
-CREATE OR ALTER PROCEDURE [dbo].[sp_Admin_GetTopPerformingPartners]
-    @FromDate DATE = NULL,
-    @ToDate DATE = NULL,
-    @Limit INT = 10
-AS
+CREATE OR REPLACE FUNCTION sp_Admin_GetTopPerformingPartners(
+    p_FromDate DATE DEFAULT NULL,
+    p_ToDate   DATE DEFAULT NULL,
+    p_Limit    INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+    CateringOwnerId INTEGER,
+    BusinessName    TEXT,
+    ContactPerson   TEXT,
+    City            TEXT,
+    TotalOrders     BIGINT,
+    TotalRevenue    DECIMAL(18,2),
+    AverageRating   DECIMAL(3,2),
+    UniqueCustomers BIGINT
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_FromDate DATE;
+    v_ToDate   DATE;
 BEGIN
-    SET NOCOUNT ON;
+    v_FromDate := COALESCE(p_FromDate, (NOW() - INTERVAL '30 days')::DATE);
+    v_ToDate   := COALESCE(p_ToDate, NOW()::DATE);
 
-    IF @FromDate IS NULL
-        SET @FromDate = DATEADD(DAY, -30, GETDATE());
-
-    IF @ToDate IS NULL
-        SET @ToDate = GETDATE();
-
-    SELECT TOP (@Limit)
+    RETURN QUERY
+    SELECT
         co.c_ownerid AS CateringOwnerId,
         co.c_catering_name AS BusinessName,
         co.c_mobile AS ContactPerson,
         c.c_cityname AS City,
         COUNT(o.c_orderid) AS TotalOrders,
-        ISNULL(SUM(CASE WHEN o.c_payment_status IN ('Completed', 'Paid') THEN o.c_total_amount ELSE 0 END), 0) AS TotalRevenue,
-        ISNULL(AVG(CAST(r.c_overall_rating AS DECIMAL(3,2))), 0) AS AverageRating,
+        COALESCE(SUM(CASE WHEN o.c_payment_status IN ('Completed', 'Paid') THEN o.c_total_amount ELSE 0 END), 0)::DECIMAL(18,2) AS TotalRevenue,
+        COALESCE(AVG(r.c_overall_rating::DECIMAL(3,2)), 0) AS AverageRating,
         COUNT(DISTINCT o.c_userid) AS UniqueCustomers
     FROM t_sys_catering_owner co
     LEFT JOIN t_sys_orders o ON co.c_ownerid = o.c_ownerid
+        AND o.c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
     LEFT JOIN t_sys_catering_owner_addresses ad ON co.c_ownerid = ad.c_ownerid
-        AND CAST(o.c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-    LEFT JOIN t_sys_catering_review r ON co.c_ownerid = r.c_ownerid AND r.c_is_verified = 1
+    LEFT JOIN t_sys_catering_review r ON co.c_ownerid = r.c_ownerid AND r.c_is_verified = TRUE
     LEFT JOIN t_sys_city c ON ad.c_cityid = c.c_cityid
-    WHERE co.c_isactive = 1 AND co.c_approval_status = 2
+    WHERE co.c_isactive = TRUE AND co.c_approval_status = 2
     GROUP BY co.c_ownerid, co.c_catering_name, co.c_mobile, c.c_cityname
     HAVING COUNT(o.c_orderid) > 0
-    ORDER BY TotalRevenue DESC;
-END
-GO
+    ORDER BY TotalRevenue DESC
+    LIMIT p_Limit;
+END;
+$$;
+
 
 -- ===============================================
 -- 5. Get Recent Orders for Admin
 -- ===============================================
-CREATE OR ALTER PROCEDURE [dbo].[sp_Admin_GetRecentOrders]
-    @Limit INT = 10
-AS
+CREATE OR REPLACE FUNCTION sp_Admin_GetRecentOrders(
+    p_Limit INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+    OrderId       BIGINT,
+    OrderNumber   TEXT,
+    CustomerName  TEXT,
+    CustomerEmail TEXT,
+    CateringName  TEXT,
+    TotalAmount   DECIMAL(18,2),
+    OrderStatus   TEXT,
+    PaymentStatus TEXT,
+    EventDate     DATE,
+    OrderDate     TIMESTAMP
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT TOP (@Limit)
+    RETURN QUERY
+    SELECT
         o.c_orderid AS OrderId,
         o.c_order_number AS OrderNumber,
         u.c_name AS CustomerName,
@@ -274,228 +353,238 @@ BEGIN
     FROM t_sys_orders o
     INNER JOIN t_sys_user u ON o.c_userid = u.c_userid
     INNER JOIN t_sys_catering_owner co ON o.c_ownerid = co.c_ownerid
-    ORDER BY o.c_createddate DESC;
-END
-GO
+    ORDER BY o.c_createddate DESC
+    LIMIT p_Limit;
+END;
+$$;
+
 
 -- ===============================================
 -- 6. Get Popular Food Categories
 -- ===============================================
-CREATE OR ALTER PROCEDURE [dbo].[sp_Admin_GetPopularCategories]
-    @FromDate DATE = NULL,
-    @ToDate DATE = NULL,
-    @Limit INT = 10
-AS
+CREATE OR REPLACE FUNCTION sp_Admin_GetPopularCategories(
+    p_FromDate DATE DEFAULT NULL,
+    p_ToDate   DATE DEFAULT NULL,
+    p_Limit    INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+    CategoryId    INTEGER,
+    CategoryName  TEXT,
+    OrderCount    BIGINT,
+    TotalQuantity DECIMAL(18,2),
+    TotalRevenue  DECIMAL(18,2)
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_FromDate      DATE;
+    v_ToDate        DATE;
+    v_HasItemType   BOOLEAN;
+    v_HasFoodId     BOOLEAN;
 BEGIN
-    SET NOCOUNT ON;
+    v_FromDate := COALESCE(p_FromDate, (NOW() - INTERVAL '30 days')::DATE);
+    v_ToDate   := COALESCE(p_ToDate, NOW()::DATE);
 
-    IF @FromDate IS NULL
-        SET @FromDate = DATEADD(DAY, -30, GETDATE());
+    -- Check column existence using information_schema (replaces COL_LENGTH)
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 't_sys_order_items'
+          AND column_name IN ('c_item_type', 'c_item_id')
+        HAVING COUNT(*) = 2
+    ) INTO v_HasItemType;
 
-    IF @ToDate IS NULL
-        SET @ToDate = GETDATE();
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 't_sys_order_items'
+          AND column_name = 'c_foodid'
+    ) INTO v_HasFoodId;
 
-    DECLARE @HasItemType BIT = CASE
-        WHEN COL_LENGTH('dbo.t_sys_order_items', 'c_item_type') IS NOT NULL
-         AND COL_LENGTH('dbo.t_sys_order_items', 'c_item_id') IS NOT NULL
-        THEN 1 ELSE 0 END;
-
-    DECLARE @HasFoodId BIT = CASE
-        WHEN COL_LENGTH('dbo.t_sys_order_items', 'c_foodid') IS NOT NULL
-        THEN 1 ELSE 0 END;
-
-    IF @HasItemType = 1
-    BEGIN
-        DECLARE @ModernSql NVARCHAR(MAX) = N'
-            ;WITH OrderLines AS (
-                SELECT
-                    oi.c_orderid,
-                    UPPER(LTRIM(RTRIM(oi.c_item_type))) AS ItemType,
-                    oi.c_item_id AS ItemId,
-                    oi.c_quantity AS LineQuantity,
-                    CAST(
-                        ISNULL(
-                            oi.c_total_price,
-                            oi.c_unit_price * oi.c_quantity
-                        ) AS DECIMAL(18,2)
-                    ) AS LineRevenue
-                FROM t_sys_order_items oi
-                INNER JOIN t_sys_orders o ON oi.c_orderid = o.c_orderid
-                WHERE CAST(o.c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-            ),
-            PackageCategoryWeight AS (
-                SELECT
-                    pi.c_packageid,
-                    pi.c_categoryid,
-                    CAST(pi.c_quantity AS DECIMAL(18,6)) AS CategoryQty,
-                    SUM(CAST(pi.c_quantity AS DECIMAL(18,6))) OVER (PARTITION BY pi.c_packageid) AS TotalCategoryQty
-                FROM t_sys_catering_package_items pi
-            ),
-            CategoryRevenue AS (
-                SELECT
-                    ol.c_orderid AS OrderId,
-                    fi.c_categoryid AS CategoryId,
-                    CAST(ol.LineQuantity AS DECIMAL(18,2)) AS QuantityContribution,
-                    CAST(ol.LineRevenue AS DECIMAL(18,2)) AS RevenueContribution
-                FROM OrderLines ol
-                INNER JOIN t_sys_fooditems fi ON fi.c_foodid = ol.ItemId
-                WHERE ol.ItemType IN (''FOOD_ITEM'', ''FOOD'')
-                  AND fi.c_categoryid IS NOT NULL
-
-                UNION ALL
-
-                SELECT
-                    ol.c_orderid AS OrderId,
-                    pcw.c_categoryid AS CategoryId,
-                    CAST(ol.LineQuantity * CASE
-                        WHEN pcw.TotalCategoryQty > 0 THEN pcw.CategoryQty / pcw.TotalCategoryQty
-                        ELSE 0
-                    END AS DECIMAL(18,2)) AS QuantityContribution,
-                    CAST(ol.LineRevenue * CASE
-                        WHEN pcw.TotalCategoryQty > 0 THEN pcw.CategoryQty / pcw.TotalCategoryQty
-                        ELSE 0
-                    END AS DECIMAL(18,2)) AS RevenueContribution
-                FROM OrderLines ol
-                INNER JOIN t_sys_catering_packages p ON p.c_packageid = ol.ItemId
-                INNER JOIN PackageCategoryWeight pcw ON pcw.c_packageid = p.c_packageid
-                WHERE ol.ItemType = ''PACKAGE''
-            )
-            SELECT TOP (@Limit)
-                fc.c_categoryid AS CategoryId,
-                fc.c_categoryname AS CategoryName,
-                COUNT(DISTINCT cr.OrderId) AS OrderCount,
-                CAST(ISNULL(SUM(cr.QuantityContribution), 0) AS DECIMAL(18,2)) AS TotalQuantity,
-                CAST(ISNULL(SUM(cr.RevenueContribution), 0) AS DECIMAL(18,2)) AS TotalRevenue
-            FROM t_sys_food_category fc
-            INNER JOIN CategoryRevenue cr ON cr.CategoryId = fc.c_categoryid
-            WHERE fc.c_isactive = 1
-            GROUP BY fc.c_categoryid, fc.c_categoryname
-            ORDER BY TotalRevenue DESC;';
-
-        EXEC sp_executesql
-            @ModernSql,
-            N'@FromDate DATE, @ToDate DATE, @Limit INT',
-            @FromDate = @FromDate,
-            @ToDate = @ToDate,
-            @Limit = @Limit;
-    END
-    ELSE IF @HasFoodId = 1
-    BEGIN
-        DECLARE @LegacySql NVARCHAR(MAX) = N'
-            SELECT TOP (@Limit)
-                fc.c_categoryid AS CategoryId,
-                fc.c_categoryname AS CategoryName,
-                COUNT(DISTINCT oi.c_orderid) AS OrderCount,
-                CAST(ISNULL(SUM(oi.c_quantity), 0) AS DECIMAL(18,2)) AS TotalQuantity,
-                CAST(ISNULL(SUM(oi.c_price * oi.c_quantity), 0) AS DECIMAL(18,2)) AS TotalRevenue
-            FROM t_sys_food_category fc
-            INNER JOIN t_sys_fooditems fi ON fi.c_categoryid = fc.c_categoryid
-            INNER JOIN t_sys_order_items oi ON oi.c_foodid = fi.c_foodid
+    IF v_HasItemType THEN
+        RETURN QUERY
+        WITH OrderLines AS (
+            SELECT
+                oi.c_orderid,
+                UPPER(TRIM(oi.c_item_type)) AS ItemType,
+                oi.c_item_id AS ItemId,
+                oi.c_quantity AS LineQuantity,
+                COALESCE(oi.c_total_price, oi.c_unit_price * oi.c_quantity)::DECIMAL(18,2) AS LineRevenue
+            FROM t_sys_order_items oi
             INNER JOIN t_sys_orders o ON oi.c_orderid = o.c_orderid
-            WHERE CAST(o.c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-              AND fc.c_isactive = 1
-            GROUP BY fc.c_categoryid, fc.c_categoryname
-            ORDER BY TotalRevenue DESC;';
+            WHERE o.c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+        ),
+        PackageCategoryWeight AS (
+            SELECT
+                pi.c_packageid,
+                pi.c_categoryid,
+                pi.c_quantity::DECIMAL(18,6) AS CategoryQty,
+                SUM(pi.c_quantity::DECIMAL(18,6)) OVER (PARTITION BY pi.c_packageid) AS TotalCategoryQty
+            FROM t_sys_catering_package_items pi
+        ),
+        CategoryRevenue AS (
+            SELECT
+                ol.c_orderid AS OrderId,
+                fi.c_categoryid AS CategoryId,
+                ol.LineQuantity::DECIMAL(18,2) AS QuantityContribution,
+                ol.LineRevenue::DECIMAL(18,2) AS RevenueContribution
+            FROM OrderLines ol
+            INNER JOIN t_sys_fooditems fi ON fi.c_foodid = ol.ItemId
+            WHERE ol.ItemType IN ('FOOD_ITEM', 'FOOD')
+              AND fi.c_categoryid IS NOT NULL
 
-        EXEC sp_executesql
-            @LegacySql,
-            N'@FromDate DATE, @ToDate DATE, @Limit INT',
-            @FromDate = @FromDate,
-            @ToDate = @ToDate,
-            @Limit = @Limit;
-    END
-    ELSE
-    BEGIN
-        -- Safety fallback when neither known order-item shape exists
-        SELECT TOP (@Limit)
+            UNION ALL
+
+            SELECT
+                ol.c_orderid AS OrderId,
+                pcw.c_categoryid AS CategoryId,
+                (ol.LineQuantity * CASE
+                    WHEN pcw.TotalCategoryQty > 0 THEN pcw.CategoryQty / pcw.TotalCategoryQty
+                    ELSE 0
+                END)::DECIMAL(18,2) AS QuantityContribution,
+                (ol.LineRevenue * CASE
+                    WHEN pcw.TotalCategoryQty > 0 THEN pcw.CategoryQty / pcw.TotalCategoryQty
+                    ELSE 0
+                END)::DECIMAL(18,2) AS RevenueContribution
+            FROM OrderLines ol
+            INNER JOIN t_sys_catering_packages p ON p.c_packageid = ol.ItemId
+            INNER JOIN PackageCategoryWeight pcw ON pcw.c_packageid = p.c_packageid
+            WHERE ol.ItemType = 'PACKAGE'
+        )
+        SELECT
             fc.c_categoryid AS CategoryId,
             fc.c_categoryname AS CategoryName,
-            CAST(0 AS INT) AS OrderCount,
-            CAST(0 AS DECIMAL(18,2)) AS TotalQuantity,
-            CAST(0 AS DECIMAL(18,2)) AS TotalRevenue
+            COUNT(DISTINCT cr.OrderId) AS OrderCount,
+            COALESCE(SUM(cr.QuantityContribution), 0)::DECIMAL(18,2) AS TotalQuantity,
+            COALESCE(SUM(cr.RevenueContribution), 0)::DECIMAL(18,2) AS TotalRevenue
         FROM t_sys_food_category fc
-        WHERE fc.c_isactive = 1
-        ORDER BY fc.c_categoryid;
-    END
-END
-GO
+        INNER JOIN CategoryRevenue cr ON cr.CategoryId = fc.c_categoryid
+        WHERE fc.c_isactive = TRUE
+        GROUP BY fc.c_categoryid, fc.c_categoryname
+        ORDER BY TotalRevenue DESC
+        LIMIT p_Limit;
+
+    ELSIF v_HasFoodId THEN
+        RETURN QUERY
+        SELECT
+            fc.c_categoryid AS CategoryId,
+            fc.c_categoryname AS CategoryName,
+            COUNT(DISTINCT oi.c_orderid) AS OrderCount,
+            COALESCE(SUM(oi.c_quantity), 0)::DECIMAL(18,2) AS TotalQuantity,
+            COALESCE(SUM(oi.c_price * oi.c_quantity), 0)::DECIMAL(18,2) AS TotalRevenue
+        FROM t_sys_food_category fc
+        INNER JOIN t_sys_fooditems fi ON fi.c_categoryid = fc.c_categoryid
+        INNER JOIN t_sys_order_items oi ON oi.c_foodid = fi.c_foodid
+        INNER JOIN t_sys_orders o ON oi.c_orderid = o.c_orderid
+        WHERE o.c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+          AND fc.c_isactive = TRUE
+        GROUP BY fc.c_categoryid, fc.c_categoryname
+        ORDER BY TotalRevenue DESC
+        LIMIT p_Limit;
+
+    ELSE
+        -- Safety fallback when neither known order-item shape exists
+        RETURN QUERY
+        SELECT
+            fc.c_categoryid AS CategoryId,
+            fc.c_categoryname AS CategoryName,
+            0::BIGINT AS OrderCount,
+            0::DECIMAL(18,2) AS TotalQuantity,
+            0::DECIMAL(18,2) AS TotalRevenue
+        FROM t_sys_food_category fc
+        WHERE fc.c_isactive = TRUE
+        ORDER BY fc.c_categoryid
+        LIMIT p_Limit;
+    END IF;
+END;
+$$;
+
 
 -- ===============================================
 -- 7. Get User Growth Analytics
 -- ===============================================
-CREATE OR ALTER PROCEDURE [dbo].[sp_Admin_GetUserGrowth]
-    @FromDate DATE = NULL,
-    @ToDate DATE = NULL,
-    @Granularity VARCHAR(10) = 'day'
-AS
+CREATE OR REPLACE FUNCTION sp_Admin_GetUserGrowth(
+    p_FromDate    DATE DEFAULT NULL,
+    p_ToDate      DATE DEFAULT NULL,
+    p_Granularity VARCHAR(10) DEFAULT 'day'
+)
+RETURNS TABLE (
+    Date            DATE,
+    Label           TEXT,
+    NewUsers        BIGINT,
+    CumulativeUsers BIGINT
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_FromDate DATE;
+    v_ToDate   DATE;
 BEGIN
-    SET NOCOUNT ON;
+    v_FromDate := COALESCE(p_FromDate, (NOW() - INTERVAL '30 days')::DATE);
+    v_ToDate   := COALESCE(p_ToDate, NOW()::DATE);
 
-    IF @FromDate IS NULL
-        SET @FromDate = DATEADD(DAY, -30, GETDATE());
-
-    IF @ToDate IS NULL
-        SET @ToDate = GETDATE();
-
-    IF @Granularity = 'day'
-    BEGIN
+    IF p_Granularity = 'day' THEN
+        RETURN QUERY
         SELECT
-            CAST(c_createddate AS DATE) AS Date,
-            FORMAT(CAST(c_createddate AS DATE), 'MMM dd') AS Label,
+            c_createddate::DATE AS Date,
+            TO_CHAR(c_createddate::DATE, 'Mon DD') AS Label,
             COUNT(*) AS NewUsers,
-            SUM(COUNT(*)) OVER (ORDER BY CAST(c_createddate AS DATE)) AS CumulativeUsers
+            SUM(COUNT(*)) OVER (ORDER BY c_createddate::DATE) AS CumulativeUsers
         FROM t_sys_user
-        WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-        GROUP BY CAST(c_createddate AS DATE)
+        WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+        GROUP BY c_createddate::DATE
         ORDER BY Date;
-    END
-    ELSE IF @Granularity = 'month'
-    BEGIN
+
+    ELSIF p_Granularity = 'month' THEN
+        RETURN QUERY
         SELECT
-            DATEFROMPARTS(YEAR(c_createddate), MONTH(c_createddate), 1) AS Date,
-            FORMAT(DATEFROMPARTS(YEAR(c_createddate), MONTH(c_createddate), 1), 'MMM yyyy') AS Label,
+            DATE_TRUNC('month', c_createddate)::DATE AS Date,
+            TO_CHAR(DATE_TRUNC('month', c_createddate), 'Mon YYYY') AS Label,
             COUNT(*) AS NewUsers,
-            SUM(COUNT(*)) OVER (ORDER BY YEAR(c_createddate), MONTH(c_createddate)) AS CumulativeUsers
+            SUM(COUNT(*)) OVER (ORDER BY DATE_TRUNC('month', c_createddate)) AS CumulativeUsers
         FROM t_sys_user
-        WHERE CAST(c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-        GROUP BY YEAR(c_createddate), MONTH(c_createddate)
+        WHERE c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+        GROUP BY DATE_TRUNC('month', c_createddate)
         ORDER BY Date;
-    END
-END
-GO
+    END IF;
+END;
+$$;
+
 
 -- ===============================================
 -- 8. Get Revenue by City
 -- ===============================================
-CREATE OR ALTER PROCEDURE [dbo].[sp_Admin_GetRevenueByCity]
-    @FromDate DATE = NULL,
-    @ToDate DATE = NULL,
-    @Limit INT = 10
-AS
+CREATE OR REPLACE FUNCTION sp_Admin_GetRevenueByCity(
+    p_FromDate DATE DEFAULT NULL,
+    p_ToDate   DATE DEFAULT NULL,
+    p_Limit    INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+    CityId         INTEGER,
+    CityName       TEXT,
+    TotalOrders    BIGINT,
+    TotalRevenue   DECIMAL(18,2),
+    ActivePartners BIGINT
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_FromDate DATE;
+    v_ToDate   DATE;
 BEGIN
-    SET NOCOUNT ON;
+    v_FromDate := COALESCE(p_FromDate, (NOW() - INTERVAL '30 days')::DATE);
+    v_ToDate   := COALESCE(p_ToDate, NOW()::DATE);
 
-    IF @FromDate IS NULL
-        SET @FromDate = DATEADD(DAY, -30, GETDATE());
-
-    IF @ToDate IS NULL
-        SET @ToDate = GETDATE();
-
-    SELECT TOP (@Limit)
+    RETURN QUERY
+    SELECT
         c.c_cityid AS CityId,
         c.c_cityname AS CityName,
         COUNT(o.c_orderid) AS TotalOrders,
-        ISNULL(SUM(CASE WHEN o.c_payment_status IN ('Completed', 'Paid') THEN o.c_total_amount ELSE 0 END), 0) AS TotalRevenue,
+        COALESCE(SUM(CASE WHEN o.c_payment_status IN ('Completed', 'Paid') THEN o.c_total_amount ELSE 0 END), 0)::DECIMAL(18,2) AS TotalRevenue,
         COUNT(DISTINCT co.c_ownerid) AS ActivePartners
     FROM t_sys_city c
     INNER JOIN t_sys_catering_owner_addresses co ON c.c_cityid = co.c_cityid
     LEFT JOIN t_sys_orders o ON co.c_ownerid = o.c_ownerid
-        AND CAST(o.c_createddate AS DATE) BETWEEN @FromDate AND @ToDate
-    WHERE c.c_isactive = 1
+        AND o.c_createddate::DATE BETWEEN v_FromDate AND v_ToDate
+    WHERE c.c_isactive = TRUE
     GROUP BY c.c_cityid, c.c_cityname
     HAVING COUNT(o.c_orderid) > 0
-    ORDER BY TotalRevenue DESC;
-END
-GO
-
-PRINT 'Admin Analytics Stored Procedures created successfully!';
+    ORDER BY TotalRevenue DESC
+    LIMIT p_Limit;
+END;
+$$;

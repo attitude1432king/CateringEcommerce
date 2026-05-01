@@ -5,7 +5,7 @@ using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace CateringEcommerce.BAL.Base.User.AuthLogic
 {
@@ -23,58 +23,64 @@ namespace CateringEcommerce.BAL.Base.User.AuthLogic
         /// <param name="name"></param>
         /// <param name="phoneNumber"></param>
         /// <returns></returns>
-        public int CreateUserAccount(string name, string phoneNumber = null, Dictionary<string, string> dicData = null)
+        public async Task<int> CreateUserAccount(string name, string phoneNumber = null, Dictionary<string, string> dicData = null)
         {
-            dicData ??= new Dictionary<string, string>(); // Fix for CS1736 and IDE0028
-            bool isGoogleAuthention = dicData.Count > 0 && dicData.ContainsKey("isGoogleAuthention");
-            string googleId = dicData.ContainsKey("googleId") ? dicData["googleId"] : null;
-            bool isVerified = dicData.Count > 0 && dicData.ContainsKey("isVerified");
-            string pictureUrl = dicData.ContainsKey("pictureUrl") ? dicData["pictureUrl"] : null;
+            dicData ??= new Dictionary<string, string>();
+
+            // Extract values safely (single lookup)
+            bool isGoogleAuth = dicData.TryGetValue("isGoogleAuthention", out var _);
+            dicData.TryGetValue("googleId", out var googleId);
+            bool isVerified = dicData.ContainsKey("isVerified");
+            dicData.TryGetValue("pictureUrl", out var pictureUrl);
+
             string query;
-            List<SqlParameter> parameters = new()
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@Name", name),
-                new SqlParameter("@IsActive", true.ToBinary()),
-                new SqlParameter("@CreatedDate", DateTime.Now)
+                new NpgsqlParameter("p_name", name),
+                new NpgsqlParameter("p_isactive", true),
+                new NpgsqlParameter("p_createddate", DateTime.UtcNow)
             };
 
-            if (isGoogleAuthention)
+            if (isGoogleAuth)
             {
-                query = $@"INSERT INTO {Table.SysUser} 
-                    (c_name, c_googleid, c_isemailverified, c_picture, c_isactive, c_createddate) 
-                    VALUES (@Name, @GoogleId, @IsVerified, @PictureUrl, @IsActive, @CreatedDate)";
+                query = $@"
+                        INSERT INTO {Table.SysUser}
+                        (c_name, c_googleid, c_isemailverified, c_picture, c_isactive, c_createddate)
+                        VALUES (@p_name, @p_googleid, @p_isverified, @p_pictureurl, @p_isactive, @p_createddate)";
 
-                parameters.Add(new SqlParameter("@GoogleId", googleId ?? (object)DBNull.Value));
-                parameters.Add(new SqlParameter("@IsVerified", isVerified));
-                parameters.Add(new SqlParameter("@PictureUrl", pictureUrl ?? (object)DBNull.Value));
+                parameters.Add(new NpgsqlParameter("p_googleid", (object?)googleId ?? DBNull.Value));
+                parameters.Add(new NpgsqlParameter("p_isverified", isVerified));
+                parameters.Add(new NpgsqlParameter("p_pictureurl", (object?)pictureUrl ?? DBNull.Value));
             }
             else
             {
-                query = $@"INSERT INTO {Table.SysUser} 
-                    (c_name, c_mobile, c_isphoneverified, c_isactive, c_createddate) 
-                    VALUES (@Name, @Phone, @IsVerified, @IsActive, @CreatedDate)";
-                parameters.Add(new SqlParameter("@IsVerified", true.ToBinary()));
-                parameters.Add(new SqlParameter("@Phone", phoneNumber ?? (object)DBNull.Value));
+                query = $@"
+                        INSERT INTO {Table.SysUser}
+                        (c_name, c_mobile, c_isphoneverified, c_isactive, c_createddate)
+                        VALUES (@p_name, @p_phone, @p_isverified, @p_isactive, @p_createddate)";
+
+                parameters.Add(new NpgsqlParameter("p_phone", (object?)phoneNumber ?? DBNull.Value));
+                parameters.Add(new NpgsqlParameter("p_isverified", true));
             }
 
-            return _dbHelper.ExecuteNonQuery(query, parameters.ToArray());
+            return await _dbHelper.ExecuteNonQueryAsync(query, parameters.ToArray());
         }
 
-        
-        public UserModel? GetUserData(string? phoneNumber = null)
+
+        public async Task<UserModel?> GetUserData(string? phoneNumber = null)
         {
             string query = $"SELECT * FROM {Table.SysUser} WHERE c_mobile = @phoneNumber";
-            SqlParameter[] parameters = Array.Empty<SqlParameter>();
+            NpgsqlParameter[] parameters = Array.Empty<NpgsqlParameter>();
 
             if (!string.IsNullOrEmpty(phoneNumber))
             {
                 parameters = new[]
                 {
-                    new SqlParameter("@phoneNumber", phoneNumber)
+                    new NpgsqlParameter("@phoneNumber", phoneNumber)
                 };
             }
 
-            var dt = _dbHelper.Execute(query, parameters);
+            var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count > 0)
             {

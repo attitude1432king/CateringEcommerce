@@ -140,7 +140,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(Profile, profileExtensions, 5 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(Profile.FileName);
-                    var profilePath = await _fileStorageService.SaveFormFileAsync(Profile, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
+                    var profilePath = await _fileStorageService.SaveRoleBaseFormFileAsync(Profile, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
                     dicPath.Add("ProfilePath", profilePath);
                 }
 
@@ -149,7 +149,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(IdentityDocument, docExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(IdentityDocument.FileName);
-                    var identityPath = await _fileStorageService.SaveFormFileAsync(IdentityDocument, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
+                    var identityPath = await _fileStorageService.SaveRoleBaseFormFileAsync(IdentityDocument, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
                     dicPath.Add("IdentityDocumentPath", identityPath);
                 }
 
@@ -158,7 +158,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(ResumeDocument, docExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(ResumeDocument.FileName);
-                    var resumePath = await _fileStorageService.SaveFormFileAsync(ResumeDocument, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
+                    var resumePath = await _fileStorageService.SaveRoleBaseFormFileAsync(ResumeDocument, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.Staff.GetDisplayName(), true, safeFilename, staffPKID);
                     dicPath.Add("ResumeDocumentPath", resumePath);
                 }
 
@@ -223,7 +223,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(Profile, profileExtensions, 5 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(Profile.FileName);
-                    var profilePath = await _fileStorageService.SaveFormFileAsync(Profile, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
+                    var profilePath = await _fileStorageService.SaveRoleBaseFormFileAsync(Profile, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
                     dicPath.Add("ProfilePath", profilePath);
                 }
 
@@ -232,7 +232,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(IdentityDocument, docExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(IdentityDocument.FileName);
-                    var identityPath = await _fileStorageService.SaveFormFileAsync(IdentityDocument, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
+                    var identityPath = await _fileStorageService.SaveRoleBaseFormFileAsync(IdentityDocument, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
                     dicPath.Add("IdentityDocumentPath", identityPath);
                 }
 
@@ -241,7 +241,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                     var v = FileValidationHelper.ValidateFile(ResumeDocument, docExtensions, 10 * 1024 * 1024);
                     if (!v.IsValid) return ApiResponseHelper.Failure(v.ErrorMessage, "warning");
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(ResumeDocument.FileName);
-                    var resumePath = await _fileStorageService.SaveFormFileAsync(ResumeDocument, ownerPKID, DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
+                    var resumePath = await _fileStorageService.SaveRoleBaseFormFileAsync(ResumeDocument, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.Staff.GetDisplayName(), true, safeFilename, staff.ID);
                     dicPath.Add("ResumeDocumentPath", resumePath);
                 }
 

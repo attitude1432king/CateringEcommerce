@@ -2,7 +2,7 @@ using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace CateringEcommerce.BAL.Base.User
 {
@@ -21,14 +21,14 @@ namespace CateringEcommerce.BAL.Base.User
                 INSERT INTO t_sys_contact_messages
                     (c_name, c_email, c_message, c_status, c_ip_address, c_createddate)
                 VALUES
-                    (@Name, @Email, @Message, 'New', @IpAddress, GETDATE())";
+                    (@Name, @Email, @Message, 'New', @IpAddress, NOW())";
 
-            SqlParameter[] parameters =
+            NpgsqlParameter[] parameters =
             {
-                new SqlParameter("@Name",      request.Name),
-                new SqlParameter("@Email",     request.Email),
-                new SqlParameter("@Message",   request.Message),
-                new SqlParameter("@IpAddress", (object?)ipAddress ?? DBNull.Value),
+                new NpgsqlParameter("@Name",      request.Name),
+                new NpgsqlParameter("@Email",     request.Email),
+                new NpgsqlParameter("@Message",   request.Message),
+                new NpgsqlParameter("@IpAddress", (object?)ipAddress ?? DBNull.Value),
             };
 
             int rows = _db.ExecuteNonQuery(query, parameters);
@@ -36,3 +36,4 @@ namespace CateringEcommerce.BAL.Base.User
         }
     }
 }
+

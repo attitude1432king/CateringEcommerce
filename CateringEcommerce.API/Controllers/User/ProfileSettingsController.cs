@@ -110,7 +110,7 @@ namespace CateringEcommerce.API.Controllers.User
                     return BadRequest(new { message = validation.ErrorMessage });
 
                 // Delete old profile photo if it exists
-                var oldPhotoPath = _profileSetting.GetUserProfilePicture(userPKID);
+                var oldPhotoPath = await _profileSetting.GetUserProfilePicture(userPKID);
                 if (!string.IsNullOrEmpty(oldPhotoPath))
                 {
                     _fileStorageService.DeleteFilePath(oldPhotoPath);
@@ -120,9 +120,9 @@ namespace CateringEcommerce.API.Controllers.User
                 var profilePath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                     profilePhoto,
                     userPKID,
-                    "User",
-                    false,
-                    DocumentType.UserProfilePhoto.GetDisplayName()
+                    Role.User.GetDisplayName(),
+                    DocumentType.UserProfilePhoto.GetDisplayName(),
+                    false
                 );
 
                 // Update picture URL in database

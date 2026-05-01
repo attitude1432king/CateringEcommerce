@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ownerApiService } from '../../services/ownerApi';
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 export default function MediaGridUploader({ label, subtext, initialMedia = [], onMediaChange, onMediaClick, error, maxFiles = null })
 {

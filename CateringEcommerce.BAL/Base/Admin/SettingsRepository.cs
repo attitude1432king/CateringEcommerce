@@ -1,9 +1,11 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using CateringEcommerce.Domain.Models.Configuration;
+using Microsoft.Extensions.Options;
+using Npgsql;
 using System.Data;
 using System.Text.RegularExpressions;
 
@@ -13,13 +15,18 @@ namespace CateringEcommerce.BAL.Base.Admin
     {
         private readonly IDatabaseHelper _dbHelper;
         private readonly string _encryptionKey;
+        private readonly SmtpSettings _smtpSettings;
 
-        public SettingsRepository(IDatabaseHelper dbHelper, ISystemSettingsProvider settings)
+        public SettingsRepository(
+            IDatabaseHelper dbHelper,
+            IOptions<SecuritySettings> securityOptions,
+            IOptions<SmtpSettings> smtpOptions)
         {
             _dbHelper = dbHelper;
-            _encryptionKey = settings.GetString("SYSTEM.ENCRYPTION_KEY");
+            _encryptionKey = securityOptions?.Value?.EncryptionKey ?? string.Empty;
+            _smtpSettings = smtpOptions?.Value ?? throw new ArgumentNullException(nameof(smtpOptions));
             if (string.IsNullOrEmpty(_encryptionKey))
-                throw new InvalidOperationException("Encryption key not configured");
+                throw new InvalidOperationException("SYSTEM:ENCRYPTION_KEY is not configured in secure configuration");
         }
 
         // =============================================
@@ -29,24 +36,24 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<SettingsListResponse> GetSettingsAsync(SettingsListRequest request)
         {
             var conditions = new List<string>();
-            var baseParameters = new List<SqlParameter>();
+            var baseParameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrWhiteSpace(request.Category))
             {
                 conditions.Add("s.c_category = @Category");
-                baseParameters.Add(new SqlParameter("@Category", request.Category));
+                baseParameters.Add(new NpgsqlParameter("@Category", request.Category));
             }
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 conditions.Add("(s.c_setting_key LIKE @SearchTerm OR s.c_display_name LIKE @SearchTerm OR s.c_description LIKE @SearchTerm)");
-                baseParameters.Add(new SqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
+                baseParameters.Add(new NpgsqlParameter("@SearchTerm", $"%{request.SearchTerm}%"));
             }
 
             if (request.IsActive.HasValue)
             {
                 conditions.Add("s.c_is_active = @IsActive");
-                baseParameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+                baseParameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             string whereClause = conditions.Count > 0
@@ -84,8 +91,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 .Select(CloneParameter)
                 .ToList();
 
-            dataParameters.Add(new SqlParameter("@Offset", offset));
-            dataParameters.Add(new SqlParameter("@PageSize", request.PageSize));
+            dataParameters.Add(new NpgsqlParameter("@Offset", offset));
+            dataParameters.Add(new NpgsqlParameter("@PageSize", request.PageSize));
 
             var dataQuery = $@"
                 SELECT
@@ -109,8 +116,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysSettings} s
                 {whereClause}
                 ORDER BY {sortColumn} {sortOrder}
-                OFFSET @Offset ROWS
-                FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
             var table = await _dbHelper.ExecuteAsync(dataQuery, dataParameters.ToArray());
 
@@ -195,7 +201,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var parameters = new[]
             {
-                new SqlParameter("@SettingKey", settingKey)
+                new NpgsqlParameter("@SettingKey", settingKey)
             };
 
             var table = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
@@ -275,7 +281,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var parameters = new[]
             {
-                new SqlParameter("@SettingId", settingId)
+                new NpgsqlParameter("@SettingId", settingId)
             };
 
             var table = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
@@ -359,7 +365,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             string currentValue = null;
             string valueType = null;
 
-            var currentValueTable = await _dbHelper.ExecuteAsync(currentValueQuery, new[] { new SqlParameter("@SettingId", request.SettingId) });
+            var currentValueTable = await _dbHelper.ExecuteAsync(currentValueQuery, new[] { new NpgsqlParameter("@SettingId", request.SettingId) });
             if (currentValueTable.Rows.Count > 0)
             {
                 var row = currentValueTable.Rows[0];
@@ -379,15 +385,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                 UPDATE {Table.SysSettings}
                 SET
                     c_setting_value = @SettingValue,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_modifiedby = @ModifiedBy
                 WHERE c_setting_id = @SettingId";
 
             var updateParameters = new[]
             {
-                new SqlParameter("@SettingValue", valueToStore),
-                new SqlParameter("@ModifiedBy", adminId),
-                new SqlParameter("@SettingId", request.SettingId)
+                new NpgsqlParameter("@SettingValue", valueToStore),
+                new NpgsqlParameter("@ModifiedBy", adminId),
+                new NpgsqlParameter("@SettingId", request.SettingId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateQuery, updateParameters);
@@ -403,14 +409,14 @@ namespace CateringEcommerce.BAL.Base.Admin
 
                 var historyParameters = new[]
                 {
-                    new SqlParameter("@SettingId", request.SettingId),
-                    new SqlParameter("@SettingKey", currentSetting.SettingKey),
-                    new SqlParameter("@OldValue", currentValue ?? (object)DBNull.Value),
-                    new SqlParameter("@NewValue", valueToStore),
-                    new SqlParameter("@ChangedBy", adminId),
-                    new SqlParameter("@ChangedByName", adminName ?? (object)DBNull.Value),
-                    new SqlParameter("@ChangeReason", request.ChangeReason ?? (object)DBNull.Value),
-                    new SqlParameter("@IpAddress", ipAddress ?? (object)DBNull.Value)
+                    new NpgsqlParameter("@SettingId", request.SettingId),
+                    new NpgsqlParameter("@SettingKey", currentSetting.SettingKey),
+                    new NpgsqlParameter("@OldValue", currentValue ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@NewValue", valueToStore),
+                    new NpgsqlParameter("@ChangedBy", adminId),
+                    new NpgsqlParameter("@ChangedByName", adminName ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@ChangeReason", request.ChangeReason ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@IpAddress", ipAddress ?? (object)DBNull.Value)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(historyQuery, historyParameters);
@@ -429,7 +435,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             var countParameters = new[]
             {
-                new SqlParameter("@SettingId", settingId)
+                new NpgsqlParameter("@SettingId", settingId)
             };
 
             var totalCount = Convert.ToInt32(
@@ -454,14 +460,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysSettingsHistory} h
                 WHERE h.c_setting_id = @SettingId
                 ORDER BY h.c_change_date DESC
-                OFFSET @Offset ROWS
-                FETCH NEXT @PageSize ROWS ONLY";
+                LIMIT @PageSize OFFSET @Offset";
 
             var dataParameters = new[]
             {
-                new SqlParameter("@SettingId", settingId),
-                new SqlParameter("@Offset", offset),
-                new SqlParameter("@PageSize", pageSize)
+                new NpgsqlParameter("@SettingId", settingId),
+                new NpgsqlParameter("@Offset", offset),
+                new NpgsqlParameter("@PageSize", pageSize)
             };
 
             var history = new List<SettingHistoryItem>();
@@ -515,12 +520,12 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_modifieddate AS ModifiedDate,
                     s.c_modifiedby AS ModifiedBy
                 FROM {Table.SysSettings} s
-                WHERE s.c_category = @Category AND s.c_is_active = 1
+                WHERE s.c_category = @Category AND s.c_is_active = TRUE
                 ORDER BY s.c_display_order ASC";
 
             var parameters = new[]
             {
-                new SqlParameter("@Category", category)
+                new NpgsqlParameter("@Category", category)
             };
 
             var settings = new List<SystemSettingItem>();
@@ -647,11 +652,11 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 SELECT c_setting_key, c_setting_value, c_value_type
                 FROM {Table.SysSettings}
-                WHERE c_is_active = 1";
+                WHERE c_is_active = TRUE";
 
             var settings = new Dictionary<string, string>();
 
-            using (var reader = await _dbHelper.ExecuteReaderAsync(query, Array.Empty<SqlParameter>()))
+            using (var reader = await _dbHelper.ExecuteReaderAsync(query, Array.Empty<NpgsqlParameter>()))
             {
                 while (await reader.ReadAsync())
                 {
@@ -683,17 +688,17 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<List<SettingsExportItem>> ExportSettingsAsync(SettingsExportRequest request)
         {
             var conditions = new List<string>();
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             if (!string.IsNullOrWhiteSpace(request.Category))
             {
                 conditions.Add("c_category = @Category");
-                parameters.Add(new SqlParameter("@Category", request.Category));
+                parameters.Add(new NpgsqlParameter("@Category", request.Category));
             }
 
             if (!request.IncludeSensitive)
             {
-                conditions.Add("c_is_sensitive = 0");
+                conditions.Add("c_is_sensitive = FALSE");
             }
 
             string whereClause = conditions.Count > 0
@@ -802,14 +807,16 @@ namespace CateringEcommerce.BAL.Base.Admin
         // HELPER METHODS
         // =============================================
 
-        private SqlParameter CloneParameter(SqlParameter param)
+        private NpgsqlParameter CloneParameter(NpgsqlParameter param)
         {
-            return new SqlParameter(param.ParameterName, param.Value ?? DBNull.Value)
+            return new NpgsqlParameter(param.ParameterName, param.Value ?? DBNull.Value)
             {
-                SqlDbType = param.SqlDbType,
+                NpgsqlDbType = param.NpgsqlDbType,
                 Size = param.Size,
                 Direction = param.Direction
             };
         }
     }
 }
+
+

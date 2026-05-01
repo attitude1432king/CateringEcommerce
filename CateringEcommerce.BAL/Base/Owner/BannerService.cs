@@ -1,11 +1,11 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Text;
 
 namespace CateringEcommerce.BAL.Base.Owner
@@ -28,9 +28,9 @@ namespace CateringEcommerce.BAL.Base.Owner
                 StringBuilder countQuery = new StringBuilder();
                 countQuery.Append($@"SELECT COUNT(1) FROM {Table.SysCateringBanners} banner");
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID)
                 };
 
                 countQuery.Append(BuildFilterQuery(filter, parameters));
@@ -70,12 +70,12 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FROM {Table.SysCateringBanners} banner 
                     LEFT JOIN {Table.SysCateringMediaUploads} media ON media.c_reference_id = banner.c_bannerid");
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Offset", offset),
-                    new SqlParameter("@PageSize", pageSize),
-                    new SqlParameter("@DocumentTypeID", DocumentType.Banner.GetHashCode())
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Offset", offset),
+                    new NpgsqlParameter("@PageSize", pageSize),
+                    new NpgsqlParameter("@DocumentTypeID", DocumentType.Banner.GetHashCode())
                 };
 
                 selectQuery.Append(BuildFilterQuery(filter, parameters));
@@ -131,20 +131,19 @@ namespace CateringEcommerce.BAL.Base.Owner
                     INSERT INTO {Table.SysCateringBanners}
                     (c_ownerid, c_title, c_description, c_link_url, c_display_order, c_isactive, c_start_date, c_end_date, c_createddate)
                     VALUES
-                    (@OwnerPKID, @Title, @Description, @LinkUrl, @DisplayOrder, @IsActive, @StartDate, @EndDate, GETDATE());
+                    (@OwnerPKID, @Title, @Description, @LinkUrl, @DisplayOrder, @IsActive, @StartDate, @EndDate, NOW())
+                    RETURNING c_bannerid;";
 
-                    SELECT SCOPE_IDENTITY();";
-
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Title", banner.Title),
-                    new SqlParameter("@Description", banner.Description ?? (object)DBNull.Value),
-                    new SqlParameter("@LinkUrl", banner.LinkUrl ?? (object)DBNull.Value),
-                    new SqlParameter("@DisplayOrder", banner.DisplayOrder),
-                    new SqlParameter("@IsActive", banner.IsActive ? 1 : 0),
-                    new SqlParameter("@StartDate", banner.StartDate ?? (object)DBNull.Value),
-                    new SqlParameter("@EndDate", banner.EndDate ?? (object)DBNull.Value)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Title", banner.Title),
+                    new NpgsqlParameter("@Description", banner.Description ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@LinkUrl", banner.LinkUrl ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@DisplayOrder", banner.DisplayOrder),
+                    new NpgsqlParameter("@IsActive", banner.IsActive ? 1 : 0),
+                    new NpgsqlParameter("@StartDate", banner.StartDate ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@EndDate", banner.EndDate ?? (object)DBNull.Value)
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(insertQuery, parameters.ToArray());
@@ -173,22 +172,22 @@ namespace CateringEcommerce.BAL.Base.Owner
                         c_isactive = @IsActive,
                         c_start_date = @StartDate,
                         c_end_date = @EndDate,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_bannerid = @Id
                     AND c_ownerid = @OwnerPKID
-                    AND c_is_deleted = 0";
+                    AND c_is_deleted = FALSE";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@Id", banner.Id),
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Title", banner.Title),
-                    new SqlParameter("@Description", banner.Description ?? (object)DBNull.Value),
-                    new SqlParameter("@LinkUrl", banner.LinkUrl ?? (object)DBNull.Value),
-                    new SqlParameter("@DisplayOrder", banner.DisplayOrder),
-                    new SqlParameter("@IsActive", banner.IsActive ? 1 : 0),
-                    new SqlParameter("@StartDate", banner.StartDate ?? (object)DBNull.Value),
-                    new SqlParameter("@EndDate", banner.EndDate ?? (object)DBNull.Value)
+                    new NpgsqlParameter("@Id", banner.Id),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Title", banner.Title),
+                    new NpgsqlParameter("@Description", banner.Description ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@LinkUrl", banner.LinkUrl ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@DisplayOrder", banner.DisplayOrder),
+                    new NpgsqlParameter("@IsActive", banner.IsActive ? 1 : 0),
+                    new NpgsqlParameter("@StartDate", banner.StartDate ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@EndDate", banner.EndDate ?? (object)DBNull.Value)
                 };
 
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
@@ -210,16 +209,16 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string deleteQuery = $@"
                     UPDATE {Table.SysCateringBanners}
                     SET
-                        c_is_deleted = 1,
-                        c_modifieddate = GETDATE()
+                        c_is_deleted = TRUE,
+                        c_modifieddate = NOW()
                     WHERE c_bannerid = @Id
                     AND c_ownerid = @OwnerPKID
-                    AND c_is_deleted = 0";
+                    AND c_is_deleted = FALSE";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@Id", bannerId),
-                    new SqlParameter("@OwnerPKID", ownerPKID)
+                    new NpgsqlParameter("@Id", bannerId),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID)
                 };
 
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(deleteQuery, parameters.ToArray());
@@ -242,16 +241,16 @@ namespace CateringEcommerce.BAL.Base.Owner
                     UPDATE {Table.SysCateringBanners}
                     SET
                         c_isactive = @IsActive,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_bannerid = @Id
                     AND c_ownerid = @OwnerPKID
-                    AND c_is_deleted = 0";
+                    AND c_is_deleted = FALSE";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@Id", bannerId),
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@IsActive", isActive.ToBinary())
+                    new NpgsqlParameter("@Id", bannerId),
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@IsActive", isActive.ToString())
                 };
 
                 var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
@@ -275,18 +274,18 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FROM {Table.SysCateringBanners}
                     WHERE c_ownerid = @OwnerPKID
                     AND LOWER(LTRIM(RTRIM(c_title))) = LOWER(LTRIM(RTRIM(@Title)))
-                    AND c_is_deleted = 0";
+                    AND c_is_deleted = FALSE";
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerPKID", ownerPKID),
-                    new SqlParameter("@Title", title)
+                    new NpgsqlParameter("@OwnerPKID", ownerPKID),
+                    new NpgsqlParameter("@Title", title)
                 };
 
                 if (excludeId.HasValue && excludeId.Value > 0)
                 {
                     query += " AND c_bannerid <> @ExcludeId";
-                    parameters.Add(new SqlParameter("@ExcludeId", excludeId.Value));
+                    parameters.Add(new NpgsqlParameter("@ExcludeId", excludeId.Value));
                 }
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
@@ -307,7 +306,7 @@ namespace CateringEcommerce.BAL.Base.Owner
             try
             {
                 string selectQuery = $@"
-                    SELECT TOP 10
+                    SELECT
                         b.c_bannerid,
                         b.c_title,
                         b.c_description,
@@ -317,12 +316,13 @@ namespace CateringEcommerce.BAL.Base.Owner
                     FROM {Table.SysCateringBanners} b
                     INNER JOIN {Table.SysCateringOwner} o ON b.c_ownerid = o.c_ownerid                    
                     INNER JOIN {Table.SysCateringMediaUploads} bn ON bn.c_reference_id = b.c_bannerid
-                    WHERE b.c_isactive = 1
-                    AND b.c_is_deleted = 0
-                    AND (b.c_start_date IS NULL OR b.c_start_date <= GETDATE())
-                    AND (b.c_end_date IS NULL OR b.c_end_date >= GETDATE())
-                    AND o.c_isactive = 1
-                    ORDER BY b.c_display_order ASC, b.c_createddate DESC";
+                    WHERE b.c_isactive = TRUE
+                    AND b.c_is_deleted = FALSE
+                    AND (b.c_start_date IS NULL OR b.c_start_date <= NOW())
+                    AND (b.c_end_date IS NULL OR b.c_end_date >= NOW())
+                    AND o.c_isactive = TRUE
+                    ORDER BY b.c_display_order ASC, b.c_createddate DESC
+                    LIMIT 10";
 
                 var bannersData = await _dbHelper.ExecuteAsync(selectQuery);
 
@@ -362,11 +362,11 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string updateQuery = $@"
                     UPDATE {Table.SysCateringBanners}
                     SET c_view_count = c_view_count + 1
-                    WHERE c_bannerid = @Id AND c_is_deleted = 0";
+                    WHERE c_bannerid = @Id AND c_is_deleted = FALSE";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@Id", bannerId)
+                    new NpgsqlParameter("@Id", bannerId)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
@@ -387,11 +387,11 @@ namespace CateringEcommerce.BAL.Base.Owner
                 string updateQuery = $@"
                     UPDATE {Table.SysCateringBanners}
                     SET c_click_count = c_click_count + 1
-                    WHERE c_bannerid = @Id AND c_is_deleted = 0";
+                    WHERE c_bannerid = @Id AND c_is_deleted = FALSE";
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@Id", bannerId)
+                    new NpgsqlParameter("@Id", bannerId)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(updateQuery, parameters.ToArray());
@@ -405,23 +405,23 @@ namespace CateringEcommerce.BAL.Base.Owner
         /// <summary>
         /// Build filter query for banners
         /// </summary>
-        private string BuildFilterQuery(BannerFilter filter, List<SqlParameter> parameters)
+        private string BuildFilterQuery(BannerFilter filter, List<NpgsqlParameter> parameters)
         {
             StringBuilder where = new();
-            where.Append(" WHERE banner.c_ownerid = @OwnerPKID AND banner.c_is_deleted = 0");
+            where.Append(" WHERE banner.c_ownerid = @OwnerPKID AND banner.c_is_deleted = FALSE");
 
             // Search by title
             if (!string.IsNullOrWhiteSpace(filter?.Title))
             {
-                where.Append(" AND LOWER(c_title) LIKE LOWER('%' + @SearchTitle + '%')");
-                parameters.Add(new SqlParameter("@SearchTitle", filter.Title));
+                where.Append(" AND LOWER(c_title) LIKE LOWER('%' || @SearchTitle || '%')");
+                parameters.Add(new NpgsqlParameter("@SearchTitle", filter.Title));
             }
 
             // Filter by IsActive
             if (filter?.IsActive != null)
             {
                 where.Append(" AND c_isactive = @IsActive");
-                parameters.Add(new SqlParameter("@IsActive", filter.IsActive.Value ? 1 : 0));
+                parameters.Add(new NpgsqlParameter("@IsActive", filter.IsActive.Value ? 1 : 0));
             }
 
             return where.ToString();

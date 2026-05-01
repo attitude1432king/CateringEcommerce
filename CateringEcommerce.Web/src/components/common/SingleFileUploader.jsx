@@ -6,7 +6,7 @@ A reusable component for a single file upload slot (e.g., photo, resume).
 */
 import React, { useRef } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 // Helper to get the display name and type
 const getFileInfo = (fileData) => {

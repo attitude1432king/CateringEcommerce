@@ -11,7 +11,7 @@ import ImageCropUploader from '../owner/dashboard/settings/ImageCropUploader'; /
 import { useToast } from '../../contexts/ToastContext';
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 // Helper to generate initials avatar if no photo exists
 const generateInitialsAvatar = (name) => {

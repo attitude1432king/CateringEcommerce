@@ -7,392 +7,659 @@
 --  sp_SupervisorCheckIn, sp_RequestPaymentRelease)
 -- =============================================
 
-USE [CateringDB];
-GO
-
 -- =============================================
--- ASSIGNMENT CREATION
+-- ASSIGNMENT CREATION (PostgreSQL - FINAL)
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_BulkAssignSupervisor
-    @OrderId BIGINT,
-    @SupervisorId BIGINT,
-    @AssignedBy BIGINT,
-    @AssignmentId BIGINT OUTPUT
-AS
+DROP PROCEDURE IF EXISTS sp_BulkAssignSupervisor;
+
+CREATE OR REPLACE PROCEDURE sp_BulkAssignSupervisor(
+    IN p_OrderId BIGINT,
+    IN p_SupervisorId BIGINT,
+    IN p_AssignedBy BIGINT,
+    INOUT p_AssignmentId BIGINT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_AssignmentNumber VARCHAR(50);
+
+    v_EventDate DATE;
+    v_EventLocation VARCHAR(200);
+    v_EventValue DECIMAL(18,2);
+    v_GuestCount INT;
 BEGIN
-    SET NOCOUNT ON;
+    -- Generate Assignment Number (same logic)
+    v_AssignmentNumber :=
+        'ASG-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' ||
+        p_OrderId || '-' ||
+        p_SupervisorId;
 
-    DECLARE @AssignmentNumber VARCHAR(50) = 'ASG-' + FORMAT(GETDATE(), 'yyyyMMdd') + '-' + CAST(@OrderId AS VARCHAR(10)) + '-' + CAST(@SupervisorId AS VARCHAR(10));
+    -- Get event details
+    SELECT
+        c_event_date,
+        c_delivery_address,
+        c_total_amount,
+        c_guest_count
+    INTO
+        v_EventDate,
+        v_EventLocation,
+        v_EventValue,
+        v_GuestCount
+    FROM t_sys_orders
+    WHERE c_orderid = p_OrderId;
 
-    -- Get event details from order
-    DECLARE @EventDate DATE, @EventLocation NVARCHAR(200), @EventValue DECIMAL(18,2), @GuestCount INT;
-
-    SELECT @EventDate = c_event_date, @EventLocation = c_delivery_address,
-           @EventValue = c_total_amount, @GuestCount = c_guest_count
-    FROM t_sys_order
-    WHERE c_orderid = @OrderId;
-
+    -- Insert assignment
     INSERT INTO t_sys_supervisor_assignment (
-        c_order_id, c_supervisor_id, c_assignment_number, c_assigned_date,
+        c_orderid, c_supervisor_id, c_assignment_number, c_assigned_date,
         c_assigned_by, c_assignment_source, c_event_date, c_event_location,
         c_estimated_guests, c_event_value, c_status
     )
     VALUES (
-        @OrderId, @SupervisorId, @AssignmentNumber, GETDATE(),
-        @AssignedBy, 'MANUAL', ISNULL(@EventDate, GETDATE()), @EventLocation,
-        @GuestCount, @EventValue, 'ASSIGNED'
-    );
+        p_OrderId,
+        p_SupervisorId,
+        v_AssignmentNumber,
+        NOW(),
+        p_AssignedBy,
+        'MANUAL',
+        COALESCE(v_EventDate, NOW()),
+        v_EventLocation,
+        v_GuestCount,
+        v_EventValue,
+        'ASSIGNED'
+    )
+    RETURNING c_assignment_id INTO p_AssignmentId;
 
-    SET @AssignmentId = SCOPE_IDENTITY();
-END
-GO
+END;
+$$;
 
 -- =============================================
 -- ASSIGNMENT RETRIEVAL
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_GetAssignmentById
-    @AssignmentId BIGINT
-AS
+DROP FUNCTION IF EXISTS sp_GetAssignmentById;
+
+CREATE OR REPLACE FUNCTION sp_GetAssignmentById(
+    p_AssignmentId BIGINT
+)
+RETURNS TABLE (
+    a t_sys_supervisor_assignment,
+    SupervisorName VARCHAR,
+    SupervisorEmail VARCHAR,
+    SupervisorPhone VARCHAR,
+    SupervisorType VARCHAR,
+    AuthorityLevel INT,
+    SupervisorPhoto VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name AS SupervisorName, s.c_email AS SupervisorEmail,
-           s.c_phone AS SupervisorPhone, s.c_supervisor_type AS SupervisorType,
-           s.c_authority_level AS AuthorityLevel, s.c_photo_url AS SupervisorPhoto
+    RETURN QUERY
+    SELECT 
+        a,
+        s.c_full_name,
+        s.c_email,
+        s.c_phone,
+        s.c_supervisor_type,
+        s.c_authority_level,
+        s.c_photo_url
     FROM t_sys_supervisor_assignment a
-    INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_assignment_id = @AssignmentId;
-END
-GO
+    INNER JOIN t_sys_supervisor s 
+        ON a.c_supervisor_id = s.c_supervisor_id
+    WHERE a.c_assignment_id = p_AssignmentId;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetAssignmentsBySupervisor
-    @SupervisorId BIGINT,
-    @Status VARCHAR(30) = NULL
-AS
+DROP FUNCTION IF EXISTS sp_GetAssignmentsBySupervisor;
+
+CREATE OR REPLACE FUNCTION sp_GetAssignmentsBySupervisor(
+    p_SupervisorId BIGINT,
+    p_Status VARCHAR DEFAULT NULL
+)
+RETURNS TABLE (
+    a t_sys_supervisor_assignment,
+    SupervisorName VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name AS SupervisorName
+    RETURN QUERY
+    SELECT 
+        a,
+        s.c_full_name
     FROM t_sys_supervisor_assignment a
-    INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_supervisor_id = @SupervisorId
-      AND (@Status IS NULL OR a.c_status = @Status)
+    INNER JOIN t_sys_supervisor s 
+        ON a.c_supervisor_id = s.c_supervisor_id
+    WHERE a.c_supervisor_id = p_SupervisorId
+      AND (p_Status IS NULL OR a.c_status = p_Status)
     ORDER BY a.c_event_date DESC;
-END
-GO
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetAssignmentsByOrder
-    @OrderId BIGINT
-AS
+DROP FUNCTION IF EXISTS sp_GetAssignmentsByOrder;
+
+CREATE OR REPLACE FUNCTION sp_GetAssignmentsByOrder(
+    p_OrderId BIGINT
+)
+RETURNS TABLE (
+    a t_sys_supervisor_assignment,
+    SupervisorName VARCHAR,
+    SupervisorEmail VARCHAR,
+    SupervisorPhone VARCHAR,
+    SupervisorType VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name AS SupervisorName, s.c_email AS SupervisorEmail,
-           s.c_phone AS SupervisorPhone, s.c_supervisor_type AS SupervisorType
+    RETURN QUERY
+    SELECT 
+        a,
+        s.c_full_name,
+        s.c_email,
+        s.c_phone,
+        s.c_supervisor_type
     FROM t_sys_supervisor_assignment a
-    INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_order_id = @OrderId
+    INNER JOIN t_sys_supervisor s 
+        ON a.c_supervisor_id = s.c_supervisor_id
+    WHERE a.c_orderid = p_OrderId
     ORDER BY a.c_assigned_date DESC;
-END
-GO
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetAllAssignments
-    @FromDate DATETIME = NULL,
-    @ToDate DATETIME = NULL
-AS
+DROP FUNCTION IF EXISTS sp_GetAllAssignments;
+
+CREATE OR REPLACE FUNCTION sp_GetAllAssignments(
+    p_FromDate TIMESTAMP DEFAULT NULL,
+    p_ToDate TIMESTAMP DEFAULT NULL
+)
+RETURNS TABLE (
+    a t_sys_supervisor_assignment,
+    SupervisorName VARCHAR,
+    SupervisorType VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name AS SupervisorName, s.c_supervisor_type AS SupervisorType
+    RETURN QUERY
+    SELECT 
+        a,
+        s.c_full_name,
+        s.c_supervisor_type
     FROM t_sys_supervisor_assignment a
-    INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE (@FromDate IS NULL OR a.c_event_date >= @FromDate)
-      AND (@ToDate IS NULL OR a.c_event_date <= @ToDate)
+    INNER JOIN t_sys_supervisor s 
+        ON a.c_supervisor_id = s.c_supervisor_id
+    WHERE (p_FromDate IS NULL OR a.c_event_date >= p_FromDate)
+      AND (p_ToDate IS NULL OR a.c_event_date <= p_ToDate)
     ORDER BY a.c_event_date DESC;
-END
-GO
+END;
+$$;
 
 -- =============================================
 -- SUPERVISOR ACTIONS
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_AcceptAssignment
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON;
+DROP FUNCTION IF EXISTS sp_AcceptAssignment;
 
+CREATE OR REPLACE FUNCTION sp_AcceptAssignment(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT
+)
+RETURNS TABLE (Success INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+
+    -- Update assignment
     UPDATE t_sys_supervisor_assignment
     SET c_status = 'ACCEPTED',
-        c_accepted_date = GETDATE(),
-        c_modifieddate = GETDATE()
-    WHERE c_assignment_id = @AssignmentId
-      AND c_supervisor_id = @SupervisorId
+        c_accepted_date = NOW(),
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId
+      AND c_supervisor_id = p_SupervisorId
       AND c_status = 'ASSIGNED';
 
     -- Log action
-    INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_assignment_id, c_action_type, c_action_description, c_action_result)
-    VALUES (@SupervisorId, @AssignmentId, 'ASSIGNMENT_ACCEPTED', 'Assignment accepted by supervisor', 'SUCCESS');
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id, c_assignment_id, c_action_type,
+        c_action_description, c_action_result
+    )
+    VALUES (
+        p_SupervisorId,
+        p_AssignmentId,
+        'ASSIGNMENT_ACCEPTED',
+        'Assignment accepted by supervisor',
+        'SUCCESS'
+    );
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
 
-CREATE OR ALTER PROCEDURE sp_RejectAssignment
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT,
-    @Reason NVARCHAR(500)
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_RejectAssignment;
+
+CREATE OR REPLACE FUNCTION sp_RejectAssignment(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT,
+    p_Reason VARCHAR
+)
+RETURNS TABLE (Success INT)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
+    -- Update assignment
     UPDATE t_sys_supervisor_assignment
     SET c_status = 'REJECTED',
-        c_rejection_reason = @Reason,
-        c_modifieddate = GETDATE()
-    WHERE c_assignment_id = @AssignmentId
-      AND c_supervisor_id = @SupervisorId
+        c_rejection_reason = p_Reason,
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId
+      AND c_supervisor_id = p_SupervisorId
       AND c_status = 'ASSIGNED';
 
-    INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_assignment_id, c_action_type, c_action_description, c_action_result)
-    VALUES (@SupervisorId, @AssignmentId, 'ASSIGNMENT_REJECTED', 'Assignment rejected. Reason: ' + @Reason, 'SUCCESS');
+    -- Log action
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id, c_assignment_id, c_action_type,
+        c_action_description, c_action_result
+    )
+    VALUES (
+        p_SupervisorId,
+        p_AssignmentId,
+        'ASSIGNMENT_REJECTED',
+        'Assignment rejected. Reason: ' || p_Reason,
+        'SUCCESS'
+    );
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
 
-CREATE OR ALTER PROCEDURE sp_ApprovePaymentRelease
-    @AssignmentId BIGINT,
-    @ApprovedBy BIGINT,
-    @Notes NVARCHAR(500) = NULL
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_ApprovePaymentRelease;
+
+CREATE OR REPLACE FUNCTION sp_ApprovePaymentRelease(
+    p_AssignmentId BIGINT,
+    p_ApprovedBy BIGINT,
+    p_Notes VARCHAR DEFAULT NULL
+)
+RETURNS TABLE (Success INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SupervisorId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
 
+    -- Update assignment
     UPDATE t_sys_supervisor_assignment
     SET c_payment_release_approved = 1,
-        c_payment_approved_by = @ApprovedBy,
-        c_payment_approval_date = GETDATE(),
+        c_payment_approved_by = p_ApprovedBy,
+        c_payment_approval_date = NOW(),
         c_supervisor_payout_status = 'PROCESSED',
-        c_modifieddate = GETDATE()
-    WHERE c_assignment_id = @AssignmentId;
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId;
+
+    -- Get supervisor id
+    SELECT c_supervisor_id INTO v_SupervisorId
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
     -- Log action
-    DECLARE @SupervisorId BIGINT;
-    SELECT @SupervisorId = c_supervisor_id FROM t_sys_supervisor_assignment WHERE c_assignment_id = @AssignmentId;
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id, c_assignment_id, c_action_type,
+        c_action_description, c_action_result
+    )
+    VALUES (
+        v_SupervisorId,
+        p_AssignmentId,
+        'PAYMENT_RELEASE_REQUEST',
+        'Payment release approved by admin',
+        'SUCCESS'
+    );
 
-    INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_assignment_id, c_action_type, c_action_description, c_action_result)
-    VALUES (@SupervisorId, @AssignmentId, 'PAYMENT_RELEASE_REQUEST', 'Payment release approved by admin', 'SUCCESS');
+    RETURN QUERY SELECT 1;
 
-    SELECT 1 AS Success;
-END
-GO
+END;
+$$;
 
 -- =============================================
 -- ASSIGNMENT STATUS MANAGEMENT
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_UpdateAssignmentStatus
-    @AssignmentId BIGINT,
-    @NewStatus VARCHAR(30),
-    @UpdatedBy BIGINT,
-    @Notes NVARCHAR(500) = NULL
-AS
+DROP FUNCTION IF EXISTS sp_UpdateAssignmentStatus;
+
+CREATE OR REPLACE FUNCTION sp_UpdateAssignmentStatus(
+    p_AssignmentId BIGINT,
+    p_NewStatus VARCHAR,
+    p_UpdatedBy BIGINT,
+    p_Notes VARCHAR DEFAULT NULL
+)
+RETURNS TABLE (Success INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_OldStatus VARCHAR(30);
+    v_SupervisorId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
 
-    DECLARE @OldStatus VARCHAR(30);
-    SELECT @OldStatus = c_status FROM t_sys_supervisor_assignment WHERE c_assignment_id = @AssignmentId;
+    -- Get old status
+    SELECT c_status INTO v_OldStatus
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
+    -- Update status
     UPDATE t_sys_supervisor_assignment
-    SET c_status = @NewStatus,
-        c_modifieddate = GETDATE()
-    WHERE c_assignment_id = @AssignmentId;
+    SET c_status = p_NewStatus,
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId;
 
-    DECLARE @SupervisorId BIGINT;
-    SELECT @SupervisorId = c_supervisor_id FROM t_sys_supervisor_assignment WHERE c_assignment_id = @AssignmentId;
+    -- Get supervisor
+    SELECT c_supervisor_id INTO v_SupervisorId
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
-    INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_assignment_id, c_action_type, c_action_description, c_action_result)
-    VALUES (@SupervisorId, @AssignmentId, 'STATUS_CHANGED', 'Assignment status: ' + @OldStatus + ' -> ' + @NewStatus, 'SUCCESS');
+    -- Log action
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id, c_assignment_id, c_action_type,
+        c_action_description, c_action_result
+    )
+    VALUES (
+        v_SupervisorId,
+        p_AssignmentId,
+        'STATUS_CHANGED',
+        'Assignment status: ' || v_OldStatus || ' -> ' || p_NewStatus,
+        'SUCCESS'
+    );
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
 
-CREATE OR ALTER PROCEDURE sp_CancelAssignment
-    @AssignmentId BIGINT,
-    @CancelledBy BIGINT,
-    @Reason NVARCHAR(500)
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_CancelAssignment;
+
+CREATE OR REPLACE FUNCTION sp_CancelAssignment(
+    p_AssignmentId BIGINT,
+    p_CancelledBy BIGINT,
+    p_Reason VARCHAR
+)
+RETURNS TABLE (Success INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SupervisorId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
 
+    -- Update assignment
     UPDATE t_sys_supervisor_assignment
     SET c_status = 'CANCELLED',
-        c_rejection_reason = @Reason,
-        c_modifieddate = GETDATE()
-    WHERE c_assignment_id = @AssignmentId;
+        c_rejection_reason = p_Reason,
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId;
 
-    DECLARE @SupervisorId BIGINT;
-    SELECT @SupervisorId = c_supervisor_id FROM t_sys_supervisor_assignment WHERE c_assignment_id = @AssignmentId;
+    -- Get supervisor
+    SELECT c_supervisor_id INTO v_SupervisorId
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
-    INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_assignment_id, c_action_type, c_action_description, c_action_result)
-    VALUES (@SupervisorId, @AssignmentId, 'STATUS_CHANGED', 'Assignment cancelled. Reason: ' + @Reason, 'SUCCESS');
+    -- Log action
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id, c_assignment_id, c_action_type,
+        c_action_description, c_action_result
+    )
+    VALUES (
+        v_SupervisorId,
+        p_AssignmentId,
+        'STATUS_CHANGED',
+        'Assignment cancelled. Reason: ' || p_Reason,
+        'SUCCESS'
+    );
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
 
-CREATE OR ALTER PROCEDURE sp_CompleteAssignment
-    @AssignmentId BIGINT,
-    @CompletedBy BIGINT
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_CompleteAssignment;
+
+CREATE OR REPLACE FUNCTION sp_CompleteAssignment(
+    p_AssignmentId BIGINT,
+    p_CompletedBy BIGINT
+)
+RETURNS TABLE (Success INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SupervisorId BIGINT;
 BEGIN
-    SET NOCOUNT ON;
 
+    -- Update assignment
     UPDATE t_sys_supervisor_assignment
     SET c_status = 'COMPLETED',
-        c_check_out_time = GETDATE(),
-        c_modifieddate = GETDATE()
-    WHERE c_assignment_id = @AssignmentId;
+        c_check_out_time = NOW(),
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId;
 
-    -- Increment supervisor's completed event count
-    UPDATE s
-    SET s.c_total_events_supervised = s.c_total_events_supervised + 1,
-        s.c_modifieddate = GETDATE()
-    FROM t_sys_supervisor s
-    INNER JOIN t_sys_supervisor_assignment a ON s.c_supervisor_id = a.c_supervisor_id
-    WHERE a.c_assignment_id = @AssignmentId;
+    -- Increment supervisor event count
+    UPDATE t_sys_supervisor s
+    SET c_total_events_supervised = s.c_total_events_supervised + 1,
+        c_modifieddate = NOW()
+    FROM t_sys_supervisor_assignment a
+    WHERE s.c_supervisor_id = a.c_supervisor_id
+      AND a.c_assignment_id = p_AssignmentId;
 
-    DECLARE @SupervisorId BIGINT;
-    SELECT @SupervisorId = c_supervisor_id FROM t_sys_supervisor_assignment WHERE c_assignment_id = @AssignmentId;
+    -- Get supervisor
+    SELECT c_supervisor_id INTO v_SupervisorId
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
-    INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_assignment_id, c_action_type, c_action_description, c_action_result)
-    VALUES (@SupervisorId, @AssignmentId, 'CHECK_OUT', 'Assignment completed', 'SUCCESS');
+    -- Log action
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id, c_assignment_id, c_action_type,
+        c_action_description, c_action_result
+    )
+    VALUES (
+        v_SupervisorId,
+        p_AssignmentId,
+        'CHECK_OUT',
+        'Assignment completed',
+        'SUCCESS'
+    );
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+
+END;
+$$;
 
 -- =============================================
 -- ANALYTICS & REPORTING
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_GetUpcomingAssignments
-    @DaysAhead INT = 7
-AS
-BEGIN
-    SET NOCOUNT ON;
+DROP FUNCTION IF EXISTS sp_GetUpcomingAssignments;
 
-    SELECT a.*, s.c_full_name AS SupervisorName, s.c_phone AS SupervisorPhone,
-           s.c_supervisor_type AS SupervisorType
+CREATE OR REPLACE FUNCTION sp_GetUpcomingAssignments(
+    p_DaysAhead INT DEFAULT 7
+)
+RETURNS TABLE (
+    a t_sys_supervisor_assignment,
+    SupervisorName VARCHAR,
+    SupervisorPhone VARCHAR,
+    SupervisorType VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+
+    RETURN QUERY
+    SELECT
+        a,
+        s.c_full_name,
+        s.c_phone,
+        s.c_supervisor_type
     FROM t_sys_supervisor_assignment a
-    INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_event_date BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(DAY, @DaysAhead, CAST(GETDATE() AS DATE))
+    INNER JOIN t_sys_supervisor s 
+        ON a.c_supervisor_id = s.c_supervisor_id
+    WHERE a.c_event_date BETWEEN CURRENT_DATE
+        AND (CURRENT_DATE + (p_DaysAhead || ' days')::INTERVAL)
       AND a.c_status IN ('ASSIGNED', 'ACCEPTED')
     ORDER BY a.c_event_date ASC, a.c_event_time ASC;
-END
-GO
 
-CREATE OR ALTER PROCEDURE sp_GetOverdueAssignments
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_GetOverdueAssignments;
+
+CREATE OR REPLACE FUNCTION sp_GetOverdueAssignments()
+RETURNS TABLE (
+    a t_sys_supervisor_assignment,
+    SupervisorName VARCHAR,
+    SupervisorPhone VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
-    SELECT a.*, s.c_full_name AS SupervisorName, s.c_phone AS SupervisorPhone
+    RETURN QUERY
+    SELECT
+        a,
+        s.c_full_name,
+        s.c_phone
     FROM t_sys_supervisor_assignment a
-    INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_event_date < CAST(GETDATE() AS DATE)
+    INNER JOIN t_sys_supervisor s 
+        ON a.c_supervisor_id = s.c_supervisor_id
+    WHERE a.c_event_date < CURRENT_DATE
       AND a.c_status IN ('ASSIGNED', 'ACCEPTED')
     ORDER BY a.c_event_date ASC;
-END
-GO
 
-CREATE OR ALTER PROCEDURE sp_GetAssignmentStatistics
-    @FromDate DATETIME,
-    @ToDate DATETIME
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_GetAssignmentStatistics;
+
+CREATE OR REPLACE FUNCTION sp_GetAssignmentStatistics(
+    p_FromDate TIMESTAMP,
+    p_ToDate TIMESTAMP
+)
+RETURNS TABLE (
+    TotalAssignments BIGINT,
+    Assigned BIGINT,
+    Accepted BIGINT,
+    Rejected BIGINT,
+    CheckedIn BIGINT,
+    InProgress BIGINT,
+    Completed BIGINT,
+    Cancelled BIGINT,
+    NoShows BIGINT,
+    TotalPayoutAmount DECIMAL,
+    AvgQualityRating DECIMAL
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
+    RETURN QUERY
     SELECT
         COUNT(*) AS TotalAssignments,
-        SUM(CASE WHEN c_status = 'ASSIGNED' THEN 1 ELSE 0 END) AS Assigned,
-        SUM(CASE WHEN c_status = 'ACCEPTED' THEN 1 ELSE 0 END) AS Accepted,
-        SUM(CASE WHEN c_status = 'REJECTED' THEN 1 ELSE 0 END) AS Rejected,
-        SUM(CASE WHEN c_status = 'CHECKED_IN' THEN 1 ELSE 0 END) AS CheckedIn,
-        SUM(CASE WHEN c_status = 'IN_PROGRESS' THEN 1 ELSE 0 END) AS InProgress,
-        SUM(CASE WHEN c_status = 'COMPLETED' THEN 1 ELSE 0 END) AS Completed,
-        SUM(CASE WHEN c_status = 'CANCELLED' THEN 1 ELSE 0 END) AS Cancelled,
-        SUM(CASE WHEN c_status = 'NO_SHOW' THEN 1 ELSE 0 END) AS NoShows,
-        ISNULL(SUM(c_supervisor_payout_amount), 0) AS TotalPayoutAmount,
-        ISNULL(AVG(CAST(c_quality_rating AS DECIMAL(3,2))), 0) AS AvgQualityRating
+        SUM(CASE WHEN c_status = 'ASSIGNED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN c_status = 'ACCEPTED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN c_status = 'REJECTED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN c_status = 'CHECKED_IN' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN c_status = 'IN_PROGRESS' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN c_status = 'COMPLETED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN c_status = 'CANCELLED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN c_status = 'NO_SHOW' THEN 1 ELSE 0 END),
+        COALESCE(SUM(c_supervisor_payout_amount), 0),
+        COALESCE(AVG(c_quality_rating::DECIMAL(3,2)), 0)
     FROM t_sys_supervisor_assignment
-    WHERE c_event_date BETWEEN @FromDate AND @ToDate;
-END
-GO
+    WHERE c_event_date BETWEEN p_FromDate AND p_ToDate;
 
-CREATE OR ALTER PROCEDURE sp_GetSupervisorWorkload
-    @FromDate DATETIME,
-    @ToDate DATETIME
-AS
+END;
+$$;
+
+DROP FUNCTION IF EXISTS sp_GetSupervisorWorkload;
+
+CREATE OR REPLACE FUNCTION sp_GetSupervisorWorkload(
+    p_FromDate TIMESTAMP,
+    p_ToDate TIMESTAMP
+)
+RETURNS TABLE (
+    SupervisorId BIGINT,
+    FullName VARCHAR,
+    SupervisorType VARCHAR,
+    TotalAssignments BIGINT,
+    Completed BIGINT,
+    Upcoming BIGINT,
+    AvgRating DECIMAL,
+    TotalPayout DECIMAL
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
+    RETURN QUERY
     SELECT
-        s.c_supervisor_id AS SupervisorId,
-        s.c_full_name AS FullName,
-        s.c_supervisor_type AS SupervisorType,
-        COUNT(a.c_assignment_id) AS TotalAssignments,
-        SUM(CASE WHEN a.c_status = 'COMPLETED' THEN 1 ELSE 0 END) AS Completed,
-        SUM(CASE WHEN a.c_status IN ('ASSIGNED', 'ACCEPTED') THEN 1 ELSE 0 END) AS Upcoming,
-        AVG(CAST(a.c_quality_rating AS DECIMAL(3,2))) AS AvgRating,
-        ISNULL(SUM(a.c_supervisor_payout_amount), 0) AS TotalPayout
+        s.c_supervisor_id,
+        s.c_full_name,
+        s.c_supervisor_type,
+        COUNT(a.c_assignment_id),
+        SUM(CASE WHEN a.c_status = 'COMPLETED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN a.c_status IN ('ASSIGNED','ACCEPTED') THEN 1 ELSE 0 END),
+        AVG(a.c_quality_rating::DECIMAL(3,2)),
+        COALESCE(SUM(a.c_supervisor_payout_amount), 0)
     FROM t_sys_supervisor s
-    LEFT JOIN t_sys_supervisor_assignment a ON s.c_supervisor_id = a.c_supervisor_id
-        AND a.c_event_date BETWEEN @FromDate AND @ToDate
-    WHERE s.c_is_deleted = 0 AND s.c_current_status = 'ACTIVE'
+    LEFT JOIN t_sys_supervisor_assignment a 
+        ON s.c_supervisor_id = a.c_supervisor_id
+        AND a.c_event_date BETWEEN p_FromDate AND p_ToDate
+    WHERE s.c_is_deleted = FALSE 
+      AND s.c_current_status = 'ACTIVE'
     GROUP BY s.c_supervisor_id, s.c_full_name, s.c_supervisor_type
-    ORDER BY TotalAssignments DESC;
-END
-GO
+    ORDER BY COUNT(a.c_assignment_id) DESC;
+
+END;
+$$;
 
 -- =============================================
--- SEARCH & FILTERING
+-- SEARCH & FILTERING (PostgreSQL)
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_SearchAssignments
-    @SupervisorId BIGINT = NULL,
-    @OrderId BIGINT = NULL,
-    @Status VARCHAR(30) = NULL,
-    @EventDateFrom DATE = NULL,
-    @EventDateTo DATE = NULL,
-    @SupervisorType VARCHAR(20) = NULL,
-    @PaymentReleased BIT = NULL
-AS
+DROP FUNCTION IF EXISTS sp_SearchAssignments;
+
+CREATE OR REPLACE FUNCTION sp_SearchAssignments(
+    p_SupervisorId BIGINT DEFAULT NULL,
+    p_OrderId BIGINT DEFAULT NULL,
+    p_Status VARCHAR DEFAULT NULL,
+    p_EventDateFrom DATE DEFAULT NULL,
+    p_EventDateTo DATE DEFAULT NULL,
+    p_SupervisorType VARCHAR DEFAULT NULL,
+    p_PaymentReleased BOOLEAN DEFAULT NULL
+)
+RETURNS TABLE (
+    a t_sys_supervisor_assignment,
+    SupervisorName VARCHAR,
+    SupervisorType VARCHAR,
+    AuthorityLevel INT
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    SET NOCOUNT ON;
 
-    SELECT a.*, s.c_full_name AS SupervisorName, s.c_supervisor_type AS SupervisorType,
-           s.c_authority_level AS AuthorityLevel
+    RETURN QUERY
+    SELECT
+        a,
+        s.c_full_name,
+        s.c_supervisor_type,
+        s.c_authority_level
     FROM t_sys_supervisor_assignment a
-    INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE (@SupervisorId IS NULL OR a.c_supervisor_id = @SupervisorId)
-      AND (@OrderId IS NULL OR a.c_order_id = @OrderId)
-      AND (@Status IS NULL OR a.c_status = @Status)
-      AND (@EventDateFrom IS NULL OR a.c_event_date >= @EventDateFrom)
-      AND (@EventDateTo IS NULL OR a.c_event_date <= @EventDateTo)
-      AND (@SupervisorType IS NULL OR s.c_supervisor_type = @SupervisorType)
-      AND (@PaymentReleased IS NULL OR a.c_payment_release_approved = @PaymentReleased)
+    INNER JOIN t_sys_supervisor s 
+        ON a.c_supervisor_id = s.c_supervisor_id
+    WHERE (p_SupervisorId IS NULL OR a.c_supervisor_id = p_SupervisorId)
+      AND (p_OrderId IS NULL OR a.c_orderid = p_OrderId)
+      AND (p_Status IS NULL OR a.c_status = p_Status)
+      AND (p_EventDateFrom IS NULL OR a.c_event_date >= p_EventDateFrom)
+      AND (p_EventDateTo IS NULL OR a.c_event_date <= p_EventDateTo)
+      AND (p_SupervisorType IS NULL OR s.c_supervisor_type = p_SupervisorType)
+      AND (p_PaymentReleased IS NULL OR a.c_payment_release_approved = p_PaymentReleased)
     ORDER BY a.c_event_date DESC;
-END
-GO
 
-PRINT '================================================';
-PRINT 'Supervisor Assignment Stored Procedures Created';
-PRINT '16 Stored Procedures for SupervisorAssignmentRepository.cs';
-PRINT '================================================';
-GO
+END;
+$$;
+

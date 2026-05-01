@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CateringEcommerce.Domain.Models.APIModels.Owner
 {
@@ -36,8 +37,10 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         [Required]
         public string? Pincode { get; set; }
         [Required]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public int? StateID { get; set; }
         [Required]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public int? CityID { get; set; }
         public string? MapUrl { get; set; }
         public string? Latitude { get; set; }
@@ -53,7 +56,8 @@ namespace CateringEcommerce.Domain.Models.APIModels.Owner
         [Required]
         public string? FoodTypeIds { get; set; }
         [Required]
-        public decimal? MinOrderValue { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public int? MinGuestCount { get; set; }
 
         // Step 4: Legal & Payment (many are optional)
         public string? FssaiNumber { get; set; }

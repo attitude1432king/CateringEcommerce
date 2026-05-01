@@ -1,4 +1,4 @@
-﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 import { fetchApi } from './apiUtils';
 
@@ -27,12 +27,12 @@ export const ownerApiService = {
         const { cateringLogo, fssaiCertificate, gstCertificate, panCard, signature, chequeCopy, ...rest } = formData;
         const fd = new FormData();
         fd.append('JsonData', JSON.stringify(rest));
-        if (cateringLogo) fd.append('CateringLogo', cateringLogo);
-        if (fssaiCertificate) fd.append('FssaiCertificate', fssaiCertificate);
-        if (gstCertificate) fd.append('GstCertificate', gstCertificate);
-        if (panCard) fd.append('PanCard', panCard);
-        if (signature) fd.append('Signature', signature);
-        if (chequeCopy) fd.append('ChequeCopy', chequeCopy);
+        if (cateringLogo) fd.append('CateringLogo', cateringLogo, cateringLogo.name);
+        if (fssaiCertificate) fd.append('FssaiCertificate', fssaiCertificate, fssaiCertificate.name);
+        if (gstCertificate) fd.append('GstCertificate', gstCertificate, gstCertificate.name);
+        if (panCard) fd.append('PanCard', panCard, panCard.name);
+        if (signature) fd.append('Signature', signature, 'signature.png');
+        if (chequeCopy) fd.append('ChequeCopy', chequeCopy, chequeCopy.name);
         return fetchApi(`/Auth/Owner/Register`, 'POST', fd);
     },
 

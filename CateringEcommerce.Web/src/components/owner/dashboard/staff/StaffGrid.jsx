@@ -9,7 +9,7 @@ import Pagination from '../../../common/Pagination';
 import { useConfirmation } from '../../../../contexts/ConfirmationContext';
 import ToggleSwitch from '../../../common/ToggleSwitch';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 // Modern Staff Card Component
 const StaffCard = ({ item, onEdit, onDelete, onStatusChange }) => (

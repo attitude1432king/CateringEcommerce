@@ -2,7 +2,8 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Models.Order;
-using Microsoft.Data.SqlClient;
+using Npgsql;
+using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -23,16 +24,16 @@ namespace CateringEcommerce.BAL.Base.Order
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@UserId", request.UserId),
-                new SqlParameter("@ComplaintType", request.ComplaintType),
-                new SqlParameter("@ComplaintDescription", request.ComplaintDetails),
-                new SqlParameter("@ItemsAffected", (object)request.AffectedItems ?? DBNull.Value),
-                new SqlParameter("@EvidenceUrls", (object)request.PhotoEvidencePaths ?? DBNull.Value),
-                new SqlParameter("@ComplaintId", SqlDbType.BigInt) { Direction = ParameterDirection.Output },
-                new SqlParameter("@Severity", SqlDbType.VarChar, 20) { Direction = ParameterDirection.Output },
-                new SqlParameter("@IsFlaggedSuspicious", SqlDbType.Bit) { Direction = ParameterDirection.Output },
-                new SqlParameter("@ExpectedResolutionHours", SqlDbType.Int) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@UserId", request.UserId),
+                new NpgsqlParameter("@ComplaintType", request.ComplaintType),
+                new NpgsqlParameter("@ComplaintDescription", request.ComplaintDetails),
+                new NpgsqlParameter("@ItemsAffected", (object)request.AffectedItems ?? DBNull.Value),
+                new NpgsqlParameter("@EvidenceUrls", (object)request.PhotoEvidencePaths ?? DBNull.Value),
+                new NpgsqlParameter("@ComplaintId", NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@Severity", NpgsqlDbType.Varchar, 20) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@IsFlaggedSuspicious", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@ExpectedResolutionHours", NpgsqlDbType.Integer) { Direction = ParameterDirection.Output }
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<FileComplaintResponse>(
@@ -47,11 +48,11 @@ namespace CateringEcommerce.BAL.Base.Order
         {
             var parameters = new[]
             {
-                new SqlParameter("@ComplaintId", complaintId),
-                new SqlParameter("@RefundAmount", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
-                new SqlParameter("@SeverityFactor", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
-                new SqlParameter("@ItemValuePercentage", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
-                new SqlParameter("@PartnerDeduction", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 }
+                new NpgsqlParameter("@ComplaintId", complaintId),
+                new NpgsqlParameter("@RefundAmount", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
+                new NpgsqlParameter("@SeverityFactor", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
+                new NpgsqlParameter("@ItemValuePercentage", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
+                new NpgsqlParameter("@PartnerDeduction", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 }
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<ComplaintRefundCalculation>(
@@ -80,7 +81,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@ComplaintId", complaintId)
+                new NpgsqlParameter("@ComplaintId", complaintId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<CustomerComplaintModel>(query, parameters);
@@ -96,7 +97,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             return await _dbHelper.ExecuteQueryAsync<CustomerComplaintModel>(query, parameters);
@@ -117,7 +118,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@UserId", userId)
             };
 
             return await _dbHelper.ExecuteQueryAsync<CustomerComplaintModel>(query, parameters);
@@ -133,7 +134,7 @@ namespace CateringEcommerce.BAL.Base.Order
                        u.c_name,
                        u.c_email,
                        co.c_catering_name,
-                       DATEDIFF(HOUR, c.c_createddate, GETDATE()) AS c_hours_open
+                       EXTRACT(EPOCH FROM (NOW() - c.c_createddate)) / 3600 AS c_hours_open
                 FROM {Table.SysOrderComplaints} c
                 INNER JOIN {Table.SysOrders} o ON c.c_orderid = o.c_orderid
                 INNER JOIN {Table.SysUser} u ON c.c_userid = u.c_userid
@@ -163,26 +164,26 @@ namespace CateringEcommerce.BAL.Base.Order
                 SET c_status = @Status,
                     c_resolution_type = @ResolutionType,
                     c_reviewed_by = @AdminId,
-                    c_reviewed_date = GETDATE(),
+                    c_reviewed_date = NOW(),
                     c_resolution_notes = @ResolutionNotes,
                     c_refund_amount = @RefundAmount,
                     c_goodwill_credit = @GoodwillCredit,
                     c_is_valid_complaint = @IsValidComplaint,
                     c_validity_reason = @ValidityReason,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_complaint_id = @ComplaintId";
 
             var parameters = new[]
             {
-                new SqlParameter("@ComplaintId", request.ComplaintId),
-                new SqlParameter("@AdminId", request.AdminId),
-                new SqlParameter("@Status", status),
-                new SqlParameter("@ResolutionType", request.ResolutionType),
-                new SqlParameter("@ResolutionNotes", request.ResolutionNotes),
-                new SqlParameter("@RefundAmount", request.RefundAmount),
-                new SqlParameter("@GoodwillCredit", request.GoodwillCredit),
-                new SqlParameter("@IsValidComplaint", request.IsValidComplaint),
-                new SqlParameter("@ValidityReason", (object)request.ValidityReason ?? DBNull.Value)
+                new NpgsqlParameter("@ComplaintId", request.ComplaintId),
+                new NpgsqlParameter("@AdminId", request.AdminId),
+                new NpgsqlParameter("@Status", status),
+                new NpgsqlParameter("@ResolutionType", request.ResolutionType),
+                new NpgsqlParameter("@ResolutionNotes", request.ResolutionNotes),
+                new NpgsqlParameter("@RefundAmount", request.RefundAmount),
+                new NpgsqlParameter("@GoodwillCredit", request.GoodwillCredit),
+                new NpgsqlParameter("@IsValidComplaint", request.IsValidComplaint),
+                new NpgsqlParameter("@ValidityReason", (object)request.ValidityReason ?? DBNull.Value)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -209,20 +210,20 @@ namespace CateringEcommerce.BAL.Base.Order
                 SET c_partner_response = @Response,
                     c_partner_admitted_fault = @AdmitsFault,
                     c_partner_offered_replacement = @OfferedReplacement,
-                    c_partner_response_date = GETDATE(),
+                    c_partner_response_date = NOW(),
                     c_status = CASE
                         WHEN @AdmitsFault = 1 THEN 'Under_Investigation'
                         ELSE c_status
                     END,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_complaint_id = @ComplaintId";
 
             var parameters = new[]
             {
-                new SqlParameter("@ComplaintId", complaintId),
-                new SqlParameter("@Response", response),
-                new SqlParameter("@AdmitsFault", admitsFault),
-                new SqlParameter("@OfferedReplacement", offeredReplacement)
+                new NpgsqlParameter("@ComplaintId", complaintId),
+                new NpgsqlParameter("@Response", response),
+                new NpgsqlParameter("@AdmitsFault", admitsFault),
+                new NpgsqlParameter("@OfferedReplacement", offeredReplacement)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -234,13 +235,13 @@ namespace CateringEcommerce.BAL.Base.Order
             var query = $@"
                 UPDATE {Table.SysOrderComplaints}
                 SET c_status = 'Escalated',
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_complaint_id = @ComplaintId
                   AND c_status IN ('Open', 'Under_Investigation')";
 
             var parameters = new[]
             {
-                new SqlParameter("@ComplaintId", complaintId)
+                new NpgsqlParameter("@ComplaintId", complaintId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -260,8 +261,8 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@StartDate", (object)startDate ?? DBNull.Value),
-                new SqlParameter("@EndDate", (object)endDate ?? DBNull.Value)
+                new NpgsqlParameter("@StartDate", (object)startDate ?? DBNull.Value),
+                new NpgsqlParameter("@EndDate", (object)endDate ?? DBNull.Value)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<dynamic>(query, parameters);
@@ -286,14 +287,14 @@ namespace CateringEcommerce.BAL.Base.Order
             // Update payment summary
             var updatePaymentQuery = $@"
                 UPDATE {Table.SysPaymentSummary}
-                SET c_refund_amount = ISNULL(c_refund_amount, 0) + @RefundAmount,
-                    c_modifieddate = GETDATE()
+                SET c_refund_amount = COALESCE(c_refund_amount, 0) + @RefundAmount,
+                    c_modifieddate = NOW()
                 WHERE c_orderid = @OrderId";
 
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", complaint.OrderId),
-                new SqlParameter("@RefundAmount", refundAmount)
+                new NpgsqlParameter("@OrderId", complaint.OrderId),
+                new NpgsqlParameter("@RefundAmount", refundAmount)
             };
 
             await _dbHelper.ExecuteNonQueryAsync(updatePaymentQuery, parameters);
@@ -306,15 +307,15 @@ namespace CateringEcommerce.BAL.Base.Order
                 )
                 VALUES (
                     @OrderId, 'REFUND', @RefundAmount, 'Completed',
-                    'COMPLAINT-REFUND-' + CAST(@ComplaintId AS VARCHAR),
-                    'Refund for complaint ID ' + CAST(@ComplaintId AS VARCHAR)
+                    'COMPLAINT-REFUND-' || CAST(@ComplaintId AS VARCHAR),
+                    'Refund for complaint ID ' || CAST(@ComplaintId AS VARCHAR)
                 )";
 
             await _dbHelper.ExecuteNonQueryAsync(insertRefundQuery, new[]
             {
-                new SqlParameter("@OrderId", complaint.OrderId),
-                new SqlParameter("@RefundAmount", refundAmount),
-                new SqlParameter("@ComplaintId", complaintId)
+                new NpgsqlParameter("@OrderId", complaint.OrderId),
+                new NpgsqlParameter("@RefundAmount", refundAmount),
+                new NpgsqlParameter("@ComplaintId", complaintId)
             });
         }
 
@@ -330,7 +331,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var partnerResults = await _dbHelper.ExecuteQueryAsync<dynamic>(
                 getPartnerQuery,
-                new[] { new SqlParameter("@OrderId", complaint.OrderId) }
+                new[] { new NpgsqlParameter("@OrderId", complaint.OrderId) }
             );
 
             if (partnerResults.Count == 0) return;
@@ -341,25 +342,25 @@ namespace CateringEcommerce.BAL.Base.Order
                 UPDATE {Table.SysPartnerSecurityDeposits}
                 SET c_current_balance = c_current_balance - @PenaltyAmount,
                     c_available_balance = c_available_balance - @PenaltyAmount,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_ownerid = @PartnerId
-                  AND c_is_active = 1";
+                  AND c_is_active = TRUE";
 
             await _dbHelper.ExecuteNonQueryAsync(updateDepositQuery, new[]
             {
-                new SqlParameter("@PartnerId", partnerId),
-                new SqlParameter("@PenaltyAmount", penaltyAmount)
+                new NpgsqlParameter("@PartnerId", partnerId),
+                new NpgsqlParameter("@PenaltyAmount", penaltyAmount)
             });
 
             // Log deposit transaction
             var getDepositIdQuery = $@"
                 SELECT c_deposit_id, c_current_balance
                 FROM {Table.SysPartnerSecurityDeposits}
-                WHERE c_ownerid = @PartnerId AND c_is_active = 1";
+                WHERE c_ownerid = @PartnerId AND c_is_active = TRUE";
 
             var depositResults = await _dbHelper.ExecuteQueryAsync<dynamic>(
                 getDepositIdQuery,
-                new[] { new SqlParameter("@PartnerId", partnerId) }
+                new[] { new NpgsqlParameter("@PartnerId", partnerId) }
             );
 
             if (depositResults.Count > 0)
@@ -375,18 +376,18 @@ namespace CateringEcommerce.BAL.Base.Order
                     )
                     VALUES (
                         @DepositId, @PartnerId, 'DEDUCTION', @PenaltyAmount,
-                        @BalanceBefore, @BalanceAfter, 'Penalty for complaint ID ' + CAST(@ComplaintId AS VARCHAR),
+                        @BalanceBefore, @BalanceAfter, 'Penalty for complaint ID ' || CAST(@ComplaintId AS VARCHAR),
                         'COMPLAINT', @ComplaintId
                     )";
 
                 await _dbHelper.ExecuteNonQueryAsync(insertTransactionQuery, new[]
                 {
-                    new SqlParameter("@DepositId", depositId),
-                    new SqlParameter("@PartnerId", partnerId),
-                    new SqlParameter("@PenaltyAmount", penaltyAmount),
-                    new SqlParameter("@BalanceBefore", balanceBefore),
-                    new SqlParameter("@BalanceAfter", balanceAfter),
-                    new SqlParameter("@ComplaintId", complaintId)
+                    new NpgsqlParameter("@DepositId", depositId),
+                    new NpgsqlParameter("@PartnerId", partnerId),
+                    new NpgsqlParameter("@PenaltyAmount", penaltyAmount),
+                    new NpgsqlParameter("@BalanceBefore", balanceBefore),
+                    new NpgsqlParameter("@BalanceAfter", balanceAfter),
+                    new NpgsqlParameter("@ComplaintId", complaintId)
                 });
             }
         }
@@ -417,3 +418,4 @@ namespace CateringEcommerce.BAL.Base.Order
         #endregion
     }
 }
+

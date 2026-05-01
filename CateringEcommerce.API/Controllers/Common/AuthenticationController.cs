@@ -3,6 +3,7 @@ using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.Common;
+using CateringEcommerce.Domain.Models.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -38,7 +39,7 @@ namespace CateringEcommerce.API.Controllers.Common
         [AllowAnonymous]
         [HttpPost("send-otp")]
         [EnableRateLimiting("otp_send")]
-        public async Task<IActionResult> SendOtp([FromBody] VerificationRequest request)
+        public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
         {
             try
             {
@@ -150,6 +151,17 @@ namespace CateringEcommerce.API.Controllers.Common
 
         [Range(0, long.MaxValue, ErrorMessage = "Invalid user ID")]
         public long? pkID { get; set; }
+    }
+
+    public class SendOtpRequest
+    {
+        [Required(ErrorMessage = "Type is required")]
+        [RegularExpression("^(email|phone|cateringNumber)$", ErrorMessage = "Type must be 'email', 'phone', or 'cateringNumber'")]
+        public string? Type { get; set; }
+
+        [Required(ErrorMessage = "Value is required")]
+        [StringLength(200, ErrorMessage = "Value cannot exceed 200 characters")]
+        public string? Value { get; set; }
 
         [StringLength(50, ErrorMessage = "Role cannot exceed 50 characters")]
         public string? Role { get; set; }

@@ -1,10 +1,10 @@
-﻿using CateringEcommerce.BAL.Configuration;
+using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Text;
 using System.Xml.Linq;
 
@@ -21,7 +21,7 @@ namespace CateringEcommerce.BAL.Common
         public async Task<bool> IsOwnerExistAsync(long ownerPkID)
         {
             string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_ownerid = @OwnerPkID";
-            SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@OwnerPkID", ownerPkID) };
+            NpgsqlParameter[] parameters = new NpgsqlParameter[] { new NpgsqlParameter("@OwnerPkID", ownerPkID) };
             int count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters));
             return count > 0;
         }
@@ -31,7 +31,7 @@ namespace CateringEcommerce.BAL.Common
             if (string.IsNullOrEmpty(mobileNumber))
                 throw new ArgumentException("Mobile number cannot be null or empty.", nameof(mobileNumber));
             string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_mobile = @MobileNumber";
-            SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", mobileNumber) };
+            NpgsqlParameter[] parameters = new NpgsqlParameter[] { new NpgsqlParameter("@MobileNumber", mobileNumber) };
             int count = Convert.ToInt32(_dbHelper.ExecuteScalar(query, parameters));
             return count > 0;
         }
@@ -41,7 +41,7 @@ namespace CateringEcommerce.BAL.Common
             if (string.IsNullOrEmpty(email))
                 throw new ArgumentException("Email cannot be null or empty.", nameof(email));
             string query = $"SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE c_email = @Email";
-            SqlParameter[] parameters = new SqlParameter[] { new SqlParameter("@Email", email) };
+            NpgsqlParameter[] parameters = new NpgsqlParameter[] { new NpgsqlParameter("@Email", email) };
             int count = Convert.ToInt32(_dbHelper.ExecuteScalar(query, parameters));
             return count > 0;
         }
@@ -54,19 +54,19 @@ namespace CateringEcommerce.BAL.Common
                 string query = $@"INSERT INTO {Table.SysCateringMediaUploads} (c_ownerid, c_file_name, c_file_path, c_document_type_id, c_extension, c_reference_id) 
                             VALUES (@OwnerPkid, @FileName, @FilePath, @DocumentTypeID, @Extesion, @ReferenceID)";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OwnerPkid", ownerPkid),
-                    new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
-                    new SqlParameter("@FilePath", filePath),
-                    new SqlParameter("@FileName", fileName),
-                    new SqlParameter("@Extesion", extension),
-                    new SqlParameter("@ReferenceID", referenceID > 0 ? referenceID : DBNull.Value)
+                    new NpgsqlParameter("@OwnerPkid", ownerPkid),
+                    new NpgsqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                    new NpgsqlParameter("@FilePath", filePath),
+                    new NpgsqlParameter("@FileName", fileName),
+                    new NpgsqlParameter("@Extesion", extension),
+                    new NpgsqlParameter("@ReferenceID", referenceID > 0 ? referenceID : DBNull.Value)
                 };
 
                 return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             }
-            catch (SqlException ex)
+            catch (NpgsqlException ex)
             {
                 throw new Exception("An error occurred while saving the file path.", ex);
             }
@@ -77,19 +77,19 @@ namespace CateringEcommerce.BAL.Common
             try
             {
                 StringBuilder query = new StringBuilder();
-                SqlParameter[] parameters;
+                NpgsqlParameter[] parameters;
 
                 query.Append($"SELECT * FROM {Table.SysCateringOwner} WHERE ");
 
                 if (ownerPkid > 0)
                 {
                     query.Append("c_ownerid = @OwnerPkid");
-                    parameters = new SqlParameter[] { new SqlParameter("@OwnerPkid", ownerPkid) };
+                    parameters = new NpgsqlParameter[] { new NpgsqlParameter("@OwnerPkid", ownerPkid) };
                 }
                 else
                 {
                     query.Append("c_mobile = @MobileNumber");
-                    parameters = new SqlParameter[] { new SqlParameter("@MobileNumber", number) };
+                    parameters = new NpgsqlParameter[] { new NpgsqlParameter("@MobileNumber", number) };
                 }
 
                 var dt = _dbHelper.Execute(query.ToString(), parameters);
@@ -131,9 +131,9 @@ namespace CateringEcommerce.BAL.Common
             {
                 string query = $"DELETE FROM {Table.SysCateringMediaUploads} WHERE c_media_id = @documentPKID";
                 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@documentPKID", documentPKID),
+                    new NpgsqlParameter("@documentPKID", documentPKID),
                 };
 
                 return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -149,10 +149,10 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                string query = $"UPDATE {Table.SysCateringMediaUploads} SET c_is_deleted = 1, c_modifieddate = GETDATE()  WHERE c_media_id = @documentPKID";
-                SqlParameter[] parameters = new SqlParameter[]
+                string query = $"UPDATE {Table.SysCateringMediaUploads} SET c_is_deleted = TRUE, c_modifieddate = NOW()  WHERE c_media_id = @documentPKID";
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@documentPKID", documentPKID),
+                    new NpgsqlParameter("@documentPKID", documentPKID),
                 };
                 return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             }
@@ -170,11 +170,11 @@ namespace CateringEcommerce.BAL.Common
             {
                 string query = $@"SELECT c_typeid AS TypeId, c_type_name AS ServiceName, c_description AS Description, c_isactive AS IsActive
                             FROM {Table.SysCateringTypeMaster} 
-                            WHERE c_categoryid = @ServiceTypeId AND c_isactive = 1";
+                            WHERE c_categoryid = @ServiceTypeId AND c_isactive = TRUE";
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@ServiceTypeId", cateringMasterCategory.GetHashCode())
+                    new NpgsqlParameter("@ServiceTypeId", cateringMasterCategory.GetHashCode())
                 };
                 var dt = await _dbHelper.ExecuteAsync(query, parameters.ToArray());
                 List<CateringMasterTypeModel> cateringMasterTypes = new List<CateringMasterTypeModel>();
@@ -201,13 +201,13 @@ namespace CateringEcommerce.BAL.Common
         {
             try
             {
-                string query = @$"UPDATE {Table.SysCateringMediaUploads} SET c_file_path = @FilePath, c_modifieddate = GETDATE()  WHERE c_reference_id = @ReferenceID
+                string query = @$"UPDATE {Table.SysCateringMediaUploads} SET c_file_path = @FilePath, c_modifieddate = NOW()  WHERE c_reference_id = @ReferenceID
                                AND c_document_type_id = @DocumentTypeID";
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ReferenceID", referenceID),
-                    new SqlParameter("@FilePath", filePath),
-                    new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                    new NpgsqlParameter("@ReferenceID", referenceID),
+                    new NpgsqlParameter("@FilePath", filePath),
+                    new NpgsqlParameter("@DocumentTypeID", documentType.GetHashCode()),
                 };
                 return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
             }
@@ -222,14 +222,14 @@ namespace CateringEcommerce.BAL.Common
             try
             {
                 string query = $@"UPDATE {Table.SysCateringMediaUploads} 
-                                SET c_is_deleted = 1, c_modifieddate = GETDATE()  
+                                SET c_is_deleted = TRUE, c_modifieddate = NOW()  
                                 WHERE c_reference_id = @ReferenceID 
                                 AND c_document_type_id = @DocumentTypeID";
                 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@ReferenceID", referenceID),
-                    new SqlParameter("@DocumentTypeID", documentType.GetHashCode()),
+                    new NpgsqlParameter("@ReferenceID", referenceID),
+                    new NpgsqlParameter("@DocumentTypeID", documentType.GetHashCode()),
                 };
                 
                 return await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -241,3 +241,4 @@ namespace CateringEcommerce.BAL.Common
         }
     }
 }
+

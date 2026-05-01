@@ -2,7 +2,7 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Delivery;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -32,18 +32,17 @@ namespace CateringEcommerce.BAL.Common
                     INSERT INTO {Table.SysSampleDelivery}
                     (c_orderid, c_userid, c_ownerid, c_provider, c_delivery_status, c_createddate)
                     VALUES
-                    (@OrderId, @UserId, @OwnerId, @Provider, @DeliveryStatus, GETDATE());
-
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);
+                    (@OrderId, @UserId, @OwnerId, @Provider, @DeliveryStatus, NOW())
+                    RETURNING c_sample_delivery_id;
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", request.OrderId),
-                    new SqlParameter("@UserId", request.UserId),
-                    new SqlParameter("@OwnerId", request.OwnerId),
-                    new SqlParameter("@Provider", request.Provider),
-                    new SqlParameter("@DeliveryStatus", (int)SampleDeliveryStatus.Requested)
+                    new NpgsqlParameter("@OrderId", request.OrderId),
+                    new NpgsqlParameter("@UserId", request.UserId),
+                    new NpgsqlParameter("@OwnerId", request.OwnerId),
+                    new NpgsqlParameter("@Provider", request.Provider),
+                    new NpgsqlParameter("@DeliveryStatus", (int)SampleDeliveryStatus.Requested)
                 };
 
                 var result = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -71,9 +70,9 @@ namespace CateringEcommerce.BAL.Common
                     WHERE c_sample_delivery_id = @SampleDeliveryId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@SampleDeliveryId", sampleDeliveryId)
+                    new NpgsqlParameter("@SampleDeliveryId", sampleDeliveryId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -107,9 +106,9 @@ namespace CateringEcommerce.BAL.Common
                     WHERE c_orderid = @OrderId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -128,7 +127,7 @@ namespace CateringEcommerce.BAL.Common
         }
 
         // ===================================
-        // UPDATE TRACKING INFO
+        // UPDATE TRACKIOG IOFO
         // ===================================
         public async Task<bool> UpdateTrackingInfoAsync(long sampleDeliveryId, string trackingUrl, string trackingId)
         {
@@ -139,15 +138,15 @@ namespace CateringEcommerce.BAL.Common
                     SET
                         c_tracking_url = @TrackingUrl,
                         c_tracking_id = @TrackingId,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_sample_delivery_id = @SampleDeliveryId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@SampleDeliveryId", sampleDeliveryId),
-                    new SqlParameter("@TrackingUrl", trackingUrl),
-                    new SqlParameter("@TrackingId", trackingId)
+                    new NpgsqlParameter("@SampleDeliveryId", sampleDeliveryId),
+                    new NpgsqlParameter("@TrackingUrl", trackingUrl),
+                    new NpgsqlParameter("@TrackingId", trackingId)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -170,14 +169,14 @@ namespace CateringEcommerce.BAL.Common
                     UPDATE {Table.SysSampleDelivery}
                     SET
                         c_delivery_status = @NewStatus,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_sample_delivery_id = @SampleDeliveryId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@SampleDeliveryId", sampleDeliveryId),
-                    new SqlParameter("@NewStatus", (int)newStatus)
+                    new NpgsqlParameter("@SampleDeliveryId", sampleDeliveryId),
+                    new NpgsqlParameter("@NewStatus", (int)newStatus)
                 };
 
                 int rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -210,3 +209,4 @@ namespace CateringEcommerce.BAL.Common
         }
     }
 }
+

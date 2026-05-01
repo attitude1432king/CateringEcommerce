@@ -1,8 +1,8 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.Admin
@@ -33,9 +33,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     r.c_is_active,
                     r.c_createddate,
                     (SELECT COUNT(*) FROM {Table.SysAdminRolePermissions} WHERE c_role_id = r.c_role_id) AS PermissionCount,
-                    (SELECT COUNT(*) FROM {Table.SysAdminUserRoles} WHERE c_role_id = r.c_role_id AND c_is_active = 1) AS AdminCount
+                    (SELECT COUNT(*) FROM {Table.SysAdminUserRoles} WHERE c_role_id = r.c_role_id AND c_is_active = TRUE) AS AdminCount
                 FROM {Table.SysAdminRoles} r
-                WHERE r.c_is_active = 1
+                WHERE r.c_is_active = TRUE
                 ORDER BY
                     CASE WHEN r.c_role_code = 'SUPER_ADMIN' THEN 0 ELSE 1 END,
                     r.c_role_name";
@@ -72,7 +72,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdminRoles}
                 WHERE c_role_id = @RoleId";
 
-            var roleParams = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
+            var roleParams = new NpgsqlParameter[] { new NpgsqlParameter("@RoleId", roleId) };
             var roleDt = await _dbHelper.ExecuteAsync(roleQuery, roleParams);
 
             if (roleDt.Rows.Count == 0) return null;
@@ -97,10 +97,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     p.c_description, p.c_module, p.c_action, p.c_is_active
                 FROM {Table.SysAdminPermissions} p
                 INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
-                WHERE rp.c_role_id = @RoleId AND p.c_is_active = 1
+                WHERE rp.c_role_id = @RoleId AND p.c_is_active = TRUE
                 ORDER BY p.c_module, p.c_permission_name";
 
-            var permParams = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
+            var permParams = new NpgsqlParameter[] { new NpgsqlParameter("@RoleId", roleId) };
             var permDt = await _dbHelper.ExecuteAsync(permQuery, permParams);
             response.Permissions = new List<PermissionItem>();
 
@@ -124,10 +124,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     a.c_adminid, a.c_fullname, a.c_email, a.c_isactive, a.c_createddate
                 FROM {Table.SysAdminUsers} a
                 INNER JOIN {Table.SysAdminUserRoles} ur ON a.c_adminid = ur.c_adminid
-                WHERE ur.c_role_id = @RoleId AND ur.c_is_active = 1
+                WHERE ur.c_role_id = @RoleId AND ur.c_is_active = TRUE
                 ORDER BY a.c_fullname";
 
-            var adminParams = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
+            var adminParams = new NpgsqlParameter[] { new NpgsqlParameter("@RoleId", roleId) };
             var adminDt = await _dbHelper.ExecuteAsync(adminQuery, adminParams);
             response.AdminUsers = new List<AdminUserItem>();
 
@@ -154,9 +154,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_is_system_role, c_is_active, c_createddate, c_createdby,
                     c_modifieddate, c_updated_by
                 FROM {Table.SysAdminRoles}
-                WHERE c_role_code = @RoleCode AND c_is_active = 1";
+                WHERE c_role_code = @RoleCode AND c_is_active = TRUE";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@RoleCode", roleCode) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@RoleCode", roleCode) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -182,16 +182,16 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var insertRoleQuery = $@"
                 INSERT INTO {Table.SysAdminRoles} (c_role_code, c_role_name, c_description, c_color, c_is_system_role, c_createdby)
-                VALUES (@RoleCode, @RoleName, @Description, @Color, 0, @CreatedBy);
-                SELECT CAST(SCOPE_IDENTITY() as bigint);";
+                VALUES (@RoleCode, @RoleName, @Description, @Color, 0, @CreatedBy)
+                    RETURNING c_role_id;";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@RoleCode", request.RoleCode),
-                new SqlParameter("@RoleName", request.RoleName),
-                new SqlParameter("@Description", request.Description ?? (object)DBNull.Value),
-                new SqlParameter("@Color", request.Color),
-                new SqlParameter("@CreatedBy", createdBy)
+                new NpgsqlParameter("@RoleCode", request.RoleCode),
+                new NpgsqlParameter("@RoleName", request.RoleName),
+                new NpgsqlParameter("@Description", request.Description ?? (object)DBNull.Value),
+                new NpgsqlParameter("@Color", request.Color),
+                new NpgsqlParameter("@CreatedBy", createdBy)
             };
 
             var roleId = Convert.ToInt64(await _dbHelper.ExecuteScalarAsync(insertRoleQuery, parameters));
@@ -212,17 +212,17 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_role_name = @RoleName,
                     c_description = @Description,
                     c_color = @Color,
-                    c_modifieddate = GETDATE(),
+                    c_modifieddate = NOW(),
                     c_updated_by = @UpdatedBy
-                WHERE c_role_id = @RoleId AND c_is_system_role = 0";
+                WHERE c_role_id = @RoleId AND c_is_system_role = FALSE";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@RoleId", request.RoleId),
-                new SqlParameter("@RoleName", request.RoleName),
-                new SqlParameter("@Description", request.Description ?? (object)DBNull.Value),
-                new SqlParameter("@Color", request.Color),
-                new SqlParameter("@UpdatedBy", updatedBy)
+                new NpgsqlParameter("@RoleId", request.RoleId),
+                new NpgsqlParameter("@RoleName", request.RoleName),
+                new NpgsqlParameter("@Description", request.Description ?? (object)DBNull.Value),
+                new NpgsqlParameter("@Color", request.Color),
+                new NpgsqlParameter("@UpdatedBy", updatedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(updateRoleQuery, parameters);
@@ -238,13 +238,13 @@ namespace CateringEcommerce.BAL.Base.Admin
             // Only allow deletion of non-system roles
             var query = $@"
                 UPDATE {Table.SysAdminRoles}
-                SET c_is_active = 0, c_modifieddate = GETDATE(), c_updated_by = @DeletedBy
-                WHERE c_role_id = @RoleId AND c_is_system_role = 0";
+                SET c_is_active = FALSE, c_modifieddate = NOW(), c_updated_by = @DeletedBy
+                WHERE c_role_id = @RoleId AND c_is_system_role = FALSE";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@RoleId", roleId),
-                new SqlParameter("@DeletedBy", deletedBy)
+                new NpgsqlParameter("@RoleId", roleId),
+                new NpgsqlParameter("@DeletedBy", deletedBy)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -256,17 +256,17 @@ namespace CateringEcommerce.BAL.Base.Admin
             var query = $@"
                 SELECT COUNT(*)
                 FROM {Table.SysAdminRoles}
-                WHERE c_role_code = @RoleCode AND c_is_active = 1";
+                WHERE c_role_code = @RoleCode AND c_is_active = TRUE";
 
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@RoleCode", roleCode)
+                new NpgsqlParameter("@RoleCode", roleCode)
             };
 
             if (excludeRoleId.HasValue)
             {
                 query += " AND c_role_id != @ExcludeRoleId";
-                parameters.Add(new SqlParameter("@ExcludeRoleId", excludeRoleId.Value));
+                parameters.Add(new NpgsqlParameter("@ExcludeRoleId", excludeRoleId.Value));
             }
 
             var count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray()));
@@ -284,7 +284,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_permission_id, c_permission_code, c_permission_name,
                     c_description, c_module, c_action, c_is_active
                 FROM {Table.SysAdminPermissions}
-                WHERE c_is_active = 1
+                WHERE c_is_active = TRUE
                 ORDER BY c_module, c_permission_name";
 
             var dt = await _dbHelper.ExecuteAsync(query, null);
@@ -330,9 +330,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SELECT p.c_permission_code
                 FROM {Table.SysAdminPermissions} p
                 INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
-                WHERE rp.c_role_id = @RoleId AND p.c_is_active = 1";
+                WHERE rp.c_role_id = @RoleId AND p.c_is_active = TRUE";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@RoleId", roleId) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             var permissions = new List<string>();
@@ -348,7 +348,7 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             // First, remove all existing permissions for this role
             var deleteQuery = $"DELETE FROM {Table.SysAdminRolePermissions} WHERE c_role_id = @RoleId";
-            var deleteParams = new SqlParameter[] { new SqlParameter("@RoleId", roleId) };
+            var deleteParams = new NpgsqlParameter[] { new NpgsqlParameter("@RoleId", roleId) };
             await _dbHelper.ExecuteNonQueryAsync(deleteQuery, deleteParams);
 
             // Then, insert new permissions
@@ -360,15 +360,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                     FROM {Table.SysAdminPermissions}
                     WHERE c_permission_code IN (" + string.Join(",", permissionCodes.Select((_, i) => $"@Perm{i}")) + ")";
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@RoleId", roleId),
-                    new SqlParameter("@AssignedBy", assignedBy)
+                    new NpgsqlParameter("@RoleId", roleId),
+                    new NpgsqlParameter("@AssignedBy", assignedBy)
                 };
 
                 for (int i = 0; i < permissionCodes.Count; i++)
                 {
-                    parameters.Add(new SqlParameter($"@Perm{i}", permissionCodes[i]));
+                    parameters.Add(new NpgsqlParameter($"@Perm{i}", permissionCodes[i]));
                 }
 
                 await _dbHelper.ExecuteNonQueryAsync(insertQuery, parameters.ToArray());
@@ -384,9 +384,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdminPermissions} p
                 INNER JOIN {Table.SysAdminRolePermissions} rp ON p.c_permission_id = rp.c_permission_id
                 INNER JOIN {Table.SysAdminUserRoles} ur ON rp.c_role_id = ur.c_role_id
-                WHERE ur.c_adminid = @AdminId AND ur.c_is_active = 1 AND p.c_is_active = 1";
+                WHERE ur.c_adminid = @AdminId AND ur.c_is_active = TRUE AND p.c_is_active = TRUE";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             var permissions = new List<string>();
@@ -408,9 +408,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SELECT r.c_role_code
                 FROM {Table.SysAdminRoles} r
                 INNER JOIN {Table.SysAdminUserRoles} ur ON r.c_role_id = ur.c_role_id
-                WHERE ur.c_adminid = @AdminId AND ur.c_is_active = 1 AND r.c_is_active = 1";
+                WHERE ur.c_adminid = @AdminId AND ur.c_is_active = TRUE AND r.c_is_active = TRUE";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             var dt = await _dbHelper.ExecuteAsync(query, parameters);
 
             var roles = new List<string>();
@@ -425,25 +425,25 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<bool> AssignRolesToAdminAsync(long adminId, List<long> roleIds, long assignedBy)
         {
             // First, deactivate all existing role assignments
-            var deactivateQuery = $"UPDATE {Table.SysAdminUserRoles} SET c_is_active = 0 WHERE c_adminid = @AdminId";
-            var deactivateParams = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var deactivateQuery = $"UPDATE {Table.SysAdminUserRoles} SET c_is_active = FALSE WHERE c_adminid = @AdminId";
+            var deactivateParams = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             await _dbHelper.ExecuteNonQueryAsync(deactivateQuery, deactivateParams);
 
             // Then, insert/reactivate new role assignments
             foreach (var roleId in roleIds)
             {
                 var upsertQuery = $@"
-                    IF EXISTS (SELECT 1 FROM {Table.SysAdminUserRoles} WHERE c_adminid = @AdminId AND c_role_id = @RoleId)
-                        UPDATE {Table.SysAdminUserRoles} SET c_is_active = 1 WHERE c_adminid = @AdminId AND c_role_id = @RoleId
-                    ELSE
-                        INSERT INTO {Table.SysAdminUserRoles} (c_adminid, c_role_id, c_assigned_by)
-                        VALUES (@AdminId, @RoleId, @AssignedBy)";
+                    INSERT INTO {Table.SysAdminUserRoles} (c_adminid, c_role_id, c_assigned_by, c_is_active)
+                    VALUES (@AdminId, @RoleId, @AssignedBy, TRUE)
+                    ON CONFLICT (c_adminid, c_role_id) DO UPDATE
+                        SET c_is_active = TRUE,
+                            c_assigned_by = EXCLUDED.c_assigned_by";
 
-                var parameters = new SqlParameter[]
+                var parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@AdminId", adminId),
-                    new SqlParameter("@RoleId", roleId),
-                    new SqlParameter("@AssignedBy", assignedBy)
+                    new NpgsqlParameter("@AdminId", adminId),
+                    new NpgsqlParameter("@RoleId", roleId),
+                    new NpgsqlParameter("@AssignedBy", assignedBy)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(upsertQuery, parameters);
@@ -456,13 +456,13 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var query = $@"
                 UPDATE {Table.SysAdminUserRoles}
-                SET c_is_active = 0
+                SET c_is_active = FALSE
                 WHERE c_adminid = @AdminId AND c_role_id = @RoleId";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@RoleId", roleId)
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@RoleId", roleId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -482,13 +482,13 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INNER JOIN {Table.SysAdminUserRoles} ur ON rp.c_role_id = ur.c_role_id
                 WHERE ur.c_adminid = @AdminId
                     AND p.c_permission_code = @PermissionCode
-                    AND ur.c_is_active = 1
-                    AND p.c_is_active = 1";
+                    AND ur.c_is_active = TRUE
+                    AND p.c_is_active = TRUE";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@PermissionCode", permissionCode)
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@PermissionCode", permissionCode)
             };
 
             var count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters));
@@ -516,17 +516,17 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INNER JOIN {Table.SysAdminUserRoles} ur ON rp.c_role_id = ur.c_role_id
                 WHERE ur.c_adminid = @AdminId
                     AND p.c_permission_code IN (" + string.Join(",", permissionCodes.Select((_, i) => $"@Perm{i}")) + @")
-                    AND ur.c_is_active = 1
-                    AND p.c_is_active = 1";
+                    AND ur.c_is_active = TRUE
+                    AND p.c_is_active = TRUE";
 
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@AdminId", adminId)
+                new NpgsqlParameter("@AdminId", adminId)
             };
 
             for (int i = 0; i < permissionCodes.Count; i++)
             {
-                parameters.Add(new SqlParameter($"@Perm{i}", permissionCodes[i]));
+                parameters.Add(new NpgsqlParameter($"@Perm{i}", permissionCodes[i]));
             }
 
             var count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray()));
@@ -566,7 +566,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 INNER JOIN {Table.SysAdminRoles} r ON a.c_role_id = r.c_role_id
                 WHERE a.c_adminid = @AdminId AND r.c_role_code = 'SUPER_ADMIN'";
 
-            var parameters = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var parameters = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             var count = Convert.ToInt32(await _dbHelper.ExecuteScalarAsync(query, parameters));
             return count > 0;
         }
@@ -585,19 +585,19 @@ namespace CateringEcommerce.BAL.Base.Admin
                 (@AdminId, @AdminName, @Action, @Module, @TargetId, @TargetType,
                  @Details, @IpAddress, @UserAgent, @Status, @ErrorMessage)";
 
-            var parameters = new SqlParameter[]
+            var parameters = new NpgsqlParameter[]
             {
-                new SqlParameter("@AdminId", entry.AdminId),
-                new SqlParameter("@AdminName", entry.AdminName),
-                new SqlParameter("@Action", entry.Action),
-                new SqlParameter("@Module", entry.Module ?? (object)DBNull.Value),
-                new SqlParameter("@TargetId", entry.TargetId ?? (object)DBNull.Value),
-                new SqlParameter("@TargetType", entry.TargetType ?? (object)DBNull.Value),
-                new SqlParameter("@Details", entry.Details ?? (object)DBNull.Value),
-                new SqlParameter("@IpAddress", entry.IpAddress ?? (object)DBNull.Value),
-                new SqlParameter("@UserAgent", entry.UserAgent ?? (object)DBNull.Value),
-                new SqlParameter("@Status", entry.Status),
-                new SqlParameter("@ErrorMessage", entry.ErrorMessage ?? (object)DBNull.Value)
+                new NpgsqlParameter("@AdminId", entry.AdminId),
+                new NpgsqlParameter("@AdminName", entry.AdminName),
+                new NpgsqlParameter("@Action", entry.Action),
+                new NpgsqlParameter("@Module", entry.Module ?? (object)DBNull.Value),
+                new NpgsqlParameter("@TargetId", entry.TargetId ?? (object)DBNull.Value),
+                new NpgsqlParameter("@TargetType", entry.TargetType ?? (object)DBNull.Value),
+                new NpgsqlParameter("@Details", entry.Details ?? (object)DBNull.Value),
+                new NpgsqlParameter("@IpAddress", entry.IpAddress ?? (object)DBNull.Value),
+                new NpgsqlParameter("@UserAgent", entry.UserAgent ?? (object)DBNull.Value),
+                new NpgsqlParameter("@Status", entry.Status),
+                new NpgsqlParameter("@ErrorMessage", entry.ErrorMessage ?? (object)DBNull.Value)
             };
 
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -606,36 +606,36 @@ namespace CateringEcommerce.BAL.Base.Admin
         public async Task<AuditLogListResponse> GetAuditLogsAsync(AuditLogListRequest request)
         {
             var conditions = new List<string>();
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
 
             if (request.AdminId.HasValue)
             {
                 conditions.Add("c_adminid = @AdminId");
-                parameters.Add(new SqlParameter("@AdminId", request.AdminId.Value));
+                parameters.Add(new NpgsqlParameter("@AdminId", request.AdminId.Value));
             }
 
             if (!string.IsNullOrEmpty(request.Action))
             {
                 conditions.Add("c_action LIKE @Action");
-                parameters.Add(new SqlParameter("@Action", $"%{request.Action}%"));
+                parameters.Add(new NpgsqlParameter("@Action", $"%{request.Action}%"));
             }
 
             if (!string.IsNullOrEmpty(request.Module))
             {
                 conditions.Add("c_module = @Module");
-                parameters.Add(new SqlParameter("@Module", request.Module));
+                parameters.Add(new NpgsqlParameter("@Module", request.Module));
             }
 
             if (request.StartDate.HasValue)
             {
                 conditions.Add("c_timestamp >= @StartDate");
-                parameters.Add(new SqlParameter("@StartDate", request.StartDate.Value));
+                parameters.Add(new NpgsqlParameter("@StartDate", request.StartDate.Value));
             }
 
             if (request.EndDate.HasValue)
             {
                 conditions.Add("c_timestamp <= @EndDate");
-                parameters.Add(new SqlParameter("@EndDate", request.EndDate.Value));
+                parameters.Add(new NpgsqlParameter("@EndDate", request.EndDate.Value));
             }
 
             var whereClause = conditions.Any() ? "WHERE " + string.Join(" AND ", conditions) : "";
@@ -652,8 +652,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdminAuditLogs}
                 {whereClause}
                 ORDER BY c_timestamp DESC
-                OFFSET {offset} ROWS
-                FETCH NEXT {request.PageSize} ROWS ONLY";
+                LIMIT {request.PageSize} OFFSET {offset}";
 
             var dt = await _dbHelper.ExecuteAsync(dataQuery, parameters.ToArray());
 
@@ -706,7 +705,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             // Get admin details to determine if this is the first admin
             var checkAdminQuery = $"SELECT c_adminid FROM {Table.SysAdminUsers} WHERE c_adminid = @AdminId";
-            var adminParams = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var adminParams = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             var adminDt = await _dbHelper.ExecuteAsync(checkAdminQuery, adminParams);
 
             if (adminDt.Rows.Count == 0)
@@ -718,8 +717,8 @@ namespace CateringEcommerce.BAL.Base.Admin
             string roleCode = adminId == 1 ? "SUPER_ADMIN" : "CATERING_ADMIN";
 
             // Get role ID
-            var roleQuery = $"SELECT c_role_id FROM {Table.SysAdminRoles} WHERE c_role_code = @RoleCode AND c_is_active = 1";
-            var roleParams = new SqlParameter[] { new SqlParameter("@RoleCode", roleCode) };
+            var roleQuery = $"SELECT c_role_id FROM {Table.SysAdminRoles} WHERE c_role_code = @RoleCode AND c_is_active = TRUE";
+            var roleParams = new NpgsqlParameter[] { new NpgsqlParameter("@RoleCode", roleCode) };
             var roleIdObj = await _dbHelper.ExecuteScalarAsync(roleQuery, roleParams);
 
             if (roleIdObj == null || roleIdObj == DBNull.Value)
@@ -785,7 +784,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             // Check if admin exists
             var adminQuery = $"SELECT c_adminid, c_fullname, c_email FROM {Table.SysAdminUsers} WHERE c_adminid = @AdminId";
-            var adminParams = new SqlParameter[] { new SqlParameter("@AdminId", adminId) };
+            var adminParams = new NpgsqlParameter[] { new NpgsqlParameter("@AdminId", adminId) };
             var adminDt = await _dbHelper.ExecuteAsync(adminQuery, adminParams);
 
             diagnostics.AdminExists = adminDt.Rows.Count > 0;
@@ -849,14 +848,14 @@ namespace CateringEcommerce.BAL.Base.Admin
             {
                 "CATERING" => "Catering Management",
                 "USER" => "User Management",
-                "REVIEW" => "Review Management",
+                "REAIEW" => "Review Management",
                 "EARNINGS" => "Finance Management",
                 "PAYOUT" => "Payout Management",
                 "COMMISSION" => "Commission Management",
                 "DISCOUNT" => "Discount Management",
                 "BANNER" => "Banner Management",
                 "CAMPAIGN" => "Campaign Management",
-                "EVENT" => "Event Management",
+                "EAENT" => "Event Management",
                 "SYSTEM" => "System Administration",
                 "ADMIN" => "Admin User Management",
                 "AUDIT" => "Audit Management",
@@ -865,3 +864,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         }
     }
 }
+

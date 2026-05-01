@@ -1,4 +1,4 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models;
 using Microsoft.Extensions.Caching.Memory;
@@ -23,9 +23,9 @@ namespace CateringEcommerce.BAL.Base.Common
                 (
                     SELECT COUNT(*)
                     FROM {Table.SysCateringOwner}
-                    WHERE ISNULL(c_isactive, 0)    = 1
+                    WHERE COALESCE(c_isactive, FALSE)    = 1
                       AND c_approval_status        = 'Approved'
-                      AND ISNULL(c_isdeleted, 0)   = 0
+                      AND COALESCE(c_is_deleted, FALSE)   = 0
                 ) AS ActivePartners,
 
                 (
@@ -38,9 +38,9 @@ namespace CateringEcommerce.BAL.Base.Common
                     SELECT COUNT(DISTINCT cd.c_cityid)
                     FROM   {Table.SysCateringOwner}          co
                     INNER JOIN {Table.SysCateringOwnerAddress} cd ON cd.c_ownerid = co.c_ownerid
-                    WHERE  ISNULL(co.c_isactive, 0)  = 1
+                    WHERE  COALESCE(co.c_isactive, 0)  = 1
                       AND  co.c_approval_status       = 'Approved'
-                      AND  ISNULL(co.c_isdeleted, 0)  = 0
+                      AND  COALESCE(co.c_is_deleted, 0)  = 0
                 ) AS CitiesServed";
 
         public PublicStatsRepository(
@@ -75,3 +75,4 @@ namespace CateringEcommerce.BAL.Base.Common
         }
     }
 }
+

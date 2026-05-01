@@ -2,7 +2,8 @@ using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Models.Order;
-using Microsoft.Data.SqlClient;
+using Npgsql;
+using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -23,14 +24,14 @@ namespace CateringEcommerce.BAL.Base.Order
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@UserId", request.UserId),
-                new SqlParameter("@NewGuestCount", request.NewGuestCount),
-                new SqlParameter("@ChangeReason", request.ChangeReason),
-                new SqlParameter("@ModificationId", SqlDbType.BigInt) { Direction = ParameterDirection.Output },
-                new SqlParameter("@PricingMultiplier", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
-                new SqlParameter("@AdditionalCost", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
-                new SqlParameter("@RequiresApproval", SqlDbType.Bit) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@UserId", request.UserId),
+                new NpgsqlParameter("@NewGuestCount", request.NewGuestCount),
+                new NpgsqlParameter("@ChangeReason", request.ChangeReason),
+                new NpgsqlParameter("@ModificationId", NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@PricingMultiplier", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 5, Scale = 2 },
+                new NpgsqlParameter("@AdditionalCost", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
+                new NpgsqlParameter("@RequiresApproval", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output }
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<ModificationRequestResponse>(
@@ -45,13 +46,13 @@ namespace CateringEcommerce.BAL.Base.Order
         {
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", request.OrderId),
-                new SqlParameter("@UserId", request.UserId),
-                new SqlParameter("@NewMenuItems", request.MenuChanges),
-                new SqlParameter("@ChangeReason", request.ChangeReason),
-                new SqlParameter("@ModificationId", SqlDbType.BigInt) { Direction = ParameterDirection.Output },
-                new SqlParameter("@AdditionalCost", SqlDbType.Decimal) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
-                new SqlParameter("@RequiresApproval", SqlDbType.Bit) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@OrderId", request.OrderId),
+                new NpgsqlParameter("@UserId", request.UserId),
+                new NpgsqlParameter("@NewMenuItems", request.MenuChanges),
+                new NpgsqlParameter("@ChangeReason", request.ChangeReason),
+                new NpgsqlParameter("@ModificationId", NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output },
+                new NpgsqlParameter("@AdditionalCost", NpgsqlDbType.Double) { Direction = ParameterDirection.Output, Precision = 18, Scale = 2 },
+                new NpgsqlParameter("@RequiresApproval", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output }
             };
 
             var result = await _dbHelper.ExecuteStoredProcedureAsync<ModificationRequestResponse>(
@@ -70,7 +71,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@ModificationId", modificationId)
+                new NpgsqlParameter("@ModificationId", modificationId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<OrderModificationModel>(query, parameters);
@@ -86,7 +87,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@OrderId", orderId)
+                new NpgsqlParameter("@OrderId", orderId)
             };
 
             return await _dbHelper.ExecuteQueryAsync<OrderModificationModel>(query, parameters);
@@ -120,7 +121,7 @@ namespace CateringEcommerce.BAL.Base.Order
 
             var parameters = new[]
             {
-                new SqlParameter("@PartnerId", partnerId)
+                new NpgsqlParameter("@PartnerId", partnerId)
             };
 
             return await _dbHelper.ExecuteQueryAsync<OrderModificationModel>(query, parameters);
@@ -132,16 +133,16 @@ namespace CateringEcommerce.BAL.Base.Order
                 UPDATE {Table.SysOrderModifications}
                 SET c_status = 'Approved',
                     c_admin_approved_by = @ApprovedBy,
-                    c_admin_approval_date = GETDATE(),
-                    c_admin_notes = 'Approved by ' + @ApprovedByType,
-                    c_modifieddate = GETDATE()
+                    c_admin_approval_date = NOW(),
+                    c_admin_notes = 'Approved by ' || @ApprovedByType,
+                    c_modifieddate = NOW()
                 WHERE c_modification_id = @ModificationId";
 
             var parameters = new[]
             {
-                new SqlParameter("@ModificationId", modificationId),
-                new SqlParameter("@ApprovedBy", approvedBy),
-                new SqlParameter("@ApprovedByType", approvedByType)
+                new NpgsqlParameter("@ModificationId", modificationId),
+                new NpgsqlParameter("@ApprovedBy", approvedBy),
+                new NpgsqlParameter("@ApprovedByType", approvedByType)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -161,16 +162,16 @@ namespace CateringEcommerce.BAL.Base.Order
                 UPDATE {Table.SysOrderModifications}
                 SET c_status = 'Rejected',
                     c_admin_approved_by = @RejectedBy,
-                    c_admin_approval_date = GETDATE(),
+                    c_admin_approval_date = NOW(),
                     c_admin_notes = @RejectionReason,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_modification_id = @ModificationId";
 
             var parameters = new[]
             {
-                new SqlParameter("@ModificationId", modificationId),
-                new SqlParameter("@RejectedBy", rejectedBy),
-                new SqlParameter("@RejectionReason", rejectionReason)
+                new NpgsqlParameter("@ModificationId", modificationId),
+                new NpgsqlParameter("@RejectedBy", rejectedBy),
+                new NpgsqlParameter("@RejectionReason", rejectionReason)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -183,14 +184,14 @@ namespace CateringEcommerce.BAL.Base.Order
                 UPDATE {Table.SysOrderModifications}
                 SET c_payment_status = 'Paid',
                     c_payment_transaction_id = @PaymentTransactionId,
-                    c_payment_date = GETDATE(),
-                    c_modifieddate = GETDATE()
+                    c_payment_date = NOW(),
+                    c_modifieddate = NOW()
                 WHERE c_modification_id = @ModificationId";
 
             var parameters = new[]
             {
-                new SqlParameter("@ModificationId", modificationId),
-                new SqlParameter("@PaymentTransactionId", paymentTransactionId)
+                new NpgsqlParameter("@ModificationId", modificationId),
+                new NpgsqlParameter("@PaymentTransactionId", paymentTransactionId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -202,14 +203,14 @@ namespace CateringEcommerce.BAL.Base.Order
             var query = $@"
                 UPDATE {Table.SysOrderModifications}
                 SET c_status = 'Auto_Approved',
-                    c_admin_approval_date = GETDATE(),
+                    c_admin_approval_date = NOW(),
                     c_admin_notes = 'Auto-approved: Within allowed threshold',
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_modification_id = @ModificationId";
 
             var parameters = new[]
             {
-                new SqlParameter("@ModificationId", modificationId)
+                new NpgsqlParameter("@ModificationId", modificationId)
             };
 
             var rowsAffected = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -238,14 +239,14 @@ namespace CateringEcommerce.BAL.Base.Order
                     UPDATE {Table.SysOrders}
                     SET c_guest_count = c_guest_count + @GuestCountChange,
                         c_total_amount = c_total_amount + @AdditionalAmount,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_orderid = @OrderId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OrderId", modification.OrderId),
-                    new SqlParameter("@GuestCountChange", modification.GuestCountChange),
-                    new SqlParameter("@AdditionalAmount", modification.AdditionalAmount)
+                    new NpgsqlParameter("@OrderId", modification.OrderId),
+                    new NpgsqlParameter("@GuestCountChange", modification.GuestCountChange),
+                    new NpgsqlParameter("@AdditionalAmount", modification.AdditionalAmount)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(updateOrderQuery, parameters);
@@ -255,7 +256,7 @@ namespace CateringEcommerce.BAL.Base.Order
                     UPDATE {Table.SysPaymentSummary}
                     SET c_total_amount = c_total_amount + @AdditionalAmount,
                         c_remaining_balance = c_remaining_balance + @AdditionalAmount,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_orderid = @OrderId";
 
                 await _dbHelper.ExecuteNonQueryAsync(updatePaymentQuery, parameters);
@@ -266,13 +267,13 @@ namespace CateringEcommerce.BAL.Base.Order
                 var updateOrderQuery = $@"
                     UPDATE {Table.SysOrders}
                     SET c_total_amount = c_total_amount + @AdditionalAmount,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_orderid = @OrderId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@OrderId", modification.OrderId),
-                    new SqlParameter("@AdditionalAmount", modification.AdditionalAmount)
+                    new NpgsqlParameter("@OrderId", modification.OrderId),
+                    new NpgsqlParameter("@AdditionalAmount", modification.AdditionalAmount)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(updateOrderQuery, parameters);
@@ -282,7 +283,7 @@ namespace CateringEcommerce.BAL.Base.Order
                     UPDATE {Table.SysPaymentSummary}
                     SET c_total_amount = c_total_amount + @AdditionalAmount,
                         c_remaining_balance = c_remaining_balance + @AdditionalAmount,
-                        c_modifieddate = GETDATE()
+                        c_modifieddate = NOW()
                     WHERE c_orderid = @OrderId";
 
                 await _dbHelper.ExecuteNonQueryAsync(updatePaymentQuery, parameters);
@@ -292,3 +293,4 @@ namespace CateringEcommerce.BAL.Base.Order
         #endregion
     }
 }
+

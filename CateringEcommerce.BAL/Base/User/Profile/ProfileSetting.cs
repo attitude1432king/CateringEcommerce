@@ -2,7 +2,7 @@
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Text;
 
 namespace CateringEcommerce.BAL.Base.User.Profile
@@ -17,87 +17,94 @@ namespace CateringEcommerce.BAL.Base.User.Profile
 
         public async Task UpdateUserDetails(long? userPKID, Dictionary<string, string> dicData = null)
         {
-            StringBuilder updateQuery = new StringBuilder();
-            string email = dicData != null && dicData.ContainsKey("email") ? dicData["email"] : string.Empty;
-            string phone = dicData != null && dicData.ContainsKey("phone") ? dicData["phone"] : string.Empty;
-            string pictureUrl = dicData != null && dicData.ContainsKey("pictureUrl") ? dicData["pictureUrl"] : string.Empty;
-            int stateID = dicData != null && dicData.ContainsKey("stateID") ? int.Parse(dicData["stateID"]) : 0;
-            int cityID = dicData != null && dicData.ContainsKey("cityID") ? int.Parse(dicData["cityID"]) : 0;
-            string Description = dicData != null && dicData.ContainsKey("description") ? dicData["description"] : string.Empty;
+            if (userPKID == null || userPKID <= 0)
+                throw new ArgumentException("Invalid UserPKID");
 
             try
             {
-                List<SqlParameter> parameters = new List<SqlParameter>
-                {
-                    new SqlParameter("@UserPKID", userPKID),
-                    new SqlParameter("@ModifiedDate ", DateTime.Now)
-                };
-                updateQuery.Append("UPDATE " + Table.SysUser + " SET ");
+                var updates = new List<string>();
+                var parameters = new List<NpgsqlParameter>();
 
-                if (!string.IsNullOrEmpty(email))
+                // Mandatory parameter
+                parameters.Add(new NpgsqlParameter("@UserPKID", userPKID));
+
+                // Always update modified date
+                updates.Add("c_modifieddate = @ModifiedDate");
+                parameters.Add(new NpgsqlParameter("@ModifiedDate", DateTime.UtcNow)); // ✅ FIXED (no space)
+
+                // Extract values safely
+                string email = dicData?.GetValueOrDefault("email");
+                string phone = dicData?.GetValueOrDefault("phone");
+                string pictureUrl = dicData?.GetValueOrDefault("pictureUrl");
+                string description = dicData?.GetValueOrDefault("description");
+
+                int stateID = int.TryParse(dicData?.GetValueOrDefault("stateID"), out var sId) ? sId : 0;
+                int cityID = int.TryParse(dicData?.GetValueOrDefault("cityID"), out var cId) ? cId : 0;
+
+                // Conditional updates
+
+                if (!string.IsNullOrWhiteSpace(email))
                 {
-                    updateQuery.Append("c_email = @Email, ");
-                    updateQuery.Append("c_isemailverified = 1, ");
-                    parameters.Add(new SqlParameter("@Email", email));
+                    updates.Add("c_email = @Email");
+                    updates.Add("c_isemailverified = TRUE");
+                    parameters.Add(new NpgsqlParameter("@Email", email));
                 }
 
-                if (!string.IsNullOrEmpty(pictureUrl))
+                if (!string.IsNullOrWhiteSpace(pictureUrl))
                 {
-                    updateQuery.Append("c_picture = @PictureUrl, ");
-                    parameters.Add(new SqlParameter("@PictureUrl", pictureUrl));
+                    updates.Add("c_picture = @PictureUrl");
+                    parameters.Add(new NpgsqlParameter("@PictureUrl", pictureUrl));
                 }
-                if (!string.IsNullOrEmpty(phone))
+
+                if (!string.IsNullOrWhiteSpace(phone))
                 {
-                    updateQuery.Append("c_phone = @Phone, ");
-                    updateQuery.Append("c_isphoneverified = 1, ");
-                    parameters.Add(new SqlParameter("@Phone", phone));
+                    updates.Add("c_phone = @Phone");
+                    updates.Add("c_isphoneverified = TRUE");
+                    parameters.Add(new NpgsqlParameter("@Phone", phone));
                 }
 
                 if (stateID > 0 && cityID > 0)
                 {
-                    updateQuery.Append("c_stateid = @StateID, ");
-                    updateQuery.Append("c_cityid = @CityID, ");
-                    parameters.Add(new SqlParameter("@StateID", stateID));
-                    parameters.Add(new SqlParameter("@CityID", cityID));
+                    updates.Add("c_stateid = @StateID");
+                    updates.Add("c_cityid = @CityID");
+                    parameters.Add(new NpgsqlParameter("@StateID", stateID));
+                    parameters.Add(new NpgsqlParameter("@CityID", cityID));
                 }
 
-                if (!string.IsNullOrEmpty(Description))
+                if (!string.IsNullOrWhiteSpace(description))
                 {
-                    updateQuery.Append("c_description = @Description, ");
-                    parameters.Add(new SqlParameter("@Description", Description));
-                }
-                updateQuery.Append("c_modifieddate = @ModifiedDate, ");
-
-                // Remove the last comma and space
-                if (updateQuery.Length > 0)
-                {
-                    updateQuery.Length -= 2; // Remove the last ", "
+                    updates.Add("c_description = @Description");
+                    parameters.Add(new NpgsqlParameter("@Description", description));
                 }
 
-                updateQuery.Append(" WHERE c_userid = @UserPKID");
+                // Build final query safely
+                string query = $@"
+                    UPDATE {Table.SysUser}
+                    SET {string.Join(", ", updates)}
+                    WHERE c_userid = @UserPKID;
+                ";
 
-
-                await _dbHelper.ExecuteNonQueryAsync(updateQuery.ToString(), parameters.ToArray());
+                // Execute
+                await _dbHelper.ExecuteNonQueryAsync(query, parameters.ToArray());
             }
             catch (Exception ex)
             {
-                // Log the exception or handle it appropriately
-                throw new Exception("Error updating user details: " + ex.Message);
+                throw new Exception("Error updating user details: " + ex.Message, ex);
             }
         }
 
-        public string GetUserProfilePicture(long userPkid)
+        public async Task<string> GetUserProfilePicture(long userPkid)
         {
             try
             {
                 const string query = "SELECT c_picture FROM " + Table.SysUser + " WHERE c_userid = @UserPKID";
                 
-                List<SqlParameter> parameters = new List<SqlParameter>
+                List<NpgsqlParameter> parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@UserPKID", userPkid)
+                    new NpgsqlParameter("@UserPKID", userPkid)
                 };
 
-                var result = _dbHelper.ExecuteScalar(query, parameters.ToArray());
+                var result = await _dbHelper.ExecuteScalarAsync(query, parameters.ToArray());
 
                 // Return the picture URL if it exists and is not empty, otherwise return empty string
                 return !string.IsNullOrEmpty(result?.ToString()) ? result.ToString() : string.Empty;

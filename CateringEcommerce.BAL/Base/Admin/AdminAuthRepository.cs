@@ -1,9 +1,9 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Base.Admin
@@ -25,12 +25,12 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdmin}
                 WHERE c_username = @Username
                   AND c_passwordhash = @PasswordHash
-                  AND c_isactive = 1
-                  AND c_islocked = 0";
+                  AND c_isactive = TRUE
+                  AND c_islocked = FALSE";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@Username", username),
-                new SqlParameter("@PasswordHash", passwordHash)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@Username", username),
+                new NpgsqlParameter("@PasswordHash", passwordHash)
             };
 
             var dt = _dbHelper.Execute(query, parameters);
@@ -53,8 +53,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 FROM {Table.SysAdmin}
                 WHERE c_adminid = @AdminId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@AdminId", adminId)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@AdminId", adminId)
             };
 
             var dt = _dbHelper.Execute(query, parameters);
@@ -76,10 +76,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                        c_is_temporary_password
                 FROM {Table.SysAdmin}
                 WHERE c_username = @Username
-                  AND c_isactive = 1";
+                  AND c_isactive = TRUE";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@Username", username)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@Username", username.Trim())
             };
 
             var dt = _dbHelper.Execute(query, parameters);
@@ -96,11 +96,11 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 UPDATE {Table.SysAdmin}
-                SET c_lastlogin = GETDATE()
+                SET c_lastlogin = NOW()
                 WHERE c_adminid = @AdminId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@AdminId", adminId)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@AdminId", adminId)
             };
 
             _dbHelper.ExecuteNonQuery(query, parameters);
@@ -113,8 +113,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_failedloginattempts = c_failedloginattempts + 1
                 WHERE c_username = @Username";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@Username", username)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@Username", username)
             };
 
             _dbHelper.ExecuteNonQuery(query, parameters);
@@ -127,8 +127,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_failedloginattempts = 0
                 WHERE c_adminid = @AdminId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@AdminId", adminId)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@AdminId", adminId)
             };
 
             _dbHelper.ExecuteNonQuery(query, parameters);
@@ -138,13 +138,13 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 UPDATE {Table.SysAdmin}
-                SET c_islocked = 1,
+                SET c_islocked = TRUE,
                     c_lockeduntil = @LockUntil
                 WHERE c_username = @Username";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@Username", username),
-                new SqlParameter("@LockUntil", lockUntil)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@Username", username),
+                new NpgsqlParameter("@LockUntil", lockUntil)
             };
 
             _dbHelper.ExecuteNonQuery(query, parameters);
@@ -154,15 +154,15 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 SELECT CASE
-                    WHEN c_islocked = 1 AND (c_lockeduntil IS NULL OR c_lockeduntil > GETDATE())
+                    WHEN c_islocked = TRUE AND (c_lockeduntil IS NULL OR c_lockeduntil > NOW())
                     THEN 1
                     ELSE 0
                 END
                 FROM {Table.SysAdmin}
                 WHERE c_username = @Username";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@Username", username)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@Username", username)
             };
 
             var result = _dbHelper.ExecuteScalar(query, parameters);
@@ -174,10 +174,10 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT c_is_temporary_password
                 FROM {Table.SysAdmin}
-                WHERE c_adminid = @AdminId AND c_isactive = 1";
+                WHERE c_adminid = @AdminId AND c_isactive = TRUE";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@AdminId", adminId)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@AdminId", adminId)
             };
 
             var result = _dbHelper.ExecuteScalar(query, parameters);
@@ -189,13 +189,13 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 UPDATE {Table.SysAdmin}
                 SET c_passwordhash = @NewHash,
-                    c_is_temporary_password = 0,
-                    c_lastmodified = GETDATE()
+                    c_is_temporary_password = FALSE,
+                    c_lastmodified = NOW()
                 WHERE c_adminid = @AdminId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@NewHash", newPasswordHash)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@NewHash", newPasswordHash)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -207,13 +207,13 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 INSERT INTO {Table.SysAdminActivityLog}
                 (c_adminid, c_action, c_details, c_ipaddress, c_createddate)
-                VALUES (@AdminId, @Action, @Details, @IpAddress, GETDATE())";
+                VALUES (@AdminId, @Action, @Details, @IpAddress, NOW())";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@AdminId", adminId),
-                new SqlParameter("@Action", action),
-                new SqlParameter("@Details", (object?)details ?? DBNull.Value),
-                new SqlParameter("@IpAddress", DBNull.Value)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@AdminId", adminId),
+                new NpgsqlParameter("@Action", action),
+                new NpgsqlParameter("@Details", (object?)details ?? DBNull.Value),
+                new NpgsqlParameter("@IpAddress", DBNull.Value)
             };
 
             _dbHelper.ExecuteNonQuery(query, parameters);
@@ -243,3 +243,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         }
     }
 }
+

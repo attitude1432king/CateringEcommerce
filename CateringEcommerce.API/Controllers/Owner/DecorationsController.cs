@@ -139,7 +139,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                             continue;
                         }
                         var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
-                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPKID, DocumentType.EventSetup.GetDisplayName(), false, safeFilename);
+                        var path = await _fileStorageService.SaveRoleBaseFormFileAsync(file, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.EventSetup.GetDisplayName(), false, safeFilename);
                         await _ownerRepository.SaveFilePath(path, ownerPKID, file.FileName, DocumentType.EventSetup, decoratinosID);
                     }
                 }
@@ -233,7 +233,7 @@ namespace CateringEcommerce.API.Controllers.Owner
                             continue;
                         }
                         var safeFilename = FileValidationHelper.GenerateSafeFilename(file.FileName);
-                        var path = await _fileStorageService.SaveFormFileAsync(file, ownerPKID, DocumentType.EventSetup.GetDisplayName(), false, safeFilename);
+                        var path = await _fileStorageService.SaveRoleBaseFormFileAsync(file, ownerPKID, Role.Owner.GetDisplayName(), DocumentType.EventSetup.GetDisplayName(), false, safeFilename);
                         await _ownerRepository.SaveFilePath(path, ownerPKID, file.FileName, DocumentType.EventSetup, decoration.Id ?? 0);
                     }
                 }

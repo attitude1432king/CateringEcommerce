@@ -25,14 +25,16 @@ using CateringEcommerce.Domain.Interfaces.Order;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Interfaces.User;
+using CateringEcommerce.Domain.Models.Configuration;
 using Hangfire;
-using Hangfire.SqlServer;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using NETCore.MailKit.Core;
 using RabbitMQ.Client; 
@@ -44,12 +46,29 @@ using CateringEcommerce.BAL.Helpers;
 var builder = WebApplication.CreateBuilder(args);
 
 // Core helpers
-builder.Services.AddScoped<IDatabaseHelper, SqlDatabaseManager>();
-
+builder.Configuration.AddEnvironmentVariables();
+builder.Services.AddScoped<IDatabaseHelper, NpgsqlDatabaseManager>();
 // System Settings Provider (Singleton - loads all config from t_sys_settings)
 var settingsProvider = new CateringEcommerce.BAL.Configuration.SystemSettingsProvider(builder.Configuration);
 await settingsProvider.RefreshAsync();
 builder.Services.AddSingleton<ISystemSettingsProvider>(settingsProvider);
+
+CateringEcommerce.API.SecurityConfigurationValidator.Validate(builder.Configuration, builder.Environment);
+
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
+builder.Services.Configure<Msg91Settings>(builder.Configuration.GetSection(Msg91Settings.SectionName));
+builder.Services.Configure<RazorpaySettings>(builder.Configuration.GetSection(RazorpaySettings.SectionName));
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.SectionName));
+builder.Services.Configure<SmsGatewaySettings>(builder.Configuration.GetSection(SmsGatewaySettings.SectionName));
+builder.Services.Configure<SecuritySettings>(builder.Configuration.GetSection(SecuritySettings.SectionName));
+builder.Services.Configure<CateringEcommerce.BAL.Configuration.EncryptionSettings>(
+    builder.Configuration.GetSection(SecuritySettings.SectionName));
+builder.Services.Configure<CateringEcommerce.BAL.Services.RabbitMQSettings>(
+    builder.Configuration.GetSection("RABBITMQ"));
+builder.Services.AddSingleton(sp =>
+    sp.GetRequiredService<IOptions<CateringEcommerce.BAL.Services.RabbitMQSettings>>().Value);
+var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
+    ?? new JwtSettings();
 
 // Add services to the container.
 builder.Services.AddDistributedMemoryCache();
@@ -57,11 +76,18 @@ builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(settingsProvider.GetInt("SYSTEM.SESSION_TIMEOUT_MINUTES", 20));
     options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.IsEssential = true;
 });
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.NumberHandling =
+            System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
+    });
 builder.Services.AddMemoryCache();
-// ── OTP: MSG91 (exclusively for authentication OTP flows) ──
+// -- OTP: MSG91 (exclusively for authentication OTP flows) --
 builder.Services.AddHttpClient("msg91", c =>
 {
     c.Timeout = TimeSpan.FromSeconds(10);
@@ -69,7 +95,7 @@ builder.Services.AddHttpClient("msg91", c =>
 builder.Services.AddScoped<IOtpSmsProvider, Msg91OtpProvider>();
 builder.Services.AddScoped<CateringEcommerce.Domain.Interfaces.Common.ISmsService, CateringEcommerce.BAL.Configuration.SmsService>();
 
-// ── Notifications: AWS SNS (exclusively for order/system SMS) ──
+// -- Notifications: AWS SNS (exclusively for order/system SMS) --
 builder.Services.Configure<AwsSnsSettings>(builder.Configuration.GetSection("AwsSns"));
 builder.Services.AddSingleton<INotificationSmsProvider, AwsSnsNotificationProvider>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
@@ -142,17 +168,6 @@ builder.Services.AddScoped<CateringEcommerce.BAL.Base.Security.ITwoFactorAuthSer
 // Notification Services
 builder.Services.AddScoped<INotificationRepository, CateringEcommerce.BAL.Notification.NotificationRepository>();
 
-// RabbitMQ Configuration (from t_sys_settings)
-var rabbitMQSettings = new CateringEcommerce.BAL.Services.RabbitMQSettings
-{
-    Enabled = settingsProvider.GetBool("RABBITMQ.ENABLED", false),
-    HostName = settingsProvider.GetString("RABBITMQ.HOSTNAME", "localhost"),
-    Port = settingsProvider.GetInt("RABBITMQ.PORT", 5672),
-    UserName = settingsProvider.GetString("RABBITMQ.USERNAME", "guest"),
-    Password = settingsProvider.GetString("RABBITMQ.PASSWORD", "guest"),
-    VirtualHost = "/"
-};
-builder.Services.AddSingleton(rabbitMQSettings);
 builder.Services.AddSingleton<CateringEcommerce.BAL.Services.RabbitMQPublisher>();
 
 // Common Repositories
@@ -254,9 +269,9 @@ builder.Services.AddAuthentication("Bearer")
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = settingsProvider.GetString("JWT.ISSUER"),
-            ValidAudience = settingsProvider.GetString("JWT.AUDIENCE"),
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settingsProvider.GetString("JWT.KEY")))
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
         };
 
         // SECURITY FIX: Read JWT token from httpOnly cookie (fallback to Authorization header)
@@ -438,14 +453,13 @@ builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"), new SqlServerStorageOptions
-    {
-        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.Zero,
-        UseRecommendedIsolationLevel = true,
-        DisableGlobalLocks = true
-    }));
+    .UsePostgreSqlStorage(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        new PostgreSqlStorageOptions
+        {
+            QueuePollInterval = TimeSpan.FromMilliseconds(50), // FIX
+            InvisibilityTimeout = TimeSpan.FromMinutes(5)
+        }));
 
 // Add Hangfire server
 builder.Services.AddHangfireServer();
@@ -674,14 +688,14 @@ public static class ServiceCollectionExtensions
         // RabbitMQ Connection
         services.AddSingleton<IConnection>(sp =>
         {
-            var settings = sp.GetRequiredService<ISystemSettingsProvider>();
+            var settings = sp.GetRequiredService<IOptions<CateringEcommerce.BAL.Services.RabbitMQSettings>>().Value;
             var factory = new ConnectionFactory
             {
-                HostName = settings.GetString("RABBITMQ.HOSTNAME", "localhost"),
-                Port = settings.GetInt("RABBITMQ.PORT", 5672),
-                UserName = settings.GetString("RABBITMQ.USERNAME", "guest"),
-                Password = settings.GetString("RABBITMQ.PASSWORD", "guest"),
-                VirtualHost = "/",
+                HostName = settings.HostName,
+                Port = settings.Port,
+                UserName = settings.UserName,
+                Password = settings.Password,
+                VirtualHost = settings.VirtualHost ?? "/",
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(10),
                 RequestedHeartbeat = TimeSpan.FromSeconds(60)
@@ -722,3 +736,6 @@ public static class ServiceCollectionExtensions
         return services;
     }
 }
+
+
+

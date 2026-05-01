@@ -7,7 +7,7 @@ using CateringEcommerce.Domain.Interfaces.User;
 using CateringEcommerce.Domain.Models.User;
 using CateringEcommerce.Tests.Helpers;
 using FluentAssertions;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -61,14 +61,14 @@ namespace CateringEcommerce.Tests.Unit.BAL.User
 
             // Catering is active & verified
             _dbHelper
-                .Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<SqlParameter[]>()))
+                .Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<NpgsqlParameter[]>()))
                 .ReturnsAsync(TestFixtures.ActiveCateringDataTable());
 
             // Package item exists  (COUNT(*) = 1)
             _dbHelper
                 .Setup(d => d.ExecuteAsync(
                     It.Is<string>(q => q.Contains("c_packageid")),
-                    It.IsAny<SqlParameter[]>()))
+                    It.IsAny<NpgsqlParameter[]>()))
                 .ReturnsAsync(TestFixtures.CountOneDataTable());
 
             _orderRepo.Setup(r => r.CheckCateringAvailabilityAsync(cateringId, It.IsAny<DateTime>()))
@@ -119,7 +119,7 @@ namespace CateringEcommerce.Tests.Unit.BAL.User
         public async Task CreateOrder_CateringInactive_ThrowsInvalidOperation()
         {
             // Arrange
-            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<SqlParameter[]>()))
+            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<NpgsqlParameter[]>()))
                      .ReturnsAsync(TestFixtures.InactiveCateringDataTable());
 
             var sut = CreateSut();
@@ -137,7 +137,7 @@ namespace CateringEcommerce.Tests.Unit.BAL.User
         public async Task CreateOrder_CateringNotFound_ThrowsInvalidOperation()
         {
             // Arrange
-            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<SqlParameter[]>()))
+            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<NpgsqlParameter[]>()))
                      .ReturnsAsync(TestFixtures.EmptyDataTable()); // no rows
 
             var sut = CreateSut();
@@ -154,7 +154,7 @@ namespace CateringEcommerce.Tests.Unit.BAL.User
         public async Task CreateOrder_CateringUnavailableOnDate_ThrowsInvalidOperation()
         {
             // Arrange
-            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<SqlParameter[]>()))
+            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<NpgsqlParameter[]>()))
                      .ReturnsAsync(TestFixtures.ActiveCateringDataTable());
             _orderRepo.Setup(r => r.CheckCateringAvailabilityAsync(It.IsAny<long>(), It.IsAny<DateTime>()))
                       .ReturnsAsync(false);
@@ -174,7 +174,7 @@ namespace CateringEcommerce.Tests.Unit.BAL.User
         public async Task CreateOrder_InvalidCartItems_ThrowsInvalidOperation()
         {
             // Arrange — catering is active but package returns COUNT=0
-            _dbHelper.SetupSequence(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<SqlParameter[]>()))
+            _dbHelper.SetupSequence(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<NpgsqlParameter[]>()))
                      .ReturnsAsync(TestFixtures.ActiveCateringDataTable())   // IsCateringActiveAsync
                      .ReturnsAsync(TestFixtures.CountZeroDataTable());       // IsPackageValidAsync
 
@@ -196,12 +196,12 @@ namespace CateringEcommerce.Tests.Unit.BAL.User
         public async Task CreateOrder_BankTransfer_NoProof_ThrowsInvalidOperation()
         {
             // Arrange
-            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<SqlParameter[]>()))
+            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<NpgsqlParameter[]>()))
                      .ReturnsAsync(TestFixtures.ActiveCateringDataTable());
             _orderRepo.Setup(r => r.CheckCateringAvailabilityAsync(It.IsAny<long>(), It.IsAny<DateTime>()))
                       .ReturnsAsync(true);
             _dbHelper.Setup(d => d.ExecuteAsync(
-                    It.Is<string>(q => q.Contains("c_packageid")), It.IsAny<SqlParameter[]>()))
+                    It.Is<string>(q => q.Contains("c_packageid")), It.IsAny<NpgsqlParameter[]>()))
                 .ReturnsAsync(TestFixtures.CountOneDataTable());
 
             var sut = CreateSut();
@@ -390,10 +390,10 @@ namespace CateringEcommerce.Tests.Unit.BAL.User
         public async Task CreateOrder_InsertOrderFails_ThrowsInvalidOperation()
         {
             // Arrange
-            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<SqlParameter[]>()))
+            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<NpgsqlParameter[]>()))
                      .ReturnsAsync(TestFixtures.ActiveCateringDataTable());
             _dbHelper.Setup(d => d.ExecuteAsync(
-                    It.Is<string>(q => q.Contains("c_packageid")), It.IsAny<SqlParameter[]>()))
+                    It.Is<string>(q => q.Contains("c_packageid")), It.IsAny<NpgsqlParameter[]>()))
                 .ReturnsAsync(TestFixtures.CountOneDataTable());
             _orderRepo.Setup(r => r.CheckCateringAvailabilityAsync(It.IsAny<long>(), It.IsAny<DateTime>()))
                       .ReturnsAsync(true);
@@ -441,10 +441,10 @@ namespace CateringEcommerce.Tests.Unit.BAL.User
         public async Task CreateOrder_BankTransfer_ValidProof_FileStorageCalled()
         {
             // Arrange
-            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<SqlParameter[]>()))
+            _dbHelper.Setup(d => d.ExecuteAsync(It.IsAny<string>(), It.IsAny<NpgsqlParameter[]>()))
                      .ReturnsAsync(TestFixtures.ActiveCateringDataTable());
             _dbHelper.Setup(d => d.ExecuteAsync(
-                    It.Is<string>(q => q.Contains("c_packageid")), It.IsAny<SqlParameter[]>()))
+                    It.Is<string>(q => q.Contains("c_packageid")), It.IsAny<NpgsqlParameter[]>()))
                 .ReturnsAsync(TestFixtures.CountOneDataTable());
             _orderRepo.Setup(r => r.CheckCateringAvailabilityAsync(It.IsAny<long>(), It.IsAny<DateTime>()))
                       .ReturnsAsync(true);

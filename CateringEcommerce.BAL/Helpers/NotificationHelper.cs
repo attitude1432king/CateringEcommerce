@@ -20,7 +20,6 @@ namespace CateringEcommerce.BAL.Helpers
         private readonly IDatabaseHelper _dbHelper;
         private readonly ISystemSettingsProvider _settings;
         private readonly HttpClient _httpClient;
-        private readonly string _apiBaseUrl;
         private readonly RabbitMQPublisher? _rabbitMQPublisher;
 
         public NotificationHelper(
@@ -33,7 +32,6 @@ namespace CateringEcommerce.BAL.Helpers
             _dbHelper = dbHelper ?? throw new ArgumentNullException(nameof(dbHelper));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _httpClient = new HttpClient();
-            _apiBaseUrl = settings.GetString("SYSTEM.API_BASE_URL", "https://localhost:44368");
             _rabbitMQPublisher = rabbitMQPublisher;
         }
 

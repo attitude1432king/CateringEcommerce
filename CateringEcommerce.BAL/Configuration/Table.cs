@@ -1,5 +1,4 @@
-﻿using Microsoft.Identity.Client;
-
+﻿
 namespace CateringEcommerce.BAL.Configuration
 {
     public static class Table
@@ -108,7 +107,6 @@ namespace CateringEcommerce.BAL.Configuration
         public const string SysPartnershipTiers = "t_sys_partnership_tiers";
         public const string SysOwnerPartnershipTiers = "t_sys_partnership_tiers"; // Backward-compatible alias
         public const string SysCommissionTierHistory = "t_sys_commission_tier_history";
-        public const string SysOwnerSecurityDeposits = "t_sys_partner_security_deposits"; // Backward-compatible alias
 
         // OAuth & Security Tables
         public const string SysOAuthProvider = "t_sys_oauth_provider";

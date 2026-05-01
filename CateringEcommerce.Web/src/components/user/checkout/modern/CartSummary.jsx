@@ -2,7 +2,7 @@ import React from 'react';
 import { formatEventDate, formatEventTime, getEventTypeDisplay } from '../../../../utils/checkoutValidator';
 import { calculateCartTotals, normalizeDecorationOrNull, normalizeDecorations } from '../../../../utils/cartPricing';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 /**
  * Cart Summary Component - Sticky Right Column
@@ -79,7 +79,7 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                             <div className="flex-1">
                                 <div className="font-medium text-gray-900">{cart.packageName}</div>
                                 <div className="text-xs text-gray-500 mt-1">
-                                    {`\u20B9${cart.packagePrice} × ${totals.guestCount} guests`}
+                                    {`\u20B9${cart.packagePrice} ï¿½ ${totals.guestCount} guests`}
                                 </div>
                                 {cart.packageCategory && (
                                     <span className="inline-block mt-1 text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded">
@@ -137,7 +137,7 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                                 <div className="text-gray-700">
                                     {item.foodName}
                                     <span className="text-xs text-gray-500 ml-1">
-                                        {`(×${item.quantity || 1} × ${totals.guestCount})`}
+                                        {`(ï¿½${item.quantity || 1} ï¿½ ${totals.guestCount})`}
                                     </span>
                                 </div>
                                 <div className="text-gray-900">

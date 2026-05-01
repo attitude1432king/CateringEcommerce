@@ -1,257 +1,153 @@
 -- =============================================
--- Order Management Tables Creation Script
+-- Order Management Tables
+-- PostgreSQL Compatible Version
 -- Created: 2026-01-15
 -- Description: Creates tables for order management, payments, and order history
 -- =============================================
-
-USE [CateringDB]
-GO
 
 -- =============================================
 -- Table: t_sys_orders
 -- Description: Main orders table storing order details
 -- =============================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_orders]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE [dbo].[t_sys_orders](
-        [c_orderid] [bigint] IDENTITY(1,1) NOT NULL,
-        [c_userid] [bigint] NOT NULL,
-        [c_ownerid] [bigint] NOT NULL,
-        [c_order_number] [varchar](50) NOT NULL,
-        [c_event_date] [datetime] NOT NULL,
-        [c_event_time] [varchar](20) NOT NULL,
-        [c_event_type] [varchar](100) NOT NULL,
-        [c_event_location] [nvarchar](500) NOT NULL,
-        [c_guest_count] [int] NOT NULL,
-        [c_special_instructions] [nvarchar](1000) NULL,
-        [c_delivery_address] [nvarchar](500) NOT NULL,
-        [c_contact_person] [nvarchar](100) NOT NULL,
-        [c_contact_phone] [varchar](20) NOT NULL,
-        [c_contact_email] [varchar](100) NOT NULL,
-        [c_base_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
-        [c_tax_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
-        [c_delivery_charges] [decimal](18, 2) NOT NULL DEFAULT 0,
-        [c_discount_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
-        [c_total_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
-        [c_payment_method] [varchar](50) NOT NULL,
-        [c_payment_split_enabled] [bit] NOT NULL DEFAULT 0,
-        [c_prebooking_amount] [decimal](18, 2) NULL,
-        [c_postevent_amount] [decimal](18, 2) NULL,
-        [c_prebooking_status] [varchar](20) NULL,
-        [c_postevent_status] [varchar](20) NULL,
-        [c_event_latitude] [decimal](10, 7) NULL,
-        [c_event_longitude] [decimal](10, 7) NULL,
-        [c_event_place_id] [varchar](200) NULL,
-        [c_saved_address_id] [bigint] NULL,
-        [c_decoration_id] [bigint] NULL,
-        [c_platform_commission] DECIMAL(18,2) NOT NULL DEFAULT 0,
-        [c_commission_rate] DECIMAL(5,2) NOT NULL DEFAULT 10.00,
-        [c_payment_status] [varchar](20) NOT NULL DEFAULT 'Pending',
-        [c_order_status] [varchar](20) NOT NULL DEFAULT 'Pending',
-        [c_createddate] [datetime] NOT NULL DEFAULT GETDATE(),
-        [c_modifieddate] [datetime] NULL,
-        [c_isactive] [bit] NOT NULL DEFAULT 1,
-        CONSTRAINT [PK_t_sys_orders] PRIMARY KEY CLUSTERED ([c_orderid] ASC),
-        CONSTRAINT [UQ_t_sys_orders_order_number] UNIQUE NONCLUSTERED ([c_order_number] ASC),
-        CONSTRAINT [FK_t_sys_orders_user] FOREIGN KEY([c_userid]) REFERENCES [dbo].[t_sys_user] ([c_userid]),
-        CONSTRAINT [FK_t_sys_orders_catering] FOREIGN KEY([c_ownerid]) REFERENCES [dbo].[t_sys_catering_owner] ([c_ownerid]),
-        CONSTRAINT [FK_t_sys_orders_decoration] FOREIGN KEY([c_decoration_id]) REFERENCES [dbo].[t_sys_catering_decorations] ([c_decoration_id])
-    ) ON [PRIMARY]
+CREATE TABLE IF NOT EXISTS t_sys_orders (
+    c_orderid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_userid BIGINT NOT NULL,
+    c_ownerid BIGINT NOT NULL,
+    c_order_number VARCHAR(50) NOT NULL UNIQUE,
+    c_event_date TIMESTAMP NOT NULL,
+    c_event_time VARCHAR(20) NOT NULL,
+    c_event_type VARCHAR(100) NOT NULL,
+    c_event_location VARCHAR(500) NOT NULL,
+    c_guest_count INTEGER NOT NULL,
+    c_special_instructions VARCHAR(1000),
+    c_delivery_address VARCHAR(500) NOT NULL,
+    c_contact_person VARCHAR(100) NOT NULL,
+    c_contact_phone VARCHAR(20) NOT NULL,
+    c_contact_email VARCHAR(100) NOT NULL,
+    c_base_amount DECIMAL(18, 2) NOT NULL DEFAULT 0,
+    c_tax_amount DECIMAL(18, 2) NOT NULL DEFAULT 0,
+    c_delivery_charges DECIMAL(18, 2) NOT NULL DEFAULT 0,
+    c_discount_amount DECIMAL(18, 2) NOT NULL DEFAULT 0,
+    c_total_amount DECIMAL(18, 2) NOT NULL DEFAULT 0,
+    c_payment_method VARCHAR(50) NOT NULL,
+    c_payment_split_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    c_paymentmode VARCHAR(50) DEFAULT 'SPLIT',
+    c_escrowstatus VARCHAR(50) DEFAULT 'PENDING',
+    c_advanceamount DECIMAL(18,2),
+    c_advancepercentage DECIMAL(5,2) DEFAULT 30.00,
+    c_prebooking_amount DECIMAL(18, 2),
+    c_postevent_amount DECIMAL(18, 2),
+    c_prebooking_status VARCHAR(20),
+    c_postevent_status VARCHAR(20),
+    c_event_latitude DECIMAL(10, 7),
+    c_event_longitude DECIMAL(10, 7),
+    c_event_place_id VARCHAR(200),
+    c_saved_address_id BIGINT,
+    c_decoration_id BIGINT,
+    c_original_guest_count INTEGER NULL,
+    c_locked_guest_count INTEGER NULL,
+    c_guest_count_locked BOOLEAN DEFAULT FALSE,
+    c_guest_lock_date TIMESTAMP,    
+    c_final_guest_count INTEGER NULL,
+    c_menu_locked BOOLEAN DEFAULT FALSE,
+    c_menu_lock_date TIMESTAMP,
+    c_platform_commission DECIMAL(18,2) NOT NULL DEFAULT 0,
+    c_commission_rate DECIMAL(5,2) NOT NULL DEFAULT 10.00,
+    c_extra_charges DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+    c_total_paid_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+    c_payment_progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    c_payment_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+    c_order_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    c_modifieddate TIMESTAMP,
+    c_isactive BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT fk_orders_user FOREIGN KEY(c_userid) REFERENCES t_sys_user(c_userid),
+    CONSTRAINT fk_orders_catering FOREIGN KEY(c_ownerid) REFERENCES t_sys_catering_owner(c_ownerid),
+    CONSTRAINT fk_orders_decoration FOREIGN KEY(c_decoration_id) REFERENCES t_sys_catering_decorations(c_decoration_id)
+);
 
-    PRINT 'Table t_sys_orders created successfully.'
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_orders already exists.'
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_orders]') AND name = 'c_decoration_id')
-BEGIN
-    ALTER TABLE [dbo].[t_sys_orders]
-    ADD [c_decoration_id] [bigint] NULL;
-
-    PRINT 'Column c_decoration_id added to t_sys_orders.';
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_t_sys_orders_decoration')
-AND EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_orders]') AND name = 'c_decoration_id')
-BEGIN
-    ALTER TABLE [dbo].[t_sys_orders] WITH CHECK
-    ADD CONSTRAINT [FK_t_sys_orders_decoration]
-    FOREIGN KEY([c_decoration_id]) REFERENCES [dbo].[t_sys_catering_decorations] ([c_decoration_id]);
-
-    PRINT 'Foreign key FK_t_sys_orders_decoration created successfully.';
-END
-GO
+CREATE INDEX IF NOT EXISTS ix_orders_userid ON t_sys_orders(c_userid);
+CREATE INDEX IF NOT EXISTS ix_orders_ownerid ON t_sys_orders(c_ownerid);
+CREATE INDEX IF NOT EXISTS ix_orders_status ON t_sys_orders(c_order_status);
 
 -- =============================================
 -- Table: t_sys_order_items
 -- Description: Stores individual order items (packages, food items, decorations)
 -- =============================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_order_items]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE [dbo].[t_sys_order_items](
-        [c_order_item_id] [bigint] IDENTITY(1,1) NOT NULL,
-        [c_orderid] [bigint] NOT NULL,
-        [c_item_type] [varchar](20) NOT NULL,
-        [c_item_id] [bigint] NOT NULL,
-        [c_item_name] [nvarchar](200) NOT NULL,
-        [c_quantity] [int] NOT NULL DEFAULT 1,
-        [c_unit_price] [decimal](18, 2) NOT NULL,
-        [c_total_price] [decimal](18, 2) NOT NULL,
-        [c_package_selections] [nvarchar](max) NULL,
-        [c_createddate] [datetime] NOT NULL DEFAULT GETDATE(),
-        CONSTRAINT [PK_t_sys_order_items] PRIMARY KEY CLUSTERED ([c_order_item_id] ASC),
-        CONSTRAINT [FK_t_sys_order_items_order] FOREIGN KEY([c_orderid]) REFERENCES [dbo].[t_sys_orders] ([c_orderid]) ON DELETE CASCADE
-    ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+CREATE TABLE IF NOT EXISTS t_sys_order_items (
+    c_order_item_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_orderid BIGINT NOT NULL,
+    c_item_type VARCHAR(20) NOT NULL,
+    c_item_id BIGINT NOT NULL,
+    c_item_name VARCHAR(200) NOT NULL,
+    c_quantity INTEGER NOT NULL DEFAULT 1,
+    c_unit_price DECIMAL(18, 2) NOT NULL,
+    c_total_price DECIMAL(18, 2) NOT NULL,
+    c_package_selections TEXT,
+    c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_order_items_order FOREIGN KEY(c_orderid) REFERENCES t_sys_orders(c_orderid) ON DELETE CASCADE
+);
 
-    PRINT 'Table t_sys_order_items created successfully.'
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_order_items already exists.'
-END
-GO
+CREATE INDEX IF NOT EXISTS ix_order_items_orderid ON t_sys_order_items(c_orderid);
 
 -- =============================================
 -- Table: t_sys_order_status_history
 -- Description: Tracks order status changes with timestamps
 -- =============================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_order_status_history]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE [dbo].[t_sys_order_status_history](
-        [c_history_id] [bigint] IDENTITY(1,1) NOT NULL,
-        [c_orderid] [bigint] NOT NULL,
-        [c_status] [varchar](20) NOT NULL,
-        [c_remarks] [nvarchar](500) NULL,
-        [c_updated_by] [bigint] NULL,
-        [c_modifieddate] [datetime] NOT NULL DEFAULT GETDATE(),
-        CONSTRAINT [PK_t_sys_order_status_history] PRIMARY KEY CLUSTERED ([c_history_id] ASC),
-        CONSTRAINT [FK_t_sys_order_status_history_order] FOREIGN KEY([c_orderid]) REFERENCES [dbo].[t_sys_orders] ([c_orderid]) ON DELETE CASCADE
-    ) ON [PRIMARY]
+CREATE TABLE IF NOT EXISTS t_sys_order_status_history (
+    c_history_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    c_orderid BIGINT NOT NULL,
+    c_status VARCHAR(20) NOT NULL,
+    c_remarks VARCHAR(500),
+    c_updated_by BIGINT,
+    c_modifieddate TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_order_status_history_order FOREIGN KEY(c_orderid) REFERENCES t_sys_orders(c_orderid) ON DELETE CASCADE
+);
 
-    PRINT 'Table t_sys_order_status_history created successfully.'
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_order_status_history already exists.'
-END
-GO
+CREATE INDEX IF NOT EXISTS ix_order_status_history_orderid ON t_sys_order_status_history(c_orderid);
 
 -- =============================================
 -- Table: t_sys_order_payments
 -- Description: Stores payment details including payment proofs
 -- =============================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[t_sys_order_payments]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE [dbo].[t_sys_order_payments](
-        [c_payment_id] [bigint] IDENTITY(1,1) NOT NULL,
-        [c_orderid] [bigint] NOT NULL,
-        [c_payment_method] [varchar](50) NOT NULL,
-        [c_payment_gateway] [varchar](50) NULL,
-        [c_transaction_id] [varchar](100) NULL,
-        [c_payment_stage_type] [varchar](20) NULL,
-        [c_razorpay_order_id] [varchar](100) NULL,
-        [c_razorpay_payment_id] [varchar](100) NULL,
-        [c_upi_id] [varchar](100) NULL,
-        [c_payment_proof_path] [nvarchar](500) NULL,
-        [c_amount] [decimal](18, 2) NOT NULL,
-        [c_paid_amount] [decimal](18, 2) NULL,
-        [c_status] [varchar](20) NOT NULL DEFAULT 'Pending',
-        [c_payment_date] [datetime] NULL,
-        [c_verified_by] [bigint] NULL,
-        [c_verified_date] [datetime] NULL,
-        [c_createddate] [datetime] NOT NULL DEFAULT GETDATE(),
-        CONSTRAINT [PK_t_sys_order_payments] PRIMARY KEY CLUSTERED ([c_payment_id] ASC),
-        CONSTRAINT [FK_t_sys_order_payments_order] FOREIGN KEY([c_orderid]) REFERENCES [dbo].[t_sys_orders] ([c_orderid]) ON DELETE CASCADE
-    ) ON [PRIMARY]
+CREATE TABLE IF NOT EXISTS t_sys_order_payments (
+        c_payment_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        c_orderid BIGINT NOT NULL,
+        c_payment_method VARCHAR(50) NOT NULL,
+        c_payment_gateway VARCHAR(50),
+        c_transaction_id VARCHAR(100),
+        c_payment_stage_type VARCHAR(20),
+        c_razorpay_order_id VARCHAR(100),
+        c_razorpay_payment_id VARCHAR(100),
+        c_upi_id VARCHAR(100),
+        c_payment_proof_path VARCHAR(500),
+        c_amount DECIMAL(18, 2) NOT NULL,
+        c_paid_amount DECIMAL(18, 2),
+        c_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+        c_payment_date TIMESTAMP,
+        c_verified_by BIGINT,
+        c_verified_date TIMESTAMP,
+        c_createddate TIMESTAMP NOT NULL DEFAULT NOW(),
+        CONSTRAINT fk_order_payments_order FOREIGN KEY(c_orderid) REFERENCES t_sys_orders(c_orderid) ON DELETE CASCADE
+    );
 
-    PRINT 'Table t_sys_order_payments created successfully.'
-END
-ELSE
-BEGIN
-    PRINT 'Table t_sys_order_payments already exists.'
-END
-GO
+    CREATE INDEX IF NOT EXISTS ix_order_payments_orderid ON t_sys_order_payments(c_orderid);
+    CREATE INDEX IF NOT EXISTS ix_order_payments_status ON t_sys_order_payments(c_status);
 
--- =============================================
--- Create Indexes for Performance
--- =============================================
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_t_sys_orders_userid' AND object_id = OBJECT_ID('t_sys_orders'))
-BEGIN
-    CREATE NONCLUSTERED INDEX [IX_t_sys_orders_userid] ON [dbo].[t_sys_orders]
-    (
-        [c_userid] ASC
-    )
-    INCLUDE([c_order_number], [c_order_status], [c_event_date], [c_createddate])
-    PRINT 'Index IX_t_sys_orders_userid created successfully.'
-END
-GO
+    -- =============================================
+    -- Additional Indexes for Performance
+    -- =============================================
+    CREATE INDEX IF NOT EXISTS ix_orders_event_date ON t_sys_orders(c_event_date DESC);
+    CREATE INDEX IF NOT EXISTS ix_orders_createddate ON t_sys_orders(c_createddate DESC);
+    CREATE INDEX IF NOT EXISTS ix_orders_payment_status ON t_sys_orders(c_payment_status);
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_t_sys_orders_cateringid' AND object_id = OBJECT_ID('t_sys_orders'))
-BEGIN
-    CREATE NONCLUSTERED INDEX [IX_t_sys_orders_cateringid] ON [dbo].[t_sys_orders]
-    (
-        [c_ownerid] ASC
-    )
-    INCLUDE([c_order_number], [c_order_status], [c_event_date], [c_createddate])
-    PRINT 'Index IX_t_sys_orders_cateringid created successfully.'
-END
-GO
+    -- =============================================
+    -- Order Management Tables Created Successfully
+    -- =============================================
+    -- Tables created:
+    --   - t_sys_orders
+    --   - t_sys_order_items
+    --   - t_sys_order_status_history
+    --   - t_sys_order_payments
+    -- Indexes created for optimal query performance.
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_t_sys_orders_status' AND object_id = OBJECT_ID('t_sys_orders'))
-BEGIN
-    CREATE NONCLUSTERED INDEX [IX_t_sys_orders_status] ON [dbo].[t_sys_orders]
-    (
-        [c_order_status] ASC,
-        [c_createddate] DESC
-    )
-    PRINT 'Index IX_t_sys_orders_status created successfully.'
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_t_sys_orders_event_date' AND object_id = OBJECT_ID('t_sys_orders'))
-BEGIN
-    CREATE NONCLUSTERED INDEX [IX_t_sys_orders_event_date] ON [dbo].[t_sys_orders]
-    (
-        [c_event_date] ASC
-    )
-    INCLUDE([c_ownerid], [c_order_status])
-    PRINT 'Index IX_t_sys_orders_event_date created successfully.'
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_t_sys_orders_decorationid' AND object_id = OBJECT_ID('t_sys_orders'))
-BEGIN
-    CREATE NONCLUSTERED INDEX [IX_t_sys_orders_decorationid] ON [dbo].[t_sys_orders]
-    (
-        [c_decoration_id] ASC
-    )
-    INCLUDE([c_order_number], [c_ownerid], [c_event_date])
-    PRINT 'Index IX_t_sys_orders_decorationid created successfully.'
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_t_sys_order_items_orderid' AND object_id = OBJECT_ID('t_sys_order_items'))
-BEGIN
-    CREATE NONCLUSTERED INDEX [IX_t_sys_order_items_orderid] ON [dbo].[t_sys_order_items]
-    (
-        [c_orderid] ASC
-    )
-    PRINT 'Index IX_t_sys_order_items_orderid created successfully.'
-END
-GO
-
-PRINT ''
-PRINT '=========================================='
-PRINT 'Order Management Tables Created Successfully!'
-PRINT '=========================================='
-PRINT 'Tables created:'
-PRINT '  - t_sys_orders'
-PRINT '  - t_sys_order_items'
-PRINT '  - t_sys_order_status_history'
-PRINT '  - t_sys_order_payments'
-PRINT 'Indexes created for optimal query performance.'
-PRINT '=========================================='

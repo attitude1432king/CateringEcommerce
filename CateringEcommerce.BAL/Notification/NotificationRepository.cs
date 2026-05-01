@@ -1,9 +1,9 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.Helpers;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Notification;
 using CateringEcommerce.Domain.Models.Notification;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 
 namespace CateringEcommerce.BAL.Notification
@@ -40,7 +40,7 @@ namespace CateringEcommerce.BAL.Notification
 
             var dt = await _dbHelper.ExecuteAsync(
                 query,
-                new[] { new SqlParameter("@NotificationId", notificationId) }
+                new[] { new NpgsqlParameter("@NotificationId", notificationId) }
             );
 
             if (dt.Rows.Count == 0)
@@ -53,17 +53,18 @@ namespace CateringEcommerce.BAL.Notification
 
         public async Task<List<NotificationDelivery>> GetDeliveryHistoryAsync(string recipient, int limit = 50)
         {
-            string query = $@"SELECT TOP (@Limit) *
+            string query = $@"SELECT *
                               FROM {Table.SysNotificationDelivery}
                               WHERE c_recipient = @Recipient
-                              ORDER BY c_sent_at DESC";
+                              ORDER BY c_sent_at DESC
+                              LIMIT @Limit";
 
             var dt = await _dbHelper.ExecuteAsync(
                 query,
                 new[]
                 {
-                    new SqlParameter("@Recipient", recipient),
-                    new SqlParameter("@Limit", limit)
+                    new NpgsqlParameter("@Recipient", recipient),
+                    new NpgsqlParameter("@Limit", limit)
                 }
             );
 
@@ -83,9 +84,9 @@ namespace CateringEcommerce.BAL.Notification
                 query,
                 new[]
                 {
-                    new SqlParameter("@NotificationId", notificationId),
-                    new SqlParameter("@Status", status),
-                    new SqlParameter("@ErrorMessage", errorMessage ?? (object)DBNull.Value)
+                    new NpgsqlParameter("@NotificationId", notificationId),
+                    new NpgsqlParameter("@Status", status),
+                    new NpgsqlParameter("@ErrorMessage", errorMessage ?? (object)DBNull.Value)
                 }
             );
         }
@@ -100,9 +101,9 @@ namespace CateringEcommerce.BAL.Notification
                               FROM {Table.SysNotifications}
                               WHERE c_userid = @UserId
                                 AND c_user_type = @UserType
-                                AND c_is_read = 0
-                                AND c_is_deleted = 0
-                                AND (c_expires_at IS NULL OR c_expires_at > GETDATE())";
+                                AND c_is_read = FALSE
+                                AND c_is_deleted = FALSE
+                                AND (c_expires_at IS NULL OR c_expires_at > NOW())";
 
             var result = await _dbHelper.ExecuteScalarAsync(
                 query,
@@ -115,18 +116,18 @@ namespace CateringEcommerce.BAL.Notification
         public async Task MarkAsReadAsync(string notificationId, string userId)
         {
             string query = $@"UPDATE {Table.SysNotifications}
-                              SET c_is_read = 1,
-                                  c_read_at = GETDATE()
+                              SET c_is_read = TRUE,
+                                  c_read_at = NOW()
                               WHERE c_notification_uuid = @NotificationId
                                 AND c_userid = @UserId
-                                AND c_is_read = 0";
+                                AND c_is_read = FALSE";
 
             await _dbHelper.ExecuteNonQueryAsync(
                 query,
                 new[]
                 {
-                    new SqlParameter("@NotificationId", notificationId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@NotificationId", notificationId),
+                    new NpgsqlParameter("@UserId", userId)
                 }
             );
         }
@@ -137,8 +138,8 @@ namespace CateringEcommerce.BAL.Notification
             var parameters = BuildUserParameters(
                 userId,
                 userType,
-                new SqlParameter("@PageSize", pageSize),
-                new SqlParameter("@Offset", offset));
+                new NpgsqlParameter("@PageSize", pageSize),
+                new NpgsqlParameter("@Offset", offset));
 
             string query = $@"SELECT
                                     c_notification_uuid AS NotificationId,
@@ -153,11 +154,10 @@ namespace CateringEcommerce.BAL.Notification
                                FROM {Table.SysNotifications}
                                WHERE c_userid = @UserId
                                  AND c_user_type = @UserType
-                                 AND c_is_deleted = 0
-                                 AND (c_expires_at IS NULL OR c_expires_at > GETDATE())
+                                 AND c_is_deleted = FALSE
+                                 AND (c_expires_at IS NULL OR c_expires_at > NOW())
                                ORDER BY c_priority DESC, c_createddate DESC
-                               OFFSET @Offset ROWS
-                               FETCH NEXT @PageSize ROWS ONLY";
+                               LIMIT @PageSize OFFSET @Offset";
 
             var dt = await _dbHelper.ExecuteAsync(
                 query,
@@ -176,22 +176,22 @@ namespace CateringEcommerce.BAL.Notification
                                c_priority, c_action_url, c_icon_url, c_data, c_expires_at, c_createddate)
                               VALUES
                               (@UserId, @UserType, @Title, @Message, @Category,
-                               @Priority, @ActionUrl, @IconUrl, @Data, @ExpiresAt, GETDATE())";
+                               @Priority, @ActionUrl, @IconUrl, @Data, @ExpiresAt, NOW())";
 
             await _dbHelper.ExecuteNonQueryAsync(
                 query,
                 new[]
                 {
-                    new SqlParameter("@UserId", notification.UserId),
-                    new SqlParameter("@UserType", notification.UserType.ToString()),
-                    new SqlParameter("@Title", notification.Title),
-                    new SqlParameter("@Message", notification.Message),
-                    new SqlParameter("@Category", notification.Category),
-                    new SqlParameter("@Priority", notification.Priority),
-                    new SqlParameter("@ActionUrl", notification.ActionUrl ?? (object)DBNull.Value),
-                    new SqlParameter("@IconUrl", notification.IconUrl ?? (object)DBNull.Value),
-                    new SqlParameter("@Data", notification.Data ?? (object)DBNull.Value),
-                    new SqlParameter("@ExpiresAt", notification.ExpiresAt ?? (object)DBNull.Value)
+                    new NpgsqlParameter("@UserId", notification.UserId),
+                    new NpgsqlParameter("@UserType", notification.UserType.ToString()),
+                    new NpgsqlParameter("@Title", notification.Title),
+                    new NpgsqlParameter("@Message", notification.Message),
+                    new NpgsqlParameter("@Category", notification.Category),
+                    new NpgsqlParameter("@Priority", notification.Priority),
+                    new NpgsqlParameter("@ActionUrl", notification.ActionUrl ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@IconUrl", notification.IconUrl ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@Data", notification.Data ?? (object)DBNull.Value),
+                    new NpgsqlParameter("@ExpiresAt", notification.ExpiresAt ?? (object)DBNull.Value)
                 }
             );
         }
@@ -199,12 +199,12 @@ namespace CateringEcommerce.BAL.Notification
         public async Task MarkAllAsReadAsync(string userId, string userType = DefaultUserType)
         {
             string query = $@"UPDATE {Table.SysNotifications}
-                              SET c_is_read = 1,
-                                  c_read_at = GETDATE()
+                              SET c_is_read = TRUE,
+                                  c_read_at = NOW()
                               WHERE c_userid = @UserId
                                 AND c_user_type = @UserType
-                                AND c_is_read = 0
-                                AND c_is_deleted = 0";
+                                AND c_is_read = FALSE
+                                AND c_is_deleted = FALSE";
 
             await _dbHelper.ExecuteNonQueryAsync(
                 query,
@@ -215,8 +215,8 @@ namespace CateringEcommerce.BAL.Notification
         public async Task DeleteNotificationAsync(string notificationId, string userId)
         {
             string query = $@"UPDATE {Table.SysNotifications}
-                              SET c_is_deleted = 1,
-                                  c_deleted_at = GETDATE()
+                              SET c_is_deleted = TRUE,
+                                  c_deleted_at = NOW()
                               WHERE c_notification_uuid = @NotificationId
                                 AND c_userid = @UserId";
 
@@ -224,8 +224,8 @@ namespace CateringEcommerce.BAL.Notification
                 query,
                 new[]
                 {
-                    new SqlParameter("@NotificationId", notificationId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@NotificationId", notificationId),
+                    new NpgsqlParameter("@UserId", userId)
                 }
             );
         }
@@ -234,29 +234,29 @@ namespace CateringEcommerce.BAL.Notification
 
         #region Private Helpers
 
-        private static SqlParameter[] BuildDeliveryParameters(NotificationDelivery delivery)
+        private static NpgsqlParameter[] BuildDeliveryParameters(NotificationDelivery delivery)
         {
             return new[]
             {
-                new SqlParameter("@NotificationId", delivery.NotificationId),
-                new SqlParameter("@Channel", delivery.Channel),
-                new SqlParameter("@Status", delivery.Status),
-                new SqlParameter("@Provider", delivery.Provider ?? (object)DBNull.Value),
-                new SqlParameter("@ProviderMessageId", delivery.ProviderMessageId ?? (object)DBNull.Value),
-                new SqlParameter("@Recipient", delivery.Recipient),
-                new SqlParameter("@SentAt", delivery.SentAt),
-                new SqlParameter("@DeliveredAt", delivery.DeliveredAt ?? (object)DBNull.Value),
-                new SqlParameter("@ErrorMessage", delivery.ErrorMessage ?? (object)DBNull.Value),
-                new SqlParameter("@RetryCount", delivery.RetryCount),
-                new SqlParameter("@Cost", delivery.Cost ?? (object)DBNull.Value)
+                new NpgsqlParameter("@NotificationId", delivery.NotificationId),
+                new NpgsqlParameter("@Channel", delivery.Channel),
+                new NpgsqlParameter("@Status", delivery.Status),
+                new NpgsqlParameter("@Provider", delivery.Provider ?? (object)DBNull.Value),
+                new NpgsqlParameter("@ProviderMessageId", delivery.ProviderMessageId ?? (object)DBNull.Value),
+                new NpgsqlParameter("@Recipient", delivery.Recipient),
+                new NpgsqlParameter("@SentAt", delivery.SentAt),
+                new NpgsqlParameter("@DeliveredAt", delivery.DeliveredAt ?? (object)DBNull.Value),
+                new NpgsqlParameter("@ErrorMessage", delivery.ErrorMessage ?? (object)DBNull.Value),
+                new NpgsqlParameter("@RetryCount", delivery.RetryCount),
+                new NpgsqlParameter("@Cost", delivery.Cost ?? (object)DBNull.Value)
             };
         }
 
-        private static SqlParameter[] BuildUserParameters(string userId, string? userType, params SqlParameter[] additionalParameters)
+        private static NpgsqlParameter[] BuildUserParameters(string userId, string? userType, params NpgsqlParameter[] additionalParameters)
         {
-            var parameters = new SqlParameter[2 + additionalParameters.Length];
-            parameters[0] = new SqlParameter("@UserId", userId);
-            parameters[1] = new SqlParameter("@UserType", userType ?? DefaultUserType);
+            var parameters = new NpgsqlParameter[2 + additionalParameters.Length];
+            parameters[0] = new NpgsqlParameter("@UserId", userId);
+            parameters[1] = new NpgsqlParameter("@UserType", userType ?? DefaultUserType);
 
             if (additionalParameters.Length > 0)
             {
@@ -304,3 +304,4 @@ namespace CateringEcommerce.BAL.Notification
         #endregion
     }
 }
+

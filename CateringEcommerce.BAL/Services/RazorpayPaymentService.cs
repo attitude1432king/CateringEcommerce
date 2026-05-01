@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Payment;
+using CateringEcommerce.Domain.Models.Configuration;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Razorpay.Api;
 
 namespace CateringEcommerce.BAL.Services
@@ -19,22 +20,24 @@ namespace CateringEcommerce.BAL.Services
         private readonly RazorpayClient _client;
         private readonly ILogger<RazorpayPaymentService>? _logger;
 
-        public RazorpayPaymentService(ISystemSettingsProvider settings, ILogger<RazorpayPaymentService>? logger = null)
+        public RazorpayPaymentService(IOptions<RazorpaySettings> options, ILogger<RazorpayPaymentService>? logger = null)
         {
-            if (settings == null)
+            if (options == null)
             {
-                throw new ArgumentNullException(nameof(settings));
+                throw new ArgumentNullException(nameof(options));
             }
 
-            _keyId = settings.GetString("PAYMENT.RAZORPAY_KEY_ID");
+            var settings = options.Value;
+
+            _keyId = settings.KeyId;
             if (string.IsNullOrEmpty(_keyId))
-                throw new InvalidOperationException("Razorpay KeyId is not configured in settings");
+                throw new InvalidOperationException("Razorpay KeyId is not configured in secure configuration");
 
-            _keySecret = settings.GetString("PAYMENT.RAZORPAY_KEY_SECRET");
+            _keySecret = settings.KeySecret;
             if (string.IsNullOrEmpty(_keySecret))
-                throw new InvalidOperationException("Razorpay KeySecret is not configured in settings");
+                throw new InvalidOperationException("Razorpay KeySecret is not configured in secure configuration");
 
-            _webhookSecret = settings.GetString("PAYMENT.RAZORPAY_WEBHOOK_SECRET");
+            _webhookSecret = settings.WebhookSecret;
 
             _logger = logger;
 
@@ -188,8 +191,8 @@ namespace CateringEcommerce.BAL.Services
                 {
                     _logger?.LogError("CRITICAL: Webhook secret is not configured. All webhook requests will be rejected.");
                     throw new InvalidOperationException(
-                        "Razorpay webhook secret (PAYMENT.RAZORPAY_WEBHOOK_SECRET) is not configured in settings. " +
-                        "Configure the secret in t_sys_settings to enable webhook verification.");
+                        "Razorpay webhook secret (PAYMENT:RAZORPAY_WEBHOOK_SECRET) is not configured in secure configuration. " +
+                        "Configure the PAYMENT__RAZORPAY_WEBHOOK_SECRET environment variable to enable webhook verification.");
                 }
 
                 // Generate expected signature

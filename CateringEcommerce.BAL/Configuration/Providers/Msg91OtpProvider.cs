@@ -1,6 +1,7 @@
-using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Sms;
+using CateringEcommerce.Domain.Models.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -30,22 +31,25 @@ namespace CateringEcommerce.BAL.Configuration.Providers
         public string ProviderName => "MSG91";
 
         public Msg91OtpProvider(
-            ISystemSettingsProvider settings,
+            IOptions<Msg91Settings> options,
             IHttpClientFactory httpClientFactory,
             ILogger<Msg91OtpProvider> logger)
         {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            _authKey = settings.GetString("MSG91.AUTH_KEY");
-            _senderId = settings.GetString("MSG91.SENDER_ID");
-            _templateId = settings.GetString("MSG91.TEMPLATE_ID");
-            _route = settings.GetString("MSG91.ROUTE", "4"); // 4 = transactional
+            var settings = options.Value;
+            _authKey = settings.AuthKey;
+            _senderId = settings.SenderId;
+            _templateId = settings.TemplateId;
+            _route = settings.Route; // 4 = transactional
 
-            if (string.IsNullOrEmpty(_authKey))
-                throw new InvalidOperationException("Setting 'MSG91.AUTH_KEY' is required for Msg91OtpProvider.");
-            if (string.IsNullOrEmpty(_templateId))
-                throw new InvalidOperationException("Setting 'MSG91.TEMPLATE_ID' is required for Msg91OtpProvider.");
+            //if (string.IsNullOrEmpty(_authKey))
+            //    throw new InvalidOperationException("Secure configuration 'MSG91:AUTH_KEY' is required for Msg91OtpProvider.");
+            //if (string.IsNullOrEmpty(_templateId))
+            //    throw new InvalidOperationException("Configuration 'MSG91:TEMPLATE_ID' is required for Msg91OtpProvider.");
         }
 
         public async Task<OtpSendResult> SendOtpAsync(

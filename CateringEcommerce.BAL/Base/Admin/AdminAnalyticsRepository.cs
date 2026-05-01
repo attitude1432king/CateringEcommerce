@@ -1,7 +1,7 @@
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -28,10 +28,10 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<DashboardMetrics> GetDashboardMetricsAsync(DashboardMetricsRequest request)
         {
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new SqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value)
+                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
+                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value)
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetDashboardMetrics", parameters.ToArray());
@@ -67,11 +67,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<RevenueChartResponse> GetRevenueChartAsync(RevenueChartRequest request)
         {
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new SqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
-                new SqlParameter("@Granularity", request.Granularity ?? "day")
+                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
+                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@Granularity", request.Granularity ?? "day")
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetRevenueChart", parameters.ToArray());
@@ -124,10 +124,10 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<OrderAnalyticsResponse> GetOrderAnalyticsAsync(OrderAnalyticsRequest request)
         {
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new SqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value)
+                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
+                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value)
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetOrderStatusDistribution", parameters.ToArray());
@@ -190,11 +190,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<PartnerAnalyticsResponse> GetTopPartnersAsync(PartnerAnalyticsRequest request)
         {
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new SqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
-                new SqlParameter("@Limit", request.Limit)
+                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
+                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@Limit", request.Limit)
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetTopPerformingPartners", parameters.ToArray());
@@ -240,9 +240,9 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<List<RecentOrderItem>> GetRecentOrdersAsync(int limit)
         {
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@Limit", limit)
+                new NpgsqlParameter("@Limit", limit)
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetRecentOrders", parameters.ToArray());
@@ -280,11 +280,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<CategoryAnalyticsResponse> GetPopularCategoriesAsync(CategoryAnalyticsRequest request)
         {
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new SqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
-                new SqlParameter("@Limit", request.Limit)
+                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
+                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@Limit", request.Limit)
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetPopularCategories", parameters.ToArray());
@@ -325,11 +325,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<UserGrowthResponse> GetUserGrowthAsync(UserGrowthRequest request)
         {
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new SqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
-                new SqlParameter("@Granularity", request.Granularity ?? "day")
+                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
+                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@Granularity", request.Granularity ?? "day")
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetUserGrowth", parameters.ToArray());
@@ -375,11 +375,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         public async Task<CityAnalyticsResponse> GetCityRevenueAsync(CityAnalyticsRequest request)
         {
-            var parameters = new List<SqlParameter>
+            var parameters = new List<NpgsqlParameter>
             {
-                new SqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new SqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
-                new SqlParameter("@Limit", request.Limit)
+                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
+                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@Limit", request.Limit)
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetRevenueByCity", parameters.ToArray());

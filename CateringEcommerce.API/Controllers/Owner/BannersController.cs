@@ -136,9 +136,10 @@ namespace CateringEcommerce.API.Controllers.Owner
                         return ApiResponseHelper.Failure(validation.ErrorMessage, "warning");
 
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(BannerImage.FileName);
-                    var imagePath = await _fileStorageService.SaveFormFileAsync(
+                    var imagePath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                         BannerImage,
                         ownerPKID,
+                        Role.Owner.GetDisplayName(),
                         DocumentType.Banner.GetDisplayName(),
                         false,
                         safeFilename);
@@ -211,9 +212,10 @@ namespace CateringEcommerce.API.Controllers.Owner
                     }
 
                     var safeFilename = FileValidationHelper.GenerateSafeFilename(BannerImage.FileName);
-                    var imagePath = await _fileStorageService.SaveFormFileAsync(
+                    var imagePath = await _fileStorageService.SaveRoleBaseFormFileAsync(
                         BannerImage,
                         ownerPKID,
+                        Role.Owner.GetDisplayName(),
                         DocumentType.Banner.GetDisplayName(),
                         false,
                         safeFilename);

@@ -4,7 +4,7 @@ using CateringEcommerce.Domain.Enums.Admin;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Data;
 using System.Text;
 
@@ -29,8 +29,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_full_name AS FullName,
                     s.c_email AS Email,
                     s.c_phone AS Phone,
-                    ISNULL(c.c_cityname, '') AS City,
-                    ISNULL(st.c_statename, '') AS State,
+                    COALESCE(c.c_cityname, '') AS City,
+                    COALESCE(st.c_statename, '') AS State,
                     s.c_supervisor_type AS SupervisorType,
                     CASE
                         WHEN s.c_current_status = 'ACTIVE' THEN {(int)SupervisorApprovalStatus.Approved}
@@ -47,7 +47,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.State} st on st.c_stateid = s.c_stateid
                 WHERE s.c_current_status IN ('APPLIED','REJECTED','DOCUMENT_VERIFICATION','AWAITING_INTERVIEW','AWAITING_TRAINING','AWAITING_CERTIFICATION','RESUME_SCREENED','INTERVIEW_SCHEDULED','INTERVIEW_PASSED','BACKGROUND_VERIFICATION','TRAINING')");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
             AppendRegistrationFilters(queryBuilder, parameters, request);
 
             // Sorting
@@ -63,14 +63,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SELECT COUNT(*)
                 FROM {Table.SysSupervisor} s
                 WHERE s.c_current_status IN ('APPLIED','REJECTED','DOCUMENT_VERIFICATION','AWAITING_INTERVIEW','AWAITING_TRAINING','AWAITING_CERTIFICATION','RESUME_SCREENED','INTERVIEW_SCHEDULED','INTERVIEW_PASSED','BACKGROUND_VERIFICATION','TRAINING')");
-            var countParams = new List<SqlParameter>();
+            var countParams = new List<NpgsqlParameter>();
             AppendRegistrationFilters(countBuilder, countParams, request);
 
             int totalRecords = Convert.ToInt32(_dbHelper.ExecuteScalar(countBuilder.ToString(), countParams.ToArray()));
 
             // Pagination
             int offset = (request.PageNumber - 1) * request.PageSize;
-            queryBuilder.Append($" OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY");
+            queryBuilder.Append($" LIMIT {request.PageSize} OFFSET {offset}");
 
             var dt = _dbHelper.Execute(queryBuilder.ToString(), parameters.ToArray());
 
@@ -100,10 +100,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_phone,
                     s.c_alternate_phone,
                     s.c_gender,
-                    CONVERT(VARCHAR, s.c_date_of_birth, 103) AS c_date_of_birth,
+                    TO_CHAR(s.c_date_of_birth, 'DD/MM/YYYY') AS c_date_of_birth,
                     s.c_address_line1,
-                    ISNULL(ci.c_cityname, '') AS City,
-                    ISNULL(st.c_statename, '') AS State,
+                    COALESCE(ci.c_cityname, '') AS City,
+                    COALESCE(st.c_statename, '') AS State,
                     s.c_pincode,
                     s.c_locality,
                     s.c_supervisor_type,
@@ -116,7 +116,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     END AS Status,
                     s.c_status_reason,
                     s.c_authority_level,
-                    ISNULL(s.c_has_prior_experience, 0) AS c_has_prior_experience,
+                    COALESCE(s.c_has_prior_experience, 0) AS c_has_prior_experience,
                     s.c_prior_experience_details,
                     s.c_specialization,
                     s.c_languages_known,
@@ -127,9 +127,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_address_url,
                     s.c_resume_url,
                     s.c_agreement_url,
-                    ISNULL(r.c_doc_verification_status, r.c_document_verification_status) AS c_doc_verification_status,
+                    COALESCE(r.c_doc_verification_status, r.c_document_verification_status) AS c_doc_verification_status,
                     r.c_interview_result,
-                    ISNULL(r.c_training_passed, 0) AS c_training_passed,
+                    COALESCE(r.c_training_passed, 0) AS c_training_passed,
                     r.c_activation_status,
                     -- Banking
                     s.c_bank_account_holder_name,
@@ -143,9 +143,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     -- Availability
                     s.c_availability_calendar,
                     s.c_preferred_event_types,
-                    ISNULL(s.c_max_events_per_month, 0) AS c_max_events_per_month,
+                    COALESCE(s.c_max_events_per_month, 0) AS c_max_events_per_month,
                     -- Performance
-                    ISNULL(s.c_total_events_supervised, 0) AS c_total_events_supervised,
+                    COALESCE(s.c_total_events_supervised, 0) AS c_total_events_supervised,
                     s.c_average_rating,
                     s.c_certification_status,
                     s.c_createddate,
@@ -155,9 +155,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.State} st ON st.c_stateid = s.c_stateid
                 LEFT JOIN {Table.SysSupervisorRegistration} r ON r.c_supervisor_id = s.c_supervisor_id
                 WHERE s.c_supervisor_id = @SupervisorId
-                  AND s.c_is_deleted = 0";
+                  AND s.c_is_deleted = FALSE";
 
-            var parameters = new[] { new SqlParameter("@SupervisorId", supervisorId) };
+            var parameters = new[] { new NpgsqlParameter("@SupervisorId", supervisorId) };
             var dt = _dbHelper.Execute(query, parameters);
 
             if (dt.Rows.Count == 0) return null;
@@ -252,14 +252,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_current_status = @DbStatus,
                     c_status_reason = @StatusReason,
                     c_modifiedby = @UpdatedBy,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_supervisor_id = @SupervisorId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@SupervisorId", request.SupervisorId),
-                new SqlParameter("@DbStatus", dbStatus),
-                new SqlParameter("@StatusReason", (object?)statusReason ?? DBNull.Value),
-                new SqlParameter("@UpdatedBy", request.UpdatedBy)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@SupervisorId", request.SupervisorId),
+                new NpgsqlParameter("@DbStatus", dbStatus),
+                new NpgsqlParameter("@StatusReason", (object?)statusReason ?? DBNull.Value),
+                new NpgsqlParameter("@UpdatedBy", request.UpdatedBy)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -278,15 +278,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_full_name AS FullName,
                     s.c_email AS Email,
                     s.c_phone AS Phone,
-                    ISNULL(c.c_cityname, '') AS City,
-                    ISNULL(st.c_statename, '') AS State,
+                    COALESCE(c.c_cityname, '') AS City,
+                    COALESCE(st.c_statename, '') AS State,
                     s.c_supervisor_type AS SupervisorType,
                     s.c_average_rating AS AverageRating,
-                    ISNULL(s.c_total_events_supervised, 0) AS TotalEventsSupervised,
+                    COALESCE(s.c_total_events_supervised, 0) AS TotalEventsSupervised,
                     s.c_current_status AS CurrentStatus,
-                    ISNULL(s.c_is_available, 0) AS IsAvailable,
+                    COALESCE(s.c_is_available, 0) AS IsAvailable,
                     CASE WHEN s.c_current_status = 'SUSPENDED' THEN 1 ELSE 0 END AS IsBlocked,
-                    ISNULL(s.c_is_deleted, 0) AS IsDeleted,
+                    COALESCE(s.c_is_deleted, 0) AS IsDeleted,
                     s.c_createddate AS CreatedDate,
                     s.c_modifieddate AS LastUpdated
                 FROM {Table.SysSupervisor} s
@@ -294,7 +294,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.State} st ON st.c_stateid = s.c_stateid
                 WHERE s.c_current_status IN ('ACTIVE','SUSPENDED','DEACTIVATED')");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
             AppendActiveFilters(queryBuilder, parameters, request);
 
             // Sorting
@@ -315,14 +315,14 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.City} c  ON c.c_cityid   = s.c_cityid
                 LEFT JOIN {Table.State} st ON st.c_stateid = s.c_stateid
                 WHERE s.c_current_status IN ('ACTIVE','SUSPENDED','DEACTIVATED')");
-            var countParams = new List<SqlParameter>();
+            var countParams = new List<NpgsqlParameter>();
             AppendActiveFilters(countBuilder, countParams, request);
 
             int totalRecords = Convert.ToInt32(_dbHelper.ExecuteScalar(countBuilder.ToString(), countParams.ToArray()));
 
             // Pagination
             int offset = (request.PageNumber - 1) * request.PageSize;
-            queryBuilder.Append($" OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY");
+            queryBuilder.Append($" LIMIT {request.PageSize} OFFSET {offset}");
 
             var dt = _dbHelper.Execute(queryBuilder.ToString(), parameters.ToArray());
 
@@ -349,15 +349,15 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_current_status = 'SUSPENDED',
                     c_suspended_by = @BlockedBy,
                     c_suspension_reason = @Reason,
-                    c_suspension_date = GETDATE(),
+                    c_suspension_date = NOW(),
                     c_modifiedby = @BlockedBy,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_supervisor_id = @SupervisorId AND c_current_status = 'ACTIVE'";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@SupervisorId", supervisorId),
-                new SqlParameter("@BlockedBy", blockedBy),
-                new SqlParameter("@Reason", (object?)reason ?? DBNull.Value)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@SupervisorId", supervisorId),
+                new NpgsqlParameter("@BlockedBy", blockedBy),
+                new NpgsqlParameter("@Reason", (object?)reason ?? DBNull.Value)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -373,12 +373,12 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_suspension_reason = NULL,
                     c_suspension_date = NULL,
                     c_modifiedby = @UnblockedBy,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_supervisor_id = @SupervisorId AND c_current_status = 'SUSPENDED'";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@SupervisorId", supervisorId),
-                new SqlParameter("@UnblockedBy", unblockedBy)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@SupervisorId", supervisorId),
+                new NpgsqlParameter("@UnblockedBy", unblockedBy)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -389,14 +389,14 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 UPDATE {Table.SysSupervisor}
-                SET c_is_deleted = 1,
+                SET c_is_deleted = TRUE,
                     c_modifiedby = @DeletedBy,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE c_supervisor_id = @SupervisorId";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@SupervisorId", supervisorId),
-                new SqlParameter("@DeletedBy", deletedBy)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@SupervisorId", supervisorId),
+                new NpgsqlParameter("@DeletedBy", deletedBy)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -407,14 +407,14 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             string query = $@"
                 UPDATE {Table.SysSupervisor}
-                SET c_is_deleted = 0,
+                SET c_is_deleted = FALSE,
                     c_modifiedby = @RestoredBy,
-                    c_modifieddate = GETDATE()
-                WHERE c_supervisor_id = @SupervisorId AND c_is_deleted = 1";
+                    c_modifieddate = NOW()
+                WHERE c_supervisor_id = @SupervisorId AND c_is_deleted = TRUE";
 
-            SqlParameter[] parameters = {
-                new SqlParameter("@SupervisorId", supervisorId),
-                new SqlParameter("@RestoredBy", restoredBy)
+            NpgsqlParameter[] parameters = {
+                new NpgsqlParameter("@SupervisorId", supervisorId),
+                new NpgsqlParameter("@RestoredBy", restoredBy)
             };
 
             int rowsAffected = _dbHelper.ExecuteNonQuery(query, parameters);
@@ -429,11 +429,11 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_full_name AS FullName,
                     s.c_email AS Email,
                     s.c_phone AS Phone,
-                    ISNULL(c.c_cityname, '') AS City,
-                    ISNULL(st.c_statename, '') AS State,
+                    COALESCE(c.c_cityname, '') AS City,
+                    COALESCE(st.c_statename, '') AS State,
                     s.c_supervisor_type AS SupervisorType,
                     s.c_average_rating AS AverageRating,
-                    ISNULL(s.c_total_events_supervised, 0) AS TotalEventsSupervised,
+                    COALESCE(s.c_total_events_supervised, 0) AS TotalEventsSupervised,
                     s.c_current_status AS CurrentStatus,
                     s.c_createddate AS CreatedDate
                 FROM {Table.SysSupervisor} s
@@ -441,7 +441,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.State} st ON st.c_stateid = s.c_stateid
                 WHERE s.c_current_status IN ('ACTIVE','SUSPENDED','DEACTIVATED')");
 
-            var parameters = new List<SqlParameter>();
+            var parameters = new List<NpgsqlParameter>();
             AppendActiveFilters(queryBuilder, parameters, request);
 
             queryBuilder.Append(" ORDER BY s.c_createddate DESC");
@@ -474,12 +474,12 @@ namespace CateringEcommerce.BAL.Base.Admin
 
         #region Private Helpers
 
-        private void AppendRegistrationFilters(StringBuilder queryBuilder, List<SqlParameter> parameters, AdminSupervisorRegistrationListRequest request)
+        private void AppendRegistrationFilters(StringBuilder queryBuilder, List<NpgsqlParameter> parameters, AdminSupervisorRegistrationListRequest request)
         {
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 queryBuilder.Append(" AND (s.c_full_name LIKE @SearchTerm OR s.c_email LIKE @SearchTerm OR s.c_phone LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
             }
 
             if (request.Status.HasValue)
@@ -508,37 +508,37 @@ namespace CateringEcommerce.BAL.Base.Admin
             if (!string.IsNullOrEmpty(request.SupervisorType))
             {
                 queryBuilder.Append(" AND s.c_supervisor_type = @SupervisorType");
-                parameters.Add(new SqlParameter("@SupervisorType", request.SupervisorType));
+                parameters.Add(new NpgsqlParameter("@SupervisorType", request.SupervisorType));
             }
 
             // Exclude soft-deleted
-            queryBuilder.Append(" AND ISNULL(s.c_is_deleted, 0) = 0");
+            queryBuilder.Append(" AND COALESCE(s.c_is_deleted, 0) = 0");
         }
 
-        private void AppendActiveFilters(StringBuilder queryBuilder, List<SqlParameter> parameters, AdminActiveSupervisorListRequest request)
+        private void AppendActiveFilters(StringBuilder queryBuilder, List<NpgsqlParameter> parameters, AdminActiveSupervisorListRequest request)
         {
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 queryBuilder.Append(" AND (s.c_full_name LIKE @SearchTerm OR s.c_email LIKE @SearchTerm OR s.c_phone LIKE @SearchTerm)");
-                parameters.Add(new SqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
+                parameters.Add(new NpgsqlParameter("@SearchTerm", "%" + request.SearchTerm + "%"));
             }
 
             if (!string.IsNullOrEmpty(request.SupervisorType))
             {
                 queryBuilder.Append(" AND s.c_supervisor_type = @SupervisorType");
-                parameters.Add(new SqlParameter("@SupervisorType", request.SupervisorType));
+                parameters.Add(new NpgsqlParameter("@SupervisorType", request.SupervisorType));
             }
 
             if (!string.IsNullOrEmpty(request.City))
             {
                 queryBuilder.Append(" AND c.c_cityname LIKE @City");
-                parameters.Add(new SqlParameter("@City", "%" + request.City + "%"));
+                parameters.Add(new NpgsqlParameter("@City", "%" + request.City + "%"));
             }
 
             if (!string.IsNullOrEmpty(request.State))
             {
                 queryBuilder.Append(" AND st.c_statename LIKE @State");
-                parameters.Add(new SqlParameter("@State", "%" + request.State + "%"));
+                parameters.Add(new NpgsqlParameter("@State", "%" + request.State + "%"));
             }
 
             if (request.IsBlocked.HasValue && request.IsBlocked.Value)
@@ -549,22 +549,22 @@ namespace CateringEcommerce.BAL.Base.Admin
             if (request.DateFrom.HasValue)
             {
                 queryBuilder.Append(" AND s.c_createddate >= @DateFrom");
-                parameters.Add(new SqlParameter("@DateFrom", request.DateFrom.Value.Date));
+                parameters.Add(new NpgsqlParameter("@DateFrom", request.DateFrom.Value.Date));
             }
 
             if (request.DateTo.HasValue)
             {
                 queryBuilder.Append(" AND s.c_createddate <= @DateTo");
-                parameters.Add(new SqlParameter("@DateTo", request.DateTo.Value.Date.AddDays(1).AddTicks(-1)));
+                parameters.Add(new NpgsqlParameter("@DateTo", request.DateTo.Value.Date.AddDays(1).AddTicks(-1)));
             }
 
             if (request.IsDeleted.HasValue && request.IsDeleted.Value)
             {
-                queryBuilder.Append(" AND ISNULL(s.c_is_deleted, 0) = 1");
+                queryBuilder.Append(" AND COALESCE(s.c_is_deleted, 0) = 1");
             }
             else
             {
-                queryBuilder.Append(" AND ISNULL(s.c_is_deleted, 0) = 0");
+                queryBuilder.Append(" AND COALESCE(s.c_is_deleted, 0) = 0");
             }
         }
 
@@ -611,3 +611,4 @@ namespace CateringEcommerce.BAL.Base.Admin
         #endregion
     }
 }
+

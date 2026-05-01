@@ -4,7 +4,8 @@ using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Enums.Admin;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
+using NpgsqlTypes;
 using System.Data;
 using System.Text;
 
@@ -43,9 +44,9 @@ namespace CateringEcommerce.BAL.Common
                         o.c_catering_name AS CateringName,
                         o.c_logo_path AS LogoUrl,
                         CASE WHEN status.c_global_status = 1 THEN 1 ELSE 0 END AS IsOnline,
-                        ISNULL(r.AverageRating, 0) AS AverageRating,
-                        ISNULL(r.ReviewCount, 0) AS TotalReviews,
-                        service.c_min_dish_order AS MinOrderValue,
+                        COALESCE(r.AverageRating, 0) AS AverageRating,
+                        COALESCE(r.ReviewCount, 0) AS TotalReviews,
+                        service.c_min_guest_count AS MinOrderValue,
                         service.c_delivery_radius_km AS DeliveryRadiusKm,
                         ct.c_cityname AS City,
                         address.c_area AS Area,
@@ -57,23 +58,23 @@ namespace CateringEcommerce.BAL.Common
                     LEFT JOIN {Table.City} ct ON address.c_cityid = ct.c_cityid                    
                     LEFT JOIN ( 
                         SELECT c_ownerid, 
-                               CAST(ISNULL(AVG(CAST(c_overall_rating AS FLOAT)), 0) AS DECIMAL(3,2)) AS AverageRating,
+                               CAST(COALESCE(AVG(CAST(c_overall_rating AS FLOAT)), 0) AS DECIMAL(3,2)) AS AverageRating,
                                COUNT(*) AS ReviewCount
                         FROM {Table.SysCateringReview}
-                        WHERE c_is_visible = 1 and c_is_verified = 1
+                        WHERE c_is_visible = TRUE and c_is_verified = TRUE
                         GROUP BY c_ownerid
                     ) r ON o.c_ownerid = r.c_ownerid
                     WHERE o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()}
-                        AND o.c_isactive = 1
+                        AND o.c_isactive = TRUE
                 ");
 
-                List<SqlParameter> parameters = new();
+                List<NpgsqlParameter> parameters = new();
 
-                // ✅ Optional city filter
+                // ? Optional city filter
                 if (cityId.HasValue && cityId.Value > 0)
                 {
                     sb.Append(" AND address.c_cityid = @CityID ");
-                    parameters.Add(new SqlParameter("@CityID", cityId.Value));
+                    parameters.Add(new NpgsqlParameter("@CityID", cityId.Value));
                 }
 
                 sb.Append(" ORDER BY o.c_catering_name ASC ");
@@ -116,14 +117,14 @@ namespace CateringEcommerce.BAL.Common
                         ad.c_pincode AS Pincode,
                         st.c_statename AS State,
                         ct.c_cityname AS City,
-                        ISNULL(ad.c_latitude, '') AS Latitude,
-                        ISNULL(ad.c_longitude, '') AS Longitude,
-                        ISNULL(op.c_min_dish_order, 0) AS MinOrderValue,
-                        ISNULL(op.c_delivery_radius_km, 0) AS DeliveryRadiusKm,
+                        COALESCE(ad.c_latitude, '') AS Latitude,
+                        COALESCE(ad.c_longitude, '') AS Longitude,
+                        COALESCE(op.c_min_guest_count, 0) AS MinOrderValue,
+                        COALESCE(op.c_delivery_radius_km, 0) AS DeliveryRadiusKm,
                         ag.c_global_status AS IsOnline,
                         '' AS Description,
-                        ISNULL(r.AverageRating, 0) AS AverageRating,
-                        ISNULL(r.ReviewCount, 0) AS TotalReviews
+                        COALESCE(r.AverageRating, 0) AS AverageRating,
+                        COALESCE(r.ReviewCount, 0) AS TotalReviews
                     FROM {Table.SysCateringOwner} o
                     LEFT JOIN {Table.SysCateringOwnerAddress} ad ON ad.c_ownerid = o.c_ownerid
                     LEFT JOIN {Table.SysCateringOwnerService} op ON op.c_ownerid = o.c_ownerid
@@ -132,17 +133,17 @@ namespace CateringEcommerce.BAL.Common
                     LEFT JOIN {Table.State} st ON ad.c_stateid = st.c_stateid
                     LEFT JOIN (
                         SELECT c_ownerid, 
-                               CAST(ISNULL(AVG(CAST(c_overall_rating AS FLOAT)), 0) AS DECIMAL(3,2)) AS AverageRating,
+                               CAST(COALESCE(AVG(CAST(c_overall_rating AS FLOAT)), 0) AS DECIMAL(3,2)) AS AverageRating,
                                COUNT(*) AS ReviewCount
                         FROM {Table.SysCateringReview}
-                        WHERE c_is_verified = 1
+                        WHERE c_is_verified = TRUE
                         GROUP BY c_ownerid
                     ) r ON o.c_ownerid = r.c_ownerid
                     WHERE o.c_ownerid = @CateringId 
                         AND o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()}
-                        AND o.c_isactive = 1";
+                        AND o.c_isactive = TRUE";
 
-                var parameters = new[] { new SqlParameter("@CateringId", cateringId) };
+                var parameters = new[] { new NpgsqlParameter("@CateringId", cateringId) };
                 var result = await _dbHelper.ExecuteAsync(query, parameters);
 
                 if (result.Rows.Count == 0)
@@ -178,10 +179,10 @@ namespace CateringEcommerce.BAL.Common
                     FROM {Table.SysCateringMediaUploads}
                     WHERE c_ownerid = @CateringId
                         AND c_document_type_id = {DocumentType.Kitchen.GetHashCode()}
-                        AND c_is_deleted = 0
+                        AND c_is_deleted = FALSE
                     ORDER BY c_uploaded_at DESC";
 
-                var parameters = new[] { new SqlParameter("@CateringId", cateringDetail.CateringId) };
+                var parameters = new[] { new NpgsqlParameter("@CateringId", cateringDetail.CateringId) };
                 var mediaResult = await _dbHelper.ExecuteAsync(mediaQuery, parameters);
 
                 cateringDetail.KitchenPhotos = new List<CateringMediaDto>();
@@ -235,16 +236,16 @@ namespace CateringEcommerce.BAL.Common
             try
             {
                 string query = $@"
-                    SELECT TOP 6
+                    SELECT
                             o.c_ownerid AS Id,
                             o.c_catering_name AS Name,
                             Cuisine.CuisineNames AS Cuisine,
-                            ISNULL(r.AverageRating, 0) AS Rating,
-                            ISNULL(r.ReviewCount, 0) AS Reviews,
+                            COALESCE(r.AverageRating, 0) AS Rating,
+                            COALESCE(r.ReviewCount, 0) AS Reviews,
                             o.c_logo_path AS Image,
-                            ISNULL(ops.c_min_dish_order, 0) AS MinOrder,
+                            COALESCE(ops.c_min_guest_count, 0) AS MinOrder,
                             CASE WHEN o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()} THEN 1 ELSE 0 END AS Verified,
-                            CASE WHEN o.c_isfeatured = 1 THEN 1 ELSE 0 END AS Featured
+                            CASE WHEN o.c_isfeatured = true THEN 1 ELSE 0 END AS Featured
                         FROM {Table.SysCateringOwner} o
 
                         -- Owner operations (single join)
@@ -258,8 +259,8 @@ namespace CateringEcommerce.BAL.Common
                                 CAST(AVG(CAST(c_overall_rating AS FLOAT)) AS DECIMAL(3,2)) AS AverageRating,
                                 COUNT(*) AS ReviewCount
                             FROM {Table.SysCateringReview}
-                            WHERE c_is_visible = 1 
-                              AND c_is_verified = 1
+                            WHERE c_is_visible = TRUE 
+                              AND c_is_verified = TRUE
                             GROUP BY c_ownerid
                         ) r ON r.c_ownerid = o.c_ownerid
 
@@ -272,22 +273,23 @@ namespace CateringEcommerce.BAL.Common
                             INNER JOIN {Table.SysCateringOwnerService} ops2 
                                 ON ops2.c_ownerid = o2.c_ownerid
                             INNER JOIN {Table.SysCateringTypeMaster} tm
-                                ON ',' + ops2.c_cuisine_types + ',' 
-                                   LIKE '%,' + CAST(tm.c_typeid AS VARCHAR) + ',%'
+                                ON (',' || ops2.c_cuisine_types || ',') 
+                                   LIKE ('%,' || CAST(tm.c_typeid AS VARCHAR) || ',%')
                                AND tm.c_categoryid = {ServiceType.CuisineType.GetHashCode()}
                             GROUP BY o2.c_ownerid
                         ) Cuisine ON Cuisine.c_ownerid = o.c_ownerid
 
                         WHERE o.c_approval_status = {ApprovalStatus.Approved.GetHashCode()}
-                          AND o.c_isactive = 1
+                          AND o.c_isactive = TRUE
                           AND (
-                                o.c_isfeatured = 1
-                                OR ISNULL(r.AverageRating, 0) >= 4.5
+                                o.c_isfeatured = true
+                                OR COALESCE(r.AverageRating, 0) >= 4.5
                               )
 
                         ORDER BY 
                             o.c_isfeatured DESC,
-                            ISNULL(r.AverageRating, 0) DESC;";
+                            COALESCE(r.AverageRating, 0) DESC
+                        LIMIT 6;";
 
                 var result = await _dbHelper.ExecuteAsync(query);
                 return MapToFeaturedCatererDto(result);
@@ -306,23 +308,24 @@ namespace CateringEcommerce.BAL.Common
             try
             {
                 string query = $@"
-                    SELECT TOP 6
+                    SELECT
                         r.c_reviewid AS Id,
                         r.c_review_comment AS Text,
                         u.c_name AS Author,
-                        ISNULL(r.c_review_title, 'Customer') AS Role,
+                        COALESCE(r.c_review_title, 'Customer') AS Role,
                         r.c_overall_rating AS Rating,
-                        ISNULL(ct.c_cityname, 'India') AS Location,
+                        COALESCE(ct.c_cityname, 'India') AS Location,
                         u.c_picture AS Image,
-                        'Event - Order #' + CAST(r.c_orderid AS VARCHAR) AS Event
+                        'Event - Order #' || CAST(r.c_orderid AS VARCHAR) AS Event
                     FROM {Table.SysCateringReview} r
                     INNER JOIN {Table.SysUser} u ON u.c_userid = r.c_userid
                     LEFT JOIN {Table.City} ct ON u.c_cityid = ct.c_cityid
-                    WHERE r.c_is_visible = 1
-                        AND r.c_is_verified = 1
+                    WHERE r.c_is_visible = TRUE
+                        AND r.c_is_verified = TRUE
                         AND r.c_overall_rating >= 4.5
-                        AND LEN(ISNULL(r.c_review_comment, '')) > 100
-                    ORDER BY r.c_createddate DESC, r.c_overall_rating DESC";
+                        AND LENGTH(COALESCE(r.c_review_comment, '')) > 100
+                    ORDER BY r.c_createddate DESC, r.c_overall_rating DESC
+                    LIMIT 6";
 
                 var result = await _dbHelper.ExecuteAsync(query);
                 return MapToHomePageTestimonialDto(result);
@@ -341,13 +344,14 @@ namespace CateringEcommerce.BAL.Common
             try
             {
                 string query = $@"
-                    SELECT TOP 1
+                    SELECT
                         c_total_events_catered AS TotalEventsCatered,
                         c_total_catering_partners AS TotalCateringPartners,
                         c_total_happy_customers AS TotalHappyCustomers,
                         c_satisfaction_rate AS SatisfactionRate
                     FROM {Table.SysHomepageStats}
-                    ORDER BY c_last_updated DESC";
+                    ORDER BY c_last_updated DESC
+                    LIMIT 1";
 
                 var result = await _dbHelper.ExecuteAsync(query);
 
@@ -534,11 +538,11 @@ namespace CateringEcommerce.BAL.Common
                         p.c_is_active AS IsAvailable
                     FROM {Table.SysMenuPackage} p
                     WHERE p.c_ownerid = @CateringId
-                        AND p.c_is_active = 1
-                        AND p.c_is_deleted = 0
+                        AND p.c_is_active = TRUE
+                        AND p.c_is_deleted = FALSE
                     ORDER BY p.c_price ASC";
 
-                var parameters = new[] { new SqlParameter("@CateringId", cateringId) };
+                var parameters = new[] { new NpgsqlParameter("@CateringId", cateringId) };
                 var result = await _dbHelper.ExecuteAsync(query, parameters);
                 return MapToCateringPackageDto(result);
             }
@@ -573,51 +577,50 @@ namespace CateringEcommerce.BAL.Common
                         cat.c_categoryname AS CategoryName,
                         f.c_cuisinetypeid AS CuisineTypeId,
                         f.c_price AS Price,
-                        CASE WHEN f.c_isveg = 1 THEN 1 ELSE 0 END AS IsVegetarian,
-                        CASE WHEN f.c_ispackage_item = 1 THEN 1 ELSE 0 END AS IsIncludedInPackage,
-                        CASE WHEN f.c_issample_tasted = 1 THEN 1 ELSE 0 END AS IsSampleTasted,
+                        CASE WHEN f.c_isveg = TRUE THEN 1 ELSE 0 END AS IsVegetarian,
+                        CASE WHEN f.c_ispackage_item = TRUE THEN 1 ELSE 0 END AS IsIncludedInPackage,
+                        CASE WHEN f.c_issample_tasted = TRUE THEN 1 ELSE 0 END AS IsSampleTasted,
                         f.c_status AS IsAvailable,
-                        STUFF((
-                            SELECT ',' + m.c_file_path
-                            FROM {Table.SysCateringMediaUploads} m
-                            WHERE m.c_reference_id = f.c_foodid
-                                AND m.c_document_type_id = 1
-                                AND m.c_is_deleted = 0
-                                AND m.c_extension NOT IN ('mp4','mov','avi','webm','mkv')
-                            ORDER BY m.c_uploaded_at DESC
-                            FOR XML PATH('')
-                        ), 1, 1, '') AS ImagePaths,
                         (
-                            SELECT TOP 1 m.c_file_path
+                            SELECT STRING_AGG(m.c_file_path, ',' ORDER BY m.c_uploaded_at DESC)
                             FROM {Table.SysCateringMediaUploads} m
                             WHERE m.c_reference_id = f.c_foodid
                                 AND m.c_document_type_id = 1
-                                AND m.c_is_deleted = 0
+                                AND m.c_is_deleted = FALSE
+                                AND m.c_extension NOT IN ('mp4','mov','avi','webm','mkv')
+                        ) AS ImagePaths,
+                        (
+                            SELECT m.c_file_path
+                            FROM {Table.SysCateringMediaUploads} m
+                            WHERE m.c_reference_id = f.c_foodid
+                                AND m.c_document_type_id = 1
+                                AND m.c_is_deleted = FALSE
                                 AND m.c_extension IN ('mp4','mov','avi','webm','mkv')
                             ORDER BY m.c_uploaded_at DESC
+                            LIMIT 1
                         ) AS VideoUrl
                     FROM {Table.SysFoodItems} f
                     LEFT JOIN {Table.SysFoodCategory} cat ON cat.c_categoryid = f.c_categoryid
                     WHERE f.c_ownerid = @CateringId
-                        AND f.c_is_deleted = 0");
+                        AND f.c_is_deleted = FALSE");
 
-                List<SqlParameter> parameters = new()
+                List<NpgsqlParameter> parameters = new()
                 {
-                    new SqlParameter("@CateringId", cateringId)
+                    new NpgsqlParameter("@CateringId", cateringId)
                 };
 
                 // Optional category filter
                 if (categoryId.HasValue && categoryId.Value > 0)
                 {
                     sb.Append(" AND f.c_categoryid = @CategoryId");
-                    parameters.Add(new SqlParameter("@CategoryId", categoryId.Value));
+                    parameters.Add(new NpgsqlParameter("@CategoryId", categoryId.Value));
                 }
 
                 // Optional package item filter
                 if (isPackageItem.HasValue)
                 {
                     sb.Append(" AND f.c_ispackage_item = @IsPackageItem");
-                    parameters.Add(new SqlParameter("@IsPackageItem", isPackageItem.Value));
+                    parameters.Add(new NpgsqlParameter("@IsPackageItem", isPackageItem.Value));
                 }
 
                 sb.Append(" ORDER BY cat.c_categoryname, f.c_foodname");
@@ -648,22 +651,24 @@ namespace CateringEcommerce.BAL.Common
                         d.c_theme_id AS ThemeId,
                         t.c_theme_name AS ThemeName,
                         (
-                            SELECT TOP 1 m.c_file_path
+                            SELECT m.c_file_path
                             FROM {Table.SysCateringMediaUploads} m
                             WHERE m.c_reference_id = d.c_decoration_id
                                 AND m.c_document_type_id = 3
-                                AND m.c_is_deleted = 0
+                                AND m.c_is_deleted = FALSE
                                 AND m.c_extension NOT IN ('mp4','mov','avi','webm','mkv')
                             ORDER BY m.c_uploaded_at DESC
+                            LIMIT 1
                         ) AS ThumbnailUrl,
                         (
-                            SELECT TOP 1 m.c_file_path
+                            SELECT m.c_file_path
                             FROM {Table.SysCateringMediaUploads} m
                             WHERE m.c_reference_id = d.c_decoration_id
                                 AND m.c_document_type_id = 3
-                                AND m.c_is_deleted = 0
+                                AND m.c_is_deleted = FALSE
                                 AND m.c_extension IN ('mp4','mov','avi','webm','mkv')
                             ORDER BY m.c_uploaded_at DESC
+                            LIMIT 1
                         ) AS VideoUrl,
                         t.c_description AS ThemeDescription,
                         d.c_price AS Price,
@@ -673,10 +678,10 @@ namespace CateringEcommerce.BAL.Common
                     LEFT JOIN {Table.SysCateringThemeTypes} t ON t.c_theme_id = d.c_theme_id
                     WHERE d.c_ownerid = @CateringId
                         AND d.c_status = 1
-                        AND d.c_is_deleted = 0
+                        AND d.c_is_deleted = FALSE
                     ORDER BY d.c_price ASC";
 
-                var parameters = new[] { new SqlParameter("@CateringId", cateringId) };
+                var parameters = new[] { new NpgsqlParameter("@CateringId", cateringId) };
                 var result = await _dbHelper.ExecuteAsync(query, parameters);
                 return MapToDecorationDto(result);
             }
@@ -711,21 +716,20 @@ namespace CateringEcommerce.BAL.Common
                         r.c_review_title AS Title,
                         r.c_review_comment AS ReviewText,
                         r.c_createddate AS ReviewDate,
-                        'Event Order #' + CAST(r.c_orderid AS VARCHAR) AS EventType
+                        'Event Order #' || CAST(r.c_orderid AS VARCHAR) AS EventType
                     FROM {Table.SysCateringReview} r
                     INNER JOIN {Table.SysUser} u ON u.c_userid = r.c_userid
                     WHERE r.c_ownerid = @CateringId
-                        AND r.c_is_visible = 1
-                        AND r.c_is_verified = 1
+                        AND r.c_is_visible = TRUE
+                        AND r.c_is_verified = TRUE
                     ORDER BY r.c_createddate DESC
-                    OFFSET (@PageNumber - 1) * @PageSize ROWS
-                    FETCH NEXT @PageSize ROWS ONLY";
+                    LIMIT @PageSize OFFSET (@PageNumber - 1) * @PageSize";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CateringId", cateringId),
-                    new SqlParameter("@PageNumber", pageNumber),
-                    new SqlParameter("@PageSize", pageSize)
+                    new NpgsqlParameter("@CateringId", cateringId),
+                    new NpgsqlParameter("@PageNumber", pageNumber),
+                    new NpgsqlParameter("@PageSize", pageSize)
                 };
 
                 var result = await _dbHelper.ExecuteAsync(query, parameters);
@@ -754,10 +758,10 @@ namespace CateringEcommerce.BAL.Common
                     FROM {Table.SysFoodCategory} c
                     LEFT JOIN {Table.SysFoodItems} f
                         ON f.c_categoryid = c.c_categoryid
-                        AND f.c_is_deleted = 0
+                        AND f.c_is_deleted = FALSE
                         AND f.c_status = 1
-                    WHERE c.c_isactive = 1
-                        AND c.c_is_global = 1
+                    WHERE c.c_isactive = TRUE
+                        AND c.c_is_global = TRUE
                     GROUP BY c.c_categoryid, c.c_categoryname, c.c_description
                     ORDER BY c.c_categoryname";
 
@@ -946,7 +950,7 @@ namespace CateringEcommerce.BAL.Common
             try
             {
                 StringBuilder sb = new StringBuilder();
-                List<SqlParameter> parameters = new();
+                List<NpgsqlParameter> parameters = new();
 
                 // ==============================
                 // STEP 1: CREATE TEMP TABLE
@@ -957,9 +961,9 @@ namespace CateringEcommerce.BAL.Common
                 o.c_catering_name AS CateringName,
                 o.c_logo_path AS LogoUrl,
                 CASE WHEN status.c_global_status = 1 THEN 1 ELSE 0 END AS IsOnline,
-                ISNULL(r.AverageRating, 0) AS AverageRating,
-                ISNULL(r.ReviewCount, 0) AS TotalReviews,
-                service.c_min_dish_order AS MinOrderValue,
+                COALESCE(r.AverageRating, 0) AS AverageRating,
+                COALESCE(r.ReviewCount, 0) AS TotalReviews,
+                service.c_min_guest_count AS MinOrderValue,
                 service.c_delivery_radius_km AS DeliveryRadiusKm,
                 ct.c_cityname AS City,
                 address.c_area AS Area,
@@ -967,7 +971,6 @@ namespace CateringEcommerce.BAL.Common
                 service.c_cuisine_types AS CuisineTypesIds,
                 service.c_service_types AS ServiceTypesIds,
                 service.c_event_types AS EventTypesIds
-            INTO #CateringSearch
             FROM {Table.SysCateringOwner} o
             LEFT JOIN {Table.SysCateringOwnerAddress} address 
                 ON address.c_ownerid = o.c_ownerid
@@ -982,10 +985,10 @@ namespace CateringEcommerce.BAL.Common
                        CAST(AVG(CAST(c_overall_rating AS FLOAT)) AS DECIMAL(3,2)) AS AverageRating,
                        COUNT(*) AS ReviewCount
                 FROM {Table.SysCateringReview}
-                WHERE c_is_visible = 1 AND c_is_verified = 1
+                WHERE c_is_visible = TRUE AND c_is_verified = TRUE
                 GROUP BY c_ownerid
             ) r ON o.c_ownerid = r.c_ownerid
-            WHERE o.c_isactive = 1
+            WHERE o.c_isactive = TRUE
         ");
 
                 // ==============================
@@ -998,7 +1001,7 @@ namespace CateringEcommerce.BAL.Common
                 if (cityId.HasValue && cityId.Value > 0)
                 {
                     sb.Append(" AND address.c_cityid = @CityID ");
-                    parameters.Add(new SqlParameter("@CityID", cityId.Value));
+                    parameters.Add(new NpgsqlParameter("@CityID", cityId.Value));
                 }
 
                 if (filter.OnlineOnly == true)
@@ -1006,26 +1009,26 @@ namespace CateringEcommerce.BAL.Common
 
                 if (filter.MinRating.HasValue && filter.MinRating.Value > 0)
                 {
-                    sb.Append(" AND ISNULL(r.AverageRating,0) >= @MinRating ");
-                    parameters.Add(new SqlParameter("@MinRating", filter.MinRating.Value));
+                    sb.Append(" AND COALESCE(r.AverageRating,0) >= @MinRating ");
+                    parameters.Add(new NpgsqlParameter("@MinRating", filter.MinRating.Value));
                 }
 
                 if (filter.MinOrderValueFrom.HasValue)
                 {
-                    sb.Append(" AND service.c_min_dish_order >= @MinOrderFrom ");
-                    parameters.Add(new SqlParameter("@MinOrderFrom", filter.MinOrderValueFrom.Value));
+                    sb.Append(" AND service.c_min_guest_count >= @MinOrderFrom ");
+                    parameters.Add(new NpgsqlParameter("@MinOrderFrom", filter.MinOrderValueFrom.Value));
                 }
 
                 if (filter.MinOrderValueTo.HasValue)
                 {
-                    sb.Append(" AND service.c_min_dish_order <= @MinOrderTo ");
-                    parameters.Add(new SqlParameter("@MinOrderTo", filter.MinOrderValueTo.Value));
+                    sb.Append(" AND service.c_min_guest_count <= @MinOrderTo ");
+                    parameters.Add(new NpgsqlParameter("@MinOrderTo", filter.MinOrderValueTo.Value));
                 }
 
                 if (filter.DeliveryRadiusKm.HasValue && filter.DeliveryRadiusKm.Value > 0)
                 {
                     sb.Append(" AND service.c_delivery_radius_km >= @DeliveryRadius ");
-                    parameters.Add(new SqlParameter("@DeliveryRadius", filter.DeliveryRadiusKm.Value));
+                    parameters.Add(new NpgsqlParameter("@DeliveryRadius", filter.DeliveryRadiusKm.Value));
                 }
 
                 // Cuisine filters
@@ -1035,8 +1038,8 @@ namespace CateringEcommerce.BAL.Common
                     for (int i = 0; i < filter.CuisineTypeIds.Count; i++)
                     {
                         if (i > 0) sb.Append(" OR ");
-                        sb.Append($" ',' + service.c_cuisine_types + ',' LIKE '%,' + @Cuisine{i} + ',%' ");
-                        parameters.Add(new SqlParameter($"@Cuisine{i}", filter.CuisineTypeIds[i]));
+                        sb.Append($" (',' || service.c_cuisine_types || ',') LIKE ('%,' || CAST(@Cuisine{i} AS TEXT) || ',%') ");
+                        parameters.Add(new NpgsqlParameter($"@Cuisine{i}", filter.CuisineTypeIds[i]));
                     }
                     sb.Append(") ");
                 }
@@ -1048,8 +1051,8 @@ namespace CateringEcommerce.BAL.Common
                     for (int i = 0; i < filter.ServiceTypeIds.Count; i++)
                     {
                         if (i > 0) sb.Append(" OR ");
-                        sb.Append($" ',' + service.c_service_types + ',' LIKE '%,' + @Service{i} + ',%' ");
-                        parameters.Add(new SqlParameter($"@Service{i}", filter.ServiceTypeIds[i]));
+                        sb.Append($" (',' || service.c_service_types || ',') LIKE ('%,' || CAST(@Service{i} AS TEXT) || ',%') ");
+                        parameters.Add(new NpgsqlParameter($"@Service{i}", filter.ServiceTypeIds[i]));
                     }
                     sb.Append(") ");
                 }
@@ -1061,8 +1064,8 @@ namespace CateringEcommerce.BAL.Common
                     for (int i = 0; i < filter.EventTypeIds.Count; i++)
                     {
                         if (i > 0) sb.Append(" OR ");
-                        sb.Append($" ',' + service.c_event_types + ',' LIKE '%,' + @Event{i} + ',%' ");
-                        parameters.Add(new SqlParameter($"@Event{i}", filter.EventTypeIds[i]));
+                        sb.Append($" (',' || service.c_event_types || ',') LIKE ('%,' || CAST(@Event{i} AS TEXT) || ',%') ");
+                        parameters.Add(new NpgsqlParameter($"@Event{i}", filter.EventTypeIds[i]));
                     }
                     sb.Append(") ");
                 }
@@ -1075,7 +1078,7 @@ namespace CateringEcommerce.BAL.Common
                     SELECT 1
                     FROM {Table.SysCateringDecorations} deco
                     WHERE deco.c_ownerid = o.c_ownerid
-                    AND deco.c_is_active = 1
+                    AND deco.c_is_active = TRUE
                 ) ");
                 }
 
@@ -1088,45 +1091,26 @@ namespace CateringEcommerce.BAL.Common
                     OR address.c_area LIKE @Keyword
                 )
             ");
-                    parameters.Add(new SqlParameter("@Keyword", $"%{filter.SearchKeyword.Trim()}%"));
+                    parameters.Add(new NpgsqlParameter("@Keyword", $"%{filter.SearchKeyword.Trim()}%"));
                 }
 
                 // ==============================
-                // STEP 3: TOTAL COUNT
+                // STEP 3: PAGINATED RESULT
                 // ==============================
+                sb.Insert(0, "SELECT *, COUNT(*) OVER() AS TotalCount FROM (");
                 sb.Append(@"
-            SELECT @TotalCount = COUNT(*) FROM #CateringSearch;
-        ");
-
-                // ==============================
-                // STEP 4: PAGINATED RESULT
-                // ==============================
-                sb.Append(@"
-            SELECT *
-            FROM #CateringSearch
+            ) CateringSearch
             ORDER BY AverageRating DESC, CateringName ASC
-            OFFSET (@PageNumber - 1) * @PageSize ROWS
-            FETCH NEXT @PageSize ROWS ONLY;
-
-            DROP TABLE #CateringSearch;
+            LIMIT @PageSize OFFSET (@PageNumber - 1) * @PageSize;
         ");
 
-                parameters.Add(new SqlParameter("@PageNumber", filter.PageNumber));
-                parameters.Add(new SqlParameter("@PageSize", filter.PageSize));
+                parameters.Add(new NpgsqlParameter("@PageNumber", filter.PageNumber));
+                parameters.Add(new NpgsqlParameter("@PageSize", filter.PageSize));
 
-                var totalCountParam = new SqlParameter("@TotalCount", SqlDbType.Int)
-                {
-                    Direction = ParameterDirection.Output
-                };
-                parameters.Add(totalCountParam);
-
-                // ==============================
-                // STEP 5: EXECUTE
-                // ==============================
                 var result = await _dbHelper.ExecuteAsync(sb.ToString(), parameters.ToArray());
 
-                int totalCount = totalCountParam.Value != DBNull.Value
-                    ? Convert.ToInt32(totalCountParam.Value)
+                int totalCount = result.Rows.Count > 0 && result.Columns.Contains("TotalCount") && result.Rows[0]["TotalCount"] != DBNull.Value
+                    ? Convert.ToInt32(result.Rows[0]["TotalCount"])
                     : 0;
 
                 var cateringList = MapOwnerDataToCateringBusinessListDto(result);
@@ -1155,8 +1139,8 @@ namespace CateringEcommerce.BAL.Common
 
         /// <summary>
         /// Gets package selection details with categories, allowed quantities, and eligible food items
-        /// Returns hierarchical data: Package → Categories → Food Items
-        /// Only returns food items where c_ispackage_item = TRUE, c_status = TRUE, c_is_deleted = 0
+        /// Returns hierarchical data: Package ? Categories ? Food Items
+        /// Only returns food items where c_ispackage_item = TRUE, c_status = TRUE, c_is_deleted = FALSE
         /// </summary>
         /// <param name="packageId">The package ID</param>
         /// <param name="cateringId">The catering owner ID (for validation)</param>
@@ -1176,13 +1160,13 @@ namespace CateringEcommerce.BAL.Common
                     FROM {Table.SysMenuPackage} p
                     WHERE p.c_packageid = @PackageId
                         AND p.c_ownerid = @CateringId
-                        AND p.c_is_active = 1
-                        AND p.c_is_deleted = 0";
+                        AND p.c_is_active = TRUE
+                        AND p.c_is_deleted = FALSE";
 
                 var packageParams = new[]
                 {
-                    new SqlParameter("@PackageId", packageId),
-                    new SqlParameter("@CateringId", cateringId)
+                    new NpgsqlParameter("@PackageId", packageId),
+                    new NpgsqlParameter("@CateringId", cateringId)
                 };
 
                 var packageResult = await _dbHelper.ExecuteAsync(packageQuery, packageParams);
@@ -1213,10 +1197,10 @@ namespace CateringEcommerce.BAL.Common
                     FROM {Table.SysMenuPackageItems} pi
                     INNER JOIN {Table.SysFoodCategory} fc ON fc.c_categoryid = pi.c_categoryid
                     WHERE pi.c_packageid = @PackageId
-                        AND fc.c_isactive = 1
+                        AND fc.c_isactive = TRUE
                     ORDER BY fc.c_categoryname";
 
-                var categoryParams = new[] { new SqlParameter("@PackageId", packageId) };
+                var categoryParams = new[] { new NpgsqlParameter("@PackageId", packageId) };
                 var categoryResult = await _dbHelper.ExecuteAsync(categoryQuery, categoryParams);
 
                 if (categoryResult == null || categoryResult.Rows.Count == 0)
@@ -1246,30 +1230,28 @@ namespace CateringEcommerce.BAL.Common
                             f.c_foodname AS FoodName,
                             f.c_description AS Description,
                             f.c_price AS Price,
-                            ISNULL(ct.c_type_name, '') AS CuisineType,
+                            COALESCE(ct.c_type_name, '') AS CuisineType,
                             -- Get food images (comma-separated if multiple)
-                            STUFF((
-                                SELECT ',' + m.c_file_path
+                            (
+                                SELECT STRING_AGG(m.c_file_path, ',' ORDER BY m.c_uploaded_at DESC)
                                 FROM {Table.SysCateringMediaUploads} m
                                 WHERE m.c_reference_id = f.c_foodid
                                     AND m.c_document_type_id = 1  -- Food document type
-                                    AND m.c_is_deleted = 0
-                                ORDER BY m.c_uploaded_at DESC
-                                FOR XML PATH('')
-                            ), 1, 1, '') AS ImagePaths
+                                    AND m.c_is_deleted = FALSE
+                            ) AS ImagePaths
                         FROM {Table.SysFoodItems} f
                         LEFT JOIN {Table.SysCateringTypeMaster} ct ON ct.c_typeid = f.c_cuisinetypeid
                         WHERE f.c_ownerid = @CateringId
                             AND f.c_categoryid = @CategoryId
-                            AND f.c_ispackage_item = 1
+                            AND f.c_ispackage_item = TRUE
                             AND f.c_status = 1
-                            AND f.c_is_deleted = 0
+                            AND f.c_is_deleted = FALSE
                         ORDER BY f.c_foodname";
 
                     var foodItemParams = new[]
                     {
-                        new SqlParameter("@CateringId", cateringId),
-                        new SqlParameter("@CategoryId", categoryId)
+                        new NpgsqlParameter("@CateringId", cateringId),
+                        new NpgsqlParameter("@CategoryId", categoryId)
                     };
 
                     var foodItemsResult = await _dbHelper.ExecuteAsync(foodItemsQuery, foodItemParams);
@@ -1320,39 +1302,41 @@ namespace CateringEcommerce.BAL.Common
                     d.c_status AS IsAvailable,
                     d.c_packageids AS IncludedInPackageIds,
                     (
-                        SELECT TOP 1 m.c_file_path
+                        SELECT m.c_file_path
                         FROM {Table.SysCateringMediaUploads} m
                         WHERE m.c_reference_id = d.c_decoration_id
                             AND m.c_document_type_id = 3
-                            AND m.c_is_deleted = 0
-                            AND LOWER(ISNULL(m.c_extension, '')) NOT IN ('mp4', 'mov', 'avi', 'webm', 'mkv')
+                            AND m.c_is_deleted = FALSE
+                            AND LOWER(COALESCE(m.c_extension, '')) NOT IN ('mp4', 'mov', 'avi', 'webm', 'mkv')
                         ORDER BY m.c_uploaded_at DESC
+                        LIMIT 1
                     ) AS ThumbnailUrl,
                     (
-                        SELECT TOP 1 m.c_file_path
+                        SELECT m.c_file_path
                         FROM {Table.SysCateringMediaUploads} m
                         WHERE m.c_reference_id = d.c_decoration_id
                             AND m.c_document_type_id = 3
-                            AND m.c_is_deleted = 0
-                            AND LOWER(ISNULL(m.c_extension, '')) IN ('mp4', 'mov', 'avi', 'webm', 'mkv')
+                            AND m.c_is_deleted = FALSE
+                            AND LOWER(COALESCE(m.c_extension, '')) IN ('mp4', 'mov', 'avi', 'webm', 'mkv')
                         ORDER BY m.c_uploaded_at DESC
+                        LIMIT 1
                     ) AS VideoUrl
                 FROM {Table.SysCateringDecorations} d
                 LEFT JOIN {Table.SysCateringThemeTypes} t ON t.c_theme_id = d.c_theme_id
                 WHERE d.c_ownerid = @CateringId
                     AND d.c_status = 1
-                    AND d.c_is_deleted = 0
+                    AND d.c_is_deleted = FALSE
                     AND EXISTS (
                         SELECT 1
-                        FROM STRING_SPLIT(ISNULL(d.c_packageids, ''), ',') linked
-                        WHERE TRY_CAST(LTRIM(RTRIM(linked.value)) AS BIGINT) = @PackageId
+                        FROM unnest(string_to_array(COALESCE(d.c_packageids, ''), ',')) AS linked(value)
+                        WHERE CAST(NULLIF(TRIM(linked.value), '') AS BIGINT) = @PackageId
                     )
                 ORDER BY d.c_price ASC, d.c_decoration_name ASC";
 
             var decorationParams = new[]
             {
-                new SqlParameter("@CateringId", cateringId),
-                new SqlParameter("@PackageId", packageId)
+                new NpgsqlParameter("@CateringId", cateringId),
+                new NpgsqlParameter("@PackageId", packageId)
             };
 
             var decorationsResult = await _dbHelper.ExecuteAsync(decorationsQuery, decorationParams);
@@ -1388,12 +1372,12 @@ namespace CateringEcommerce.BAL.Common
                     FROM {Table.SysCateringMediaUploads} m
                     WHERE m.c_reference_id = @DecorationId
                         AND m.c_document_type_id = 3
-                        AND m.c_is_deleted = 0
+                        AND m.c_is_deleted = FALSE
                     ORDER BY m.c_uploaded_at DESC";
 
                 var mediaResult = await _dbHelper.ExecuteAsync(
                     mediaQuery,
-                    new[] { new SqlParameter("@DecorationId", decorationId) }
+                    new[] { new NpgsqlParameter("@DecorationId", decorationId) }
                 );
 
                 if (mediaResult != null && mediaResult.Rows.Count > 0)
@@ -1438,15 +1422,15 @@ namespace CateringEcommerce.BAL.Common
                     INNER JOIN {Table.SysMenuPackage} p ON p.c_packageid = pi.c_packageid
                     WHERE pi.c_packageid = @PackageId
                         AND p.c_ownerid = @CateringId
-                        AND p.c_is_active = 1
-                        AND p.c_is_deleted = 0
-                        AND fc.c_isactive = 1
+                        AND p.c_is_active = TRUE
+                        AND p.c_is_deleted = FALSE
+                        AND fc.c_isactive = TRUE
                     ORDER BY fc.c_categoryname";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@PackageId", packageId),
-                    new SqlParameter("@CateringId", cateringId)
+                    new NpgsqlParameter("@PackageId", packageId),
+                    new NpgsqlParameter("@CateringId", cateringId)
                 };
 
                 var result = await _dbHelper.ExecuteAsync(query, parameters);
@@ -1476,3 +1460,4 @@ namespace CateringEcommerce.BAL.Common
         #endregion
     }
 }
+

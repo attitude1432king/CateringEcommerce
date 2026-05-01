@@ -48,7 +48,7 @@ namespace CateringEcommerce.BAL.Configuration
             }
         }
 
-        public async Task<string> SaveFormFileAsync(IFormFile file, long ownerPkid, string documentType, bool isSecure, string fileName = null, long? entityPkid = null)
+        public async Task<string> SaveRoleBaseFormFileAsync(IFormFile file, long pkid, string role, string documentType, bool isSecure, string fileName = null, long? entityPkid = null)
         {
             if (file == null || file.Length == 0)
                 return null;
@@ -58,8 +58,14 @@ namespace CateringEcommerce.BAL.Configuration
                 ? Path.Combine(_env.WebRootPath, "secure_uploads")
                 : Path.Combine(_env.WebRootPath, "uploads", "Media");
 
-            // Start with owner folder
-            var directoryPath = Path.Combine(basePath, $"owner{ownerPkid}");
+            // ✅ Pluralize role name for folder (User -> Users, Supervisor -> Supervisors, Admin -> Admins)
+            var pluralRole = string.IsNullOrEmpty(role) ? "Users" : role + "s";
+
+            // ✅ Start with pluralized role folder
+            var directoryPath = Path.Combine(basePath, pluralRole);
+
+            // ✅ Add role{userPkid} subfolder
+            directoryPath = Path.Combine(directoryPath, $"{role?.ToLower() ?? "user"}{pkid}");
 
             // Document type and optional hierarchical folder (e.g., Staff/staff{N})
             if (!string.IsNullOrEmpty(documentType))
@@ -113,11 +119,12 @@ namespace CateringEcommerce.BAL.Configuration
                 await file.CopyToAsync(stream);
             }
 
-            // Build relative path (same shape as SaveFileAsync)
+            // ✅ Build relative path
             var relativePathParts = new List<string>
             {
                 isSecure ? "secure_uploads" : "uploads/Media",
-                $"owner{ownerPkid}"
+                pluralRole,
+                $"{role?.ToLower() ?? "user"}{pkid}"
             };
 
             if (!string.IsNullOrEmpty(documentType))
@@ -133,78 +140,78 @@ namespace CateringEcommerce.BAL.Configuration
             return relativePath;
         }
 
-        public async Task<string> SaveRoleBaseFormFileAsync(IFormFile file, long userPkid, string role, bool isSecure, string documentType, string fileName = null)
-        {
-            if (file == null || file.Length == 0)
-                return null;
+        //public async Task<string> SaveRoleBaseFormFileAsync(IFormFile file, long userPkid, string role, bool isSecure, string documentType, string fileName = null)
+        //{
+        //    if (file == null || file.Length == 0)
+        //        return null;
 
-            // ✅ Base upload directory based on security flag
-            var basePath = isSecure
-                ? Path.Combine(_env.WebRootPath, "secure_uploads")
-                : Path.Combine(_env.WebRootPath, "uploads", "Media");
+        //    // ✅ Base upload directory based on security flag
+        //    var basePath = isSecure
+        //        ? Path.Combine(_env.WebRootPath, "secure_uploads")
+        //        : Path.Combine(_env.WebRootPath, "uploads", "Media");
 
-            // ✅ Pluralize role name for folder (User -> Users, Supervisor -> Supervisors, Admin -> Admins)
-            var pluralRole = string.IsNullOrEmpty(role) ? "Users" : role + "s";
+        //    // ✅ Pluralize role name for folder (User -> Users, Supervisor -> Supervisors, Admin -> Admins)
+        //    var pluralRole = string.IsNullOrEmpty(role) ? "Users" : role + "s";
 
-            // ✅ Start with pluralized role folder
-            var directoryPath = Path.Combine(basePath, pluralRole);
+        //    // ✅ Start with pluralized role folder
+        //    var directoryPath = Path.Combine(basePath, pluralRole);
 
-            // ✅ Add role{userPkid} subfolder
-            directoryPath = Path.Combine(directoryPath, $"{role?.ToLower() ?? "user"}{userPkid}");
+        //    // ✅ Add role{userPkid} subfolder
+        //    directoryPath = Path.Combine(directoryPath, $"{role?.ToLower() ?? "user"}{userPkid}");
 
-            // ✅ Add document type subfolder
-            if (!string.IsNullOrEmpty(documentType))
-            {
-                directoryPath = Path.Combine(directoryPath, documentType);
-            }
+        //    // ✅ Add document type subfolder
+        //    if (!string.IsNullOrEmpty(documentType))
+        //    {
+        //        directoryPath = Path.Combine(directoryPath, documentType);
+        //    }
 
-            // ✅ Ensure directory exists
-            if (!Directory.Exists(directoryPath))
-                Directory.CreateDirectory(directoryPath);
+        //    // ✅ Ensure directory exists
+        //    if (!Directory.Exists(directoryPath))
+        //        Directory.CreateDirectory(directoryPath);
 
-            // ✅ Clean filename helper
-            string CleanFileName(string name)
-            {
-                var invalidChars = Path.GetInvalidFileNameChars();
-                return string.Concat(name.Where(c => !invalidChars.Contains(c))).Trim();
-            }
+        //    // ✅ Clean filename helper
+        //    string CleanFileName(string name)
+        //    {
+        //        var invalidChars = Path.GetInvalidFileNameChars();
+        //        return string.Concat(name.Where(c => !invalidChars.Contains(c))).Trim();
+        //    }
 
-            // ✅ Determine extension
-            var originalName = fileName ?? file.FileName;
-            var extension = Path.GetExtension(originalName);
-            if (string.IsNullOrEmpty(extension))
-            {
-                extension = GetFileExtension(file.ContentType) ?? "";
-            }
+        //    // ✅ Determine extension
+        //    var originalName = fileName ?? file.FileName;
+        //    var extension = Path.GetExtension(originalName);
+        //    if (string.IsNullOrEmpty(extension))
+        //    {
+        //        extension = GetFileExtension(file.ContentType) ?? "";
+        //    }
 
-            // ✅ Generate final filename with GUID for uniqueness
-            string finalFileName = $"{Guid.NewGuid()}{extension}";
+        //    // ✅ Generate final filename with GUID for uniqueness
+        //    string finalFileName = $"{Guid.NewGuid()}{extension}";
 
-            var fullPath = Path.Combine(directoryPath, finalFileName);
+        //    var fullPath = Path.Combine(directoryPath, finalFileName);
 
-            // ✅ Save file to disk asynchronously
-            using (var stream = new FileStream(fullPath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
+        //    // ✅ Save file to disk asynchronously
+        //    using (var stream = new FileStream(fullPath, FileMode.Create))
+        //    {
+        //        await file.CopyToAsync(stream);
+        //    }
 
-            // ✅ Build relative path
-            var relativePathParts = new List<string>
-            {
-                isSecure ? "secure_uploads" : "uploads/Media",
-                pluralRole,
-                $"{role?.ToLower() ?? "user"}{userPkid}"
-            };
+        //    // ✅ Build relative path
+        //    var relativePathParts = new List<string>
+        //    {
+        //        isSecure ? "secure_uploads" : "uploads/Media",
+        //        pluralRole,
+        //        $"{role?.ToLower() ?? "user"}{userPkid}"
+        //    };
 
-            if (!string.IsNullOrEmpty(documentType))
-                relativePathParts.Add(documentType);
+        //    if (!string.IsNullOrEmpty(documentType))
+        //        relativePathParts.Add(documentType);
 
-            relativePathParts.Add(finalFileName);
+        //    relativePathParts.Add(finalFileName);
 
-            var relativePath = "/" + Path.Combine(relativePathParts.ToArray()).Replace(Path.DirectorySeparatorChar, '/').TrimStart('/');
+        //    var relativePath = "/" + Path.Combine(relativePathParts.ToArray()).Replace(Path.DirectorySeparatorChar, '/').TrimStart('/');
 
-            return relativePath;
-        }
+        //    return relativePath;
+        //}
 
     }
 }

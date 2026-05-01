@@ -3,569 +3,632 @@
 -- Pre-Event, During-Event, Post-Event Workflows
 -- =============================================
 
-USE [CateringDB];
-GO
-
-PRINT '================================================';
-PRINT 'Creating Event Supervision Workflow Procedures';
-PRINT '================================================';
-PRINT '';
-
+-- ============================================= 
+-- SP 1: Submit Pre-Event Verification 
 -- =============================================
--- SP 1: Submit Pre-Event Verification
--- =============================================
+DROP FUNCTION IF EXISTS sp_SubmitPreEventVerification;
 
-CREATE OR ALTER PROCEDURE sp_SubmitPreEventVerification
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT,
-    @MenuVerified BIT,
-    @MenuVsContractMatch BIT,
-    @RawMaterialVerified BIT,
-    @RawMaterialQualityOK BIT,
-    @RawMaterialQuantityOK BIT,
-    @GuestCountConfirmed BIT,
-    @ConfirmedGuestCount INT,
-    @PreEventEvidenceUrls NVARCHAR(MAX), -- JSON array
-    @IssuesFound BIT,
-    @IssuesDescription NVARCHAR(2000) = NULL,
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+CREATE OR REPLACE FUNCTION sp_SubmitPreEventVerification(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT,
+    p_MenuVerified BOOLEAN,
+    p_MenuVsContractMatch BOOLEAN,
+    p_RawMaterialVerified BOOLEAN,
+    p_RawMaterialQualityOK BOOLEAN,
+    p_RawMaterialQuantityOK BOOLEAN,
+    p_GuestCountConfirmed BOOLEAN,
+    p_ConfirmedGuestCount INT,
+    p_PreEventEvidenceUrls TEXT,
+    p_IssuesFound BOOLEAN,
+    p_IssuesDescription TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_OrderId BIGINT;
+    v_LockedGuestCount INT;
+    v_GuestCountMismatch BOOLEAN := FALSE;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
 
-        DECLARE @OrderId BIGINT;
-        DECLARE @LockedGuestCount INT;
+    -- Get order details
+    SELECT c_orderid INTO v_OrderId
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
-        -- Get order details
-        SELECT @OrderId = c_order_id
-        FROM t_sys_supervisor_assignment
-        WHERE c_assignment_id = @AssignmentId;
+    SELECT c_locked_guest_count INTO v_LockedGuestCount
+    FROM t_sys_orders
+    WHERE c_orderid = v_OrderId;
 
-        SELECT @LockedGuestCount = c_locked_guest_count
-        FROM t_sys_order
-        WHERE c_orderid = @OrderId;
+    -- Check mismatch
+    IF p_ConfirmedGuestCount <> v_LockedGuestCount THEN
+        v_GuestCountMismatch := TRUE;
+    END IF;
 
-        -- Check if guest count matches locked count
-        DECLARE @GuestCountMismatch BIT = 0;
-        IF @ConfirmedGuestCount != @LockedGuestCount
-            SET @GuestCountMismatch = 1;
+    -- Update assignment
+    UPDATE t_sys_supervisor_assignment
+    SET c_pre_event_verification_status = CASE 
+            WHEN p_IssuesFound THEN 'ISSUES_FOUND' 
+            ELSE 'COMPLETED' 
+        END,
+        c_pre_event_verification_date = NOW(),
+        c_menu_verified = p_MenuVerified,
+        c_menu_vs_contract_match = p_MenuVsContractMatch,
+        c_raw_material_verified = p_RawMaterialVerified,
+        c_raw_material_quality_ok = p_RawMaterialQualityOK,
+        c_raw_material_quantity_ok = p_RawMaterialQuantityOK,
+        c_guest_count_confirmed = p_GuestCountConfirmed,
+        c_confirmed_guest_count = p_ConfirmedGuestCount,
+        c_locked_guest_count = v_LockedGuestCount,
+        c_guest_count_mismatch = v_GuestCountMismatch,
+        c_guest_count_confirmation_date = NOW(),
+        c_pre_event_evidence_submitted = TRUE,
+        c_pre_event_evidence_urls = p_PreEventEvidenceUrls,
+        c_pre_event_evidence_timestamp = NOW(),
+        c_pre_event_checklist_completed = TRUE,
+        c_pre_event_checklist_completion_date = NOW(),
+        c_pre_event_issues_found = p_IssuesFound,
+        c_pre_event_issues_description = p_IssuesDescription,
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId;
 
-        -- Update assignment with pre-event verification
-        UPDATE t_sys_supervisor_assignment
-        SET c_pre_event_verification_status = CASE WHEN @IssuesFound = 1 THEN 'ISSUES_FOUND' ELSE 'COMPLETED' END,
-            c_pre_event_verification_date = GETDATE(),
-            c_menu_verified = @MenuVerified,
-            c_menu_vs_contract_match = @MenuVsContractMatch,
-            c_raw_material_verified = @RawMaterialVerified,
-            c_raw_material_quality_ok = @RawMaterialQualityOK,
-            c_raw_material_quantity_ok = @RawMaterialQuantityOK,
-            c_guest_count_confirmed = @GuestCountConfirmed,
-            c_confirmed_guest_count = @ConfirmedGuestCount,
-            c_locked_guest_count = @LockedGuestCount,
-            c_guest_count_mismatch = @GuestCountMismatch,
-            c_guest_count_confirmation_date = GETDATE(),
-            c_pre_event_evidence_submitted = 1,
-            c_pre_event_evidence_urls = @PreEventEvidenceUrls,
-            c_pre_event_evidence_timestamp = GETDATE(),
-            c_pre_event_checklist_completed = 1,
-            c_pre_event_checklist_completion_date = GETDATE(),
-            c_pre_event_issues_found = @IssuesFound,
-            c_pre_event_issues_description = @IssuesDescription,
-            c_modifieddate = GETDATE()
-        WHERE c_assignment_id = @AssignmentId;
+    -- Log action
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id, c_assignment_id, c_orderid, c_action_type,
+        c_action_description, c_action_data, c_evidence_urls
+    )
+    VALUES (
+        p_SupervisorId,
+        p_AssignmentId,
+        v_OrderId,
+        'PRE_EVENT_VERIFICATION',
+        'Pre-event verification completed. Issues found: ' || p_IssuesFound::TEXT,
+        json_build_object(
+            'menu_verified', p_MenuVerified,
+            'material_verified', p_RawMaterialVerified,
+            'guest_count', p_ConfirmedGuestCount
+        ),
+        p_PreEventEvidenceUrls
+    );
 
-        -- Log action
-        INSERT INTO t_sys_supervisor_action_log (
-            c_supervisor_id, c_assignment_id, c_order_id, c_action_type,
-            c_action_description, c_action_data, c_evidence_urls
-        )
-        VALUES (
-            @SupervisorId, @AssignmentId, @OrderId, 'PRE_EVENT_VERIFICATION',
-            'Pre-event verification completed. Issues found: ' + CAST(@IssuesFound AS VARCHAR),
-            JSON_OBJECT('menu_verified', @MenuVerified, 'material_verified', @RawMaterialVerified, 'guest_count', @ConfirmedGuestCount),
-            @PreEventEvidenceUrls
-        );
-
-        SET @Success = 1;
-        SET @Message = CASE
-            WHEN @IssuesFound = 1 THEN 'Pre-event verification completed with issues. Admin notified.'
-            WHEN @GuestCountMismatch = 1 THEN 'Verification completed. Guest count mismatch detected!'
+    -- Return success
+    RETURN QUERY
+    SELECT TRUE,
+        CASE
+            WHEN p_IssuesFound THEN 'Pre-event verification completed with issues. Admin notified.'
+            WHEN v_GuestCountMismatch THEN 'Verification completed. Guest count mismatch detected!'
             ELSE 'Pre-event verification completed successfully'
         END;
 
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN QUERY
+        SELECT FALSE, SQLERRM;
+END;
+$$;
 
-PRINT '✓ Created: sp_SubmitPreEventVerification';
-
--- =============================================
--- SP 2: Request Extra Quantity with Client Approval
+-- ============================================= 
+-- SP 2: Request Extra Quantity with Client Approval 
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_RequestExtraQuantity
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT,
-    @ItemName NVARCHAR(200),
-    @ExtraQuantity INT,
-    @ExtraCost DECIMAL(18,2),
-    @Reason NVARCHAR(500),
-    @ClientPhone VARCHAR(15),
-    @ApprovalMethod VARCHAR(20), -- 'IN_APP', 'OTP', 'SIGNATURE'
-    @OTPCode VARCHAR(10) OUTPUT,
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+DROP FUNCTION IF EXISTS sp_RequestExtraQuantity;
+
+CREATE OR REPLACE FUNCTION sp_RequestExtraQuantity(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT,
+    p_ItemName TEXT,
+    p_ExtraQuantity INT,
+    p_ExtraCost DECIMAL(18,2),
+    p_Reason TEXT,
+    p_ClientPhone VARCHAR,
+    p_ApprovalMethod VARCHAR -- 'IN_APP', 'OTP', 'SIGNATURE'
+)
+RETURNS TABLE (
+    OTPCode VARCHAR,
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_OrderId BIGINT;
+    v_OTPCode VARCHAR(10) := NULL;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
 
-        DECLARE @OrderId BIGINT;
+    -- Get OrderId
+    SELECT c_orderid INTO v_OrderId
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
-        SELECT @OrderId = c_order_id
-        FROM t_sys_supervisor_assignment
-        WHERE c_assignment_id = @AssignmentId;
+    -- Generate OTP if required
+    IF p_ApprovalMethod = 'OTP' THEN
+        v_OTPCode := LPAD((floor(random() * 1000000))::TEXT, 6, '0');
 
-        -- Generate OTP if OTP method
-        IF @ApprovalMethod = 'OTP'
-        BEGIN
-            SET @OTPCode = RIGHT('000000' + CAST(ABS(CHECKSUM(NEWID())) % 1000000 AS VARCHAR), 6);
-
-            -- Insert OTP record
-            INSERT INTO t_sys_client_otp_verification (
-                c_assignment_id, c_order_id, c_supervisor_id,
-                c_otp_code, c_otp_purpose, c_otp_sent_to,
-                c_otp_expires_at, c_context_data
-            )
-            VALUES (
-                @AssignmentId, @OrderId, @SupervisorId,
-                @OTPCode, 'EXTRA_QUANTITY_APPROVAL', @ClientPhone,
-                DATEADD(MINUTE, 10, GETDATE()),
-                JSON_OBJECT('item', @ItemName, 'quantity', @ExtraQuantity, 'cost', @ExtraCost, 'reason', @Reason)
-            );
-        END
-
-        -- Log extra quantity request
-        INSERT INTO t_sys_during_event_tracking (
-            c_assignment_id, c_supervisor_id, c_order_id,
-            c_tracking_type, c_tracking_description,
-            c_extra_item_name, c_extra_quantity, c_extra_cost, c_extra_reason,
-            c_approval_method, c_approval_status, c_otp_code
+        -- Insert OTP record
+        INSERT INTO t_sys_client_otp_verification (
+            c_assignment_id,
+            c_orderid,
+            c_supervisor_id,
+            c_otp_code,
+            c_otp_purpose,
+            c_otp_sent_to,
+            c_otp_expires_at,
+            c_context_data
         )
         VALUES (
-            @AssignmentId, @SupervisorId, @OrderId,
-            'EXTRA_QUANTITY_REQUEST',
-            'Extra quantity requested: ' + @ItemName + ' x ' + CAST(@ExtraQuantity AS VARCHAR),
-            @ItemName, @ExtraQuantity, @ExtraCost, @Reason,
-            @ApprovalMethod, 'PENDING', @OTPCode
+            p_AssignmentId,
+            v_OrderId,
+            p_SupervisorId,
+            v_OTPCode,
+            'EXTRA_QUANTITY_APPROVAL',
+            p_ClientPhone,
+            NOW() + INTERVAL '10 minutes',
+            json_build_object(
+                'item', p_ItemName,
+                'quantity', p_ExtraQuantity,
+                'cost', p_ExtraCost,
+                'reason', p_Reason
+            )
         );
+    END IF;
 
-        -- Update assignment
-        UPDATE t_sys_supervisor_assignment
-        SET c_extra_quantity_requested = 1,
-            c_client_approval_required = 1,
-            c_client_approval_method = @ApprovalMethod,
-            c_client_otp_sent = CASE WHEN @ApprovalMethod = 'OTP' THEN 1 ELSE 0 END,
-            c_client_approval_status = 'PENDING'
-        WHERE c_assignment_id = @AssignmentId;
+    -- Log request in tracking
+    INSERT INTO t_sys_during_event_tracking (
+        c_assignment_id,
+        c_supervisor_id,
+        c_orderid,
+        c_tracking_type,
+        c_tracking_description,
+        c_extra_item_name,
+        c_extra_quantity,
+        c_extra_cost,
+        c_extra_reason,
+        c_approval_method,
+        c_approval_status,
+        c_otp_code
+    )
+    VALUES (
+        p_AssignmentId,
+        p_SupervisorId,
+        v_OrderId,
+        'EXTRA_QUANTITY_REQUEST',
+        'Extra quantity requested: ' || p_ItemName || ' x ' || p_ExtraQuantity,
+        p_ItemName,
+        p_ExtraQuantity,
+        p_ExtraCost,
+        p_Reason,
+        p_ApprovalMethod,
+        'PENDING',
+        v_OTPCode
+    );
 
-        SET @Success = 1;
-        SET @Message = CASE
-            WHEN @ApprovalMethod = 'OTP' THEN 'OTP sent to client: ' + @ClientPhone + '. Code: ' + @OTPCode
+    -- Update assignment
+    UPDATE t_sys_supervisor_assignment
+    SET c_extra_quantity_requested = TRUE,
+        c_client_approval_required = TRUE,
+        c_client_approval_method = p_ApprovalMethod,
+        c_client_otp_sent = CASE WHEN p_ApprovalMethod = 'OTP' THEN TRUE ELSE FALSE END,
+        c_client_approval_status = 'PENDING'
+    WHERE c_assignment_id = p_AssignmentId;
+
+    -- Return result
+    RETURN QUERY
+    SELECT
+        v_OTPCode,
+        TRUE,
+        CASE
+            WHEN p_ApprovalMethod = 'OTP'
+                THEN 'OTP sent to client: ' || p_ClientPhone || '. Code: ' || v_OTPCode
             ELSE 'Approval request sent to client'
         END;
 
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
-
-PRINT '✓ Created: sp_RequestExtraQuantity';
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN QUERY
+        SELECT NULL, FALSE, SQLERRM;
+END;
+$$;
 
 -- =============================================
 -- SP 3: Verify Client OTP
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_VerifyClientOTP
-    @AssignmentId BIGINT,
-    @OTPCode VARCHAR(10),
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+DROP FUNCTION IF EXISTS sp_VerifyClientOTP;
+
+CREATE OR REPLACE FUNCTION sp_VerifyClientOTP(
+    p_AssignmentId BIGINT,
+    p_OTPCode VARCHAR
+)
+RETURNS TABLE (
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_OTPId BIGINT;
+    v_ExpiresAt TIMESTAMP;
+    v_AlreadyVerified BOOLEAN;
+    v_Attempts INT;
+    v_MaxAttempts INT;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
 
-        DECLARE @OTPId BIGINT;
-        DECLARE @ExpiresAt DATETIME;
-        DECLARE @AlreadyVerified BIT;
-        DECLARE @Attempts INT;
-        DECLARE @MaxAttempts INT;
+    -- Get OTP details
+    SELECT
+        c_otp_id,
+        c_otp_expires_at,
+        c_otp_verified,
+        c_verification_attempts,
+        c_max_attempts
+    INTO
+        v_OTPId,
+        v_ExpiresAt,
+        v_AlreadyVerified,
+        v_Attempts,
+        v_MaxAttempts
+    FROM t_sys_client_otp_verification
+    WHERE c_assignment_id = p_AssignmentId
+      AND c_otp_code = p_OTPCode
+      AND c_status = 'SENT'
+    LIMIT 1;
 
-        -- Get OTP details
-        SELECT
-            @OTPId = c_otp_id,
-            @ExpiresAt = c_otp_expires_at,
-            @AlreadyVerified = c_otp_verified,
-            @Attempts = c_verification_attempts,
-            @MaxAttempts = c_max_attempts
-        FROM t_sys_client_otp_verification
-        WHERE c_assignment_id = @AssignmentId
-            AND c_otp_code = @OTPCode
-            AND c_status = 'SENT';
+    -- Check if OTP exists
+    IF v_OTPId IS NULL THEN
+        RETURN QUERY SELECT FALSE, 'Invalid OTP code';
+        RETURN;
+    END IF;
 
-        -- Check if OTP exists
-        IF @OTPId IS NULL
-        BEGIN
-            SET @Success = 0;
-            SET @Message = 'Invalid OTP code';
-            ROLLBACK;
-            RETURN;
-        END
+    -- Check if already verified
+    IF v_AlreadyVerified THEN
+        RETURN QUERY SELECT FALSE, 'OTP already verified';
+        RETURN;
+    END IF;
 
-        -- Check if already verified
-        IF @AlreadyVerified = 1
-        BEGIN
-            SET @Success = 0;
-            SET @Message = 'OTP already verified';
-            ROLLBACK;
-            RETURN;
-        END
-
-        -- Check if expired
-        IF @ExpiresAt < GETDATE()
-        BEGIN
-            UPDATE t_sys_client_otp_verification
-            SET c_status = 'EXPIRED'
-            WHERE c_otp_id = @OTPId;
-
-            SET @Success = 0;
-            SET @Message = 'OTP has expired';
-            ROLLBACK;
-            RETURN;
-        END
-
-        -- Check max attempts
-        IF @Attempts >= @MaxAttempts
-        BEGIN
-            UPDATE t_sys_client_otp_verification
-            SET c_status = 'FAILED'
-            WHERE c_otp_id = @OTPId;
-
-            SET @Success = 0;
-            SET @Message = 'Maximum verification attempts exceeded';
-            ROLLBACK;
-            RETURN;
-        END
-
-        -- Verify OTP
+    -- Check if expired
+    IF v_ExpiresAt < NOW() THEN
         UPDATE t_sys_client_otp_verification
-        SET c_otp_verified = 1,
-            c_otp_verified_time = GETDATE(),
-            c_status = 'VERIFIED'
-        WHERE c_otp_id = @OTPId;
+        SET c_status = 'EXPIRED'
+        WHERE c_otp_id = v_OTPId;
 
-        -- Update assignment
-        UPDATE t_sys_supervisor_assignment
-        SET c_client_otp_verified = 1,
-            c_client_otp_verification_time = GETDATE(),
-            c_client_approval_status = 'APPROVED'
-        WHERE c_assignment_id = @AssignmentId;
+        RETURN QUERY SELECT FALSE, 'OTP has expired';
+        RETURN;
+    END IF;
 
-        -- Update tracking record
-        UPDATE t_sys_during_event_tracking
-        SET c_otp_verified = 1,
-            c_approval_status = 'APPROVED',
-            c_approval_timestamp = GETDATE()
-        WHERE c_assignment_id = @AssignmentId
-            AND c_otp_code = @OTPCode;
+    -- Check max attempts
+    IF v_Attempts >= v_MaxAttempts THEN
+        UPDATE t_sys_client_otp_verification
+        SET c_status = 'FAILED'
+        WHERE c_otp_id = v_OTPId;
 
-        SET @Success = 1;
-        SET @Message = 'Client approval verified successfully';
+        RETURN QUERY SELECT FALSE, 'Maximum verification attempts exceeded';
+        RETURN;
+    END IF;
 
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
+    -- Verify OTP
+    UPDATE t_sys_client_otp_verification
+    SET c_otp_verified = TRUE,
+        c_otp_verified_time = NOW(),
+        c_status = 'VERIFIED'
+    WHERE c_otp_id = v_OTPId;
 
-PRINT '✓ Created: sp_VerifyClientOTP';
+    -- Update assignment
+    UPDATE t_sys_supervisor_assignment
+    SET c_client_otp_verified = TRUE,
+        c_client_otp_verification_time = NOW(),
+        c_client_approval_status = 'APPROVED'
+    WHERE c_assignment_id = p_AssignmentId;
+
+    -- Update tracking
+    UPDATE t_sys_during_event_tracking
+    SET c_otp_verified = TRUE,
+        c_approval_status = 'APPROVED',
+        c_approval_timestamp = NOW()
+    WHERE c_assignment_id = p_AssignmentId
+      AND c_otp_code = p_OTPCode;
+
+    RETURN QUERY SELECT TRUE, 'Client approval verified successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN QUERY SELECT FALSE, SQLERRM;
+END;
+$$;
 
 -- =============================================
 -- SP 4: Update Guest Count (During Event)
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_UpdateGuestCount
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT,
-    @ActualGuestCount INT,
-    @Notes NVARCHAR(500) = NULL,
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+DROP FUNCTION IF EXISTS sp_UpdateGuestCount;
+
+CREATE OR REPLACE FUNCTION sp_UpdateGuestCount(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT,
+    p_ActualGuestCount INT,
+    p_Notes TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_OrderId BIGINT;
+    v_ConfirmedCount INT;
+    v_Variance INT;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
 
-        DECLARE @OrderId BIGINT;
-        DECLARE @ConfirmedCount INT;
-        DECLARE @Variance INT;
+    -- Get order + confirmed count
+    SELECT 
+        c_orderid,
+        c_confirmed_guest_count
+    INTO 
+        v_OrderId,
+        v_ConfirmedCount
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
-        SELECT @OrderId = c_order_id, @ConfirmedCount = c_confirmed_guest_count
-        FROM t_sys_supervisor_assignment
-        WHERE c_assignment_id = @AssignmentId;
+    -- Calculate variance
+    v_Variance := p_ActualGuestCount - COALESCE(v_ConfirmedCount, 0);
 
-        SET @Variance = @ActualGuestCount - @ConfirmedCount;
+    -- Log tracking
+    INSERT INTO t_sys_during_event_tracking (
+        c_assignment_id,
+        c_supervisor_id,
+        c_orderid,
+        c_tracking_type,
+        c_tracking_description,
+        c_guest_count,
+        c_guest_count_variance
+    )
+    VALUES (
+        p_AssignmentId,
+        p_SupervisorId,
+        v_OrderId,
+        'GUEST_COUNT_UPDATE',
+        'Guest count updated to ' || p_ActualGuestCount || 
+        '. Variance: ' || v_Variance,
+        p_ActualGuestCount,
+        v_Variance
+    );
 
-        -- Log guest count update
-        INSERT INTO t_sys_during_event_tracking (
-            c_assignment_id, c_supervisor_id, c_order_id,
-            c_tracking_type, c_tracking_description,
-            c_guest_count, c_guest_count_variance
-        )
-        VALUES (
-            @AssignmentId, @SupervisorId, @OrderId,
-            'GUEST_COUNT_UPDATE',
-            'Guest count updated to ' + CAST(@ActualGuestCount AS VARCHAR) + '. Variance: ' + CAST(@Variance AS VARCHAR),
-            @ActualGuestCount, @Variance
-        );
+    -- Update assignment
+    UPDATE t_sys_supervisor_assignment
+    SET c_actual_guest_count = p_ActualGuestCount,
+        c_guest_count_variance = v_Variance
+    WHERE c_assignment_id = p_AssignmentId;
 
-        -- Update assignment
-        UPDATE t_sys_supervisor_assignment
-        SET c_actual_guest_count = @ActualGuestCount,
-            c_guest_count_variance = @Variance
-        WHERE c_assignment_id = @AssignmentId;
+    -- Return success
+    RETURN QUERY
+    SELECT TRUE,
+           'Guest count updated. Variance: ' || v_Variance;
 
-        SET @Success = 1;
-        SET @Message = 'Guest count updated. Variance: ' + CAST(@Variance AS VARCHAR);
-
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
-
-PRINT '✓ Created: sp_UpdateGuestCount';
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN QUERY
+        SELECT FALSE, SQLERRM;
+END;
+$$;
 
 -- =============================================
 -- SP 5: Submit Post-Event Report
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_SubmitPostEventReport
-    @AssignmentId BIGINT,
-    @SupervisorId BIGINT,
-    @FinalGuestCount INT,
-    @ClientSatisfactionRating INT,
-    @FoodQualityRating INT,
-    @FoodQuantityRating INT,
-    @ServiceQualityRating INT,
-    @ClientComments NVARCHAR(2000),
-    @IssuesCount INT,
-    @IssuesSummary NVARCHAR(MAX), -- JSON
-    @FinalPayableAmount DECIMAL(18,2),
-    @ReportSummary NVARCHAR(2000),
-    @CompletionPhotos NVARCHAR(MAX), -- JSON array
-    @Success BIT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
+DROP FUNCTION IF EXISTS sp_SubmitPostEventReport;
+
+CREATE OR REPLACE FUNCTION sp_SubmitPostEventReport(
+    p_AssignmentId BIGINT,
+    p_SupervisorId BIGINT,
+    p_FinalGuestCount INT,
+    p_ClientSatisfactionRating INT,
+    p_FoodQualityRating INT,
+    p_FoodQuantityRating INT,
+    p_ServiceQualityRating INT,
+    p_ClientComments TEXT,
+    p_IssuesCount INT,
+    p_IssuesSummary TEXT,
+    p_FinalPayableAmount DECIMAL(18,2),
+    p_ReportSummary TEXT,
+    p_CompletionPhotos TEXT
+)
+RETURNS TABLE (
+    Success BOOLEAN,
+    Message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_OrderId BIGINT;
+    v_EventStartTime TIMESTAMP;
+    v_EventEndTime TIMESTAMP;
+    v_DurationMinutes INT;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
 
-        DECLARE @OrderId BIGINT;
-        DECLARE @EventStartTime DATETIME;
-        DECLARE @EventEndTime DATETIME;
-        DECLARE @DurationMinutes INT;
+    -- Get event details
+    SELECT
+        c_orderid,
+        c_check_in_time
+    INTO
+        v_OrderId,
+        v_EventStartTime
+    FROM t_sys_supervisor_assignment
+    WHERE c_assignment_id = p_AssignmentId;
 
-        SELECT
-            @OrderId = c_order_id,
-            @EventStartTime = c_check_in_time,
-            @EventEndTime = GETDATE()
-        FROM t_sys_supervisor_assignment
-        WHERE c_assignment_id = @AssignmentId;
+    v_EventEndTime := NOW();
 
-        SET @DurationMinutes = DATEDIFF(MINUTE, @EventStartTime, @EventEndTime);
+    -- Calculate duration (in minutes)
+    v_DurationMinutes := EXTRACT(EPOCH FROM (v_EventEndTime - v_EventStartTime)) / 60;
 
-        -- Insert post-event report
-        INSERT INTO t_sys_post_event_report (
-            c_assignment_id, c_supervisor_id, c_order_id,
-            c_event_started_time, c_event_ended_time, c_event_duration_minutes,
-            c_final_guest_count,
-            c_client_satisfaction_rating, c_food_quality_rating, c_food_quantity_rating,
-            c_service_quality_rating, c_client_comments,
-            c_total_issues_count, c_issues_summary,
-            c_final_payable_amount, c_report_summary, c_completion_photos,
-            c_submitted_date
-        )
-        VALUES (
-            @AssignmentId, @SupervisorId, @OrderId,
-            @EventStartTime, @EventEndTime, @DurationMinutes,
-            @FinalGuestCount,
-            @ClientSatisfactionRating, @FoodQualityRating, @FoodQuantityRating,
-            @ServiceQualityRating, @ClientComments,
-            @IssuesCount, @IssuesSummary,
-            @FinalPayableAmount, @ReportSummary, @CompletionPhotos,
-            GETDATE()
-        );
+    -- Insert post-event report
+    INSERT INTO t_sys_post_event_report (
+        c_assignment_id, c_supervisor_id, c_orderid,
+        c_event_started_time, c_event_ended_time, c_event_duration_minutes,
+        c_final_guest_count,
+        c_client_satisfaction_rating, c_food_quality_rating, c_food_quantity_rating,
+        c_service_quality_rating, c_client_comments,
+        c_total_issues_count, c_issues_summary,
+        c_final_payable_amount, c_report_summary, c_completion_photos,
+        c_submitted_date
+    )
+    VALUES (
+        p_AssignmentId, p_SupervisorId, v_OrderId,
+        v_EventStartTime, v_EventEndTime, v_DurationMinutes,
+        p_FinalGuestCount,
+        p_ClientSatisfactionRating, p_FoodQualityRating, p_FoodQuantityRating,
+        p_ServiceQualityRating, p_ClientComments,
+        p_IssuesCount, p_IssuesSummary,
+        p_FinalPayableAmount, p_ReportSummary, p_CompletionPhotos,
+        NOW()
+    );
 
-        -- Update assignment
-        UPDATE t_sys_supervisor_assignment
-        SET c_post_event_report_submitted = 1,
-            c_post_event_report_date = GETDATE(),
-            c_client_feedback_collected = 1,
-            c_client_overall_satisfaction = @ClientSatisfactionRating,
-            c_client_food_quality_rating = @FoodQualityRating,
-            c_client_food_quantity_rating = @FoodQuantityRating,
-            c_issues_recorded = 1,
-            c_issues_count = @IssuesCount,
-            c_final_payment_request_raised = 1,
-            c_final_payment_request_date = GETDATE(),
-            c_final_payment_amount = @FinalPayableAmount,
-            c_event_completion_summary = @ReportSummary,
-            c_event_completion_photos = @CompletionPhotos,
-            c_status = 'COMPLETED',
-            c_modifieddate = GETDATE()
-        WHERE c_assignment_id = @AssignmentId;
+    -- Update assignment
+    UPDATE t_sys_supervisor_assignment
+    SET c_post_event_report_submitted = TRUE,
+        c_post_event_report_date = NOW(),
+        c_client_feedback_collected = TRUE,
+        c_client_overall_satisfaction = p_ClientSatisfactionRating,
+        c_client_food_quality_rating = p_FoodQualityRating,
+        c_client_food_quantity_rating = p_FoodQuantityRating,
+        c_issues_recorded = TRUE,
+        c_issues_count = p_IssuesCount,
+        c_final_payment_request_raised = TRUE,
+        c_final_payment_request_date = NOW(),
+        c_final_payment_amount = p_FinalPayableAmount,
+        c_event_completion_summary = p_ReportSummary,
+        c_event_completion_photos = p_CompletionPhotos,
+        c_status = 'COMPLETED',
+        c_modifieddate = NOW()
+    WHERE c_assignment_id = p_AssignmentId;
 
-        -- Log action
-        INSERT INTO t_sys_supervisor_action_log (
-            c_supervisor_id, c_assignment_id, c_order_id, c_action_type,
-            c_action_description, c_evidence_urls
-        )
-        VALUES (
-            @SupervisorId, @AssignmentId, @OrderId, 'POST_EVENT_REPORT',
-            'Event completion report submitted. Final amount: ₹' + CAST(@FinalPayableAmount AS VARCHAR),
-            @CompletionPhotos
-        );
+    -- Log action
+    INSERT INTO t_sys_supervisor_action_log (
+        c_supervisor_id, c_assignment_id, c_orderid,
+        c_action_type, c_action_description, c_evidence_urls
+    )
+    VALUES (
+        p_SupervisorId,
+        p_AssignmentId,
+        v_OrderId,
+        'POST_EVENT_REPORT',
+        'Event completion report submitted. Final amount: ₹' || p_FinalPayableAmount,
+        p_CompletionPhotos
+    );
 
-        SET @Success = 1;
-        SET @Message = 'Post-event report submitted successfully';
+    -- Return success
+    RETURN QUERY
+    SELECT TRUE, 'Post-event report submitted successfully';
 
-        COMMIT;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK;
-        SET @Success = 0;
-        SET @Message = ERROR_MESSAGE();
-    END CATCH
-END
-GO
-
-PRINT '✓ Created: sp_SubmitPostEventReport';
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN QUERY
+        SELECT FALSE, SQLERRM;
+END;
+$$;
 
 -- =============================================
 -- SP 6: Get Event Supervision Summary
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_GetEventSupervisionSummary
-    @AssignmentId BIGINT
-AS
+DROP FUNCTION IF EXISTS sp_GetEventSupervisionSummary;
+
+CREATE OR REPLACE FUNCTION sp_GetEventSupervisionSummary(
+    p_AssignmentId BIGINT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_result JSON;
 BEGIN
-    SET NOCOUNT ON;
 
-    -- Main assignment details
-    SELECT
-        sa.c_assignment_id AS AssignmentId,
-        sa.c_assignment_number AS AssignmentNumber,
-        sa.c_event_date AS EventDate,
-        sa.c_event_type AS EventType,
-        sa.c_status AS Status,
+    SELECT json_build_object(
 
-        -- Pre-Event
-        sa.c_pre_event_verification_status AS PreEventStatus,
-        sa.c_menu_verified AS MenuVerified,
-        sa.c_raw_material_verified AS MaterialVerified,
-        sa.c_guest_count_confirmed AS GuestCountConfirmed,
-        sa.c_confirmed_guest_count AS ConfirmedGuestCount,
-        sa.c_pre_event_issues_found AS PreEventIssuesFound,
+        -- Main Assignment
+        'assignment', (
+            SELECT row_to_json(t)
+            FROM (
+                SELECT
+                    sa.c_assignment_id AS "AssignmentId",
+                    sa.c_assignment_number AS "AssignmentNumber",
+                    sa.c_event_date AS "EventDate",
+                    sa.c_event_type AS "EventType",
+                    sa.c_status AS "Status",
 
-        -- During-Event
-        sa.c_actual_guest_count AS ActualGuestCount,
-        sa.c_guest_count_variance AS GuestCountVariance,
-        sa.c_extra_quantity_requested AS ExtraQuantityRequested,
-        sa.c_client_approval_status AS ClientApprovalStatus,
+                    -- Pre-Event
+                    sa.c_pre_event_verification_status AS "PreEventStatus",
+                    sa.c_menu_verified AS "MenuVerified",
+                    sa.c_raw_material_verified AS "MaterialVerified",
+                    sa.c_guest_count_confirmed AS "GuestCountConfirmed",
+                    sa.c_confirmed_guest_count AS "ConfirmedGuestCount",
+                    sa.c_pre_event_issues_found AS "PreEventIssuesFound",
 
-        -- Post-Event
-        sa.c_post_event_report_submitted AS ReportSubmitted,
-        sa.c_client_overall_satisfaction AS ClientSatisfaction,
-        sa.c_issues_count AS IssuesCount,
-        sa.c_final_payment_amount AS FinalPaymentAmount,
+                    -- During-Event
+                    sa.c_actual_guest_count AS "ActualGuestCount",
+                    sa.c_guest_count_variance AS "GuestCountVariance",
+                    sa.c_extra_quantity_requested AS "ExtraQuantityRequested",
+                    sa.c_client_approval_status AS "ClientApprovalStatus",
 
-        -- Supervisor Details
-        s.c_full_name AS SupervisorName,
-        s.c_supervisor_type AS SupervisorType
+                    -- Post-Event
+                    sa.c_post_event_report_submitted AS "ReportSubmitted",
+                    sa.c_client_overall_satisfaction AS "ClientSatisfaction",
+                    sa.c_issues_count AS "IssuesCount",
+                    sa.c_final_payment_amount AS "FinalPaymentAmount",
 
-    FROM t_sys_supervisor_assignment sa
-    INNER JOIN t_sys_supervisor s ON sa.c_supervisor_id = s.c_supervisor_id
-    WHERE sa.c_assignment_id = @AssignmentId;
+                    -- Supervisor
+                    s.c_full_name AS "SupervisorName",
+                    s.c_supervisor_type AS "SupervisorType"
 
-    -- During-event tracking log
-    SELECT
-        c_tracking_type AS TrackingType,
-        c_tracking_description AS Description,
-        c_guest_count AS GuestCount,
-        c_extra_item_name AS ExtraItem,
-        c_extra_cost AS ExtraCost,
-        c_approval_status AS ApprovalStatus,
-        c_timestamp AS Timestamp
-    FROM t_sys_during_event_tracking
-    WHERE c_assignment_id = @AssignmentId
-    ORDER BY c_timestamp DESC;
+                FROM t_sys_supervisor_assignment sa
+                INNER JOIN t_sys_supervisor s 
+                    ON sa.c_supervisor_id = s.c_supervisor_id
+                WHERE sa.c_assignment_id = p_AssignmentId
+            ) t
+        ),
 
-    -- Post-event report (if exists)
-    SELECT
-        c_final_guest_count AS FinalGuestCount,
-        c_client_satisfaction_rating AS SatisfactionRating,
-        c_food_quality_rating AS FoodQualityRating,
-        c_service_quality_rating AS ServiceQualityRating,
-        c_total_issues_count AS IssuesCount,
-        c_final_payable_amount AS FinalAmount,
-        c_report_summary AS Summary,
-        c_submitted_date AS SubmittedDate
-    FROM t_sys_post_event_report
-    WHERE c_assignment_id = @AssignmentId;
-END
-GO
+        -- Tracking Logs
+        'tracking', (
+            SELECT COALESCE(json_agg(t), '[]')
+            FROM (
+                SELECT
+                    c_tracking_type AS "TrackingType",
+                    c_tracking_description AS "Description",
+                    c_guest_count AS "GuestCount",
+                    c_extra_item_name AS "ExtraItem",
+                    c_extra_cost AS "ExtraCost",
+                    c_approval_status AS "ApprovalStatus",
+                    c_timestamp AS "Timestamp"
+                FROM t_sys_during_event_tracking
+                WHERE c_assignment_id = p_AssignmentId
+                ORDER BY c_timestamp DESC
+            ) t
+        ),
 
-PRINT '✓ Created: sp_GetEventSupervisionSummary';
+        -- Post Event Report
+        'post_event', (
+            SELECT COALESCE(json_agg(t), '[]')
+            FROM (
+                SELECT
+                    c_final_guest_count AS "FinalGuestCount",
+                    c_client_satisfaction_rating AS "SatisfactionRating",
+                    c_food_quality_rating AS "FoodQualityRating",
+                    c_service_quality_rating AS "ServiceQualityRating",
+                    c_total_issues_count AS "IssuesCount",
+                    c_final_payable_amount AS "FinalAmount",
+                    c_report_summary AS "Summary",
+                    c_submitted_date AS "SubmittedDate"
+                FROM t_sys_post_event_report
+                WHERE c_assignment_id = p_AssignmentId
+            ) t
+        )
 
-PRINT '';
-PRINT '================================================';
-PRINT 'Event Supervision Workflow Procedures Created';
-PRINT '================================================';
-PRINT '';
-PRINT 'Procedures Created:';
-PRINT '1. sp_SubmitPreEventVerification';
-PRINT '2. sp_RequestExtraQuantity (with OTP)';
-PRINT '3. sp_VerifyClientOTP';
-PRINT '4. sp_UpdateGuestCount';
-PRINT '5. sp_SubmitPostEventReport';
-PRINT '6. sp_GetEventSupervisionSummary';
-PRINT '';
-GO
+    ) INTO v_result;
+
+    RETURN v_result;
+
+END;
+$$;
+
+

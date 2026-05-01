@@ -4,6 +4,6 @@
     {
         Task UpdateUserDetails(long? userPKID, Dictionary<string, string> dicData = null);
         
-        string GetUserProfilePicture(long userPkid);
+        Task<string> GetUserProfilePicture(long userPkid);
     }
 }

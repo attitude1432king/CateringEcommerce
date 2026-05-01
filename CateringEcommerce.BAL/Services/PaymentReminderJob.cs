@@ -16,14 +16,14 @@ namespace CateringEcommerce.BAL.Services
     {
         private readonly IDatabaseHelper _dbHelper;
         private readonly PaymentStageRepository _paymentStageRepository;
-        private readonly NotificationService _notificationService;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<PaymentReminderJob>? _logger;
 
-        public PaymentReminderJob(IDatabaseHelper dbHelper, ISystemSettingsProvider settings, ILogger<PaymentReminderJob>? logger = null)
+        public PaymentReminderJob(IDatabaseHelper dbHelper, INotificationService notificationService, ILogger<PaymentReminderJob>? logger = null)
         {
             _dbHelper = dbHelper;
             _paymentStageRepository = new PaymentStageRepository(_dbHelper);
-            _notificationService = new NotificationService(settings ?? throw new ArgumentNullException(nameof(settings)));
+            _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
             _logger = logger;
         }
 

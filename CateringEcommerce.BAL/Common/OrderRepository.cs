@@ -1,4 +1,4 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Enums;
 using CateringEcommerce.Domain.Enums.Admin;
@@ -6,7 +6,7 @@ using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.User;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -56,48 +56,48 @@ namespace CateringEcommerce.BAL.Common
                         @PaymentMethod, @PaymentStatus, @OrderStatus,
                         @PaymentSplitEnabled, @PreBookingAmount, @PostEventAmount, @PreBookingStatus, @PostEventStatus,
                         @EventLatitude, @EventLongitude, @EventPlaceId, @SavedAddressId, @DecorationId,
-                        GETDATE(), 1
-                    );
-                    SELECT CAST(SCOPE_IDENTITY() AS BIGINT);
+                        NOW(), 1
+                    )
+                    RETURNING c_orderid;
                 ");
 
                 string paymentStatus = orderData.PaymentMethod == "COD" ? "Pending" : "AwaitingVerification";
                 string? preBookingStatus = orderData.EnableSplitPayment ? "Pending" : null;
                 string? postEventStatus = orderData.EnableSplitPayment ? "Pending" : null;
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@CateringId", orderData.CateringId),
-                    new SqlParameter("@OrderNumber", orderNumber),
-                    new SqlParameter("@EventDate", orderData.EventDate),
-                    new SqlParameter("@EventTime", orderData.EventTime),
-                    new SqlParameter("@EventType", orderData.EventType),
-                    new SqlParameter("@EventLocation", orderData.EventLocation),
-                    new SqlParameter("@GuestCount", orderData.GuestCount),
-                    new SqlParameter("@SpecialInstructions", (object)orderData.SpecialInstructions ?? DBNull.Value),
-                    new SqlParameter("@DeliveryAddress", orderData.DeliveryAddress),
-                    new SqlParameter("@ContactPerson", orderData.ContactPerson),
-                    new SqlParameter("@ContactPhone", orderData.ContactPhone),
-                    new SqlParameter("@ContactEmail", orderData.ContactEmail),
-                    new SqlParameter("@BaseAmount", orderData.BaseAmount),
-                    new SqlParameter("@TaxAmount", orderData.TaxAmount),
-                    new SqlParameter("@DeliveryCharges", orderData.DeliveryCharges),
-                    new SqlParameter("@DiscountAmount", orderData.DiscountAmount),
-                    new SqlParameter("@TotalAmount", orderData.TotalAmount),
-                    new SqlParameter("@PaymentMethod", orderData.PaymentMethod),
-                    new SqlParameter("@PaymentStatus", paymentStatus),
-                    new SqlParameter("@OrderStatus", "Pending"),
-                    new SqlParameter("@PaymentSplitEnabled", orderData.EnableSplitPayment),
-                    new SqlParameter("@PreBookingAmount", (object)orderData.PreBookingAmount ?? DBNull.Value),
-                    new SqlParameter("@PostEventAmount", (object)orderData.PostEventAmount ?? DBNull.Value),
-                    new SqlParameter("@PreBookingStatus", (object)preBookingStatus ?? DBNull.Value),
-                    new SqlParameter("@PostEventStatus", (object)postEventStatus ?? DBNull.Value),
-                    new SqlParameter("@EventLatitude", (object)orderData.EventLatitude ?? DBNull.Value),
-                    new SqlParameter("@EventLongitude", (object)orderData.EventLongitude ?? DBNull.Value),
-                    new SqlParameter("@EventPlaceId", (object)orderData.EventPlaceId ?? DBNull.Value),
-                    new SqlParameter("@SavedAddressId", (object)orderData.SavedAddressId ?? DBNull.Value),
-                    new SqlParameter("@DecorationId", (object?)decorationId ?? DBNull.Value)
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@CateringId", orderData.CateringId),
+                    new NpgsqlParameter("@OrderNumber", orderNumber),
+                    new NpgsqlParameter("@EventDate", orderData.EventDate),
+                    new NpgsqlParameter("@EventTime", orderData.EventTime),
+                    new NpgsqlParameter("@EventType", orderData.EventType),
+                    new NpgsqlParameter("@EventLocation", orderData.EventLocation),
+                    new NpgsqlParameter("@GuestCount", orderData.GuestCount),
+                    new NpgsqlParameter("@SpecialInstructions", (object)orderData.SpecialInstructions ?? DBNull.Value),
+                    new NpgsqlParameter("@DeliveryAddress", orderData.DeliveryAddress),
+                    new NpgsqlParameter("@ContactPerson", orderData.ContactPerson),
+                    new NpgsqlParameter("@ContactPhone", orderData.ContactPhone),
+                    new NpgsqlParameter("@ContactEmail", orderData.ContactEmail),
+                    new NpgsqlParameter("@BaseAmount", orderData.BaseAmount),
+                    new NpgsqlParameter("@TaxAmount", orderData.TaxAmount),
+                    new NpgsqlParameter("@DeliveryCharges", orderData.DeliveryCharges),
+                    new NpgsqlParameter("@DiscountAmount", orderData.DiscountAmount),
+                    new NpgsqlParameter("@TotalAmount", orderData.TotalAmount),
+                    new NpgsqlParameter("@PaymentMethod", orderData.PaymentMethod),
+                    new NpgsqlParameter("@PaymentStatus", paymentStatus),
+                    new NpgsqlParameter("@OrderStatus", "Pending"),
+                    new NpgsqlParameter("@PaymentSplitEnabled", orderData.EnableSplitPayment),
+                    new NpgsqlParameter("@PreBookingAmount", (object)orderData.PreBookingAmount ?? DBNull.Value),
+                    new NpgsqlParameter("@PostEventAmount", (object)orderData.PostEventAmount ?? DBNull.Value),
+                    new NpgsqlParameter("@PreBookingStatus", (object)preBookingStatus ?? DBNull.Value),
+                    new NpgsqlParameter("@PostEventStatus", (object)postEventStatus ?? DBNull.Value),
+                    new NpgsqlParameter("@EventLatitude", (object)orderData.EventLatitude ?? DBNull.Value),
+                    new NpgsqlParameter("@EventLongitude", (object)orderData.EventLongitude ?? DBNull.Value),
+                    new NpgsqlParameter("@EventPlaceId", (object)orderData.EventPlaceId ?? DBNull.Value),
+                    new NpgsqlParameter("@SavedAddressId", (object)orderData.SavedAddressId ?? DBNull.Value),
+                    new NpgsqlParameter("@DecorationId", (object?)decorationId ?? DBNull.Value)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
@@ -125,7 +125,7 @@ namespace CateringEcommerce.BAL.Common
                     return false;
 
                 StringBuilder query = new StringBuilder();
-                List<SqlParameter> parameters = new List<SqlParameter>();
+                List<NpgsqlParameter> parameters = new List<NpgsqlParameter>();
 
                 for (int i = 0; i < items.Count; i++)
                 {
@@ -136,18 +136,18 @@ namespace CateringEcommerce.BAL.Common
                             c_unit_price, c_total_price, c_package_selections, c_createddate
                         ) VALUES (
                             @OrderId{i}, @ItemType{i}, @ItemId{i}, @ItemName{i}, @Quantity{i},
-                            @UnitPrice{i}, @TotalPrice{i}, @PackageSelections{i}, GETDATE()
+                            @UnitPrice{i}, @TotalPrice{i}, @PackageSelections{i}, NOW()
                         );
                     ");
 
-                    parameters.Add(new SqlParameter($"@OrderId{i}", orderId));
-                    parameters.Add(new SqlParameter($"@ItemType{i}", item.ItemType));
-                    parameters.Add(new SqlParameter($"@ItemId{i}", item.ItemId));
-                    parameters.Add(new SqlParameter($"@ItemName{i}", item.ItemName));
-                    parameters.Add(new SqlParameter($"@Quantity{i}", item.Quantity));
-                    parameters.Add(new SqlParameter($"@UnitPrice{i}", item.UnitPrice));
-                    parameters.Add(new SqlParameter($"@TotalPrice{i}", item.TotalPrice));
-                    parameters.Add(new SqlParameter($"@PackageSelections{i}", (object)item.PackageSelections ?? DBNull.Value));
+                    parameters.Add(new NpgsqlParameter($"@OrderId{i}", orderId));
+                    parameters.Add(new NpgsqlParameter($"@ItemType{i}", item.ItemType));
+                    parameters.Add(new NpgsqlParameter($"@ItemId{i}", item.ItemId));
+                    parameters.Add(new NpgsqlParameter($"@ItemName{i}", item.ItemName));
+                    parameters.Add(new NpgsqlParameter($"@Quantity{i}", item.Quantity));
+                    parameters.Add(new NpgsqlParameter($"@UnitPrice{i}", item.UnitPrice));
+                    parameters.Add(new NpgsqlParameter($"@TotalPrice{i}", item.TotalPrice));
+                    parameters.Add(new NpgsqlParameter($"@PackageSelections{i}", (object)item.PackageSelections ?? DBNull.Value));
                 }
 
                 await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters.ToArray());
@@ -171,20 +171,20 @@ namespace CateringEcommerce.BAL.Common
                     INSERT INTO {Table.SysOrderPayments} (
                         c_orderid, c_payment_method, c_amount, c_paid_amount, c_status, c_payment_proof_path, c_payment_stage_type, c_createddate
                     ) VALUES (
-                        @OrderId, @PaymentMethod, @Amount, @Amount, @Status, @PaymentProofPath, @PaymentStageType, GETDATE()
+                        @OrderId, @PaymentMethod, @Amount, @Amount, @Status, @PaymentProofPath, @PaymentStageType, NOW()
                     );
                 ");
 
                 string status = paymentMethod == "COD" ? "Pending" : "AwaitingVerification";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@PaymentMethod", paymentMethod),
-                    new SqlParameter("@Amount", amount),
-                    new SqlParameter("@Status", status),
-                    new SqlParameter("@PaymentProofPath", (object)paymentProofPath ?? DBNull.Value),
-                    new SqlParameter("@PaymentStageType", (object)paymentStageType ?? DBNull.Value)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@PaymentMethod", paymentMethod),
+                    new NpgsqlParameter("@Amount", amount),
+                    new NpgsqlParameter("@Status", status),
+                    new NpgsqlParameter("@PaymentProofPath", (object)paymentProofPath ?? DBNull.Value),
+                    new NpgsqlParameter("@PaymentStageType", (object)paymentStageType ?? DBNull.Value)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters);
@@ -208,16 +208,16 @@ namespace CateringEcommerce.BAL.Common
                     INSERT INTO {Table.SysOrderStatusHistory} (
                         c_orderid, c_status, c_remarks, c_updated_by, c_modifieddate
                     ) VALUES (
-                        @OrderId, @Status, @Remarks, @UpdatedBy, GETDATE()
+                        @OrderId, @Status, @Remarks, @UpdatedBy, NOW()
                     );
                 ");
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@Status", status),
-                    new SqlParameter("@Remarks", (object)remarks ?? DBNull.Value),
-                    new SqlParameter("@UpdatedBy", (object)updatedBy ?? DBNull.Value)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@Status", status),
+                    new NpgsqlParameter("@Remarks", (object)remarks ?? DBNull.Value),
+                    new NpgsqlParameter("@UpdatedBy", (object)updatedBy ?? DBNull.Value)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(query.ToString(), parameters);
@@ -230,7 +230,7 @@ namespace CateringEcommerce.BAL.Common
         }
 
         // ===================================
-        // GENERATE ORDER NUMBER
+        // GEOERATE ORDER OUMBER
         // ===================================
         public async Task<string> GenerateOrderNumberAsync()
         {
@@ -282,17 +282,16 @@ namespace CateringEcommerce.BAL.Common
                         o.c_createddate AS CreatedDate
                     FROM {Table.SysOrders} o
                     LEFT JOIN {Table.SysCateringOwner} ca ON o.c_ownerid = ca.c_ownerid
-                    WHERE o.c_userid = @UserId AND o.c_isactive = 1
+                    WHERE o.c_userid = @UserId AND o.c_isactive = TRUE
                     ORDER BY o.c_createddate DESC
-                    OFFSET @Offset ROWS
-                    FETCH NEXT @PageSize ROWS ONLY
+                    LIMIT @PageSize OFFSET @Offset
                 ");
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@Offset", offset),
-                    new SqlParameter("@PageSize", pageSize)
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@Offset", offset),
+                    new NpgsqlParameter("@PageSize", pageSize)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
@@ -343,13 +342,13 @@ namespace CateringEcommerce.BAL.Common
                         o.c_modifieddate AS UpdatedDate
                     FROM {Table.SysOrders} o
                     LEFT JOIN {Table.SysCateringOwner} ca ON o.c_ownerid = ca.c_ownerid
-                    WHERE o.c_orderid = @OrderId AND o.c_userid = @UserId AND o.c_isactive = 1
+                    WHERE o.c_orderid = @OrderId AND o.c_userid = @UserId AND o.c_isactive = TRUE
                 ");
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
@@ -411,9 +410,9 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY c_order_item_id ASC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -433,7 +432,7 @@ namespace CateringEcommerce.BAL.Common
             try
             {
                 string query = $@"
-                    SELECT TOP 1
+                    SELECT
                         c_payment_id AS PaymentId,
                         c_orderid AS OrderId,
                         c_payment_method AS PaymentMethod,
@@ -449,11 +448,12 @@ namespace CateringEcommerce.BAL.Common
                     FROM {Table.SysOrderPayments}
                     WHERE c_orderid = @OrderId
                     ORDER BY c_createddate DESC
+                    LIMIT 1
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -488,9 +488,9 @@ namespace CateringEcommerce.BAL.Common
                     ORDER BY c_modifieddate ASC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -531,14 +531,14 @@ namespace CateringEcommerce.BAL.Common
                     INNER JOIN {Table.SysSupervisor} s ON sa.c_supervisor_id = s.c_supervisor_id
                     LEFT JOIN {Table.SysPostEventReport} per ON sa.c_assignment_id = per.c_assignment_id
                     LEFT JOIN {Table.SysPreEventChecklist} pec ON sa.c_assignment_id = pec.c_assignment_id
-                    WHERE sa.c_order_id = @OrderId
+                    WHERE sa.c_orderid = @OrderId
                         AND sa.c_status NOT IN ('CANCELLED', 'REJECTED')
                     ORDER BY sa.c_assigned_date DESC
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId)
+                    new NpgsqlParameter("@OrderId", orderId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -553,9 +553,9 @@ namespace CateringEcommerce.BAL.Common
                 // Determine event timeline stage from assignment status
                 string timelineStage = assignmentStatus switch
                 {
-                    "ASSIGNED" or "ACCEPTED" => preEventDone ? "Prepared" : "Assigned",
-                    "CHECKED_IN" => "Arrived",
-                    "IN_PROGRESS" => "InProgress",
+                    "ASSIGOED" or "ACCEPTED" => preEventDone ? "Prepared" : "Assigned",
+                    "CHECKED_IO" => "Arrived",
+                    "IO_PROGRESS" => "InProgress",
                     "COMPLETED" => "Completed",
                     _ => "Assigned"
                 };
@@ -591,14 +591,14 @@ namespace CateringEcommerce.BAL.Common
             {
                 string query = $@"
                     UPDATE {Table.SysOrders}
-                    SET c_order_status = @Status, c_modifieddate = GETDATE()
+                    SET c_order_status = @Status, c_modifieddate = NOW()
                     WHERE c_orderid = @OrderId
                 ";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@Status", status)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@Status", status)
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -615,7 +615,7 @@ namespace CateringEcommerce.BAL.Common
         }
 
         // ===================================
-        // CANCEL ORDER
+        // CAOCEL ORDER
         // ===================================
         public async Task<bool> CancelOrderAsync(long orderId, long userId, string reason)
         {
@@ -625,13 +625,13 @@ namespace CateringEcommerce.BAL.Common
                 string checkQuery = $@"
                     SELECT c_order_status, c_createddate
                     FROM {Table.SysOrders}
-                    WHERE c_orderid = @OrderId AND c_userid = @UserId AND c_isactive = 1
+                    WHERE c_orderid = @OrderId AND c_userid = @UserId AND c_isactive = TRUE
                 ";
 
-                SqlParameter[] checkParams = new SqlParameter[]
+                NpgsqlParameter[] checkParams = new NpgsqlParameter[]
                 {
-                    new SqlParameter("@OrderId", orderId),
-                    new SqlParameter("@UserId", userId)
+                    new NpgsqlParameter("@OrderId", orderId),
+                    new NpgsqlParameter("@UserId", userId)
                 };
 
                 DataTable dt = await _dbHelper.ExecuteAsync(checkQuery, checkParams);
@@ -695,18 +695,18 @@ namespace CateringEcommerce.BAL.Common
                 string query = $@"
                     SELECT
                         o.c_ownerid AS CateringId,
-                        CAST(CASE WHEN o.c_ownerid IS NULL THEN 0 ELSE 1 END AS BIT) AS ExistsFlag,
-                        CAST(ISNULL(o.c_isactive, 0) AS BIT) AS IsActive,
-                        CAST(CASE WHEN o.c_approval_status = @ApprovedStatus THEN 1 ELSE 0 END AS BIT) AS IsApproved,
-                        ISNULL(ag.c_global_status, @OpenStatus) AS GlobalStatus,
+                        CASE WHEN o.c_ownerid IS NULL THEN FALSE ELSE TRUE END AS ExistsFlag,
+                        COALESCE(o.c_isactive, FALSE) AS IsActive,
+                        CASE WHEN o.c_approval_status = @ApprovedStatus THEN TRUE ELSE FALSE END AS IsApproved,
+                        COALESCE(ag.c_global_status, @OpenStatus) AS GlobalStatus,
                         ad.c_status AS DateStatus,
-                        ISNULL(op.c_daily_booking_capacity, 0) AS DailyBookingCapacity,
+                        COALESCE(op.c_daily_booking_capacity, 0) AS DailyBookingCapacity,
                         (
                             SELECT COUNT(1)
                             FROM {Table.SysOrders} ord
                             WHERE ord.c_ownerid = o.c_ownerid
                               AND CAST(ord.c_event_date AS DATE) = CAST(@EventDate AS DATE)
-                              AND ISNULL(ord.c_order_status, '') NOT IN ('Cancelled', 'Rejected')
+                              AND COALESCE(ord.c_order_status, '') NOT IN ('Cancelled', 'Rejected')
                         ) AS ExistingBookingCount
                     FROM {Table.SysCateringOwner} o
                     LEFT JOIN {Table.SysCateringAvailabilityGlobal} ag ON ag.c_ownerid = o.c_ownerid
@@ -718,10 +718,10 @@ namespace CateringEcommerce.BAL.Common
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CateringId", cateringId),
-                    new SqlParameter("@EventDate", eventDate.Date),
-                    new SqlParameter("@ApprovedStatus", ApprovalStatus.Approved.GetHashCode()),
-                    new SqlParameter("@OpenStatus", (int)AvailabilityStatus.OPEN)
+                    new NpgsqlParameter("@CateringId", cateringId),
+                    new NpgsqlParameter("@EventDate", eventDate.Date),
+                    new NpgsqlParameter("@ApprovedStatus", ApprovalStatus.Approved.GetHashCode()),
+                    new NpgsqlParameter("@OpenStatus", (int)AvailabilityStatus.OPEN)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -762,8 +762,8 @@ namespace CateringEcommerce.BAL.Common
                         SELECT CAST(c_date AS DATE) AS BlockedDate
                         FROM {Table.SysCateringAvailabilityDate}
                         WHERE c_ownerid = @CateringId
-                          AND YEAR(c_date) = @Year
-                          AND MONTH(c_date) = @Month
+                          AND EXTRACT(YEAR FROM c_date) = @Year
+                          AND EXTRACT(MONTH FROM c_date) = @Month
                           AND c_status IN (@ClosedStatus, @FullyBookedStatus)
                     ),
                     CapacityBlocked AS (
@@ -771,11 +771,11 @@ namespace CateringEcommerce.BAL.Common
                         FROM {Table.SysOrders} ord
                         INNER JOIN {Table.SysCateringOwnerService} ops ON ops.c_ownerid = ord.c_ownerid
                         WHERE ord.c_ownerid = @CateringId
-                          AND YEAR(ord.c_event_date) = @Year
-                          AND MONTH(ord.c_event_date) = @Month
-                          AND ISNULL(ord.c_order_status, '') NOT IN ('Cancelled', 'Rejected')
-                        GROUP BY CAST(ord.c_event_date AS DATE), ISNULL(ops.c_daily_booking_capacity, @FallbackCapacity)
-                        HAVING COUNT(1) >= ISNULL(ops.c_daily_booking_capacity, @FallbackCapacity)
+                          AND EXTRACT(YEAR FROM ord.c_event_date) = @Year
+                          AND EXTRACT(MONTH FROM ord.c_event_date) = @Month
+                          AND COALESCE(ord.c_order_status, '') NOT IN ('Cancelled', 'Rejected')
+                        GROUP BY CAST(ord.c_event_date AS DATE), COALESCE(ops.c_daily_booking_capacity, @FallbackCapacity)
+                        HAVING COUNT(1) >= COALESCE(ops.c_daily_booking_capacity, @FallbackCapacity)
                     )
                     SELECT DISTINCT BlockedDate
                     FROM (
@@ -787,12 +787,12 @@ namespace CateringEcommerce.BAL.Common
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CateringId", cateringId),
-                    new SqlParameter("@Year", year),
-                    new SqlParameter("@Month", month),
-                    new SqlParameter("@FallbackCapacity", fallbackCapacity),
-                    new SqlParameter("@ClosedStatus", (int)AvailabilityStatus.CLOSED),
-                    new SqlParameter("@FullyBookedStatus", (int)AvailabilityStatus.FULLY_BOOKED)
+                    new NpgsqlParameter("@CateringId", cateringId),
+                    new NpgsqlParameter("@Year", year),
+                    new NpgsqlParameter("@Month", month),
+                    new NpgsqlParameter("@FallbackCapacity", fallbackCapacity),
+                    new NpgsqlParameter("@ClosedStatus", (int)AvailabilityStatus.CLOSED),
+                    new NpgsqlParameter("@FullyBookedStatus", (int)AvailabilityStatus.FULLY_BOOKED)
                 };
 
                 var dt = await _dbHelper.ExecuteAsync(query, parameters);
@@ -808,7 +808,7 @@ namespace CateringEcommerce.BAL.Common
         }
 
         // ===================================
-        // MAPPING METHODS
+        // MAPPIOG METHODS
         // ===================================
         private List<OrderListItemDto> MapToOrderListItemDto(DataTable dt)
         {
@@ -932,3 +932,4 @@ namespace CateringEcommerce.BAL.Common
         }
     }
 }
+

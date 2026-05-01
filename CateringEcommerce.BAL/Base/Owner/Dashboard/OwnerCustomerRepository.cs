@@ -1,9 +1,9 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.BAL.DatabaseHelper;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Owner;
 using CateringEcommerce.Domain.Models.Owner;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -38,14 +38,15 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                             u.c_mobilenumber AS Phone,
                             u.c_createddate AS RegisteredDate,
                             COUNT(o.c_orderid) AS TotalOrders,
-                            ISNULL(SUM(o.c_total_amount), 0) AS LifetimeValue,
+                            COALESCE(SUM(o.c_total_amount), 0) AS LifetimeValue,
                             MAX(o.c_createddate) AS LastOrderDate,
-                            ISNULL(AVG(o.c_total_amount), 0) AS AverageOrderValue,
-                            (SELECT TOP 1 c_event_type
+                            COALESCE(AVG(o.c_total_amount), 0) AS AverageOrderValue,
+                            (SELECT c_event_type
                              FROM {Table.SysOrders}
                              WHERE c_userid = u.c_userid AND c_ownerid = @OwnerId
                              GROUP BY c_event_type
-                             ORDER BY COUNT(*) DESC) AS PreferredEventType,
+                              ORDER BY COUNT(*) DESC
+                              LIMIT 1) AS PreferredEventType,
                             CASE
                                 WHEN COUNT(o.c_orderid) = 1 THEN 'New'
                                 WHEN COUNT(o.c_orderid) >= 5 OR SUM(o.c_total_amount) >= 50000 THEN 'VIP'
@@ -58,9 +59,9 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                                  u.c_mobilenumber, u.c_createddate
                     )";
 
-                var parameters = new List<SqlParameter>
+                var parameters = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@OwnerId", ownerId)
+                    new NpgsqlParameter("@OwnerId", ownerId)
                 };
 
                 var whereClause = new StringBuilder(" WHERE 1=1");
@@ -69,25 +70,25 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 if (!string.IsNullOrEmpty(filter.CustomerType) && filter.CustomerType.ToLower() != "all")
                 {
                     whereClause.Append(" AND CustomerType = @CustomerType");
-                    parameters.Add(new SqlParameter("@CustomerType", filter.CustomerType));
+                    parameters.Add(new NpgsqlParameter("@CustomerType", filter.CustomerType));
                 }
 
                 if (!string.IsNullOrEmpty(filter.SearchTerm))
                 {
                     whereClause.Append(" AND (CustomerName LIKE @SearchTerm OR Email LIKE @SearchTerm OR Phone LIKE @SearchTerm)");
-                    parameters.Add(new SqlParameter("@SearchTerm", $"%{filter.SearchTerm}%"));
+                    parameters.Add(new NpgsqlParameter("@SearchTerm", $"%{filter.SearchTerm}%"));
                 }
 
                 if (filter.RegisteredAfter.HasValue)
                 {
                     whereClause.Append(" AND RegisteredDate >= @RegisteredAfter");
-                    parameters.Add(new SqlParameter("@RegisteredAfter", filter.RegisteredAfter.Value));
+                    parameters.Add(new NpgsqlParameter("@RegisteredAfter", filter.RegisteredAfter.Value));
                 }
 
                 if (filter.MinLifetimeValue.HasValue)
                 {
                     whereClause.Append(" AND LifetimeValue >= @MinLifetimeValue");
-                    parameters.Add(new SqlParameter("@MinLifetimeValue", filter.MinLifetimeValue.Value));
+                    parameters.Add(new NpgsqlParameter("@MinLifetimeValue", filter.MinLifetimeValue.Value));
                 }
 
                 // Count query
@@ -124,7 +125,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 // Add pagination
                 int offset = (filter.Page - 1) * filter.PageSize;
-                query.Append($" OFFSET {offset} ROWS FETCH NEXT {filter.PageSize} ROWS ONLY");
+                query.Append($" LIMIT {filter.PageSize} OFFSET {offset}");
 
                 // Execute count query
                 var totalCount = 0;
@@ -204,53 +205,56 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         COUNT(*) AS TotalOrders,
                         SUM(CASE WHEN o.c_order_status = 'Completed' THEN 1 ELSE 0 END) AS CompletedOrders,
                         SUM(CASE WHEN o.c_order_status = 'Cancelled' THEN 1 ELSE 0 END) AS CancelledOrders,
-                        ISNULL(SUM(o.c_total_amount), 0) AS LifetimeValue,
-                        ISNULL(AVG(o.c_total_amount), 0) AS AverageOrderValue,
-                        ISNULL(SUM(o.c_total_amount), 0) AS TotalSpent,
-                        ISNULL(SUM(o.c_total_amount - ISNULL(pay.PaidAmount, 0)), 0) AS OutstandingBalance,
+                        COALESCE(SUM(o.c_total_amount), 0) AS LifetimeValue,
+                        COALESCE(AVG(o.c_total_amount), 0) AS AverageOrderValue,
+                        COALESCE(SUM(o.c_total_amount), 0) AS TotalSpent,
+                        COALESCE(SUM(o.c_total_amount - COALESCE(pay.PaidAmount, 0)), 0) AS OutstandingBalance,
                         MAX(o.c_createddate) AS LastOrderDate,
-                        (SELECT TOP 1 c_order_status FROM {Table.SysOrders}
+                        (SELECT c_order_status FROM {Table.SysOrders}
                          WHERE c_userid = @CustomerId AND c_ownerid = @OwnerId
-                         ORDER BY c_createddate DESC) AS LastOrderStatus,
-                        (SELECT TOP 1 c_event_type FROM {Table.SysOrders}
+                         ORDER BY c_createddate DESC
+                         LIMIT 1) AS LastOrderStatus,
+                        (SELECT c_event_type FROM {Table.SysOrders}
                          WHERE c_userid = @CustomerId AND c_ownerid = @OwnerId
-                         GROUP BY c_event_type ORDER BY COUNT(*) DESC) AS PreferredEventType,
-                        ISNULL(AVG(o.c_guest_count), 0) AS AverageGuestCount,
-                        MIN(CASE WHEN o.c_event_date >= GETDATE() THEN o.c_event_date END) AS NextEventDate
+                         GROUP BY c_event_type ORDER BY COUNT(*) DESC
+                         LIMIT 1) AS PreferredEventType,
+                        COALESCE(AVG(o.c_guest_count), 0) AS AverageGuestCount,
+                        MIN(CASE WHEN o.c_event_date >= NOW() THEN o.c_event_date END) AS NextEventDate
                     FROM {Table.SysOrders} o
-                    OUTER APPLY (
-                        SELECT SUM(ISNULL(p.c_paid_amount, p.c_amount)) AS PaidAmount
+                    LEFT JOIN LATERAL (
+                        SELECT SUM(COALESCE(p.c_paid_amount, p.c_amount)) AS PaidAmount
                         FROM {Table.SysOrderPayments} p
                         WHERE p.c_orderid = o.c_orderid
-                          AND ISNULL(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
-                    ) pay
+                          AND COALESCE(p.c_status, '') NOT IN ('Failed', 'Rejected', 'Cancelled')
+                    ) pay ON TRUE
                     WHERE o.c_userid = @CustomerId AND o.c_ownerid = @OwnerId;
 
                     -- Favorite Menu Items (Packages and Individual Items)
-                    SELECT TOP 3
-                        ISNULL(f.c_foodname, p.c_packagename) AS ItemName,
+                    SELECT
+                        COALESCE(f.c_foodname, p.c_packagename) AS ItemName,
                         CASE
-                            WHEN f.c_ispackage_item = 1 THEN 'Package'
+                            WHEN f.c_ispackage_item = TRUE THEN 'Package'
                             ELSE 'Individual Item'
                         END AS ItemType,
                         COUNT(*) AS OrderCount
                     FROM {Table.SysOrderItems} oi
                     INNER JOIN {Table.SysOrders} o ON oi.c_orderid = o.c_orderid
                     LEFT JOIN {Table.SysFoodItems} f ON oi.c_foodid = f.c_foodid
-                    LEFT JOIN {Table.SysMenuPackage} p ON f.c_ispackage_item = 1
+                    LEFT JOIN {Table.SysMenuPackage} p ON f.c_ispackage_item = TRUE
                         AND EXISTS (
                             SELECT 1 FROM {Table.SysMenuPackageItems} pi
                             WHERE pi.c_packageid = p.c_packageid
                         )
                     WHERE o.c_userid = @CustomerId AND o.c_ownerid = @OwnerId
-                        AND f.c_is_deleted = 0
-                    GROUP BY ISNULL(f.c_foodname, p.c_packagename), f.c_ispackage_item
-                    ORDER BY COUNT(*) DESC;";
+                        AND f.c_is_deleted = FALSE
+                    GROUP BY COALESCE(f.c_foodname, p.c_packagename), f.c_ispackage_item
+                    ORDER BY COUNT(*) DESC
+                    LIMIT 3;";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CustomerId", customerId),
-                    new SqlParameter("@OwnerId", ownerId)
+                    new NpgsqlParameter("@CustomerId", customerId),
+                    new NpgsqlParameter("@OwnerId", ownerId)
                 };
 
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -346,7 +350,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                         o.c_total_amount AS TotalAmount,
                         o.c_order_status AS OrderStatus,
                         o.c_payment_status AS PaymentStatus,
-                        ISNULL(r.c_overall_rating, 0) AS Rating,
+                        COALESCE(r.c_overall_rating, 0) AS Rating,
                         r.c_review_text AS ReviewText
                     FROM {Table.SysOrders} o
                     LEFT JOIN {Table.SysCateringReview} r ON o.c_orderid = r.c_orderid
@@ -356,14 +360,14 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     -- Summary
                     SELECT
                         COUNT(*) AS TotalOrders,
-                        ISNULL(SUM(c_total_amount), 0) AS TotalSpent
+                        COALESCE(SUM(c_total_amount), 0) AS TotalSpent
                     FROM {Table.SysOrders}
                     WHERE c_userid = @CustomerId AND c_ownerid = @OwnerId;";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CustomerId", customerId),
-                    new SqlParameter("@OwnerId", ownerId)
+                    new NpgsqlParameter("@CustomerId", customerId),
+                    new NpgsqlParameter("@OwnerId", ownerId)
                 };
 
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
@@ -419,29 +423,27 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
             try
             {
                 var query = $@"
-                    DECLARE @CurrentMonth DATE = DATEADD(MONTH, DATEDIFF(MONTH, 0, GETDATE()), 0);
-
                     -- Customer Summary
                     SELECT
                         COUNT(DISTINCT o.c_userid) AS TotalCustomers,
-                        COUNT(DISTINCT CASE WHEN u.c_createddate >= @CurrentMonth THEN o.c_userid END) AS NewCustomersThisMonth,
+                        COUNT(DISTINCT CASE WHEN u.c_createddate >= DATE_TRUNC('month', NOW()) THEN o.c_userid END) AS NewCustomersThisMonth,
                         COUNT(DISTINCT CASE WHEN EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
                             AND o2.c_orderid != o.c_orderid
                         ) THEN o.c_userid END) AS ReturningCustomers,
-                        ISNULL(AVG(o.c_total_amount), 0) AS AverageLifetimeValue
+                        COALESCE(AVG(o.c_total_amount), 0) AS AverageLifetimeValue
                     FROM {Table.SysOrders} o
                     INNER JOIN {Table.SysUser} u ON o.c_userid = u.c_userid
                     WHERE o.c_ownerid = @OwnerId;
 
                     -- Customer Satisfaction
-                    SELECT ISNULL(AVG(CAST(c_overall_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfactionScore
+                    SELECT COALESCE(AVG(CAST(c_overall_rating AS DECIMAL(10,2))), 0) AS CustomerSatisfactionScore
                     FROM {Table.SysCateringReview}
                     WHERE c_ownerid = @OwnerId;
 
                     -- Top Customers
-                    SELECT TOP 10
+                    SELECT
                         u.c_userid AS CustomerId,
                         CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
                         u.c_email AS Email,
@@ -453,29 +455,30 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     INNER JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                     WHERE o.c_ownerid = @OwnerId
                     GROUP BY u.c_userid, u.c_firstname, u.c_lastname, u.c_email, u.c_mobilenumber
-                    ORDER BY LifetimeValue DESC;
+                    ORDER BY LifetimeValue DESC
+                    LIMIT 10;
 
                     -- Monthly Trends (Last 6 months)
                     SELECT
-                        FORMAT(o.c_createddate, 'MMM yyyy') AS Month,
+                        TO_CHAR(o.c_createddate, 'Mon YYYY') AS Month,
                         COUNT(DISTINCT CASE WHEN NOT EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_createddate < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_createddate), 0)
+                            AND o2.c_createddate < DATE_TRUNC('month', o.c_createddate)
                         ) THEN o.c_userid END) AS NewCustomers,
                         COUNT(DISTINCT CASE WHEN EXISTS (
                             SELECT 1 FROM {Table.SysOrders} o2
                             WHERE o2.c_userid = o.c_userid AND o2.c_ownerid = @OwnerId
-                            AND o2.c_createddate < DATEADD(MONTH, DATEDIFF(MONTH, 0, o.c_createddate), 0)
+                            AND o2.c_createddate < DATE_TRUNC('month', o.c_createddate)
                         ) THEN o.c_userid END) AS ReturningCustomers,
                         SUM(o.c_total_amount) AS TotalRevenue
                     FROM {Table.SysOrders} o
                     WHERE o.c_ownerid = @OwnerId
-                        AND o.c_createddate >= DATEADD(MONTH, -6, GETDATE())
-                    GROUP BY YEAR(o.c_createddate), MONTH(o.c_createddate), FORMAT(o.c_createddate, 'MMM yyyy')
-                    ORDER BY YEAR(o.c_createddate), MONTH(o.c_createddate);";
+                        AND o.c_createddate >= NOW() - INTERVAL '6 months'
+                    GROUP BY EXTRACT(YEAR FROM o.c_createddate), EXTRACT(MONTH FROM o.c_createddate), TO_CHAR(o.c_createddate, 'Mon YYYY')
+                    ORDER BY EXTRACT(YEAR FROM o.c_createddate), EXTRACT(MONTH FROM o.c_createddate);";
 
-                var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+                var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
                 var dataSet = await Task.Run(() => _dbHelper.ExecuteDataSet(query, parameters));
 
                 var insights = new CustomerInsightsDto();
@@ -556,7 +559,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                 var orderByClause = sortBy.ToLower() == "totalorders" ? "TotalOrders" : "LifetimeValue";
 
                 var query = $@"
-                    SELECT TOP {limit}
+                    SELECT
                         u.c_userid AS CustomerId,
                         CONCAT(u.c_firstname, ' ', u.c_lastname) AS CustomerName,
                         u.c_email AS Email,
@@ -568,9 +571,10 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
                     INNER JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
                     WHERE o.c_ownerid = @OwnerId
                     GROUP BY u.c_userid, u.c_firstname, u.c_lastname, u.c_email, u.c_mobilenumber
-                    ORDER BY {orderByClause} DESC";
+                    ORDER BY {orderByClause} DESC
+                    LIMIT {limit}";
 
-                var parameters = new[] { new SqlParameter("@OwnerId", ownerId) };
+                var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
                 var dataTable = await Task.Run(() => _dbHelper.ExecuteAsync(query, parameters));
 
                 var topCustomers = new List<TopCustomerDto>();
@@ -606,8 +610,8 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@CustomerId", customerId),
-                    new SqlParameter("@OwnerId", ownerId)
+                    new NpgsqlParameter("@CustomerId", customerId),
+                    new NpgsqlParameter("@OwnerId", ownerId)
                 };
 
                 var result = await Task.Run(() => _dbHelper.ExecuteScalar(query, parameters));
@@ -620,3 +624,4 @@ namespace CateringEcommerce.BAL.Base.Owner.Dashboard
         }
     }
 }
+

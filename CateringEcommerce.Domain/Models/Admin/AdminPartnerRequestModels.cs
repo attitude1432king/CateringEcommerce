@@ -160,7 +160,7 @@ namespace CateringEcommerce.Domain.Models.Admin
         public string? ServiceTypes { get; set; }
         public string? EventTypes { get; set; }
         public string? FoodTypes { get; set; }
-        public decimal? MinDishOrder { get; set; }
+        public int? MinGuestCount { get; set; }
         public bool DeliveryAvailable { get; set; }
         public int? DeliveryRadiusKm { get; set; }
         public string? ServingTimeSlots { get; set; }

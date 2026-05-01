@@ -1,8 +1,8 @@
-using CateringEcommerce.BAL.Configuration;
+﻿using CateringEcommerce.BAL.Configuration;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Security;
 using CateringEcommerce.Domain.Models.Security;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -62,17 +62,17 @@ namespace CateringEcommerce.BAL.Base.Security
                         c_backup_codes = @BackupCodes,
                         c_backup_codes_used = 0,
                         c_setup_completed = 0,
-                        c_is_enabled = 0,
-                        c_modifieddate = GETDATE()
+                        c_is_enabled = FALSE,
+                        c_modifieddate = NOW()
                 WHEN NOT MATCHED THEN
                     INSERT ({userIdColumn}, c_secret_key, c_backup_codes, c_is_enabled, c_setup_completed)
                     VALUES (@UserId, @SecretKey, @BackupCodes, 0, 0);";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@SecretKey", secretKey),
-                new SqlParameter("@BackupCodes", JsonSerializer.Serialize(hashedBackupCodes))
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@SecretKey", secretKey),
+                new NpgsqlParameter("@BackupCodes", JsonSerializer.Serialize(hashedBackupCodes))
             };
 
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -109,22 +109,22 @@ namespace CateringEcommerce.BAL.Base.Security
 
             var query = $@"
                 UPDATE {tableName}
-                SET c_is_enabled = 1,
+                SET c_is_enabled = TRUE,
                     c_setup_completed = 1,
-                    c_setup_date = GETDATE(),
-                    c_verified_date = GETDATE(),
+                    c_setup_date = NOW(),
+                    c_verified_date = NOW(),
                     c_recovery_email = @RecoveryEmail,
                     c_recovery_phone = @RecoveryPhone,
                     c_failed_attempts = 0,
                     c_locked_until = NULL,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@RecoveryEmail", (object)request.RecoveryEmail ?? DBNull.Value),
-                new SqlParameter("@RecoveryPhone", (object)request.RecoveryPhone ?? DBNull.Value)
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@RecoveryEmail", (object)request.RecoveryEmail ?? DBNull.Value),
+                new NpgsqlParameter("@RecoveryPhone", (object)request.RecoveryPhone ?? DBNull.Value)
             };
 
             var result = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -153,13 +153,13 @@ namespace CateringEcommerce.BAL.Base.Security
 
             var query = $@"
                 UPDATE {tableName}
-                SET c_is_enabled = 0,
-                    c_modifieddate = GETDATE()
+                SET c_is_enabled = FALSE,
+                    c_modifieddate = NOW()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@UserId", userId)
             };
 
             var result = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -184,7 +184,7 @@ namespace CateringEcommerce.BAL.Base.Security
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@UserId", userId)
             };
 
             var results = await _dbHelper.ExecuteQueryAsync<TwoFactorAuthModel>(query, parameters);
@@ -318,14 +318,14 @@ namespace CateringEcommerce.BAL.Base.Security
                 WHERE c_user_type = @UserType
                   AND c_userid = @UserId
                   AND c_device_token = @DeviceToken
-                  AND c_is_active = 1
-                  AND c_expires_at > GETDATE()";
+                  AND c_is_active = TRUE
+                  AND c_expires_at > NOW()";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserType", userType),
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@DeviceToken", deviceToken)
+                new NpgsqlParameter("@UserType", userType),
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@DeviceToken", deviceToken)
             };
 
             var resultObj = await _dbHelper.ExecuteScalarAsync(query, parameters);
@@ -346,7 +346,7 @@ namespace CateringEcommerce.BAL.Base.Security
                 var currentTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 var timeStep = currentTime / TOTP_PERIOD;
 
-                // Check current window and ±1 window (allows for clock drift)
+                // Check current window and Â±1 window (allows for clock drift)
                 for (int i = -1; i <= 1; i++)
                 {
                     var computedCode = GenerateTotpCode(secretKey, timeStep + i);
@@ -394,13 +394,13 @@ namespace CateringEcommerce.BAL.Base.Security
                     UPDATE {Table.SysUser2FA}
                         SET c_backup_codes = @BackupCodes,
                             c_backup_codes_used = c_backup_codes_used + 1,
-                            c_modifieddate = GETDATE()
+                            c_modifieddate = NOW()
                         WHERE {userIdColumn} = @UserId";
 
                 var parameters = new[]
                 {
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@BackupCodes", JsonSerializer.Serialize(hashedCodes))
+                    new NpgsqlParameter("@UserId", userId),
+                    new NpgsqlParameter("@BackupCodes", JsonSerializer.Serialize(hashedCodes))
                 };
 
                 await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -460,13 +460,13 @@ namespace CateringEcommerce.BAL.Base.Security
                 UPDATE {tableName}
                 SET c_backup_codes = @BackupCodes,
                     c_backup_codes_used = 0,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@BackupCodes", JsonSerializer.Serialize(hashedCodes))
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@BackupCodes", JsonSerializer.Serialize(hashedCodes))
             };
 
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -511,15 +511,15 @@ namespace CateringEcommerce.BAL.Base.Security
 
             var parameters = new[]
             {
-                new SqlParameter("@UserType", userType),
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@DeviceToken", deviceToken),
-                new SqlParameter("@DeviceName", deviceName),
-                new SqlParameter("@IpAddress", (object)ipAddress ?? DBNull.Value),
-                new SqlParameter("@UserAgent", (object)userAgent ?? DBNull.Value),
-                new SqlParameter("@Browser", browser),
-                new SqlParameter("@OS", os),
-                new SqlParameter("@ExpiresAt", expiresAt)
+                new NpgsqlParameter("@UserType", userType),
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@DeviceToken", deviceToken),
+                new NpgsqlParameter("@DeviceName", deviceName),
+                new NpgsqlParameter("@IpAddress", (object)ipAddress ?? DBNull.Value),
+                new NpgsqlParameter("@UserAgent", (object)userAgent ?? DBNull.Value),
+                new NpgsqlParameter("@Browser", browser),
+                new NpgsqlParameter("@OS", os),
+                new NpgsqlParameter("@ExpiresAt", expiresAt)
             };
 
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -543,13 +543,13 @@ namespace CateringEcommerce.BAL.Base.Security
                 FROM {Table.SysTrustedDevice}
                 WHERE c_user_type = @UserType
                   AND c_userid = @UserId
-                  AND c_is_active = 1
+                  AND c_is_active = TRUE
                 ORDER BY c_trusted_date DESC";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserType", userType),
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@UserType", userType),
+                new NpgsqlParameter("@UserId", userId)
             };
 
             return await _dbHelper.ExecuteQueryAsync<TrustedDeviceDto>(query, parameters);
@@ -559,15 +559,15 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             var query = $@"
                 UPDATE {Table.SysTrustedDevice}
-                SET c_is_active = 0,
-                    c_revoked_date = GETDATE(),
+                SET c_is_active = FALSE,
+                    c_revoked_date = NOW(),
                     c_revoked_reason = @Reason
                 WHERE c_device_id = @DeviceId";
 
             var parameters = new[]
             {
-                new SqlParameter("@DeviceId", deviceId),
-                new SqlParameter("@Reason", (object)request.Reason ?? DBNull.Value)
+                new NpgsqlParameter("@DeviceId", deviceId),
+                new NpgsqlParameter("@Reason", (object)request.Reason ?? DBNull.Value)
             };
 
             var result = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -578,17 +578,17 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             var query = $@"
                 UPDATE {Table.SysTrustedDevice}
-                SET c_is_active = 0,
-                    c_revoked_date = GETDATE(),
+                SET c_is_active = FALSE,
+                    c_revoked_date = NOW(),
                     c_revoked_reason = 'All devices revoked by user'
                 WHERE c_user_type = @UserType
                   AND c_userid = @UserId
-                  AND c_is_active = 1";
+                  AND c_is_active = TRUE";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserType", userType),
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@UserType", userType),
+                new NpgsqlParameter("@UserId", userId)
             };
 
             var result = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -673,13 +673,13 @@ namespace CateringEcommerce.BAL.Base.Security
 
             var parameters = new[]
             {
-                new SqlParameter("@UserType", userType),
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@Method", method),
-                new SqlParameter("@IsSuccessful", isSuccessful),
-                new SqlParameter("@IpAddress", (object)ipAddress ?? DBNull.Value),
-                new SqlParameter("@UserAgent", (object)userAgent ?? DBNull.Value),
-                new SqlParameter("@FailureReason", (object)failureReason ?? DBNull.Value)
+                new NpgsqlParameter("@UserType", userType),
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@Method", method),
+                new NpgsqlParameter("@IsSuccessful", isSuccessful),
+                new NpgsqlParameter("@IpAddress", (object)ipAddress ?? DBNull.Value),
+                new NpgsqlParameter("@UserAgent", (object)userAgent ?? DBNull.Value),
+                new NpgsqlParameter("@FailureReason", (object)failureReason ?? DBNull.Value)
             };
 
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -688,7 +688,7 @@ namespace CateringEcommerce.BAL.Base.Security
         public async Task<List<TwoFactorAttemptLog>> GetRecentAttemptsAsync(long userId, string userType, int limit = 10)
         {
             var query = $@"
-                SELECT TOP (@Limit)
+                SELECT
                     c_log_id AS LogId,
                     c_user_type AS UserType,
                     c_userid AS UserId,
@@ -701,13 +701,14 @@ namespace CateringEcommerce.BAL.Base.Security
                 FROM {Table.Sys2FAAttemptLog}
                 WHERE c_user_type = @UserType
                   AND c_userid = @UserId
-                ORDER BY c_attempt_date DESC";
+                ORDER BY c_attempt_date DESC
+                LIMIT @Limit";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserType", userType),
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@Limit", limit)
+                new NpgsqlParameter("@UserType", userType),
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@Limit", limit)
             };
 
             return await _dbHelper.ExecuteQueryAsync<TwoFactorAttemptLog>(query, parameters);
@@ -734,13 +735,13 @@ namespace CateringEcommerce.BAL.Base.Security
                 UPDATE {tableName}
                 SET c_failed_attempts = 0,
                     c_locked_until = NULL,
-                    c_last_verified = GETDATE(),
-                    c_modifieddate = GETDATE()
+                    c_last_verified = NOW(),
+                    c_modifieddate = NOW()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@UserId", userId)
             };
 
             var result = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -860,12 +861,12 @@ namespace CateringEcommerce.BAL.Base.Security
             var query = $@"
                 UPDATE {tableName}
                 SET c_failed_attempts = c_failed_attempts + 1,
-                    c_modifieddate = GETDATE()
+                    c_modifieddate = NOW()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId)
+                new NpgsqlParameter("@UserId", userId)
             };
 
             var result = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -879,14 +880,14 @@ namespace CateringEcommerce.BAL.Base.Security
 
             var query = $@"
                 UPDATE {tableName}
-                SET c_locked_until = DATEADD(MINUTE, @Minutes, GETDATE()),
-                    c_modifieddate = GETDATE()
+                SET c_locked_until = NOW() + (@Minutes * INTERVAL '1 minute'),
+                    c_modifieddate = NOW()
                 WHERE {userIdColumn} = @UserId";
 
             var parameters = new[]
             {
-                new SqlParameter("@UserId", userId),
-                new SqlParameter("@Minutes", minutes)
+                new NpgsqlParameter("@UserId", userId),
+                new NpgsqlParameter("@Minutes", minutes)
             };
 
             var result = await _dbHelper.ExecuteNonQueryAsync(query, parameters);
@@ -934,3 +935,4 @@ namespace CateringEcommerce.BAL.Base.Security
         #endregion
     }
 }
+

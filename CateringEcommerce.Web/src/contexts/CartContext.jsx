@@ -99,27 +99,7 @@ export const CartProvider = ({ children }) => {
      * @returns {Object} - { success: boolean, needsConfirmation?: boolean, message?: string }
      */
     const addToCart = (cateringData, force = false) => {
-        const {
-            cateringId,
-            cateringName,
-            cateringLogo,
-            packageId,
-            packageName,
-            packagePrice,
-            guestCount: rawGuestCount,
-            eventDate = null,
-            eventType = null,
-            eventLocation = null,
-            decorationId = null,
-            decorationName = null,
-            decorationPrice = 0,
-            additionalItems = [],
-            packageSelections = null,
-            sampleTasteSelections = null
-        } = cateringData;
-
-        // null bypasses destructuring defaults — coerce null/undefined to 50
-        const guestCount = rawGuestCount ?? 50;
+        const { cateringId, cateringName, cateringLogo } = cateringData;
 
         // Check if trying to add different caterer
         if (cart && cart.cateringId !== cateringId && !force) {

@@ -117,9 +117,9 @@ export default function Step3_ServicesAndMedia({ formData, setFormData, errors }
                     error={errors.eventTypeIds}
                 />
                 <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">Minimum Order Value (₹) <span className="text-red-500">*</span></label>
-                    <input type="number" name="minOrderValue" value={formData.minOrderValue || ''} onChange={(e) => setFormData({ ...formData, minOrderValue: e.target.value })} className="w-full md:w-1/2 p-2 border border-neutral-300 rounded-md" />
-                    {errors.minOrderValue && <p className="text-xs text-red-600 mt-1">{errors.minOrderValue}</p>}
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Minimum Guest Count <span className="text-red-500">*</span></label>
+                    <input type="number" name="minGuestCount" value={formData.minGuestCount || ''} onChange={(e) => setFormData({ ...formData, minGuestCount: e.target.value })} className="w-full md:w-1/2 p-2 border border-neutral-300 rounded-md" />
+                    {errors.minGuestCount && <p className="text-xs text-red-600 mt-1">{errors.minGuestCount}</p>}
                 </div>
                 <div>
                     <div className="flex items-center gap-2 mb-2">

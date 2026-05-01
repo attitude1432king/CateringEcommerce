@@ -7,7 +7,6 @@
 -- ========================================
 -- 1. CREATE TEST CATERING OWNER
 -- ========================================
-DECLARE @TestOwnerId BIGINT;
 
 INSERT INTO t_sys_catering_owner (
     c_catering_name,
@@ -21,27 +20,13 @@ INSERT INTO t_sys_catering_owner (
     c_isonline,
     c_createddate
 )
-VALUES (
-    'Royal Caterers',
-    'Rajesh Kumar',
-    'rajesh@royalcaterers.com',
-    '9876543210',
-    '9876543210',
-    'hashed_password',
-    1,
-    1,
-    1,
-    GETDATE()
-);
-
-SET @TestOwnerId = SCOPE_IDENTITY();
-
-PRINT 'Created Owner ID: ' + CAST(@TestOwnerId AS VARCHAR(10));
+SELECT 'Royal Caterers', 'Rajesh Kumar', 'rajesh@royalcaterers.com', '9876543210',
+    '9876543210', 'hashed_password', TRUE, TRUE, TRUE, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM t_sys_catering_owner WHERE c_email = 'rajesh@royalcaterers.com');
 
 -- ========================================
 -- 2. CREATE TEST PACKAGES
 -- ========================================
-DECLARE @PackageId1 BIGINT, @PackageId2 BIGINT;
 
 -- Package 1: Wedding Special
 INSERT INTO t_sys_catering_packages (
@@ -53,18 +38,11 @@ INSERT INTO t_sys_catering_packages (
     c_is_deleted,
     c_createddate
 )
-VALUES (
-    @TestOwnerId,
-    'Wedding Special Package',
-    'Perfect for grand wedding ceremonies with premium selection',
-    599.00,
-    1,
-    0,
-    GETDATE()
-);
-
-SET @PackageId1 = SCOPE_IDENTITY();
-PRINT 'Created Package 1 ID: ' + CAST(@PackageId1 AS VARCHAR(10));
+SELECT c_ownerid, 'Wedding Special Package', 'Perfect for grand wedding ceremonies with premium selection',
+    599.00, TRUE, FALSE, NOW()
+FROM t_sys_catering_owner
+WHERE c_email = 'rajesh@royalcaterers.com'
+  AND NOT EXISTS (SELECT 1 FROM t_sys_catering_packages WHERE c_packagename = 'Wedding Special Package');
 
 -- Package 2: Birthday Party Package
 INSERT INTO t_sys_catering_packages (
@@ -76,81 +54,61 @@ INSERT INTO t_sys_catering_packages (
     c_is_deleted,
     c_createddate
 )
-VALUES (
-    @TestOwnerId,
-    'Birthday Party Package',
-    'Fun and delicious food for birthday celebrations',
-    399.00,
-    1,
-    0,
-    GETDATE()
-);
-
-SET @PackageId2 = SCOPE_IDENTITY();
-PRINT 'Created Package 2 ID: ' + CAST(@PackageId2 AS VARCHAR(10));
+SELECT c_ownerid, 'Birthday Party Package', 'Fun and delicious food for birthday celebrations',
+    399.00, TRUE, FALSE, NOW()
+FROM t_sys_catering_owner
+WHERE c_email = 'rajesh@royalcaterers.com'
+  AND NOT EXISTS (SELECT 1 FROM t_sys_catering_packages WHERE c_packagename = 'Birthday Party Package');
 
 -- ========================================
 -- 3. DEFINE PACKAGE CATEGORY MAPPINGS
 -- ========================================
--- Food categories are already created in mastersql.sql
--- CategoryId 1 = Starter
--- CategoryId 4 = Main Course
--- CategoryId 7 = Sweet Regular
--- CategoryId 9 = Dessert
--- CategoryId 10 = Juice / Beverages
 
--- Wedding Special Package Categories
 INSERT INTO t_sys_catering_package_items (c_packageid, c_categoryid, c_quantity, c_createddate)
-VALUES
-    (@PackageId1, 1, 2, GETDATE()),   -- Starter: Select 2 items
-    (@PackageId1, 4, 3, GETDATE()),   -- Main Course: Select 3 items
-    (@PackageId1, 7, 1, GETDATE()),   -- Sweet Regular: Select 1 item
-    (@PackageId1, 9, 1, GETDATE()),   -- Dessert: Select 1 item
-    (@PackageId1, 10, 1, GETDATE());  -- Beverages: Select 1 item
+SELECT cp.c_packageid, cat.c_categoryid, qty.quantity, NOW()
+FROM (SELECT c_packageid FROM t_sys_catering_packages WHERE c_packagename = 'Wedding Special Package' LIMIT 1) cp,
+     (VALUES (1, 2), (4, 3), (7, 1), (9, 1), (10, 1)) AS cat(c_categoryid, quantity)
+WHERE NOT EXISTS (
+    SELECT 1 FROM t_sys_catering_package_items cpi
+    WHERE cpi.c_packageid = cp.c_packageid AND cpi.c_categoryid = cat.c_categoryid
+);
 
-PRINT 'Added category mappings for Wedding Package';
-
--- Birthday Party Package Categories
 INSERT INTO t_sys_catering_package_items (c_packageid, c_categoryid, c_quantity, c_createddate)
-VALUES
-    (@PackageId2, 1, 3, GETDATE()),   -- Starter: Select 3 items
-    (@PackageId2, 4, 2, GETDATE()),   -- Main Course: Select 2 items
-    (@PackageId2, 9, 2, GETDATE());   -- Dessert: Select 2 items
-
-PRINT 'Added category mappings for Birthday Package';
+SELECT cp.c_packageid, cat.c_categoryid, qty.quantity, NOW()
+FROM (SELECT c_packageid FROM t_sys_catering_packages WHERE c_packagename = 'Birthday Party Package' LIMIT 1) cp,
+     (VALUES (1, 3), (4, 2), (9, 2)) AS cat(c_categoryid, quantity)
+WHERE NOT EXISTS (
+    SELECT 1 FROM t_sys_catering_package_items cpi
+    WHERE cpi.c_packageid = cp.c_packageid AND cpi.c_categoryid = cat.c_categoryid
+);
 
 -- ========================================
 -- 4. CREATE FOOD ITEMS (Package-Eligible)
 -- ========================================
 
--- CATEGORY 1: STARTERS
 INSERT INTO t_sys_fooditems (
     c_ownerid, c_foodname, c_description, c_categoryid,
     c_price, c_ispackage_item, c_status, c_is_deleted,
     c_createddate, c_issample_tasted
 )
-VALUES
-    (@TestOwnerId, 'Paneer Tikka', 'Grilled cottage cheese cubes marinated in spices', 1, 150.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Veg Spring Roll', 'Crispy vegetable spring rolls with sweet chili sauce', 1, 120.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Hara Bhara Kabab', 'Spinach and peas patties served with mint chutney', 1, 130.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Aloo Tikki', 'Spiced potato patties with chutneys', 1, 100.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Corn Cheese Balls', 'Crispy corn and cheese fritters', 1, 140.00, 1, 1, 0, GETDATE(), 1);
-
-PRINT 'Added 5 Starter items';
-
--- CATEGORY 4: MAIN COURSE
-INSERT INTO t_sys_fooditems (
-    c_ownerid, c_foodname, c_description, c_categoryid,
-    c_price, c_ispackage_item, c_status, c_is_deleted,
-    c_createddate, c_issample_tasted
-)
-VALUES
-    (@TestOwnerId, 'Paneer Butter Masala', 'Cottage cheese in rich tomato gravy', 4, 200.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Dal Makhani', 'Creamy black lentils cooked overnight', 4, 180.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Veg Kolhapuri', 'Mixed vegetables in spicy Kolhapuri gravy', 4, 190.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Kadhai Paneer', 'Cottage cheese with bell peppers in kadhai masala', 4, 210.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Chole Bhature', 'Spicy chickpea curry with fried bread', 4, 170.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Mushroom Masala', 'Button mushrooms in onion tomato gravy', 4, 195.00, 1, 1, 0, GETDATE(), 1);
+SELECT co.c_ownerid, food.name, food.description, food.categoryid,
+    food.price, TRUE, TRUE, FALSE, NOW(), TRUE
+FROM t_sys_catering_owner co,
+     (VALUES
+        (1, 'Paneer Tikka', 'Grilled cottage cheese cubes marinated in spices', 150.00),
+        (1, 'Veg Spring Roll', 'Crispy vegetable spring rolls with sweet chili sauce', 120.00),
+        (1, 'Hara Bhara Kabab', 'Spinach and peas patties served with mint chutney', 130.00),
+        (1, 'Aloo Tikki', 'Spiced potato patties with chutneys', 100.00),
+        (1, 'Corn Cheese Balls', 'Crispy corn and cheese fritters', 140.00),
+        (4, 'Paneer Butter Masala', 'Cottage cheese in rich tomato gravy', 200.00),
+        (4, 'Dal Makhani', 'Creamy black lentils cooked overnight', 180.00),
+        (4, 'Veg Kolhapuri', 'Mixed vegetables in spicy Kolhapuri gravy', 190.00)
+     ) AS food(categoryid, name, description, price)
+WHERE co.c_email = 'rajesh@royalcaterers.com'
+  AND NOT EXISTS (SELECT 1 FROM t_sys_fooditems WHERE c_ownerid = co.c_ownerid AND c_foodname = food.name);
+    (@TestOwnerId, 'Kadhai Paneer', 'Cottage cheese with bell peppers in kadhai masala', 4, 210.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Chole Bhature', 'Spicy chickpea curry with fried bread', 4, 170.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Mushroom Masala', 'Button mushrooms in onion tomato gravy', 4, 195.00, 1, 1, 0, NOW(), 1);
 
 PRINT 'Added 6 Main Course items';
 
@@ -161,10 +119,10 @@ INSERT INTO t_sys_fooditems (
     c_createddate, c_issample_tasted
 )
 VALUES
-    (@TestOwnerId, 'Gulab Jamun', 'Traditional milk solid dumplings in sugar syrup', 7, 80.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Rasgulla', 'Soft cottage cheese balls in sugar syrup', 7, 70.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Jalebi', 'Crispy sweet spirals soaked in sugar syrup', 7, 75.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Rasmalai', 'Cottage cheese patties in sweetened milk', 7, 90.00, 1, 1, 0, GETDATE(), 1);
+    (@TestOwnerId, 'Gulab Jamun', 'Traditional milk solid dumplings in sugar syrup', 7, 80.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Rasgulla', 'Soft cottage cheese balls in sugar syrup', 7, 70.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Jalebi', 'Crispy sweet spirals soaked in sugar syrup', 7, 75.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Rasmalai', 'Cottage cheese patties in sweetened milk', 7, 90.00, 1, 1, 0, NOW(), 1);
 
 PRINT 'Added 4 Sweet Regular items';
 
@@ -175,11 +133,11 @@ INSERT INTO t_sys_fooditems (
     c_createddate, c_issample_tasted
 )
 VALUES
-    (@TestOwnerId, 'Chocolate Ice Cream', 'Premium chocolate ice cream', 9, 60.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Vanilla Ice Cream', 'Classic vanilla ice cream', 9, 50.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Strawberry Ice Cream', 'Fresh strawberry ice cream', 9, 55.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Fruit Custard', 'Mixed fruits in creamy custard', 9, 65.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Chocolate Brownie', 'Rich chocolate brownie with vanilla sauce', 9, 80.00, 1, 1, 0, GETDATE(), 1);
+    (@TestOwnerId, 'Chocolate Ice Cream', 'Premium chocolate ice cream', 9, 60.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Vanilla Ice Cream', 'Classic vanilla ice cream', 9, 50.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Strawberry Ice Cream', 'Fresh strawberry ice cream', 9, 55.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Fruit Custard', 'Mixed fruits in creamy custard', 9, 65.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Chocolate Brownie', 'Rich chocolate brownie with vanilla sauce', 9, 80.00, 1, 1, 0, NOW(), 1);
 
 PRINT 'Added 5 Dessert items';
 
@@ -190,10 +148,10 @@ INSERT INTO t_sys_fooditems (
     c_createddate, c_issample_tasted
 )
 VALUES
-    (@TestOwnerId, 'Fresh Lime Soda', 'Refreshing lime soda with mint', 10, 40.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Mango Shake', 'Thick mango milkshake', 10, 60.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Masala Chaas', 'Spiced buttermilk', 10, 35.00, 1, 1, 0, GETDATE(), 1),
-    (@TestOwnerId, 'Virgin Mojito', 'Non-alcoholic mojito with fresh mint', 10, 70.00, 1, 1, 0, GETDATE(), 1);
+    (@TestOwnerId, 'Fresh Lime Soda', 'Refreshing lime soda with mint', 10, 40.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Mango Shake', 'Thick mango milkshake', 10, 60.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Masala Chaas', 'Spiced buttermilk', 10, 35.00, 1, 1, 0, NOW(), 1),
+    (@TestOwnerId, 'Virgin Mojito', 'Non-alcoholic mojito with fresh mint', 10, 70.00, 1, 1, 0, NOW(), 1);
 
 PRINT 'Added 4 Beverage items';
 
@@ -223,7 +181,7 @@ SELECT
         WHEN 'Corn Cheese Balls' THEN 'https://images.unsplash.com/photo-1625937286074-9ca519d5d9df?w=400'
     END,
     0,
-    GETDATE()
+    NOW()
 FROM t_sys_fooditems f
 WHERE f.c_ownerid = @TestOwnerId
     AND f.c_categoryid = 1
@@ -252,7 +210,7 @@ SELECT
         WHEN 'Mushroom Masala' THEN 'https://images.unsplash.com/photo-1618385288512-26627e15df92?w=400'
     END,
     0,
-    GETDATE()
+    NOW()
 FROM t_sys_fooditems f
 WHERE f.c_ownerid = @TestOwnerId
     AND f.c_categoryid = 4
@@ -279,7 +237,7 @@ SELECT
         WHEN 'Rasmalai' THEN 'https://images.unsplash.com/photo-1590301157890-4810ed352733?w=400'
     END,
     0,
-    GETDATE()
+    NOW()
 FROM t_sys_fooditems f
 WHERE f.c_ownerid = @TestOwnerId
     AND f.c_categoryid = 7
@@ -307,7 +265,7 @@ SELECT
         WHEN 'Chocolate Brownie' THEN 'https://images.unsplash.com/photo-1607920592782-c1e36e7d7b15?w=400'
     END,
     0,
-    GETDATE()
+    NOW()
 FROM t_sys_fooditems f
 WHERE f.c_ownerid = @TestOwnerId
     AND f.c_categoryid = 9
@@ -334,7 +292,7 @@ SELECT
         WHEN 'Virgin Mojito' THEN 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400'
     END,
     0,
-    GETDATE()
+    NOW()
 FROM t_sys_fooditems f
 WHERE f.c_ownerid = @TestOwnerId
     AND f.c_categoryid = 10
@@ -354,9 +312,9 @@ INSERT INTO t_sys_fooditems (
     c_createddate, c_issample_tasted
 )
 VALUES
-    (@TestOwnerId, 'Extra Naan (10 pcs)', 'Additional naan bread', 6, 100.00, 0, 1, 0, GETDATE(), 0),
-    (@TestOwnerId, 'Extra Roti (15 pcs)', 'Additional rotis', 6, 80.00, 0, 1, 0, GETDATE(), 0),
-    (@TestOwnerId, 'Special Biryani Rice', 'Premium biryani rice with raita', 5, 250.00, 0, 1, 0, GETDATE(), 0);
+    (@TestOwnerId, 'Extra Naan (10 pcs)', 'Additional naan bread', 6, 100.00, 0, 1, 0, NOW(), 0),
+    (@TestOwnerId, 'Extra Roti (15 pcs)', 'Additional rotis', 6, 80.00, 0, 1, 0, NOW(), 0),
+    (@TestOwnerId, 'Special Biryani Rice', 'Premium biryani rice with raita', 5, 250.00, 0, 1, 0, NOW(), 0);
 
 PRINT 'Added 3 Add-on items (non-package items)';
 
@@ -391,7 +349,7 @@ INNER JOIN t_sys_food_category fc ON fc.c_categoryid = f.c_categoryid
 WHERE f.c_ownerid = @TestOwnerId
   AND f.c_ispackage_item = 1
   AND f.c_status = 1
-  AND f.c_is_deleted = 0
+  AND f.c_is_deleted = FALSE
 GROUP BY f.c_categoryid, fc.c_categoryname
 ORDER BY f.c_categoryid;
 
@@ -418,8 +376,8 @@ SELECT
 FROM t_sys_catering_packages p
 WHERE p.c_packageid = @PackageId1
   AND p.c_ownerid = @TestOwnerId
-  AND p.c_is_active = 1
-  AND p.c_is_deleted = 0;
+  AND p.c_is_active = TRUE
+  AND p.c_is_deleted = FALSE;
 
 -- Get Categories with Quantities
 SELECT
@@ -430,7 +388,7 @@ SELECT
 FROM t_sys_catering_package_items pi
 INNER JOIN t_sys_food_category fc ON fc.c_categoryid = pi.c_categoryid
 WHERE pi.c_packageid = @PackageId1
-  AND fc.c_is_active = 1
+  AND fc.c_is_active = TRUE
 ORDER BY fc.c_categoryname;
 
 -- Get Food Items for Category 1 (Starters)
@@ -444,7 +402,7 @@ WHERE f.c_ownerid = @TestOwnerId
   AND f.c_categoryid = 1
   AND f.c_ispackage_item = 1
   AND f.c_status = 1
-  AND f.c_is_deleted = 0
+  AND f.c_is_deleted = FALSE
 ORDER BY f.c_foodname;
 
 PRINT '';
@@ -457,3 +415,4 @@ PRINT '1. Test the API endpoint: GET /api/User/Home/Catering/' + CAST(@TestOwner
 PRINT '2. Open the frontend and test the PackageSelectionModal component';
 PRINT '3. Verify that users can select items according to quantity restrictions';
 PRINT '';
+
