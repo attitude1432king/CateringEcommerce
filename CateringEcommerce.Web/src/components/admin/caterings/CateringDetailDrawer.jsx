@@ -15,7 +15,7 @@ const getFileExt = (url) => {
 
 const isVideo = (url) => VIDEO_EXTS.includes(getFileExt(url));
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n ?? 0);

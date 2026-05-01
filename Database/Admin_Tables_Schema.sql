@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS t_sys_admin (
     c_mobile VARCHAR(20),
     c_profilephoto VARCHAR(500),
     c_force_password_reset BOOLEAN DEFAULT FALSE,
-    c_is_temporary_password BOOLEAN NOT NULL DEFAULT FALSE
+    c_is_temporary_password BOOLEAN NOT NULL DEFAULT FALSE,
     c_isactive BOOLEAN NOT NULL DEFAULT TRUE,
     c_failedloginattempts INTEGER NOT NULL DEFAULT 0,
     c_islocked BOOLEAN NOT NULL DEFAULT FALSE,

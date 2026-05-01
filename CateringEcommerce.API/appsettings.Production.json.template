@@ -12,73 +12,72 @@
     }
   },
   "ConnectionStrings": {
-    "DefaultConnection": "${DATABASE_CONNECTION_STRING}"
+    "DefaultConnection": ""
+  },
+  "JWT": {
+    "KEY": "",
+    "ISSUER": "",
+    "AUDIENCE": "",
+    "EXPIRE_MINUTES": ""
+  },
+  "EMAIL": {
+    "SMTP_HOST": "",
+    "SMTP_PORT": "",
+    "SMTP_USERNAME": "",
+    "SMTP_PASSWORD": "",
+    "ENABLE_SSL": "",
+    "FROM_ADDRESS": "",
+    "FROM_NAME": ""
   },
   "AwsSns": {
-    "AccessKey": "${AWS_SNS_ACCESS_KEY}",
-    "SecretKey": "${AWS_SNS_SECRET_KEY}",
-    "Region": "${AWS_SNS_REGION:ap-south-1}",
-    "SenderId": "${AWS_SNS_SENDER_ID:ENYVORA}"
+    "AccessKey": "",
+    "SecretKey": "",
+    "Region": "",
+    "SenderId": ""
   },
   "AllowedHosts": "${ALLOWED_HOSTS:*}",
-
-  "IMPORTANT_NOTES": {
-    "_1": "This is a TEMPLATE file for production deployment",
-    "_2": "All sensitive values use environment variable substitution: ${VAR_NAME}",
-    "_3": "Set these environment variables on your production server (Azure App Service, AWS, etc.)",
-    "_4": "Most settings are stored in t_sys_settings database table and loaded at runtime",
-    "_5": "Only connection string and basic config should be in this file",
-    "_6": "Copy this to appsettings.Production.json and deploy with environment variables configured"
+  "SMS": {
+    "API_KEY": "${SMS_API_KEY}",
+    "SENDER_ID": "${SMS_SENDER_ID:ENYVORA}"
   },
-
-  "REQUIRED_ENVIRONMENT_VARIABLES": {
-    "DATABASE_CONNECTION_STRING": "Full SQL Server connection string with credentials",
-    "AWS_SNS_ACCESS_KEY": "AWS IAM Access Key ID for SNS SMS",
-    "AWS_SNS_SECRET_KEY": "AWS IAM Secret Access Key for SNS SMS",
-    "AWS_SNS_REGION": "AWS region (optional, defaults to ap-south-1)",
-    "AWS_SNS_SENDER_ID": "SMS Sender ID (optional, defaults to ENYVORA)",
-    "ALLOWED_HOSTS": "Comma-separated list of allowed hosts (optional, defaults to *)"
+  "RABBITMQ": {
+    "ENABLED": "",
+    "HOSTNAME": "",
+    "PORT": "",
+    "USERNAME": "",
+    "PASSWORD": "",
+    "VIRTUAL_HOST": ""
   },
-
-  "DATABASE_SETTINGS_INFO": "The following settings are stored in the t_sys_settings database table and should be configured via Admin panel or direct SQL:",
-  "SETTINGS_IN_DATABASE": [
-    "JWT.KEY - JWT signing secret (CRITICAL: Generate strong random key)",
-    "JWT.ISSUER - Your API base URL (e.g., https://api.yourdomain.com)",
-    "JWT.AUDIENCE - Your frontend URL (e.g., https://yourdomain.com)",
-    "JWT.EXPIRE_MINUTES - Token expiry in minutes (default: 60)",
-    "SYSTEM.ENCRYPTION_KEY - Master encryption key for AES operations (CRITICAL: Generate strong random key)",
-    "EMAIL.SMTP_HOST - SMTP server hostname",
-    "EMAIL.SMTP_PORT - SMTP port (usually 587 or 465)",
-    "EMAIL.SMTP_USERNAME - SMTP auth username",
-    "EMAIL.SMTP_PASSWORD - SMTP auth password (marked as ENCRYPTED)",
-    "PAYMENT.RAZORPAY_KEY_ID - Razorpay production API key ID",
-    "PAYMENT.RAZORPAY_KEY_SECRET - Razorpay production secret (marked as ENCRYPTED)",
-    "PAYMENT.RAZORPAY_WEBHOOK_SECRET - Razorpay webhook secret (marked as ENCRYPTED)",
-    "AWS_SNS.ACCESS_KEY - AWS SNS IAM Access Key (for order/system SMS notifications)",
-    "AWS_SNS.SECRET_KEY - AWS SNS IAM Secret Key",
-    "AWS_SNS.REGION - AWS SNS region (default: ap-south-1)",
-    "AWS_SNS.SENDER_ID - SMS Sender ID (default: ENYVORA)",
-    "MSG91.AUTH_KEY - MSG91 API key (OTP authentication only)",
-    "MSG91.SENDER_ID - MSG91 sender ID",
-    "MSG91.TEMPLATE_ID - MSG91 OTP template ID",
-    "RABBITMQ.* - RabbitMQ connection settings (if enabled)",
-    "And 90+ other business logic, security, and notification settings"
-  ],
-
-  "SECURITY_CHECKLIST": [
-    "✅ Generate NEW JWT.KEY (min 32 characters, random alphanumeric + symbols)",
-    "✅ Generate NEW SYSTEM.ENCRYPTION_KEY (min 32 characters, random)",
-    "✅ Update JWT.ISSUER and JWT.AUDIENCE to production URLs",
-    "✅ Set production Razorpay keys (not test keys)",
-    "✅ Configure production SMTP credentials",
-    "✅ Enable SSL for database connection (Encrypt=True)",
-    "✅ Set CORS.ALLOWED_ORIGINS to production frontend URL only",
-    "✅ Review all SECURITY.* settings in database",
-    "✅ Set OTP.BYPASS_VERIFICATION = false in database",
-    "✅ Set SYSTEM.MAINTENANCE_MODE = false in database",
-    "✅ Configure Application Insights instrumentation key (if using Azure)",
-    "✅ Set up database backups (daily minimum)",
-    "✅ Enable SQL Server audit logging",
-    "✅ Restrict database firewall to API server IPs only"
-  ]
+  "SYSTEM": {
+    "ENCRYPTION_KEY": ""
+  },
+  "MSG91": {
+    "AUTH_KEY": "",
+    "SENDER_ID": "",
+    "TEMPLATE_ID": "",
+    "ROUTE": ""
+  },
+  "PAYMENT": {
+    "RAZORPAY_KEY_ID": "",
+    "RAZORPAY_KEY_SECRET": "",
+    "RAZORPAY_WEBHOOK_SECRET": ""
+  },
+  "Pdf": {
+    "LogoPath": "wwwroot/logo.png",
+    "OutputPath": "wwwroot/invoices",
+    "FontFamily": "Calibri"
+  },
+  "EncryptionSettings": {
+    "CustomKey": ""
+  },
+  "Company": {
+    "Name": "Enyvora Pvt. Ltd.",
+    "GSTIN": "27AABCU9603R1ZM",
+    "Address": "123 Business Park, Mumbai, Maharashtra 400001, India",
+    "Phone": "+91 22 1234 5678",
+    "Email": "invoices@enyvora.com",
+    "Website": "www.enyvora.com",
+    "PAN": "AABCU9603R",
+    "SAC": "996331"
+  }
 }

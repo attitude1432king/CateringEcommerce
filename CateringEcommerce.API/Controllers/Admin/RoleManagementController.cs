@@ -2,6 +2,7 @@ using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Admin;
 using CateringEcommerce.BAL.DatabaseHelper;
+using CateringEcommerce.Domain.Interfaces.Admin;
 using CateringEcommerce.Domain.Models.Admin;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -14,13 +15,11 @@ namespace CateringEcommerce.API.Controllers.Admin
     [AdminAuthorize]
     public class RoleManagementController : ControllerBase
     {
-        private readonly string _connStr;
-        private readonly IConfiguration _configuration;
+        private readonly IRBACRepository _iRBACRepository;
 
-        public RoleManagementController(IConfiguration config)
+        public RoleManagementController(IRBACRepository rbacRepository)
         {
-            _configuration = config ?? throw new ArgumentNullException(nameof(config));
-            _connStr = config.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
+            _iRBACRepository = rbacRepository;
         }
 
         private (long adminId, string adminName) GetCurrentAdmin()
@@ -38,19 +37,13 @@ namespace CateringEcommerce.API.Controllers.Admin
 
         private async Task<bool> CheckPermissionAsync(long adminId, string permissionCode)
         {
-            var dbHelper = new SqlDatabaseManager(_configuration);
-            var rbacRepo = new RBACRepository(dbHelper);
-
-            return await rbacRepo.AdminHasPermissionAsync(adminId, permissionCode) ||
-                   await rbacRepo.IsSuperAdminAsync(adminId);
+            return await _iRBACRepository.AdminHasPermissionAsync(adminId, permissionCode) ||
+                   await _iRBACRepository.IsSuperAdminAsync(adminId);
         }
 
         private async Task LogAuditAsync(long adminId, string adminName, string action, string module, long? targetId, string? targetType, object? details, string status, string? errorMessage = null)
         {
-            var dbHelper = new SqlDatabaseManager(_configuration);
-            var rbacRepo = new RBACRepository(dbHelper);
-
-            await rbacRepo.LogAuditAsync(new AuditLogEntry
+            await _iRBACRepository.LogAuditAsync(new AuditLogEntry
             {
                 AdminId = adminId,
                 AdminName = adminName,
@@ -76,13 +69,10 @@ namespace CateringEcommerce.API.Controllers.Admin
             {
                 var (adminId, adminName) = GetCurrentAdmin();
 
-                var dbHelper = new SqlDatabaseManager(_configuration);
-                var rbacRepo = new RBACRepository(dbHelper);
-
-                var roles = await rbacRepo.GetAllRolesAsync();
+                var roles = await _iRBACRepository.GetAllRolesAsync();
 
                 // Filter Super Admin role for non-super-admins
-                var isSuperAdmin = await rbacRepo.IsSuperAdminAsync(adminId);
+                var isSuperAdmin = await _iRBACRepository.IsSuperAdminAsync(adminId);
                 if (!isSuperAdmin)
                 {
                     roles = roles.Where(r => r.RoleCode != "SUPER_ADMIN").ToList();
@@ -114,10 +104,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You do not have permission to view roles."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_configuration);
-                var rbacRepo = new RBACRepository(dbHelper);
-
-                var role = await rbacRepo.GetRoleByIdAsync(id);
+                var role = await _iRBACRepository.GetRoleByIdAsync(id);
 
                 if (role == null)
                 {
@@ -151,16 +138,13 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You do not have permission to create roles."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_configuration);
-                var rbacRepo = new RBACRepository(dbHelper);
-
                 // Check if role code already exists
-                if (await rbacRepo.RoleCodeExistsAsync(request.RoleCode))
+                if (await _iRBACRepository.RoleCodeExistsAsync(request.RoleCode))
                 {
                     return ApiResponseHelper.Failure("Role code already exists.");
                 }
 
-                var roleId = await rbacRepo.CreateRoleAsync(request, adminId);
+                var roleId = await _iRBACRepository.CreateRoleAsync(request, adminId);
 
                 await LogAuditAsync(adminId, adminName, "CREATE_ROLE", "SYSTEM", roleId, "Role", request, "SUCCESS");
                 return ApiResponseHelper.Success(new { RoleId = roleId }, "Role created successfully.");
@@ -189,11 +173,8 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You do not have permission to edit roles."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_configuration);
-                var rbacRepo = new RBACRepository(dbHelper);
-
                 // Check if role exists and is not a system role
-                var existingRole = await rbacRepo.GetRoleByIdAsync(id);
+                var existingRole = await _iRBACRepository.GetRoleByIdAsync(id);
                 if (existingRole == null)
                 {
                     return ApiResponseHelper.Failure("Role not found.");
@@ -205,7 +186,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                 }
 
                 request.RoleId = id;
-                var success = await rbacRepo.UpdateRoleAsync(request, adminId);
+                var success = await _iRBACRepository.UpdateRoleAsync(request, adminId);
 
                 if (!success)
                 {
@@ -239,11 +220,8 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return StatusCode(403, ApiResponseHelper.Failure("You do not have permission to delete roles."));
                 }
 
-                var dbHelper = new SqlDatabaseManager(_configuration);
-                var rbacRepo = new RBACRepository(dbHelper);
-
                 // Check if role exists and is not a system role
-                var existingRole = await rbacRepo.GetRoleByIdAsync(id);
+                var existingRole = await _iRBACRepository.GetRoleByIdAsync(id);
                 if (existingRole == null)
                 {
                     return ApiResponseHelper.Failure("Role not found.");
@@ -254,7 +232,7 @@ namespace CateringEcommerce.API.Controllers.Admin
                     return ApiResponseHelper.Failure("Cannot delete system roles.");
                 }
 
-                var success = await rbacRepo.DeleteRoleAsync(id, adminId);
+                var success = await _iRBACRepository.DeleteRoleAsync(id, adminId);
 
                 if (!success)
                 {
@@ -278,10 +256,7 @@ namespace CateringEcommerce.API.Controllers.Admin
         {
             try
             {
-                var dbHelper = new SqlDatabaseManager(_configuration);
-                var rbacRepo = new RBACRepository(dbHelper);
-
-                var permissions = await rbacRepo.GetAllPermissionsAsync();
+                var permissions = await _iRBACRepository.GetAllPermissionsAsync();
 
                 return ApiResponseHelper.Success(permissions, "Permissions retrieved successfully.");
             }

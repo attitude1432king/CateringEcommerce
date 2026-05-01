@@ -94,7 +94,7 @@ IF v_catering_admin_role_id IS NOT NULL THEN
         TRUE
     FROM t_sys_admin_users a
     WHERE a.c_adminid > 1
-      AND a.c_is_active = TRUE
+      AND a.c_isactive = TRUE
       AND NOT EXISTS (
           SELECT 1
           FROM t_sys_admin_user_roles ur

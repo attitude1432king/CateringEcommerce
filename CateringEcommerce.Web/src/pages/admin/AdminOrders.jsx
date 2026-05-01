@@ -152,7 +152,7 @@ const AdminOrders = () => {
                 paymentStatus: filters.paymentStatus || ''
             }).toString();
 
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368'}/api/admin/orders/export?${queryParams}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/orders/export?${queryParams}`, {
                 credentials: 'include'
             });
 

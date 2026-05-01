@@ -7,7 +7,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ImageCropUploader from './ImageCropUploader';
 import { useToast } from '../../../../contexts/ToastContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 // Helper components for validation
 const RequiredAsterisk = () => <span className="text-red-500">*</span>;

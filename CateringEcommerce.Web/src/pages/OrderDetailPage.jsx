@@ -13,7 +13,7 @@ import ReviewSubmissionModal from '../components/user/review/ReviewSubmissionMod
 import StarRating from '../components/common/StarRating';
 import toast from 'react-hot-toast'; // P2 FIX: Add toast for better UX
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 const OrderDetailPage = () => {
   const { orderId } = useParams();

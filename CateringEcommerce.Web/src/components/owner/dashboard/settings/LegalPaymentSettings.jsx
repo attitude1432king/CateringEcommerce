@@ -5,7 +5,7 @@ File: src/components/owner/dashboard/settings/LegalPaymentSettings.jsx (REVISED)
 */
 import React, { useState } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 // A simple component to render a file input row
 const FileInputRow = ({ label, fileName, onFileChange }) => (

@@ -7,7 +7,7 @@ Modern banner carousel for homepage
 import React, { useState, useEffect } from 'react';
 import { homeApiService } from '../../services/homeApi';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 export default function BannerCarousel() {
     const [banners, setBanners] = useState([]);

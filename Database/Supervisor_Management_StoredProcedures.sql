@@ -6,67 +6,89 @@
 -- FUNCTION: Check Supervisor Authority
 -- =============================================
 
+-- Drop existing function
 DROP FUNCTION IF EXISTS sp_CheckSupervisorAuthority;
 
-CREATE OR ALTER PROCEDURE sp_CheckSupervisorAuthority
-    @SupervisorId BIGINT,
-    @RequiredAction VARCHAR(50),
-    @IsAuthorized BIT OUTPUT,
-    @AuthorityLevel VARCHAR(20) OUTPUT
-AS
+-- Create function (PostgreSQL)
+CREATE OR REPLACE FUNCTION sp_CheckSupervisorAuthority(
+    p_SupervisorId BIGINT,
+    p_RequiredAction VARCHAR
+)
+RETURNS TABLE (
+    IsAuthorized BOOLEAN,
+    AuthorityLevel VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SupervisorType VARCHAR(20);
+    v_CanReleasePayment BOOLEAN;
+    v_CanApproveRefund BOOLEAN;
+    v_Status VARCHAR(30);
+    v_AuthorityLevel VARCHAR(20);
+    v_IsAuthorized BOOLEAN := FALSE;
 BEGIN
-    SET NOCOUNT ON;
 
-    DECLARE @SupervisorType VARCHAR(20);
-    DECLARE @CanReleasePayment BIT;
-    DECLARE @CanApproveRefund BIT;
-    DECLARE @Status VARCHAR(30);
-
+    -- Fetch supervisor details
     SELECT
-        @SupervisorType = c_supervisor_type,
-        @AuthorityLevel = c_authority_level,
-        @CanReleasePayment = c_can_release_payment,
-        @CanApproveRefund = c_can_approve_refund,
-        @Status = c_current_status
+        c_supervisor_type,
+        c_authority_level,
+        c_can_release_payment,
+        c_can_approve_refund,
+        c_current_status
+    INTO
+        v_SupervisorType,
+        v_AuthorityLevel,
+        v_CanReleasePayment,
+        v_CanApproveRefund,
+        v_Status
     FROM t_sys_supervisor
-    WHERE c_supervisor_id = @SupervisorId;
+    WHERE c_supervisor_id = p_SupervisorId;
 
-    SET @IsAuthorized = 0;
-
-    IF @Status != 'ACTIVE'
-    BEGIN
+    -- If not active → return false
+    IF v_Status IS NULL OR v_Status <> 'ACTIVE' THEN
+        RETURN QUERY SELECT FALSE, v_AuthorityLevel;
         RETURN;
-    END
+    END IF;
 
-    IF @RequiredAction = 'PAYMENT_RELEASE'
-    BEGIN
-        IF @SupervisorType = 'CAREER' AND @CanReleasePayment = 1
-            SET @IsAuthorized = 1;
-    END
+    -- PAYMENT_RELEASE
+    IF p_RequiredAction = 'PAYMENT_RELEASE' THEN
+        IF v_SupervisorType = 'CAREER' AND v_CanReleasePayment = TRUE THEN
+            v_IsAuthorized := TRUE;
+        END IF;
+    END IF;
 
-    IF @RequiredAction = 'REFUND_APPROVAL'
-    BEGIN
-        IF @SupervisorType = 'CAREER' AND @CanApproveRefund = 1
-            SET @IsAuthorized = 1;
-    END
+    -- REFUND_APPROVAL
+    IF p_RequiredAction = 'REFUND_APPROVAL' THEN
+        IF v_SupervisorType = 'CAREER' AND v_CanApproveRefund = TRUE THEN
+            v_IsAuthorized := TRUE;
+        END IF;
+    END IF;
 
-    IF @RequiredAction = 'MENTOR_ACCESS'
-    BEGIN
-        IF @SupervisorType = 'CAREER' AND @AuthorityLevel IN ('ADVANCED', 'FULL')
-            SET @IsAuthorized = 1;
-    END
+    -- MENTOR_ACCESS
+    IF p_RequiredAction = 'MENTOR_ACCESS' THEN
+        IF v_SupervisorType = 'CAREER'
+           AND v_AuthorityLevel IN ('ADVANCED', 'FULL') THEN
+            v_IsAuthorized := TRUE;
+        END IF;
+    END IF;
 
-    IF @RequiredAction = 'QUALITY_CHECK'
-    BEGIN
-        SET @IsAuthorized = 1;
-    END
+    -- QUALITY_CHECK
+    IF p_RequiredAction = 'QUALITY_CHECK' THEN
+        v_IsAuthorized := TRUE;
+    END IF;
 
-    IF @RequiredAction = 'EXTRA_PAYMENT_REQUEST'
-    BEGIN
-        SET @IsAuthorized = 1;
-    END
-END
-GO
+    -- EXTRA_PAYMENT_REQUEST
+    IF p_RequiredAction = 'EXTRA_PAYMENT_REQUEST' THEN
+        v_IsAuthorized := TRUE;
+    END IF;
+
+    -- Return result
+    RETURN QUERY
+    SELECT v_IsAuthorized, v_AuthorityLevel;
+
+END;
+$$;
 
 -- =============================================
 -- FUNCTION: Progress Careers Application Status

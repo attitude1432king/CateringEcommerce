@@ -75,7 +75,7 @@ namespace CateringEcommerce.BAL.DatabaseHelper
             EnsureReady();
             await using var cmd = CreateCommand(query, parameters, commandType);
             var result = await cmd.ExecuteScalarAsync();
-            return SqlDatabaseManager.ConvertScalar<TResult>(result);
+            return NpgsqlDatabaseManager.ConvertScalar<TResult>(result);
         }
 
         public async Task<DataTable> ExecuteAsync(string query, DbParameter[] parameters = null, CommandType commandType = CommandType.Text)

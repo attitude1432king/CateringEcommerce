@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getUserOrders, cancelOrder } from '../services/orderApi';
 import { X } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44368';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 
 const MyOrdersPage = () => {
   const navigate = useNavigate();
