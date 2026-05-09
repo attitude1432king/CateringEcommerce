@@ -1,34 +1,58 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { ShoppingCart, Zap, Menu, X, ChevronDown, LogOut, User, Package } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCart } from '../../../contexts/CartContext';
 import UserNotifications from '../UserNotifications';
+import IconButton from '../../../design-system/components/IconButton';
+import Button from '../../../design-system/components/Button';
 
 const generateInitialsAvatar = (name) => {
-    if (!name) return 'https://placehold.co/64x64/FF6B35/FFFFFF?text=Q';
+    if (!name) return 'https://placehold.co/64x64/FF6B35/FFFFFF?text=U';
     const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#FF6B35"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-family="sans-serif" font-size="28" fill="white">${initials}</text></svg>`;
     return `data:image/svg+xml;base64,${btoa(svg)}`;
 };
 
+const navLinks = [
+    { label: 'Browse Caterers', to: '/caterings' },
+    { label: 'Events',          to: '/events' },
+    { label: 'Corporate',       to: '/corporate' },
+    { label: 'How it Works',    href: '/#how-it-works' },
+];
+
 export default function AppHeader({ onOpenAuthModal }) {
     const { isAuthenticated, user, logout } = useAuth();
     const { getCartItemCount, toggleCart } = useCart();
     const dropdownRef = useRef(null);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen]     = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const navigate = useNavigate();
-    const cartItemCount = getCartItemCount();
+    const [scrolled, setScrolled]                 = useState(false);
+    const navigate  = useNavigate();
+    const location  = useLocation();
+    const cartCount = getCartItemCount();
+    const userAvatar = isAuthenticated ? (user?.profilePhoto || generateInitialsAvatar(user?.name)) : null;
 
+    /* Close dropdown when clicking outside */
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        const handler = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
                 setIsDropdownOpen(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
     }, []);
+
+    /* Shadow intensifies on scroll */
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 10);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
+    /* Close mobile menu on route change */
+    useEffect(() => { setIsMobileMenuOpen(false); }, [location.pathname]);
 
     const handleLogout = () => {
         logout();
@@ -36,159 +60,190 @@ export default function AppHeader({ onOpenAuthModal }) {
         setIsDropdownOpen(false);
     };
 
-    const userAvatar = isAuthenticated ? (user?.profilePhoto || generateInitialsAvatar(user?.name)) : null;
-
     return (
-        <header className="bg-white shadow-sm sticky top-0 z-50 w-full border-b border-neutral-100">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16 md:h-20">
-                    {/* Left: Logo */}
-                    <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-                        <img src="/logo.svg" alt="ENYVORA" className="h-10 md:h-12 w-auto" />
-                    </Link>
+        <header
+            className={`cust-header transition-shadow duration-200 ${scrolled ? 'shadow-md' : ''}`}
+            role="banner"
+        >
+            <div className="cust-header__inner">
+                {/* Logo */}
+                <Link to="/" className="cust-logo shrink-0" aria-label="Enyvora home">
+                    <img src="/logo.svg" alt="ENYVORA" />
+                </Link>
 
-                    {/* Center: Navigation - Desktop Only */}
-                    <nav className="hidden md:flex items-center space-x-2">
-                        <Link to="/events" className="px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors">
-                            Events
-                        </Link>
-                        <Link to="/corporate" className="px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors">
-                            Services
-                        </Link>
-                        <a href="#how-it-works" className="px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors">
-                            How it Works
-                        </a>
-                    </nav>
-
-                    {/* Right: Actions */}
-                    <div className="flex items-center space-x-3 flex-shrink-0">
-                        {/* Notification Bell - Show only when authenticated */}
-                        {isAuthenticated && <UserNotifications />}
-
-                        {/* Cart Icon - Show only when authenticated */}
-                        {isAuthenticated && (
-                            <button
-                                type="button"
-                                onClick={toggleCart}
-                                className="relative p-2 text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
-                                aria-label="Shopping cart"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                </svg>
-                                {cartItemCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-catering-primary text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                                        {cartItemCount}
-                                    </span>
-                                )}
-                            </button>
-                        )}
-
-                        {/* Become a Partner - Desktop */}
-                        {!isAuthenticated && (
+                {/* Desktop nav */}
+                <nav className="cust-nav hidden md:flex" aria-label="Main navigation">
+                    {navLinks.map(({ label, to, href }) =>
+                        to ? (
                             <Link
-                                to="/partner-login"
-                                className="hidden lg:inline-flex px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors"
+                                key={label}
+                                to={to}
+                                className={`cust-nav__a ${location.pathname === to ? 'is-active' : ''}`}
                             >
-                                Partner With Us
+                                {label}
                             </Link>
-                        )}
-
-                        {/* Get Quotes Button */}
-                        <button
-                            type="button"
-                            className="hidden sm:inline-flex btn-primary px-6 py-2 md:py-3 gap-2 text-sm md:text-base"
-                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                        >
-                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            <span className="hidden md:inline">Get Quotes</span>
-                        </button>
-
-                        {/* User Account / Auth */}
-                        {isAuthenticated ? (
-                            <div className="relative" ref={dropdownRef}>
-                                <button
-                                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                    aria-haspopup="true"
-                                    aria-expanded={isDropdownOpen}
-                                    className="focus:outline-none"
-                                >
-                                    <img
-                                        src={userAvatar}
-                                        alt="User Avatar"
-                                        className="h-10 w-10 rounded-full object-cover ring-2 ring-offset-1 ring-catering-primary hover:ring-catering-primary-dark transition-all"
-                                    />
-                                </button>
-
-                                {isDropdownOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-20 border border-neutral-200">
-                                        <div className="px-4 py-3 border-b border-neutral-200">
-                                            <p className="font-semibold text-neutral-900 text-sm">{user?.name || 'User'}</p>
-                                            <p className="text-xs text-neutral-500">{user?.email}</p>
-                                        </div>
-                                        <Link to="/profile" onClick={() => setIsDropdownOpen(false)} className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors">
-                                            My Profile
-                                        </Link>
-                                        <Link to="/my-orders" onClick={() => setIsDropdownOpen(false)} className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors">
-                                            My Orders
-                                        </Link>
-                                        <button
-                                            onClick={handleLogout}
-                                            className="block w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors border-t border-neutral-200"
-                                        >
-                                            Logout
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
                         ) : (
-                            <button
-                                onClick={onOpenAuthModal}
-                                className="btn-primary px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-semibold"
-                            >
-                                Login
-                            </button>
-                        )}
+                            <a key={label} href={href} className="cust-nav__a">{label}</a>
+                        )
+                    )}
+                </nav>
 
-                        {/* Mobile Menu Toggle */}
-                        <button
-                            type="button"
-                            className="md:hidden p-2 text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            aria-label="Toggle menu"
+                {/* Actions */}
+                <div className="cust-header__actions">
+                    {/* Notification bell */}
+                    {isAuthenticated && <UserNotifications />}
+
+                    {/* Cart */}
+                    {isAuthenticated && (
+                        <IconButton
+                            aria-label={`Shopping cart, ${cartCount} item${cartCount !== 1 ? 's' : ''}`}
+                            badge={cartCount}
+                            onClick={toggleCart}
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </button>
+                            <ShoppingCart size={18} strokeWidth={2} />
+                        </IconButton>
+                    )}
+
+                    {/* Partner link — desktop only when logged out */}
+                    {!isAuthenticated && (
+                        <Link
+                            to="/partner-login"
+                            className="hidden lg:inline-flex cust-nav__a px-4 py-2 rounded-lg hover:bg-neutral-50 transition-colors"
+                        >
+                            Partner With Us
+                        </Link>
+                    )}
+
+                    {/* Primary CTA */}
+                    <button
+                        type="button"
+                        className="cust-header__cta hidden sm:inline-flex items-center gap-2"
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)', color: '#fff' }}
+                    >
+                        <Zap size={14} strokeWidth={2.5} />
+                        <span className="hidden md:inline">Get Quotes</span>
+                    </button>
+
+                    {/* User account / Sign in */}
+                    {isAuthenticated ? (
+                        <div className="relative" ref={dropdownRef}>
+                            <button
+                                onClick={() => setIsDropdownOpen(v => !v)}
+                                aria-haspopup="true"
+                                aria-expanded={isDropdownOpen}
+                                aria-label="User menu"
+                                className="flex items-center gap-2 focus:outline-none group"
+                            >
+                                <img
+                                    src={userAvatar}
+                                    alt={user?.name ?? 'User'}
+                                    className="h-9 w-9 rounded-full object-cover ring-2 ring-offset-1 ring-primary group-hover:ring-primary-dark transition-all"
+                                />
+                                <ChevronDown
+                                    size={14}
+                                    className={`text-neutral-500 hidden md:block transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                                />
+                            </button>
+
+                            {isDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-card-hover py-2 z-50 border border-neutral-100 animate-fadeIn">
+                                    <div className="px-4 py-3 border-b border-neutral-100">
+                                        <p className="font-semibold text-neutral-900 text-sm truncate">{user?.name || 'User'}</p>
+                                        <p className="text-xs text-neutral-400 truncate">{user?.email}</p>
+                                    </div>
+                                    <Link
+                                        to="/profile"
+                                        onClick={() => setIsDropdownOpen(false)}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                                    >
+                                        <User size={15} className="text-neutral-400" /> My Profile
+                                    </Link>
+                                    <Link
+                                        to="/my-orders"
+                                        onClick={() => setIsDropdownOpen(false)}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                                    >
+                                        <Package size={15} className="text-neutral-400" /> My Orders
+                                    </Link>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors border-t border-neutral-100"
+                                    >
+                                        <LogOut size={15} className="text-neutral-400" /> Logout
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <Button
+                            variant="luxury"
+                            size="sm"
+                            onClick={onOpenAuthModal}
+                            className="hidden sm:inline-flex"
+                        >
+                            Sign In
+                        </Button>
+                    )}
+
+                    {/* Mobile hamburger */}
+                    <button
+                        type="button"
+                        className="md:hidden icon-btn"
+                        onClick={() => setIsMobileMenuOpen(v => !v)}
+                        aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                        aria-expanded={isMobileMenuOpen}
+                    >
+                        {isMobileMenuOpen
+                            ? <X size={18} strokeWidth={2} />
+                            : <Menu size={18} strokeWidth={2} />
+                        }
+                    </button>
+                </div>
+            </div>
+
+            {/* Mobile slide-down sheet */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden border-t border-black/5 bg-white/98 animate-fadeInUp">
+                    <div className="max-w-screen-xl mx-auto px-6 py-4 space-y-1">
+                        {navLinks.map(({ label, to, href }) =>
+                            to ? (
+                                <Link
+                                    key={label}
+                                    to={to}
+                                    className={`block px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                                        location.pathname === to
+                                            ? 'bg-primary/10 text-primary'
+                                            : 'text-neutral-700 hover:bg-neutral-50'
+                                    }`}
+                                >
+                                    {label}
+                                </Link>
+                            ) : (
+                                <a
+                                    key={label}
+                                    href={href}
+                                    className="block px-4 py-3 rounded-xl text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                                >
+                                    {label}
+                                </a>
+                            )
+                        )}
+                        {!isAuthenticated && (
+                            <>
+                                <Link to="/partner-login" className="block px-4 py-3 rounded-xl text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors">
+                                    Become a Partner
+                                </Link>
+                                <div className="pt-2 pb-1">
+                                    <Button variant="luxury" size="md" className="w-full" onClick={onOpenAuthModal}>
+                                        Sign In
+                                    </Button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
-
-                {/* Mobile Menu - Conditionally Rendered */}
-                {isMobileMenuOpen && (
-                    <div className="md:hidden border-t border-neutral-100 py-4 space-y-2">
-                        <Link to="/events" className="block px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors">
-                            Events
-                        </Link>
-                        <Link to="/corporate" className="block px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors">
-                            Corporate Catering
-                        </Link>
-                        <a href="#how-it-works" className="block px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors">
-                            How it Works
-                        </a>
-                        {!isAuthenticated && (
-                            <Link
-                                to="/partner-login"
-                                className="block px-4 py-2 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors"
-                            >
-                                Become a Partner
-                            </Link>
-                        )}
-                    </div>
-                )}
-            </div>
+            )}
         </header>
     );
 }

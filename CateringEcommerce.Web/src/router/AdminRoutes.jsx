@@ -13,6 +13,7 @@ import AdminComplaints from '../pages/admin/AdminComplaints';
 import AdminOrders from '../pages/admin/AdminOrders';
 import AdminEarnings from '../pages/admin/AdminEarnings';
 import AdminReviews from '../pages/admin/AdminReviews';
+import AdminLogs from '../pages/admin/AdminLogs';
 import Forbidden from '../pages/admin/Forbidden';
 
 // Master Data Management (sidebar-driven, no tab wrapper)
@@ -65,6 +66,7 @@ const AdminRoutes = () => {
         <Route path="/orders" element={<AdminOrders />} />
         <Route path="/earnings" element={<AdminEarnings />} />
         <Route path="/reviews" element={<AdminReviews />} />
+        <Route path="/logs" element={<AdminLogs />} />
         <Route path="/settings" element={<AdminSettings />} />
 
         {/* Master Data Management Routes - Super Admin Only */}

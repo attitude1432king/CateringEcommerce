@@ -2,8 +2,8 @@ using CateringEcommerce.Domain.Interfaces.Sms;
 using CateringEcommerce.Domain.Models.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace CateringEcommerce.BAL.Configuration.Providers
 {
@@ -19,12 +19,10 @@ namespace CateringEcommerce.BAL.Configuration.Providers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<Msg91OtpProvider> _logger;
 
-        // Settings loaded once at construction
         private readonly string _authKey;
         private readonly string _senderId;
         private readonly string _templateId;
-        private readonly string _route;
-
+        // Actual MSG91 OTP v5 API endpoint (NOT the docs URL)
         private const string Msg91BaseUrl = "https://api.msg91.com/api/v5/otp";
         private const string HttpClientName = "msg91";
 
@@ -44,12 +42,11 @@ namespace CateringEcommerce.BAL.Configuration.Providers
             _authKey = settings.AuthKey;
             _senderId = settings.SenderId;
             _templateId = settings.TemplateId;
-            _route = settings.Route; // 4 = transactional
 
-            //if (string.IsNullOrEmpty(_authKey))
-            //    throw new InvalidOperationException("Secure configuration 'MSG91:AUTH_KEY' is required for Msg91OtpProvider.");
-            //if (string.IsNullOrEmpty(_templateId))
-            //    throw new InvalidOperationException("Configuration 'MSG91:TEMPLATE_ID' is required for Msg91OtpProvider.");
+            if (string.IsNullOrEmpty(_authKey))
+                throw new InvalidOperationException("Configuration 'MSG91:AUTH_KEY' is required for Msg91OtpProvider.");
+            if (string.IsNullOrEmpty(_templateId))
+                throw new InvalidOperationException("Configuration 'MSG91:TEMPLATE_ID' is required for Msg91OtpProvider.");
         }
 
         public async Task<OtpSendResult> SendOtpAsync(
@@ -57,47 +54,74 @@ namespace CateringEcommerce.BAL.Configuration.Providers
             string otp,
             CancellationToken cancellationToken = default)
         {
+            // MSG91 expects mobile without '+' prefix (e.g. 919876543210)
+            var mobile = phoneNumber.StartsWith('+') ? phoneNumber[1..] : phoneNumber;
+            var maskedMobile = MaskPhone(mobile);
+
             try
             {
-                // MSG91 expects mobile without '+' prefix
-                var mobile = phoneNumber.StartsWith("+")
-                    ? phoneNumber[1..]
-                    : phoneNumber;
-
-                var url = BuildUrl(mobile, otp);
                 var client = _httpClientFactory.CreateClient(HttpClientName);
 
-                var response = await client.GetAsync(url, cancellationToken);
+                var payload = new
+                {
+                    mobile,
+                    otp,
+                    template_id = _templateId,
+                    sender = _senderId,
+                    otp_expiry = 10
+                };
+
+                var json = JsonSerializer.Serialize(payload);
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, Msg91BaseUrl);
+
+                // MSG91 v5: authkey goes in the request header, not the URL
+                request.Headers.TryAddWithoutValidation("authkey", _authKey);
+                request.Headers.TryAddWithoutValidation("Accept", "application/json");
+                request.Content = content;
+
+                _logger.LogInformation(
+                    "MSG91 OTP POST → {Url} for {Phone} (templateId={TemplateId})",
+                    Msg91BaseUrl, maskedMobile, _templateId);
+
+                var response = await client.SendAsync(request, cancellationToken);
                 var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "MSG91 response HTTP {StatusCode} for {Phone}: {Body}",
+                    (int)response.StatusCode, maskedMobile,
+                    responseBody.Length > 500 ? responseBody[..500] : responseBody);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError(
                         "MSG91 HTTP {StatusCode} for {Phone}: {Body}",
-                        (int)response.StatusCode, MaskPhone(mobile), responseBody);
+                        (int)response.StatusCode, maskedMobile, responseBody);
 
                     return new OtpSendResult
                     {
                         Success = false,
-                        ErrorMessage = $"MSG91 HTTP {(int)response.StatusCode}: {responseBody}",
+                        ErrorMessage = $"MSG91 HTTP {(int)response.StatusCode}",
                         ProviderName = ProviderName
                     };
                 }
 
-                var result = ParseMsg91Response(responseBody);
-
-                if (!result.Success)
+                return ParseMsg91Response(responseBody, maskedMobile);
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                _logger.LogError("MSG91 API timed out for {Phone}", maskedMobile);
+                return new OtpSendResult
                 {
-                    _logger.LogError(
-                        "MSG91 API error for {Phone}: {Error}",
-                        MaskPhone(mobile), result.ErrorMessage);
-                }
-
-                return result;
+                    Success = false,
+                    ErrorMessage = "MSG91 request timed out",
+                    ProviderName = ProviderName
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Msg91OtpProvider.SendOtpAsync failed");
+                _logger.LogError(ex, "Msg91OtpProvider.SendOtpAsync failed for {Phone}", maskedMobile);
                 return new OtpSendResult
                 {
                     Success = false,
@@ -109,38 +133,42 @@ namespace CateringEcommerce.BAL.Configuration.Providers
 
         // ─── Helpers ─────────────────────────────────────────────────────────
 
-        private string BuildUrl(string mobile, string otp)
+        private OtpSendResult ParseMsg91Response(string responseBody, string maskedPhone)
         {
-            var query = new System.Collections.Specialized.NameValueCollection
+            if (string.IsNullOrWhiteSpace(responseBody))
             {
-                ["authkey"] = _authKey,
-                ["mobile"] = mobile,
-                ["otp"] = otp,
-                ["template_id"] = _templateId,
-                ["sender"] = _senderId,
-                ["otp_expiry"] = "10"  // minutes
-            };
-
-            // Build query string without exposing auth key in logs
-            var sb = new System.Text.StringBuilder(Msg91BaseUrl);
-            sb.Append('?');
-            foreach (string key in query)
-            {
-                sb.Append($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(query[key] ?? string.Empty)}&");
+                _logger.LogError("MSG91 returned empty response for {Phone}", maskedPhone);
+                return new OtpSendResult
+                {
+                    Success = false,
+                    ErrorMessage = "Empty response from MSG91",
+                    ProviderName = ProviderName
+                };
             }
 
-            return sb.ToString().TrimEnd('&');
-        }
+            // Detect HTML error page — indicates wrong endpoint URL or server-side redirect
+            if (responseBody.TrimStart().StartsWith("<", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogError(
+                    "MSG91 returned HTML (not JSON) for {Phone}. Wrong endpoint URL or redirect. Preview: {Preview}",
+                    maskedPhone,
+                    responseBody.Length > 300 ? responseBody[..300] : responseBody);
 
-        private OtpSendResult ParseMsg91Response(string responseBody)
-        {
+                return new OtpSendResult
+                {
+                    Success = false,
+                    ErrorMessage = "MSG91 returned HTML instead of JSON. Check API endpoint configuration.",
+                    ProviderName = ProviderName
+                };
+            }
+
             try
             {
                 using var doc = JsonDocument.Parse(responseBody);
                 var root = doc.RootElement;
 
                 // MSG91 v5 success: { "type": "success", "message": "3.1" }
-                // MSG91 v5 error:   { "type": "error", "message": "..." }
+                // MSG91 v5 error:   { "type": "error",   "message": "..." }
                 var type = root.TryGetProperty("type", out var typeProp)
                     ? typeProp.GetString()
                     : null;
@@ -151,21 +179,33 @@ namespace CateringEcommerce.BAL.Configuration.Providers
 
                 var isSuccess = "success".Equals(type, StringComparison.OrdinalIgnoreCase);
 
+                if (!isSuccess)
+                {
+                    _logger.LogError(
+                        "MSG91 API error for {Phone}: type={Type}, message={Msg}",
+                        maskedPhone, type, message);
+                }
+
                 return new OtpSendResult
                 {
                     Success = isSuccess,
                     MessageId = isSuccess ? message : null,
-                    ErrorMessage = isSuccess ? null : message,
+                    ErrorMessage = isSuccess ? null : (message ?? $"Unknown error, type: {type}"),
                     ProviderName = ProviderName
                 };
             }
-            catch
+            catch (JsonException ex)
             {
-                // Non-JSON response
+                _logger.LogError(
+                    "MSG91 JSON parse failed for {Phone}. Raw: {Body}. Error: {Err}",
+                    maskedPhone,
+                    responseBody.Length > 300 ? responseBody[..300] : responseBody,
+                    ex.Message);
+
                 return new OtpSendResult
                 {
                     Success = false,
-                    ErrorMessage = $"Unexpected response: {responseBody}",
+                    ErrorMessage = "MSG91 returned unparseable response",
                     ProviderName = ProviderName
                 };
             }

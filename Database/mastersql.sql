@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS t_sys_user (
     c_userid BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_name VARCHAR(100) NOT NULL,
-    c_mobile VARCHAR(15) NOT NULL UNIQUE,
+    c_mobile VARCHAR(15) UNIQUE,
     c_email VARCHAR(100),
     c_password_hash VARCHAR(255),
     c_googleid VARCHAR(255),

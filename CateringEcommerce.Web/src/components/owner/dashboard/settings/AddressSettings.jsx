@@ -188,7 +188,7 @@ export default function AddressSettings({ initialData, onUpdate, isSaving }) {
                 </div>
 
                 <div className="mt-8 pt-5 border-t border-neutral-200 text-right">
-                    <button type="submit" /* ... */ >
+                    <button type="submit" className="px-6 py-2.5 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                         {isSaving ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>

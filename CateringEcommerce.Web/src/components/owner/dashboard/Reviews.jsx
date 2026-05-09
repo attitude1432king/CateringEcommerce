@@ -56,7 +56,7 @@ const ReviewCard = ({ review, onReply, submittingReplyId }) => {
             {/* Header */}
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-start gap-4 flex-1">
-                    <div className="w-12 h-12 rounded-full border-2 border-neutral-200 bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">
+                    <div className="w-12 h-12 rounded-full border-2 border-neutral-200 flex items-center justify-center font-bold text-lg text-white" style={{ background: 'var(--color-primary)' }}>
                         {review.customerName?.charAt(0)?.toUpperCase() || 'C'}
                     </div>
                     <div className="flex-1">
@@ -73,7 +73,8 @@ const ReviewCard = ({ review, onReply, submittingReplyId }) => {
                 </div>
                 <div className="flex flex-col items-end gap-1">
                     {review.eventType && (
-                        <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold">
+                        <span className="px-3 py-1 rounded-lg text-xs font-semibold"
+                            style={{ background: 'rgba(255,107,53,0.08)', color: 'var(--color-primary)' }}>
                             {review.eventType}
                         </span>
                     )}
@@ -155,24 +156,25 @@ const ReviewCard = ({ review, onReply, submittingReplyId }) => {
 
             {/* Owner Reply (if exists) */}
             {review.ownerReply ? (
-                <div className="ml-8 p-4 bg-indigo-50 rounded-xl border-l-4 border-indigo-600">
+                <div className="ml-8 p-4 rounded-xl border-l-4" style={{ background: 'rgba(255,107,53,0.06)', borderLeftColor: 'var(--color-primary)' }}>
                     <div className="flex items-center gap-2 mb-2">
-                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" style={{ color: 'var(--color-primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                         </svg>
-                        <span className="text-sm font-semibold text-indigo-900">Your Reply</span>
+                        <span className="text-sm font-semibold text-neutral-900">Your Reply</span>
                         {review.ownerReplyDate && (
-                            <span className="text-xs text-indigo-500">• {formatDate(review.ownerReplyDate)}</span>
+                            <span className="text-xs text-neutral-400">• {formatDate(review.ownerReplyDate)}</span>
                         )}
                     </div>
-                    <p className="text-sm text-indigo-800">{review.ownerReply}</p>
+                    <p className="text-sm text-neutral-700">{review.ownerReply}</p>
                 </div>
             ) : (
                 <div className="flex gap-3">
                     {!showReplyBox ? (
                         <button
                             onClick={() => setShowReplyBox(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold transition-all"
+                            style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -185,7 +187,7 @@ const ReviewCard = ({ review, onReply, submittingReplyId }) => {
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 placeholder="Write your response..."
-                                className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                                className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
                                 rows={3}
                                 disabled={isSubmitting}
                             />
@@ -193,7 +195,8 @@ const ReviewCard = ({ review, onReply, submittingReplyId }) => {
                                 <button
                                     onClick={handleSubmitReply}
                                     disabled={isSubmitting || !replyText.trim()}
-                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-4 py-2 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                                 >
                                     {isSubmitting ? 'Sending...' : 'Send Reply'}
                                 </button>
@@ -227,8 +230,8 @@ const CategoryRatingBar = ({ label, value }) => {
             <span className="text-sm text-neutral-600 min-w-[100px]">{label}</span>
             <div className="flex-1 bg-neutral-200 rounded-full h-2">
                 <div
-                    className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${percentage}%` }}
+                    className="h-2 rounded-full transition-all duration-300"
+                    style={{ background: 'linear-gradient(90deg, #FF6B35, #FFB627)', width: `${percentage}%` }}
                 />
             </div>
             <span className="text-sm font-semibold text-neutral-900 min-w-[35px] text-right">{numValue.toFixed(1)}</span>
@@ -348,8 +351,7 @@ export default function Reviews() {
         : [];
 
     return (
-        <div className="min-h-screen bg-neutral-50">
-            <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="space-y-6">
                 {/* Header */}
                 <div>
                     <h1 className="text-3xl font-bold text-neutral-900">Reviews & Feedback</h1>
@@ -414,8 +416,8 @@ export default function Reviews() {
                                         </div>
                                         <div className="flex-1 bg-neutral-200 rounded-full h-3">
                                             <div
-                                                className="bg-gradient-to-r from-indigo-600 to-purple-600 h-3 rounded-full transition-all duration-300"
-                                                style={{ width: `${percentage}%` }}
+                                                className="h-3 rounded-full transition-all duration-300"
+                                                style={{ background: 'linear-gradient(90deg, #FF6B35, #FFB627)', width: `${percentage}%` }}
                                             />
                                         </div>
                                         <span className="text-sm font-semibold text-neutral-900 min-w-[40px]">{count}</span>
@@ -448,9 +450,10 @@ export default function Reviews() {
                         onClick={() => setFilterRating('all')}
                         className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
                             filterRating === 'all'
-                                ? 'bg-indigo-600 text-white shadow-md'
+                                ? 'text-white shadow-md'
                                 : 'bg-white text-neutral-600 hover:bg-neutral-50 border border-neutral-200'
                         }`}
+                        style={filterRating === 'all' ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
                     >
                         All Reviews {stats ? `(${stats.totalReviews})` : ''}
                     </button>
@@ -462,15 +465,17 @@ export default function Reviews() {
                             2: stats.twoStarCount,
                             1: stats.oneStarCount,
                         } : {};
+                        const isActive = filterRating === rating.toString();
                         return (
                             <button
                                 key={rating}
                                 onClick={() => setFilterRating(rating.toString())}
                                 className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
-                                    filterRating === rating.toString()
-                                        ? 'bg-indigo-600 text-white shadow-md'
+                                    isActive
+                                        ? 'text-white shadow-md'
                                         : 'bg-white text-neutral-600 hover:bg-neutral-50 border border-neutral-200'
                                 }`}
+                                style={isActive ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
                             >
                                 {rating} ★ {stats ? `(${countMap[rating] || 0})` : ''}
                             </button>
@@ -580,9 +585,10 @@ export default function Reviews() {
                                                     onClick={() => setPage(pageNum)}
                                                     className={`w-10 h-10 rounded-xl text-sm font-semibold transition-all ${
                                                         page === pageNum
-                                                            ? 'bg-indigo-600 text-white shadow-md'
+                                                            ? 'text-white shadow-md'
                                                             : 'bg-white text-neutral-600 hover:bg-neutral-50 border border-neutral-200'
                                                     }`}
+                                                    style={page === pageNum ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
                                                 >
                                                     {pageNum}
                                                 </button>
@@ -615,7 +621,6 @@ export default function Reviews() {
                         </div>
                     </div>
                 )}
-            </div>
         </div>
     );
 }

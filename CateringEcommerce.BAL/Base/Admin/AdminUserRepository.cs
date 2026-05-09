@@ -27,9 +27,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     u.c_email AS Email,
                     u.c_isemailverified AS IsEmailVerified,
                     u.c_isphoneverified AS IsPhoneVerified,
-                    COALESCE(u.c_isactive, 1) AS IsActive,
-                    COALESCE(u.c_isblocked, 0) AS IsBlocked,
-                    COALESCE(u.c_is_deleted, 0) AS IsDeleted,
+                    COALESCE(u.c_isactive, TRUE) AS IsActive,
+                    COALESCE(u.c_isblocked, FALSE) AS IsBlocked,
+                    COALESCE(u.c_is_deleted, FALSE) AS IsDeleted,
                     c.c_cityname AS CityName,
                     s.c_statename AS StateName,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
@@ -99,9 +99,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SELECT
                     u.c_userid, u.c_name, u.c_mobile, u.c_email, u.c_picture,
                     u.c_isemailverified, u.c_isphoneverified,
-                    COALESCE(u.c_isactive, 1) AS IsActive,
-                    COALESCE(u.c_isblocked, 0) AS IsBlocked,
-                    COALESCE(u.c_is_deleted, 0) AS IsDeleted,
+                    COALESCE(u.c_isactive, TRUE) AS IsActive,
+                    COALESCE(u.c_isblocked, FALSE) AS IsBlocked,
+                    COALESCE(u.c_is_deleted, FALSE) AS IsDeleted,
                     u.c_block_reason, u.c_description,
                     c.c_cityname AS CityName,
                     s.c_statename AS StateName,
@@ -177,7 +177,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c_deleted_by = @AdminId,
                     c_deleted_date = NOW(),
                     c_modifieddate = NOW()
-                WHERE c_userid = @UserId AND COALESCE(c_is_deleted, FALSE) = 0";
+                WHERE c_userid = @UserId AND COALESCE(c_is_deleted, FALSE) = FALSE";
 
             NpgsqlParameter[] parameters = {
                 new NpgsqlParameter("@UserId", userId),
@@ -218,8 +218,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     u.c_email AS Email,
                     c.c_cityname AS CityName,
                     s.c_statename AS StateName,
-                    COALESCE(u.c_isactive, 1) AS IsActive,
-                    COALESCE(u.c_isblocked, 0) AS IsBlocked,
+                    COALESCE(u.c_isactive, TRUE) AS IsActive,
+                    COALESCE(u.c_isblocked, FALSE) AS IsBlocked,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
                     COALESCE(SUM(o.c_total_amount), 0) AS TotalSpent,
                     u.c_createddate AS CreatedDate,
@@ -228,7 +228,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 LEFT JOIN {Table.City} c ON u.c_cityid = c.c_cityid
                 LEFT JOIN {Table.State} s ON u.c_stateid = s.c_stateid
                 LEFT JOIN {Table.SysOrders} o ON u.c_userid = o.c_userid
-                WHERE COALESCE(u.c_is_deleted, 0) = 0");
+                WHERE COALESCE(u.c_is_deleted, FALSE) = FALSE");
 
             var parameters = new List<NpgsqlParameter>();
 
@@ -240,13 +240,13 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             if (request.IsActive.HasValue)
             {
-                queryBuilder.Append(" AND COALESCE(u.c_isactive, 1) = @IsActive");
+                queryBuilder.Append(" AND COALESCE(u.c_isactive, TRUE) = @IsActive");
                 parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             if (request.IsBlocked.HasValue)
             {
-                queryBuilder.Append(" AND COALESCE(u.c_isblocked, 0) = @IsBlocked");
+                queryBuilder.Append(" AND COALESCE(u.c_isblocked, FALSE) = @IsBlocked");
                 parameters.Add(new NpgsqlParameter("@IsBlocked", request.IsBlocked.Value));
             }
 
@@ -300,12 +300,12 @@ namespace CateringEcommerce.BAL.Base.Admin
             // By default, hide deleted users unless explicitly requested
             if (request.IsDeleted.HasValue)
             {
-                queryBuilder.Append(" AND COALESCE(u.c_is_deleted, 0) = @IsDeleted");
+                queryBuilder.Append(" AND COALESCE(u.c_is_deleted, FALSE) = @IsDeleted");
                 parameters.Add(new NpgsqlParameter("@IsDeleted", request.IsDeleted.Value));
             }
             else
             {
-                queryBuilder.Append(" AND COALESCE(u.c_is_deleted, 0) = 0");
+                queryBuilder.Append(" AND COALESCE(u.c_is_deleted, FALSE) = FALSE");
             }
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
@@ -316,13 +316,13 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             if (request.IsBlocked.HasValue)
             {
-                queryBuilder.Append(" AND COALESCE(u.c_isblocked, 0) = @IsBlocked");
+                queryBuilder.Append(" AND COALESCE(u.c_isblocked, FALSE) = @IsBlocked");
                 parameters.Add(new NpgsqlParameter("@IsBlocked", request.IsBlocked.Value));
             }
 
             if (request.IsActive.HasValue)
             {
-                queryBuilder.Append(" AND COALESCE(u.c_isactive, 1) = @IsActive");
+                queryBuilder.Append(" AND COALESCE(u.c_isactive, TRUE) = @IsActive");
                 parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 

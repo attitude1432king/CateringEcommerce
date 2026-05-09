@@ -48,19 +48,19 @@ const PaymentSection = ({
       {/* Step header */}
       <div className="flex items-center gap-3 mb-5">
         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-          isCompleted ? 'bg-green-600 text-white' : isActive ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-700'
+          isCompleted ? 'bg-green-600 text-white' : isActive ? 'bg-rose-600 text-white' : 'bg-gray-200 text-neutral-700'
         }`}>
           {isCompleted ? '✓' : stepNumber}
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Payment</h3>
-          <p className="text-sm text-gray-600">Choose payment method and confirm order</p>
+          <h3 className="text-lg font-semibold text-neutral-900">Payment</h3>
+          <p className="text-sm text-neutral-600">Choose payment method and confirm order</p>
         </div>
       </div>
 
       {/* Completed summary */}
       {!isActive && isCompleted && (
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-neutral-700">
           <span className="font-medium">Payment:</span>{' '}
           {getPaymentMethodDisplay(checkoutData.paymentMethod)}
         </p>
@@ -93,14 +93,14 @@ const PaymentSection = ({
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">{method.title}</p>
+                        <p className="font-semibold text-neutral-900">{method.title}</p>
                         {method.badge && (
                           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
                             {method.badge}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 mt-0.5">{method.hint}</p>
+                      <p className="text-sm text-neutral-500 mt-0.5">{method.hint}</p>
                     </div>
                   </div>
 
@@ -108,12 +108,12 @@ const PaymentSection = ({
                   {method.value === 'split' && selected && (
                     <div className="mt-3 ml-6 grid grid-cols-2 gap-2">
                       <div className="bg-white rounded-lg border border-rose-200 p-3 text-center">
-                        <p className="text-xs text-gray-500 mb-0.5">Pay Now (40%)</p>
+                        <p className="text-xs text-neutral-500 mb-0.5">Pay Now (40%)</p>
                         <p className="text-base font-bold text-rose-600">{fmt(preBooking)}</p>
                       </div>
                       <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-                        <p className="text-xs text-gray-500 mb-0.5">Before Event (60%)</p>
-                        <p className="text-base font-bold text-gray-700">{fmt(postEvent)}</p>
+                        <p className="text-xs text-neutral-500 mb-0.5">Before Event (60%)</p>
+                        <p className="text-base font-bold text-neutral-700">{fmt(postEvent)}</p>
                       </div>
                     </div>
                   )}
@@ -134,7 +134,7 @@ const PaymentSection = ({
               onChange={(e) => updateCheckoutData('termsAccepted', e.target.checked)}
               className="mt-1 accent-rose-600"
             />
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-neutral-700">
               I agree to the{' '}
               <span className="text-rose-600 font-medium">terms and conditions</span> and
               cancellation policy.

@@ -64,7 +64,7 @@ export default function OffersSection() {
                             <div className="min-w-0">
                                 <div className="font-semibold text-sm truncate">{o.name}</div>
                                 {o.description && (
-                                    <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{o.description}</div>
+                                    <div className="text-xs text-neutral-500 mt-0.5 line-clamp-2">{o.description}</div>
                                 )}
                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                     <span className="inline-block bg-indigo-50 text-indigo-700 text-xs font-mono font-semibold px-2 py-0.5 rounded border border-indigo-200">

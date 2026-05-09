@@ -95,22 +95,22 @@ const ConnectedAccountsPage = () => {
       );
 
     }
-    return <Link2 className="w-8 h-8 text-gray-400" />;
+    return <Link2 className="w-8 h-8 text-neutral-400" />;
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading connected accounts...</p>
+          <p className="mt-4 text-neutral-600">Loading connected accounts...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-neutral-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Back Button */}
         <button
@@ -123,8 +123,8 @@ const ConnectedAccountsPage = () => {
 
         {/* Page Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Connected Accounts</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-bold text-neutral-900 mb-2">Connected Accounts</h1>
+          <p className="text-neutral-600">
             Manage your OAuth login connections. Connect or disconnect social accounts for quick and secure login.
           </p>
         </div>
@@ -162,10 +162,10 @@ const ConnectedAccountsPage = () => {
           <div className="bg-white rounded-lg p-12 text-center shadow-sm">
             <AlertCircle className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <h2 className="text-xl font-semibold mb-2">No Connected Accounts</h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-neutral-600 mb-6">
               Connect your Google account for quick and secure login
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-neutral-500">
               You can connect your Google account by logging in with Google from the login page
             </p>
           </div>
@@ -174,7 +174,7 @@ const ConnectedAccountsPage = () => {
             {accounts.map((account) => (
               <div
                 key={account.oauthId}
-                className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-200"
+                className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow border border-neutral-200"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4 flex-1">
@@ -197,9 +197,9 @@ const ConnectedAccountsPage = () => {
                         )}
                       </div>
 
-                      <p className="text-gray-700 mb-1">{account.providerEmail || account.providerName}</p>
+                      <p className="text-neutral-700 mb-1">{account.providerEmail || account.providerName}</p>
 
-                      <div className="flex flex-col text-xs text-gray-500 gap-1">
+                      <div className="flex flex-col text-xs text-neutral-500 gap-1">
                         <p>
                           <strong>Connected:</strong>{' '}
                           {new Date(account.linkedDate).toLocaleDateString('en-IN', {
@@ -242,7 +242,7 @@ const ConnectedAccountsPage = () => {
                         Unlink
                       </button>
                     ) : (
-                      <div className="text-xs text-center text-gray-500 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                      <div className="text-xs text-center text-neutral-500 px-4 py-2 border border-neutral-300 rounded-lg bg-neutral-50">
                         Cannot unlink<br />
                         <span className="text-[10px]">(Only login method)</span>
                       </div>
@@ -255,9 +255,9 @@ const ConnectedAccountsPage = () => {
         )}
 
         {/* Info Section */}
-        <div className="mt-8 bg-gray-50 rounded-lg p-6">
-          <h3 className="font-semibold text-gray-900 mb-3">About Connected Accounts</h3>
-          <div className="space-y-2 text-sm text-gray-700">
+        <div className="mt-8 bg-neutral-50 rounded-lg p-6">
+          <h3 className="font-semibold text-neutral-900 mb-3">About Connected Accounts</h3>
+          <div className="space-y-2 text-sm text-neutral-700">
             <p>
               <strong>Primary Account:</strong> Your primary OAuth account is the preferred method for quick login.
             </p>
@@ -279,10 +279,10 @@ const ConnectedAccountsPage = () => {
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
             <div className="text-center mb-6">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-4">
-                <Unlink className="h-6 w-6 text-orange-600" />
+                <Unlink className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Unlink Account?</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="text-lg font-semibold text-neutral-900 mb-2">Unlink Account?</h3>
+              <p className="text-sm text-neutral-600">
                 Are you sure you want to unlink your {unlinkConfirmation.provider} account? You will need to use another login method to access your account.
               </p>
             </div>
@@ -290,13 +290,13 @@ const ConnectedAccountsPage = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setUnlinkConfirmation({ isOpen: false, oauthId: null, provider: '' })}
-                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmUnlink}
-                className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
               >
                 Unlink Account
               </button>

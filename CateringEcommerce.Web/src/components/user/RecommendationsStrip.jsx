@@ -14,7 +14,7 @@ export default function RecommendationsStrip({ items = [] }) {
                     <img src={it.img} loading="lazy" decoding="async" alt={it.name} className="w-full h-36 object-cover rounded-md" />
                     <div className="mt-2">
                         <div className="font-semibold truncate">{it.name}</div>
-                        <div className="text-sm text-gray-500">{it.price}</div>
+                        <div className="text-sm text-neutral-500">{it.price}</div>
                     </div>
                 </article>
             ))}

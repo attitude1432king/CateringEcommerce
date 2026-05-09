@@ -90,27 +90,27 @@ const MyComplaintsPage = () => {
       'major': 'bg-orange-100 text-orange-800 border-orange-300',
       'minor': 'bg-yellow-100 text-yellow-800 border-yellow-300'
     };
-    return colors[severityLower] || 'bg-gray-100 text-gray-800 border-gray-300';
+    return colors[severityLower] || 'bg-neutral-100 text-neutral-800 border-neutral-300';
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your complaints...</p>
+          <p className="mt-4 text-neutral-600">Loading your complaints...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-neutral-100 py-8">
       <div className="max-w-6xl mx-auto px-4">
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">My Complaints</h1>
-          <p className="text-gray-600">Track and manage your filed complaints</p>
+          <p className="text-neutral-600">Track and manage your filed complaints</p>
         </div>
 
         {/* Error Message */}
@@ -125,23 +125,23 @@ const MyComplaintsPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search complaints..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
             {/* Status Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-5 h-5" />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
               >
                 <option value="all">All Status</option>
                 <option value="open">Under Review</option>
@@ -161,7 +161,7 @@ const MyComplaintsPage = () => {
             <h2 className="text-2xl font-semibold mb-2">
               {complaints.length === 0 ? 'No complaints filed' : 'No complaints match your filters'}
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-neutral-600 mb-6">
               {complaints.length === 0
                 ? 'Your filed complaints will appear here'
                 : 'Try adjusting your filters to see more results'}
@@ -199,7 +199,7 @@ const MyComplaintsPage = () => {
                       <h3 className="text-lg font-semibold mb-1">
                         Complaint #{complaint.complaintId}
                       </h3>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-neutral-600">
                         Order #{complaint.orderId} - Filed on{' '}
                         {new Date(complaint.reportedAt || complaint.createdDate).toLocaleDateString('en-IN', {
                           day: 'numeric',
@@ -219,14 +219,14 @@ const MyComplaintsPage = () => {
 
                   <div className="mb-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-neutral-900">
                         {complaint.complaintType?.replace(/_/g, ' ')}
                       </span>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getSeverityColor(complaint.severity)}`}>
                         {complaint.severity || 'N/A'}
                       </span>
                     </div>
-                    <p className="text-gray-700">
+                    <p className="text-neutral-700">
                       {complaint.complaintSummary || complaint.complaintDetails?.substring(0, 150)}
                       {complaint.complaintDetails?.length > 150 ? '...' : ''}
                     </p>
@@ -240,8 +240,8 @@ const MyComplaintsPage = () => {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                    <div className="text-sm text-gray-600">
+                  <div className="flex items-center justify-between pt-3 border-t border-neutral-200">
+                    <div className="text-sm text-neutral-600">
                       {complaint.reviewedDate ? (
                         <span>Reviewed on {new Date(complaint.reviewedDate).toLocaleDateString('en-IN')}</span>
                       ) : (
@@ -263,26 +263,26 @@ const MyComplaintsPage = () => {
           <div className="mt-6 bg-white rounded-lg p-4 shadow-sm">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold text-gray-900">{complaints.length}</p>
-                <p className="text-sm text-gray-600">Total Complaints</p>
+                <p className="text-2xl font-bold text-neutral-900">{complaints.length}</p>
+                <p className="text-sm text-neutral-600">Total Complaints</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-blue-600">
                   {complaints.filter(c => c.status?.toLowerCase() === 'open').length}
                 </p>
-                <p className="text-sm text-gray-600">Under Review</p>
+                <p className="text-sm text-neutral-600">Under Review</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-green-600">
                   {complaints.filter(c => c.status?.toLowerCase() === 'resolved').length}
                 </p>
-                <p className="text-sm text-gray-600">Resolved</p>
+                <p className="text-sm text-neutral-600">Resolved</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-red-600">
                   {complaints.filter(c => c.status?.toLowerCase() === 'rejected').length}
                 </p>
-                <p className="text-sm text-gray-600">Rejected</p>
+                <p className="text-sm text-neutral-600">Rejected</p>
               </div>
             </div>
           </div>

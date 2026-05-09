@@ -13,7 +13,7 @@ const FileInputRow = ({ label, fileName, onFileChange }) => (
         <label className="block text-sm font-medium text-neutral-700">{label}</label>
         <div className="mt-1 flex items-center justify-between p-2 border border-neutral-300 rounded-md">
             <span className="text-sm text-neutral-600 truncate pr-2">{fileName || 'No file selected'}</span>
-            <label htmlFor={label.replace(/\s+/g, '-')} className="cursor-pointer text-sm font-medium text-rose-600 hover:text-rose-800">
+            <label htmlFor={label.replace(/\s+/g, '-')} className="cursor-pointer text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
                 Change
                 <input id={label.replace(/\s+/g, '-')} type="file" className="sr-only" onChange={onFileChange} />
             </label>
@@ -27,7 +27,7 @@ const ViewOnlyFileRow = ({ label, fileName }) => (
         <label className="block text-sm font-medium text-neutral-700">{label}</label>
         <div className="mt-1 flex items-center justify-between p-2 border border-neutral-300 rounded-md bg-neutral-50">
             <span className="text-sm text-neutral-600 truncate pr-2">{fileName}</span>
-            <button type="button" className="text-sm font-medium text-rose-600 hover:text-rose-800">
+            <button type="button" className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
                 View
             </button>
         </div>
@@ -60,7 +60,8 @@ const ViewSecureFileRow = ({ label, filePath }) => {
                     href={fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-medium text-rose-600 hover:text-rose-800"
+                    className="text-sm font-medium"
+                    style={{ color: 'var(--color-primary)' }}
                 >
                     View
                 </a>
@@ -144,7 +145,7 @@ export default function LegalPaymentSettings({ initialData, onUpdate, isSaving }
                 <div className="space-y-4">
                     <h3 className="text-xl font-semibold text-neutral-800">GST Details</h3>
                     <label className="flex items-center space-x-2">
-                        <input type="checkbox" name="isGstApplicable" checked={formData.isGstApplicable} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500" />
+                        <input type="checkbox" name="isGstApplicable" checked={formData.isGstApplicable} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400" />
                         <span className="text-sm text-neutral-700">Is GST Applicable?</span>
                     </label>
                     {formData.isGstApplicable && (
@@ -198,7 +199,7 @@ export default function LegalPaymentSettings({ initialData, onUpdate, isSaving }
                                     <span className="text-sm font-medium">Verified</span>
                                 </div>
                             ) : (
-                                <button type="button" onClick={handleVerifyUpi} disabled={isVerifying || !formData.upiId} className="bg-white text-rose-600 border border-rose-600 px-4 py-2 rounded-md font-medium hover:bg-rose-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                <button type="button" onClick={handleVerifyUpi} disabled={isVerifying || !formData.upiId} className="bg-white border px-4 py-2 rounded-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-50" style={{ color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}>
                                     {isVerifying ? 'Verifying...' : 'Verify'}
                                 </button>
                             )}
@@ -207,7 +208,7 @@ export default function LegalPaymentSettings({ initialData, onUpdate, isSaving }
                 </div>
 
                 <div className="mt-8 pt-5 border-t border-neutral-200 text-right">
-                    <button type="submit" /* ... */ >
+                    <button type="submit" className="px-6 py-2.5 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                         {isSaving ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>

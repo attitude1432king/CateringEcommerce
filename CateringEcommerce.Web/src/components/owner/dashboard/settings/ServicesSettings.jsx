@@ -31,7 +31,8 @@ const SelectGroup = ({ title, options, selectedIds = [], onSelectionChange, erro
                         <button
                             type="button"
                             onClick={() => onSelectionChange(option.typeId.toString())}
-                            className={`px-3 py-1 text-sm rounded-full border transition-colors ${selectedSet.has(option.typeId) ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-neutral-700 border-neutral-300 hover:bg-rose-50'}`}
+                            className={`px-3 py-1 text-sm rounded-full border transition-all ${selectedSet.has(option.typeId) ? 'text-white border-transparent' : 'bg-white text-neutral-700 border-neutral-300 hover:bg-orange-50'}`}
+                            style={selectedSet.has(option.typeId) ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
                         >
                             {option.serviceName}
                         </button>
@@ -116,7 +117,7 @@ const MediaSettingsUploader = ({ initialMedia = [], onUpdateMedia, error, onMedi
                             </div>
                         </div>
                     ))}
-                    <button type="button" onClick={() => fileInputRef.current.click()} className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg text-neutral-400 hover:bg-neutral-100 hover:border-rose-500 hover:text-rose-600 transition-colors">
+                    <button type="button" onClick={() => fileInputRef.current.click()} className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg text-neutral-400 hover:bg-orange-50 hover:border-orange-400 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                         <span className="text-xs mt-1 font-medium">Add Photos/Videos</span>
                     </button>
@@ -293,7 +294,7 @@ export default function ServicesSettings({ initialData, onUpdate, isSaving }) {
                     </div>
 
                     <div className="mt-8 pt-5 border-t border-neutral-200 text-right">
-                        <button type="submit" /* ... */ >
+                        <button type="submit" className="px-6 py-2.5 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                             {isSaving ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>

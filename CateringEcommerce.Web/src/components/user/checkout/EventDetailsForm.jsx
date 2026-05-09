@@ -88,7 +88,7 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
       <div className="space-y-4">
         {/* Event Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Event Date <span className="text-red-500">*</span>
           </label>
           <input
@@ -104,14 +104,14 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
           {errors.eventDate && (
             <p className="mt-1 text-sm text-red-600">{errors.eventDate}</p>
           )}
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-neutral-500">
             Event must be scheduled at least 24 hours in advance
           </p>
         </div>
 
         {/* Event Time */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Event Time <span className="text-red-500">*</span>
           </label>
           <select
@@ -135,7 +135,7 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
 
         {/* Event Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Event Type <span className="text-red-500">*</span>
           </label>
           <select
@@ -159,7 +159,7 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
 
         {/* Event Location */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Event Location
           </label>
           <EventLocationMapPicker
@@ -174,7 +174,7 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
 
         {/* Special Instructions */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Special Instructions (Optional)
           </label>
           <textarea
@@ -190,7 +190,7 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
           {errors.specialInstructions && (
             <p className="mt-1 text-sm text-red-600">{errors.specialInstructions}</p>
           )}
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-neutral-500">
             {specialInstructions.length}/1000 characters
           </p>
         </div>
@@ -200,7 +200,7 @@ const EventDetailsForm = ({ formData, onUpdate, onNext, onBack }) => {
       <div className="flex justify-between mt-8">
         <button
           onClick={onBack}
-          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          className="px-6 py-3 border border-gray-300 text-neutral-700 rounded-lg hover:bg-gray-50 transition-colors"
         >
           Back
         </button>

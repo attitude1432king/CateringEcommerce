@@ -71,14 +71,14 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
             </div>
 
             <div className="p-4 border-b">
-                <h4 className="font-semibold text-gray-900 mb-3">Order Summary</h4>
+                <h4 className="font-semibold text-neutral-900 mb-3">Order Summary</h4>
 
                 {cart.packageName && (
                     <div className="mb-4 pb-4 border-b">
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
-                                <div className="font-medium text-gray-900">{cart.packageName}</div>
-                                <div className="text-xs text-gray-500 mt-1">
+                                <div className="font-medium text-neutral-900">{cart.packageName}</div>
+                                <div className="text-xs text-neutral-500 mt-1">
                                     {`\u20B9${cart.packagePrice} � ${totals.guestCount} guests`}
                                 </div>
                                 {cart.packageCategory && (
@@ -87,7 +87,7 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                                     </span>
                                 )}
                             </div>
-                            <div className="font-semibold text-gray-900">
+                            <div className="font-semibold text-neutral-900">
                                 {`\u20B9${totals.packageTotal.toLocaleString('en-IN')}`}
                             </div>
                         </div>
@@ -102,10 +102,10 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                 {totals.primaryDecoration && (
                     <div className="mb-3 flex justify-between items-center">
                         <div>
-                            <div className="font-medium text-gray-900">{cart.decorationName || 'Package Decoration'}</div>
-                            <div className="text-xs text-gray-500">Package decoration</div>
+                            <div className="font-medium text-neutral-900">{cart.decorationName || 'Package Decoration'}</div>
+                            <div className="text-xs text-neutral-500">Package decoration</div>
                         </div>
-                        <div className="font-semibold text-gray-900">
+                        <div className="font-semibold text-neutral-900">
                             {`\u20B9${totals.primaryDecorationTotal.toLocaleString('en-IN')}`}
                         </div>
                     </div>
@@ -113,13 +113,13 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
 
                 {totals.standaloneDecorations.length > 0 && (
                     <div className="mt-3 pt-3 border-t">
-                        <div className="text-xs font-semibold text-gray-700 mb-2">
+                        <div className="text-xs font-semibold text-neutral-700 mb-2">
                             Additional Decorations
                         </div>
                         {totals.standaloneDecorations.map((decoration, index) => (
                             <div key={`${decoration.decorationId ?? decoration.name}_${index}`} className="flex justify-between items-center mb-2 text-sm">
-                                <div className="text-gray-700">{decoration.name}</div>
-                                <div className="text-gray-900">
+                                <div className="text-neutral-700">{decoration.name}</div>
+                                <div className="text-neutral-900">
                                     {`\u20B9${decoration.totalPrice.toLocaleString('en-IN')}`}
                                 </div>
                             </div>
@@ -129,18 +129,18 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
 
                 {totals.additionalItems.length > 0 && (
                     <div className="mt-3 pt-3 border-t">
-                        <div className="text-xs font-semibold text-gray-700 mb-2">
+                        <div className="text-xs font-semibold text-neutral-700 mb-2">
                             Additional Items
                         </div>
                         {totals.additionalItems.map((item, index) => (
                             <div key={`${item.foodId ?? item.foodName}_${index}`} className="flex justify-between items-center mb-2 text-sm">
-                                <div className="text-gray-700">
+                                <div className="text-neutral-700">
                                     {item.foodName}
-                                    <span className="text-xs text-gray-500 ml-1">
+                                    <span className="text-xs text-neutral-500 ml-1">
                                         {`(�${item.quantity || 1} � ${totals.guestCount})`}
                                     </span>
                                 </div>
-                                <div className="text-gray-900">
+                                <div className="text-neutral-900">
                                     {`\u20B9${item.totalPrice.toLocaleString('en-IN')}`}
                                 </div>
                             </div>
@@ -152,25 +152,25 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
             {checkoutData.eventDate && (
                 <div className="p-4 bg-orange-50 border-b">
                     <div className="flex items-start gap-2">
-                        <svg className="w-5 h-5 text-orange-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-5 h-5 text-primary mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                         </svg>
                         <div className="flex-1">
                             <div className="text-xs font-medium text-orange-900">Event Details</div>
-                            <div className="text-sm font-semibold text-gray-900 mt-1">
+                            <div className="text-sm font-semibold text-neutral-900 mt-1">
                                 {formatEventDate(checkoutData.eventDate)}
                             </div>
                             {checkoutData.eventTime && (
-                                <div className="text-xs text-gray-700 mt-0.5">
+                                <div className="text-xs text-neutral-700 mt-0.5">
                                     Time: {formatEventTime(checkoutData.eventTime)}
                                 </div>
                             )}
                             {checkoutData.eventType && (
-                                <div className="text-xs text-gray-700 mt-0.5">
+                                <div className="text-xs text-neutral-700 mt-0.5">
                                     Type: {getEventTypeDisplay(checkoutData.eventType)}
                                 </div>
                             )}
-                            <div className="text-xs text-gray-700 mt-0.5">
+                            <div className="text-xs text-neutral-700 mt-0.5">
                                 Guests: {checkoutData.guestCount || cart.guestCount || 50}
                             </div>
                         </div>
@@ -179,7 +179,7 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
             )}
 
             <div className="p-4">
-                <h4 className="font-semibold text-gray-900 mb-3">Bill Details</h4>
+                <h4 className="font-semibold text-neutral-900 mb-3">Bill Details</h4>
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                         <span>Item Total</span>
@@ -217,12 +217,12 @@ const CartSummary = ({ cart, checkoutData, canPlaceOrder, onPlaceOrder, isSubmit
                     <button
                         onClick={onPlaceOrder}
                         disabled={isSubmitting}
-                        className="w-full bg-orange-500 text-white py-3 rounded-lg font-bold disabled:opacity-50"
+                        className="w-full bg-primary text-white py-3 rounded-lg font-bold disabled:opacity-50"
                     >
                         {isSubmitting ? 'Processing...' : `Place Order - \u20B9${totals.total.toLocaleString('en-IN')}`}
                     </button>
                     <div className="text-center mt-2">
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-neutral-500">
                             Safe and secure payments
                         </span>
                     </div>

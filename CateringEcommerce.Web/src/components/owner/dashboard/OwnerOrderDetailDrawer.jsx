@@ -1,21 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 import { ownerApiService } from '../../../services/ownerApi';
+import { Skeleton } from '../../../design-system/components';
 
-const STATUS_STYLES = {
-    Pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    Confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
-    Cancelled: 'bg-red-100 text-red-800 border-red-200',
-    Completed: 'bg-green-100 text-green-800 border-green-200',
-    InProgress: 'bg-purple-100 text-purple-800 border-purple-200',
-    'In-Progress': 'bg-purple-100 text-purple-800 border-purple-200',
-};
+const statusPillClass = (s) => ({
+    Pending: 's-pending', Confirmed: 's-confirmed', Cancelled: 's-cancelled',
+    Completed: 's-completed', InProgress: 's-inprogress', 'In-Progress': 's-inprogress',
+}[s] || 's-pending');
 
-const PAYMENT_STYLES = {
-    Paid: 'bg-green-100 text-green-700',
-    Pending: 'bg-yellow-100 text-yellow-700',
-    Partial: 'bg-orange-100 text-orange-700',
-    Failed: 'bg-red-100 text-red-700',
-};
+const paymentPillClass = (s) => ({
+    Paid: 's-completed', Pending: 's-pending', Partial: 's-inprogress', Failed: 's-cancelled',
+}[s] || 's-pending');
 
 function formatDate(value, includeTime = false) {
     if (!value) return '-';
@@ -31,7 +26,6 @@ function formatCurrency(value) {
 
 function parsePackageSelections(value) {
     if (!value) return null;
-
     try {
         return typeof value === 'string' ? JSON.parse(value) : value;
     } catch {
@@ -41,46 +35,24 @@ function parsePackageSelections(value) {
 
 function normalizeSelectedGroups(packageSelections) {
     const selections = Array.isArray(packageSelections?.selections) ? packageSelections.selections : [];
-
     return selections
         .map((group) => {
             const items = Array.isArray(group?.selectedItems) ? group.selectedItems : [];
-            const labels = items
-                .map((item) => item?.foodName || item?.name || item?.itemName)
-                .filter(Boolean);
-
-            if (labels.length === 0) {
-                return null;
-            }
-
-            return {
-                label: group?.categoryName || group?.selectionName || 'Selected Items',
-                items: labels,
-            };
+            const labels = items.map((item) => item?.foodName || item?.name || item?.itemName).filter(Boolean);
+            if (labels.length === 0) return null;
+            return { label: group?.categoryName || group?.selectionName || 'Selected Items', items: labels };
         })
         .filter(Boolean);
 }
 
 function normalizeSampleGroups(packageSelections) {
-    const sampleSelections = Array.isArray(packageSelections?.sampleTasteSelections)
-        ? packageSelections.sampleTasteSelections
-        : [];
-
+    const sampleSelections = Array.isArray(packageSelections?.sampleTasteSelections) ? packageSelections.sampleTasteSelections : [];
     return sampleSelections
         .map((group) => {
             const items = Array.isArray(group?.selectedItems) ? group.selectedItems : [];
-            const labels = items
-                .map((item) => item?.name || item?.foodName || item?.itemName)
-                .filter(Boolean);
-
-            if (labels.length === 0) {
-                return null;
-            }
-
-            return {
-                label: group?.categoryName || 'Sample Taste',
-                items: labels,
-            };
+            const labels = items.map((item) => item?.name || item?.foodName || item?.itemName).filter(Boolean);
+            if (labels.length === 0) return null;
+            return { label: group?.categoryName || 'Sample Taste', items: labels };
         })
         .filter(Boolean);
 }
@@ -89,9 +61,8 @@ function SectionCard({ title, children, tone = 'default' }) {
     const toneClass = tone === 'warning'
         ? 'bg-amber-50 border-amber-200'
         : tone === 'highlight'
-            ? 'bg-indigo-50 border-indigo-200'
+            ? 'bg-orange-50 border-orange-100'
             : 'bg-white border-neutral-200';
-
     return (
         <div className={`rounded-2xl border p-4 ${toneClass}`}>
             <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-3">{title}</p>
@@ -119,38 +90,23 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        if (!isOpen || !orderId) {
-            return;
-        }
-
+        if (!isOpen || !orderId) return;
         let ignore = false;
-
         const loadDetails = async () => {
             setLoading(true);
             setError(null);
             setDetail(null);
-
             try {
                 const response = await ownerApiService.getOrderDetails(orderId);
-                if (!ignore) {
-                    setDetail(response?.data ?? response);
-                }
+                if (!ignore) setDetail(response?.data ?? response);
             } catch {
-                if (!ignore) {
-                    setError('Failed to load order details.');
-                    setDetail(null);
-                }
+                if (!ignore) { setError('Failed to load order details.'); setDetail(null); }
             } finally {
-                if (!ignore) {
-                    setLoading(false);
-                }
+                if (!ignore) setLoading(false);
             }
         };
-
         loadDetails();
-        return () => {
-            ignore = true;
-        };
+        return () => { ignore = true; };
     }, [isOpen, orderId]);
 
     const items = useMemo(() => detail?.items ?? [], [detail]);
@@ -160,31 +116,24 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
     return (
         <div className="fixed inset-0 z-50">
             <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-            <aside className="absolute inset-y-0 right-0 w-full max-w-3xl bg-neutral-50 shadow-2xl overflow-y-auto">
-                <div className="sticky top-0 z-10 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+            <aside className="absolute inset-y-0 right-0 w-full max-w-3xl bg-white shadow-2xl overflow-y-auto">
+                {/* Sticky header */}
+                <div className="sticky top-0 z-10 bg-white border-b border-neutral-100 px-6 py-4 flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-bold text-neutral-900">Order Details</h2>
                         {detail?.orderNumber && (
-                            <p className="text-sm text-neutral-500 mt-1">#{detail.orderNumber}</p>
+                            <p className="text-sm text-neutral-500 mt-0.5">#{detail.orderNumber}</p>
                         )}
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
-                        aria-label="Close order details"
-                    >
-                        <svg className="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                    <button onClick={onClose} className="icon-btn" aria-label="Close order details">
+                        <X size={18} strokeWidth={2} />
                     </button>
                 </div>
 
                 <div className="p-6 space-y-5">
                     {loading && (
                         <div className="space-y-4">
-                            {[...Array(5)].map((_, index) => (
-                                <div key={index} className="h-20 rounded-2xl bg-white border border-neutral-200 animate-pulse" />
-                            ))}
+                            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
                         </div>
                     )}
 
@@ -205,10 +154,12 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLES[detail.orderStatus] || 'bg-neutral-100 text-neutral-700 border-neutral-200'}`}>
+                                        <span className={`status-pill ${statusPillClass(detail.orderStatus)}`}>
+                                            <span className="dot" />
                                             {detail.orderStatus || 'Pending'}
                                         </span>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${PAYMENT_STYLES[detail.paymentStatus] || 'bg-neutral-100 text-neutral-700'}`}>
+                                        <span className={`status-pill ${paymentPillClass(detail.paymentStatus)}`}>
+                                            <span className="dot" />
                                             {detail.paymentStatus || 'Pending'}
                                         </span>
                                     </div>
@@ -216,36 +167,30 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
                             </SectionCard>
 
                             <SectionCard title="Customer">
-                                <KeyValueGrid
-                                    items={[
-                                        { label: 'Customer Name', value: detail.customerName },
-                                        { label: 'Customer Phone', value: detail.customerPhone },
-                                        { label: 'Customer Email', value: detail.customerEmail || '-' },
-                                    ]}
-                                />
+                                <KeyValueGrid items={[
+                                    { label: 'Customer Name', value: detail.customerName },
+                                    { label: 'Customer Phone', value: detail.customerPhone },
+                                    { label: 'Customer Email', value: detail.customerEmail || '-' },
+                                ]} />
                             </SectionCard>
 
                             <SectionCard title="Event">
-                                <KeyValueGrid
-                                    items={[
-                                        { label: 'Event Date', value: formatDate(detail.eventDate) },
-                                        { label: 'Event Time', value: detail.eventTime || '-' },
-                                        { label: 'Event Type', value: detail.eventType || '-' },
-                                        { label: 'Guest Count', value: detail.guestCount ? `${detail.guestCount} people` : '-' },
-                                        { label: 'Event Location', value: detail.eventLocation || '-' },
-                                        { label: 'Venue / Address', value: detail.deliveryAddress || detail.venueAddress || '-' },
-                                    ]}
-                                />
+                                <KeyValueGrid items={[
+                                    { label: 'Event Date', value: formatDate(detail.eventDate) },
+                                    { label: 'Event Time', value: detail.eventTime || '-' },
+                                    { label: 'Event Type', value: detail.eventType || '-' },
+                                    { label: 'Guest Count', value: detail.guestCount ? `${detail.guestCount} people` : '-' },
+                                    { label: 'Event Location', value: detail.eventLocation || '-' },
+                                    { label: 'Venue / Address', value: detail.deliveryAddress || detail.venueAddress || '-' },
+                                ]} />
                             </SectionCard>
 
                             <SectionCard title="Contact">
-                                <KeyValueGrid
-                                    items={[
-                                        { label: 'Contact Person', value: detail.contactPerson || '-' },
-                                        { label: 'Contact Phone', value: detail.contactPhone || '-' },
-                                        { label: 'Contact Email', value: detail.contactEmail || '-' },
-                                    ]}
-                                />
+                                <KeyValueGrid items={[
+                                    { label: 'Contact Person', value: detail.contactPerson || '-' },
+                                    { label: 'Contact Phone', value: detail.contactPhone || '-' },
+                                    { label: 'Contact Email', value: detail.contactEmail || '-' },
+                                ]} />
                             </SectionCard>
 
                             {(detail.specialInstructions || items.some((item) => parsePackageSelections(item.packageSelections))) && (
@@ -257,67 +202,60 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
                                                 <p className="text-sm text-amber-800 whitespace-pre-wrap">{detail.specialInstructions}</p>
                                             </div>
                                         )}
-
-                                        {items
-                                            .map((item) => {
-                                                const packageSelections = parsePackageSelections(item.packageSelections);
-                                                const selectedGroups = normalizeSelectedGroups(packageSelections);
-                                                const sampleGroups = normalizeSampleGroups(packageSelections);
-                                                const sampleMeta = packageSelections?.sampleTasteMeta || null;
-
-                                                if (selectedGroups.length === 0 && sampleGroups.length === 0 && !sampleMeta) {
-                                                    return null;
-                                                }
-
-                                                return (
-                                                    <div key={`requirement-${item.orderItemId}`} className="rounded-xl border border-amber-200 bg-white/70 p-4">
-                                                        <p className="text-sm font-semibold text-neutral-900 mb-3">{item.menuItemName}</p>
-
-                                                        {selectedGroups.length > 0 && (
-                                                            <div className="space-y-2 mb-3">
-                                                                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Selected Package Items</p>
-                                                                {selectedGroups.map((group) => (
-                                                                    <div key={`${item.orderItemId}-${group.label}`}>
-                                                                        <p className="text-xs font-medium text-neutral-700 mb-1">{group.label}</p>
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {group.items.map((name) => (
-                                                                                <span key={`${group.label}-${name}`} className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100">
-                                                                                    {name}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
+                                        {items.map((item) => {
+                                            const packageSelections = parsePackageSelections(item.packageSelections);
+                                            const selectedGroups = normalizeSelectedGroups(packageSelections);
+                                            const sampleGroups = normalizeSampleGroups(packageSelections);
+                                            const sampleMeta = packageSelections?.sampleTasteMeta || null;
+                                            if (selectedGroups.length === 0 && sampleGroups.length === 0 && !sampleMeta) return null;
+                                            return (
+                                                <div key={`requirement-${item.orderItemId}`} className="rounded-xl border border-amber-200 bg-white/70 p-4">
+                                                    <p className="text-sm font-semibold text-neutral-900 mb-3">{item.menuItemName}</p>
+                                                    {selectedGroups.length > 0 && (
+                                                        <div className="space-y-2 mb-3">
+                                                            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Selected Package Items</p>
+                                                            {selectedGroups.map((group) => (
+                                                                <div key={`${item.orderItemId}-${group.label}`}>
+                                                                    <p className="text-xs font-medium text-neutral-700 mb-1">{group.label}</p>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {group.items.map((name) => (
+                                                                            <span key={`${group.label}-${name}`}
+                                                                                className="px-2 py-1 rounded-lg text-xs font-medium border"
+                                                                                style={{ background: 'rgba(255,107,53,0.06)', borderColor: 'rgba(255,107,53,0.2)', color: 'var(--color-primary)' }}>
+                                                                                {name}
+                                                                            </span>
+                                                                        ))}
                                                                     </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-
-                                                        {sampleGroups.length > 0 && (
-                                                            <div className="space-y-2 mb-3">
-                                                                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Sample Taste Selections</p>
-                                                                {sampleGroups.map((group) => (
-                                                                    <div key={`${item.orderItemId}-sample-${group.label}`}>
-                                                                        <p className="text-xs font-medium text-neutral-700 mb-1">{group.label}</p>
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {group.items.map((name) => (
-                                                                                <span key={`${group.label}-${name}`} className="px-2 py-1 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium border border-teal-100">
-                                                                                    {name}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {sampleGroups.length > 0 && (
+                                                        <div className="space-y-2 mb-3">
+                                                            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Sample Taste Selections</p>
+                                                            {sampleGroups.map((group) => (
+                                                                <div key={`${item.orderItemId}-sample-${group.label}`}>
+                                                                    <p className="text-xs font-medium text-neutral-700 mb-1">{group.label}</p>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {group.items.map((name) => (
+                                                                            <span key={`${group.label}-${name}`} className="px-2 py-1 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium border border-teal-100">
+                                                                                {name}
+                                                                            </span>
+                                                                        ))}
                                                                     </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-
-                                                        {sampleMeta && (
-                                                            <div className="text-xs text-neutral-600 space-y-1">
-                                                                {sampleMeta.status && <p>Sample status: {sampleMeta.status}</p>}
-                                                                {sampleMeta.rejectionReason && <p>Sample note: {sampleMeta.rejectionReason}</p>}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {sampleMeta && (
+                                                        <div className="text-xs text-neutral-600 space-y-1">
+                                                            {sampleMeta.status && <p>Sample status: {sampleMeta.status}</p>}
+                                                            {sampleMeta.rejectionReason && <p>Sample note: {sampleMeta.rejectionReason}</p>}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </SectionCard>
                             )}
@@ -326,12 +264,12 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
                                 {items.length > 0 ? (
                                     <div className="space-y-3">
                                         {items.map((item) => (
-                                            <div key={item.orderItemId} className="rounded-xl border border-neutral-200 bg-white p-4">
+                                            <div key={item.orderItemId} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
                                                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                                                     <div>
                                                         <div className="flex items-center gap-2 flex-wrap">
                                                             <p className="text-sm font-semibold text-neutral-900">{item.menuItemName}</p>
-                                                            <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 text-xs font-medium">
+                                                            <span className="px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-600 text-xs font-medium">
                                                                 {item.itemType || item.category || 'Item'}
                                                             </span>
                                                         </div>
@@ -370,9 +308,9 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
                                         <span>Delivery</span>
                                         <span>{formatCurrency(detail.deliveryCharges)}</span>
                                     </div>
-                                    <div className="pt-2 border-t border-indigo-200 flex justify-between font-bold text-neutral-900">
+                                    <div className="pt-2 border-t border-neutral-200 flex justify-between font-bold text-neutral-900">
                                         <span>Total</span>
-                                        <span>{formatCurrency(detail.totalAmount)}</span>
+                                        <span className="amount">{formatCurrency(detail.totalAmount)}</span>
                                     </div>
                                     <div className="flex justify-between text-sm text-green-700">
                                         <span>Paid</span>
@@ -382,30 +320,21 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
                                         <span>Balance</span>
                                         <span className="font-semibold">{formatCurrency(detail.balanceAmount)}</span>
                                     </div>
-
                                     {detail.paymentSplitEnabled && (
-                                        <div className="mt-4 rounded-xl bg-white/80 border border-indigo-200 p-4 space-y-2">
+                                        <div className="mt-4 rounded-xl bg-white/80 border border-neutral-100 p-4 space-y-2">
                                             <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Split Payment</p>
-                                            <div className="flex justify-between text-sm text-neutral-700">
-                                                <span>Payment Method</span>
-                                                <span>{detail.paymentMethod || '-'}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm text-neutral-700">
-                                                <span>Pre-booking Amount</span>
-                                                <span>{detail.preBookingAmount != null ? formatCurrency(detail.preBookingAmount) : '-'}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm text-neutral-700">
-                                                <span>Pre-booking Status</span>
-                                                <span>{detail.preBookingStatus || '-'}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm text-neutral-700">
-                                                <span>Post-event Amount</span>
-                                                <span>{detail.postEventAmount != null ? formatCurrency(detail.postEventAmount) : '-'}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm text-neutral-700">
-                                                <span>Post-event Status</span>
-                                                <span>{detail.postEventStatus || '-'}</span>
-                                            </div>
+                                            {[
+                                                { label: 'Payment Method', value: detail.paymentMethod },
+                                                { label: 'Pre-booking Amount', value: detail.preBookingAmount != null ? formatCurrency(detail.preBookingAmount) : null },
+                                                { label: 'Pre-booking Status', value: detail.preBookingStatus },
+                                                { label: 'Post-event Amount', value: detail.postEventAmount != null ? formatCurrency(detail.postEventAmount) : null },
+                                                { label: 'Post-event Status', value: detail.postEventStatus },
+                                            ].map(row => (
+                                                <div key={row.label} className="flex justify-between text-sm text-neutral-700">
+                                                    <span>{row.label}</span>
+                                                    <span>{row.value || '-'}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
@@ -417,7 +346,8 @@ export default function OwnerOrderDetailDrawer({ orderId, isOpen, onClose }) {
                                         <div className="absolute left-1.5 top-2 bottom-2 w-0.5 bg-neutral-200" />
                                         {detail.statusHistory.map((entry, index) => (
                                             <div key={`${entry.status}-${entry.changedDate}-${index}`} className="relative flex gap-3">
-                                                <div className="w-3 h-3 rounded-full bg-indigo-600 border-2 border-white ring-2 ring-indigo-200 shrink-0 mt-0.5 -ml-1.5" />
+                                                <div className="w-3 h-3 rounded-full border-2 border-white shrink-0 mt-0.5 -ml-1.5"
+                                                    style={{ background: 'var(--color-primary)', boxShadow: '0 0 0 2px rgba(255,107,53,0.25)' }} />
                                                 <div>
                                                     <p className="text-sm font-semibold text-neutral-900">{entry.status}</p>
                                                     <p className="text-xs text-neutral-500">{formatDate(entry.changedDate, true)}</p>

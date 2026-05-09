@@ -62,7 +62,7 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
         {/* Package Total */}
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-gray-700">Package ({cart.guestCount} guests)</span>
+            <span className="text-neutral-700">Package ({cart.guestCount} guests)</span>
             <div className="group relative">
               <svg className="w-4 h-4 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
@@ -72,14 +72,14 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
               </div>
             </div>
           </div>
-          <span className="font-semibold text-gray-900">{formatCurrency(totals.packageTotal)}</span>
+          <span className="font-semibold text-neutral-900">{formatCurrency(totals.packageTotal)}</span>
         </div>
 
         {/* Decoration */}
         {totals.decorationTotal > 0 && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-700">Decoration & Setup</span>
-            <span className="font-semibold text-gray-900">{formatCurrency(totals.decorationTotal)}</span>
+            <span className="text-neutral-700">Decoration & Setup</span>
+            <span className="font-semibold text-neutral-900">{formatCurrency(totals.decorationTotal)}</span>
           </div>
         )}
 
@@ -87,7 +87,7 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
         {totals.additionalTotal > 0 && (
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-gray-700">Additional Items</span>
+              <span className="text-neutral-700">Additional Items</span>
               <div className="group relative">
                 <svg className="w-4 h-4 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
@@ -97,14 +97,14 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
                 </div>
               </div>
             </div>
-            <span className="font-semibold text-gray-900">{formatCurrency(totals.additionalTotal)}</span>
+            <span className="font-semibold text-neutral-900">{formatCurrency(totals.additionalTotal)}</span>
           </div>
         )}
 
         {/* Subtotal */}
         <div className="flex items-center justify-between text-sm pt-2 border-t border-dashed">
-          <span className="font-medium text-gray-900">Item Total</span>
-          <span className="font-semibold text-gray-900">{formatCurrency(totals.subtotal)}</span>
+          <span className="font-medium text-neutral-900">Item Total</span>
+          <span className="font-semibold text-neutral-900">{formatCurrency(totals.subtotal)}</span>
         </div>
 
         {/* Discount */}
@@ -126,7 +126,7 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
         {/* GST */}
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-gray-700">GST (18%)</span>
+            <span className="text-neutral-700">GST (18%)</span>
             <div className="group relative">
               <svg className="w-4 h-4 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
@@ -136,13 +136,13 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
               </div>
             </div>
           </div>
-          <span className="font-semibold text-gray-900">{formatCurrency(totals.gst)}</span>
+          <span className="font-semibold text-neutral-900">{formatCurrency(totals.gst)}</span>
         </div>
 
         {/* Platform Fee */}
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-gray-700">Platform Fee (2%)</span>
+            <span className="text-neutral-700">Platform Fee (2%)</span>
             <div className="group relative">
               <svg className="w-4 h-4 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
@@ -152,12 +152,12 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
               </div>
             </div>
           </div>
-          <span className="font-semibold text-gray-900">{formatCurrency(totals.platformFee)}</span>
+          <span className="font-semibold text-neutral-900">{formatCurrency(totals.platformFee)}</span>
         </div>
 
         {/* Delivery Charges */}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-700">Delivery Charges</span>
+          <span className="text-neutral-700">Delivery Charges</span>
           <span className="font-semibold text-green-600">FREE</span>
         </div>
       </div>
@@ -165,12 +165,12 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
       {/* Total Amount */}
       <div className="bg-gradient-to-r from-orange-50 to-red-50 border-t-2 border-orange-200 p-5">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-lg font-bold text-gray-900">Total Amount</span>
+          <span className="text-lg font-bold text-neutral-900">Total Amount</span>
           <div className="text-right">
             <div className="text-2xl font-bold text-red-600">
               {formatCurrency(totals.total)}
             </div>
-            <div className="text-xs text-gray-600">All taxes included</div>
+            <div className="text-xs text-neutral-600">All taxes included</div>
           </div>
         </div>
 
@@ -202,7 +202,7 @@ const PriceSummaryCard = ({ cart, discountAmount, appliedCoupon, onProceedToChec
         </button>
 
         {/* Trust Signals */}
-        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-600">
+        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-neutral-600">
           <div className="flex items-center gap-1">
             <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />

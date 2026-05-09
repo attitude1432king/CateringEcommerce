@@ -16,19 +16,19 @@ export default function TermsConditions() {
     return (
         <div className="min-h-screen bg-white">
             {/* Breadcrumb */}
-            <div className="bg-gray-50 border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-gray-500">
-                    <Link to="/" className="hover:text-gray-700">Home</Link>
+            <div className="bg-neutral-50 border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-neutral-500">
+                    <Link to="/" className="hover:text-neutral-700">Home</Link>
                     <span className="mx-2">/</span>
-                    <span className="text-gray-700 font-medium">Terms & Conditions</span>
+                    <span className="text-neutral-700 font-medium">Terms & Conditions</span>
                 </div>
             </div>
 
             {/* Hero */}
-            <div className="bg-gray-50 border-b py-12">
+            <div className="bg-neutral-50 border-b py-12">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Terms & Conditions</h1>
-                    <p className="mt-2 text-sm text-gray-500">Last updated: March 2026</p>
+                    <h1 className="text-3xl font-bold text-neutral-900">Terms & Conditions</h1>
+                    <p className="mt-2 text-sm text-neutral-500">Last updated: March 2026</p>
                 </div>
             </div>
 
@@ -36,13 +36,13 @@ export default function TermsConditions() {
                 <div className="prose prose-gray max-w-none">
                     {SECTIONS.map((section, i) => (
                         <div key={i} className="mb-8">
-                            <h2 className="text-lg font-bold text-gray-900 mb-3">{section.title}</h2>
-                            <p className="text-gray-600 leading-relaxed text-sm">{section.content}</p>
+                            <h2 className="text-lg font-bold text-neutral-900 mb-3">{section.title}</h2>
+                            <p className="text-neutral-600 leading-relaxed text-sm">{section.content}</p>
                         </div>
                     ))}
                 </div>
 
-                <div className="border-t border-gray-100 pt-8 mt-8 text-sm text-gray-500">
+                <div className="border-t border-gray-100 pt-8 mt-8 text-sm text-neutral-500">
                     <p>If you have questions about these Terms, please <Link to="/contact-us" className="text-indigo-600 hover:underline">contact us</Link>.</p>
                 </div>
             </div>

@@ -121,7 +121,7 @@ const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, ide
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all animate-scale-in">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-rose-500 to-pink-500 p-6 rounded-t-2xl text-white relative overflow-hidden">
+                <div className="p-6 rounded-t-2xl text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
                     <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full -ml-12 -mb-12"></div>
                     <button
@@ -163,11 +163,11 @@ const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, ide
                                     onKeyDown={(e) => handleKeyDown(index, e)}
                                     className={`w-12 h-14 md:w-14 md:h-16 text-center text-2xl font-bold border-2 rounded-xl transition-all duration-200 ${
                                         digit
-                                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                                            ? 'border-orange-500 bg-orange-50 text-orange-700'
                                             : error
                                                 ? 'border-red-400 bg-red-50'
-                                                : 'border-neutral-300 hover:border-rose-300 focus:border-rose-500'
-                                    } focus:outline-none focus:ring-2 focus:ring-rose-200`}
+                                                : 'border-neutral-300 hover:border-orange-300 focus:border-orange-500'
+                                    } focus:outline-none focus:ring-2 focus:ring-orange-200`}
                                 />
                             ))}
                         </div>
@@ -186,16 +186,17 @@ const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, ide
                         <div className="mb-6 text-center">
                             {!canResend ? (
                                 <p className="text-sm text-neutral-600 flex items-center justify-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" style={{ color: 'var(--color-primary)' }} viewBox="0 0 20 20" fill="currentColor">
                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                                     </svg>
-                                    Resend OTP in <span className="font-bold text-rose-600">{timer}s</span>
+                                    Resend OTP in <span className="font-bold" style={{ color: 'var(--color-primary)' }}>{timer}s</span>
                                 </p>
                             ) : (
                                 <button
                                     type="button"
                                     onClick={handleResend}
-                                    className="text-sm text-rose-600 font-semibold hover:text-rose-700 hover:underline transition-all flex items-center justify-center gap-2 mx-auto"
+                                    className="text-sm font-semibold hover:underline transition-all flex items-center justify-center gap-2 mx-auto"
+                                    style={{ color: 'var(--color-primary)' }}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -217,7 +218,8 @@ const VerificationOtpModal = ({ isOpen, onClose, onVerify, verificationType, ide
                             <button
                                 type="submit"
                                 disabled={isVerifying || otp.join('').length !== 6}
-                                className="flex-1 py-3 px-4 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-xl font-semibold hover:from-rose-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                                className="flex-1 py-3 px-4 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                                style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                             >
                                 {isVerifying ? (
                                     <>
@@ -712,7 +714,8 @@ export default function OwnerRegistrationPage() {
                                         <button
                                             type="button"
                                             onClick={nextStep}
-                                            className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-xl font-semibold hover:from-rose-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                            className="flex items-center gap-2 px-8 py-3 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                            style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                                         >
                                             Next Step
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

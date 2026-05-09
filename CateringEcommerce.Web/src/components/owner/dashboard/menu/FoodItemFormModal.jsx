@@ -82,7 +82,7 @@ export default function FoodItemFormModal({ isOpen, onClose, onSave, editingItem
                     <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-6 space-y-4">
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium text-neutral-700">Name <RequiredAsterisk /></label>
-                            <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} autoComplete="off" className={`mt-1 block w-full px-3 py-2 border ${errors.name ? 'border-red-500' : 'border-neutral-300'} rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-rose-500`} />
+                            <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} autoComplete="off" className={`mt-1 block w-full px-3 py-2 border ${errors.name ? 'border-red-500' : 'border-neutral-300'} rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-orange-400`} />
                             <ValidationError message={errors.name} />
                         </div>
                         <div>
@@ -217,7 +217,9 @@ export default function FoodItemFormModal({ isOpen, onClose, onSave, editingItem
                     </form>
                     <div className="p-6 bg-neutral-50 border-t flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-5 py-2 rounded-md font-semibold text-neutral-700 bg-neutral-200 hover:bg-neutral-300">Cancel</button>
-                        <button type="button" onClick={handleSubmit} className="px-5 py-2 rounded-md font-semibold text-white bg-rose-600 hover:bg-rose-700">
+                        <button type="button" onClick={handleSubmit}
+                            className="px-5 py-2 rounded-md font-semibold text-white transition-all"
+                            style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                             {editingItem ? 'Update Item' : 'Save Item'}
                         </button>
                     </div>

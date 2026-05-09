@@ -124,7 +124,6 @@ namespace CateringEcommerce.API.Controllers.Admin
         /// - Updates c_approval_status to 2 (APPROVED)
         /// - Sets c_approved_date to current timestamp
         /// - Sets c_approved_by to current admin ID
-        /// - Sets c_verified_by_admin to true
         /// - Sets c_isactive to true
         /// - Partner becomes visible in the system
         /// </remarks>

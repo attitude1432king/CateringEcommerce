@@ -1,9 +1,12 @@
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Security;
+using CateringEcommerce.Domain.Models.Configuration;
 using CateringEcommerce.Domain.Models.Security;
 using CateringEcommerce.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System;
 using System.Threading.Tasks;
 
@@ -11,16 +14,21 @@ namespace CateringEcommerce.API.Controllers.User
 {
     [Route("api/oauth")]
     [ApiController]
-    [UserAuthorize]
+    [AllowAnonymous]
     public class OAuthController : ControllerBase
     {
         private readonly IOAuthRepository _oauthRepo;
         private readonly ITokenService _tokenService;
+        private readonly IConfiguration _configuration;
+        private readonly JwtSettings _jwtSettings;
 
-        public OAuthController(IOAuthRepository oauthRepo, ITokenService tokenService)
+        public OAuthController(IOAuthRepository oauthRepo, ITokenService tokenService,
+                               IConfiguration configuration, IOptions<JwtSettings> jwtOptions)
         {
-            _oauthRepo = oauthRepo ?? throw new ArgumentNullException(nameof(oauthRepo));
+            _oauthRepo    = oauthRepo    ?? throw new ArgumentNullException(nameof(oauthRepo));
             _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _jwtSettings  = jwtOptions?.Value ?? throw new ArgumentNullException(nameof(jwtOptions));
         }
 
         /// <summary>
@@ -40,7 +48,7 @@ namespace CateringEcommerce.API.Controllers.User
                 var request = new OAuthAuthorizationRequest
                 {
                     Provider = provider,
-                    RedirectUrl = $"{Request.Scheme}://{Request.Host}/oauth-callback", // Frontend callback URL
+                    RedirectUrl = _configuration["OAuth:Google:RedirectUri"] ?? $"{Request.Scheme}://{Request.Host}/oauth-callback",
                     AdditionalData = new System.Collections.Generic.Dictionary<string, string>
                     {
                         { "ip_address", ipAddress },
@@ -148,17 +156,25 @@ namespace CateringEcommerce.API.Controllers.User
                 };
                 var jwtToken = _tokenService.GenerateToken(userId.ToString(), "USER", additionalClaims);
 
+                Response.Cookies.Append("authToken", jwtToken, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure   = true,
+                    SameSite = SameSiteMode.Lax,
+                    Path     = "/",
+                    Expires  = DateTimeOffset.UtcNow.AddMinutes(_jwtSettings.ExpireMinutes)
+                });
+
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        token = jwtToken,
-                        userId = userId,
-                        email = userInfo.Email,
-                        name = userInfo.Name,
-                        picture = userInfo.Picture,
-                        provider = provider,
+                        userId    = userId,
+                        email     = userInfo.Email,
+                        name      = userInfo.Name,
+                        picture   = userInfo.Picture,
+                        provider  = provider,
                         isNewUser = isNewUser
                     },
                     message = isNewUser ? "Account created and logged in successfully" : "Logged in successfully"

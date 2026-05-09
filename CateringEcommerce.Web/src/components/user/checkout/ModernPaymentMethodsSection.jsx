@@ -57,10 +57,10 @@ const ModernPaymentMethodsSection = ({ selectedMethod, onMethodChange, error }) 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-neutral-900">
           Payment Method <span className="text-red-500">*</span>
         </h3>
-        <div className="flex items-center text-xs text-gray-500">
+        <div className="flex items-center text-xs text-neutral-500">
           <svg className="w-4 h-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
@@ -100,7 +100,7 @@ const ModernPaymentMethodsSection = ({ selectedMethod, onMethodChange, error }) 
               className={`mr-4 p-2 rounded-lg flex-shrink-0 ${
                 selectedMethod === method.id
                   ? 'bg-red-100 text-red-600'
-                  : 'bg-gray-100 text-gray-600'
+                  : 'bg-gray-100 text-neutral-600'
               }`}
             >
               {method.icon}
@@ -109,7 +109,7 @@ const ModernPaymentMethodsSection = ({ selectedMethod, onMethodChange, error }) 
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <div className="font-semibold text-gray-900">{method.name}</div>
+                <div className="font-semibold text-neutral-900">{method.name}</div>
                 {selectedMethod === method.id && (
                   <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                     <path
@@ -120,7 +120,7 @@ const ModernPaymentMethodsSection = ({ selectedMethod, onMethodChange, error }) 
                   </svg>
                 )}
               </div>
-              <div className="text-sm text-gray-600 mb-2">{method.description}</div>
+              <div className="text-sm text-neutral-600 mb-2">{method.description}</div>
 
               {/* Payment Option Badges */}
               {method.badges.length > 0 && (

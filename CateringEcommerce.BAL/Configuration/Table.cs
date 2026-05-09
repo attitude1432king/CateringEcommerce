@@ -109,7 +109,6 @@ namespace CateringEcommerce.BAL.Configuration
         public const string SysCommissionTierHistory = "t_sys_commission_tier_history";
 
         // OAuth & Security Tables
-        public const string SysOAuthProvider = "t_sys_oauth_provider";
         public const string SysOAuthState = "t_sys_oauth_state";
         public const string SysUserOAuth = "t_sys_user_oauth";
         public const string SysUser2FA = "t_sys_user_2fa";

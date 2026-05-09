@@ -211,9 +211,10 @@ export default function DiscountsView() {
                     {/* Modern Add Button */}
                     <button
                         onClick={handleOpenCreate}
-                        className="group flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                        className="flex items-center gap-2 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                        style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                     >
-                        <svg className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                         Create Discount
@@ -234,7 +235,7 @@ export default function DiscountsView() {
                             placeholder="Search discounts..."
                             value={filters.name}
                             onChange={handleNameSearchChange}
-                            className="w-full pl-10 pr-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                            className="w-full pl-10 pr-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all"
                         />
                     </div>
 
@@ -242,7 +243,7 @@ export default function DiscountsView() {
                     <select
                         value={filters.type}
                         onChange={handleTypeChange}
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all"
                     >
                         {discountTypeOptions.map((option) => (
                             <option key={option.id} value={option.id}>
@@ -274,13 +275,13 @@ export default function DiscountsView() {
                         return (
                             <div
                                 key={discount.id}
-                                className="group bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-indigo-200"
+                                className="group bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-orange-100"
                                 style={{ animationDelay: `${index * 50}ms` }}
                             >
                                 <div className="p-6">
                                     {/* Header with Status */}
                                     <div className="flex items-start justify-between mb-3">
-                                        <h3 className="text-lg font-bold text-neutral-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                        <h3 className="text-lg font-bold text-neutral-900 line-clamp-1">
                                             {discount.name}
                                         </h3>
                                         <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${statusColorClass}`}>
@@ -290,7 +291,8 @@ export default function DiscountsView() {
 
                                     {/* Discount Code */}
                                     <div className="mb-4">
-                                        <span className="inline-block px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-mono font-bold">
+                                        <span className="inline-block px-3 py-1.5 rounded-lg text-sm font-mono font-bold"
+                                            style={{ background: 'rgba(255,107,53,0.08)', color: 'var(--color-primary)' }}>
                                             {discount.code}
                                         </span>
                                     </div>
@@ -303,9 +305,9 @@ export default function DiscountsView() {
                                     </div>
 
                                     {/* Value Display */}
-                                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl mb-4">
+                                    <div className="flex items-center justify-between p-4 rounded-xl mb-4" style={{ background: 'rgba(255,107,53,0.06)' }}>
                                         <span className="text-xs text-neutral-600 font-medium">Discount Value</span>
-                                        <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                        <span className="text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
                                             {discount.mode === 1 ? `${discount.value}%` : `₹${discount.value}`}
                                         </span>
                                     </div>
@@ -313,13 +315,13 @@ export default function DiscountsView() {
                                     {/* Validity */}
                                     <div className="space-y-2 text-xs text-neutral-600 mb-4">
                                         <div className="flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
                                             <span className="font-medium">Valid from: {discount.startDate}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
                                             <span className="font-medium">Valid until: {discount.endDate}</span>
@@ -328,10 +330,10 @@ export default function DiscountsView() {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="bg-gradient-to-r from-neutral-50 to-indigo-50 px-6 py-4 flex gap-3 border-t border-neutral-100">
+                                <div className="bg-neutral-50 px-6 py-4 flex gap-3 border-t border-neutral-100">
                                     <button
                                         onClick={() => handleOpenEdit(discount)}
-                                        className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-white hover:bg-indigo-50 text-indigo-600 rounded-lg font-semibold transition-all shadow-sm hover:shadow"
+                                        className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-white hover:bg-neutral-100 text-neutral-700 rounded-lg font-semibold transition-all shadow-sm hover:shadow"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -362,7 +364,8 @@ export default function DiscountsView() {
                         <p className="text-neutral-600 mb-4">Try adjusting your filters or create your first discount.</p>
                         <button
                             onClick={handleOpenCreate}
-                            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all"
+                            className="text-white px-6 py-2.5 rounded-xl font-semibold transition-all"
+                            style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                         >
                             Create First Discount
                         </button>

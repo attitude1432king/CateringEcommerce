@@ -124,7 +124,7 @@ const TrustedDevicesPage = () => {
             return <Tablet className="w-6 h-6 text-purple-600" />;
         }
         // Desktop
-        return <Monitor className="w-6 h-6 text-gray-600" />;
+        return <Monitor className="w-6 h-6 text-neutral-600" />;
     };
 
     const getBrowserIcon = (browser) => {
@@ -132,7 +132,7 @@ const TrustedDevicesPage = () => {
         if (browserLower.includes('chrome')) {
             return <Chrome className="w-4 h-4 text-green-600" />;
         }
-        return <Globe className="w-4 h-4 text-gray-600" />;
+        return <Globe className="w-4 h-4 text-neutral-600" />;
     };
 
     const formatDate = (dateString) => {
@@ -172,17 +172,17 @@ const TrustedDevicesPage = () => {
 
     if (loading && devices.length === 0) {
         return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+            <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Loading trusted devices...</p>
+                    <p className="mt-4 text-neutral-600">Loading trusted devices...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-100 py-8">
+        <div className="min-h-screen bg-neutral-100 py-8">
             <div className="max-w-5xl mx-auto px-4">
                 {/* Header */}
                 <div className="mb-6">
@@ -198,8 +198,8 @@ const TrustedDevicesPage = () => {
 
                     <div className="flex justify-between items-start">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">Trusted Devices</h1>
-                            <p className="text-gray-600">
+                            <h1 className="text-3xl font-bold text-neutral-900 mb-2">Trusted Devices</h1>
+                            <p className="text-neutral-600">
                                 Manage devices that can skip two-factor authentication for 30 days
                             </p>
                         </div>
@@ -250,7 +250,7 @@ const TrustedDevicesPage = () => {
                     <div className="bg-white rounded-lg p-12 text-center shadow-sm">
                         <Shield className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                         <h2 className="text-xl font-semibold mb-2">No Trusted Devices</h2>
-                        <p className="text-gray-600 mb-6">
+                        <p className="text-neutral-600 mb-6">
                             When you login and select "Trust this device for 30 days", it will appear here
                         </p>
                         <button
@@ -270,7 +270,7 @@ const TrustedDevicesPage = () => {
                                 <div
                                     key={device.deviceId}
                                     className={`bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow border-2 ${
-                                        isCurrent ? 'border-rose-500 bg-rose-50' : 'border-gray-200'
+                                        isCurrent ? 'border-rose-500 bg-rose-50' : 'border-neutral-200'
                                     } ${!canRevoke ? 'opacity-60' : ''}`}
                                 >
                                     <div className="flex items-start justify-between">
@@ -284,7 +284,7 @@ const TrustedDevicesPage = () => {
                                             {/* Device Details */}
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <h3 className="text-lg font-semibold text-gray-800">
+                                                    <h3 className="text-lg font-semibold text-neutral-800">
                                                         {device.deviceName || 'Unknown Device'}
                                                     </h3>
                                                     {isCurrent && (
@@ -304,7 +304,7 @@ const TrustedDevicesPage = () => {
                                                     )}
                                                 </div>
 
-                                                <div className="space-y-1 text-sm text-gray-600">
+                                                <div className="space-y-1 text-sm text-neutral-600">
                                                     {/* Browser & OS */}
                                                     <div className="flex items-center gap-2">
                                                         {getBrowserIcon(device.browser)}
@@ -313,14 +313,14 @@ const TrustedDevicesPage = () => {
 
                                                     {/* Trusted Date */}
                                                     <div className="flex items-center gap-2">
-                                                        <Calendar className="w-4 h-4 text-gray-500" />
+                                                        <Calendar className="w-4 h-4 text-neutral-500" />
                                                         <span>Trusted: {formatDate(device.trustedDate)}</span>
                                                     </div>
 
                                                     {/* Last Used */}
                                                     {device.lastUsed && (
                                                         <div className="flex items-center gap-2">
-                                                            <Clock className="w-4 h-4 text-gray-500" />
+                                                            <Clock className="w-4 h-4 text-neutral-500" />
                                                             <span>Last used: {formatDate(device.lastUsed)}</span>
                                                         </div>
                                                     )}
@@ -338,8 +338,8 @@ const TrustedDevicesPage = () => {
                                                     {/* IP Address */}
                                                     {device.ipAddress && (
                                                         <div className="flex items-center gap-2 text-xs">
-                                                            <Globe className="w-3 h-3 text-gray-400" />
-                                                            <span className="text-gray-500">IP: {device.ipAddress}</span>
+                                                            <Globe className="w-3 h-3 text-neutral-400" />
+                                                            <span className="text-neutral-500">IP: {device.ipAddress}</span>
                                                         </div>
                                                     )}
 
@@ -381,7 +381,7 @@ const TrustedDevicesPage = () => {
                                                     )}
                                                 </button>
                                             ) : (
-                                                <div className="text-xs text-gray-500 text-center px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                                                <div className="text-xs text-neutral-500 text-center px-4 py-2 border border-neutral-300 rounded-lg bg-neutral-50">
                                                     {device.isExpired ? 'Expired' : 'Revoked'}
                                                 </div>
                                             )}
@@ -394,9 +394,9 @@ const TrustedDevicesPage = () => {
                 )}
 
                 {/* Info Section */}
-                <div className="mt-8 bg-gray-50 rounded-lg p-6">
-                    <h3 className="font-semibold text-gray-900 mb-3">Security Tips</h3>
-                    <div className="space-y-2 text-sm text-gray-700">
+                <div className="mt-8 bg-neutral-50 rounded-lg p-6">
+                    <h3 className="font-semibold text-neutral-900 mb-3">Security Tips</h3>
+                    <div className="space-y-2 text-sm text-neutral-700">
                         <p>
                             <strong>Trusted Devices:</strong> Devices you mark as trusted will skip OTP verification for 30 days.
                         </p>
@@ -421,8 +421,8 @@ const TrustedDevicesPage = () => {
                             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
                                 <AlertTriangle className="h-6 w-6 text-yellow-600" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Revoke Device?</h3>
-                            <p className="text-sm text-gray-600">
+                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">Revoke Device?</h3>
+                            <p className="text-sm text-neutral-600">
                                 Are you sure you want to revoke "{revokeConfirmation.deviceName}"? You will need to verify again on next login from this device.
                             </p>
                         </div>
@@ -430,7 +430,7 @@ const TrustedDevicesPage = () => {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setRevokeConfirmation({ isOpen: false, deviceId: null, deviceName: '' })}
-                                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                                className="flex-1 px-4 py-2.5 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                             >
                                 Cancel
                             </button>
@@ -453,8 +453,8 @@ const TrustedDevicesPage = () => {
                             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
                                 <Shield className="h-6 w-6 text-red-600" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Revoke All Devices?</h3>
-                            <p className="text-sm text-gray-600">
+                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">Revoke All Devices?</h3>
+                            <p className="text-sm text-neutral-600">
                                 Are you sure you want to revoke ALL {devices.filter(d => d.isActive && !d.isExpired).length} trusted device(s)? You will need to verify on all devices on next login.
                             </p>
                         </div>
@@ -462,7 +462,7 @@ const TrustedDevicesPage = () => {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setRevokeAllConfirmation(false)}
-                                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                                className="flex-1 px-4 py-2.5 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                             >
                                 Cancel
                             </button>

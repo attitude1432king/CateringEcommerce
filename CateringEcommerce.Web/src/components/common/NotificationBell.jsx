@@ -54,7 +54,7 @@ const NotificationBell = ({
   return (
     <button
       onClick={onClick}
-      className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors duration-200"
+      className="relative p-2 text-neutral-600 hover:text-neutral-900 hover:bg-gray-100 rounded-full transition-colors duration-200"
       aria-label="Notifications"
       disabled={loading}
     >

@@ -164,7 +164,7 @@ export default function StaffFormModal({ isOpen, onClose, onSave, editingItem, e
 
                     {/* Section 1: Basic Information */}
                     <fieldset>
-                        <legend className="text-lg font-semibold text-rose-700 mb-3">Basic Information</legend>
+                        <legend className="text-lg font-semibold text-neutral-700 mb-3">Basic Information</legend>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="md:col-span-2">
                                 <label htmlFor="name" className="block text-sm font-medium text-neutral-700">Full Name <RequiredAsterisk /></label>
@@ -189,7 +189,7 @@ export default function StaffFormModal({ isOpen, onClose, onSave, editingItem, e
 
                     {/* Section 2: Job Details */}
                     <fieldset>
-                        <legend className="text-lg font-semibold text-rose-700 mb-3">Job Details</legend>
+                        <legend className="text-lg font-semibold text-neutral-700 mb-3">Job Details</legend>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="role" className="block text-sm font-medium text-neutral-700">Role / Post <RequiredAsterisk /></label>
@@ -228,7 +228,7 @@ export default function StaffFormModal({ isOpen, onClose, onSave, editingItem, e
 
                     {/* Section 3: Salary Details */}
                     <fieldset>
-                        <legend className="text-lg font-semibold text-rose-700 mb-3">Salary Details</legend>
+                        <legend className="text-lg font-semibold text-neutral-700 mb-3">Salary Details</legend>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="salaryType" className="block text-sm font-medium text-neutral-700">Salary Type</label>
@@ -247,7 +247,7 @@ export default function StaffFormModal({ isOpen, onClose, onSave, editingItem, e
 
                     {/* Section 4: Upload Documents */}
                     <fieldset>
-                        <legend className="text-lg font-semibold text-rose-700 mb-3">Upload Documents</legend>
+                        <legend className="text-lg font-semibold text-neutral-700 mb-3">Upload Documents</legend>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <SingleFileUploader
                                 label={<>Photo <RequiredAsterisk /></>}
@@ -273,7 +273,7 @@ export default function StaffFormModal({ isOpen, onClose, onSave, editingItem, e
 
                     {/* Section 5: Availability */}
                     <fieldset>
-                        <legend className="text-lg font-semibold text-rose-700 mb-3">Availability</legend>
+                        <legend className="text-lg font-semibold text-neutral-700 mb-3">Availability</legend>
                         <ToggleSwitch label="Available for new events" enabled={formData.availability} setEnabled={(value) => handleToggle('availability', value)} />
                         <p className="text-xs text-neutral-500 mt-1">{formData.availability ? 'This staff member is available for assignment.' : 'This staff member is currently unavailable.'}</p>
                     </fieldset>
@@ -281,7 +281,7 @@ export default function StaffFormModal({ isOpen, onClose, onSave, editingItem, e
                 </form>
                 <div className="p-6 bg-neutral-50 border-t flex justify-end gap-3">
                     <button type="button" onClick={onClose} className="px-5 py-2 rounded-md font-semibold text-neutral-700 bg-neutral-200 hover:bg-neutral-300">Cancel</button>
-                    <button type="button" onClick={handleSubmit} className="px-5 py-2 rounded-md font-semibold text-white bg-rose-600 hover:bg-rose-700">
+                    <button type="button" onClick={handleSubmit} className="px-5 py-2 rounded-md font-semibold text-white transition-all shadow-md hover:shadow-lg" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                         {editingItem ? 'Update Staff Member' : 'Save Staff Member'}
                     </button>
                 </div>

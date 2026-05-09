@@ -189,8 +189,7 @@ export default function Earnings() {
     };
 
     return (
-        <div className="min-h-screen bg-neutral-50">
-            <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="space-y-6">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
@@ -211,9 +210,10 @@ export default function Earnings() {
                                 onClick={() => setTimePeriod(period.value)}
                                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                                     timePeriod === period.value
-                                        ? 'bg-indigo-600 text-white shadow-md'
+                                        ? 'text-white shadow-md'
                                         : 'text-neutral-700 hover:bg-neutral-100'
                                 }`}
+                                style={timePeriod === period.value ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
                             >
                                 {period.label}
                             </button>
@@ -301,7 +301,7 @@ export default function Earnings() {
                         <h2 className="text-lg font-bold text-neutral-900 mb-4">Revenue Trend</h2>
                         {loading ? (
                             <div className="h-80 flex items-center justify-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-400"></div>
                             </div>
                         ) : (
                             <RevenueChart
@@ -317,7 +317,7 @@ export default function Earnings() {
                         <h2 className="text-lg font-bold text-neutral-900 mb-4">Revenue by Event Type</h2>
                         {loading ? (
                             <div className="h-80 flex items-center justify-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-400"></div>
                             </div>
                         ) : (
                             <RevenueBreakdownChart
@@ -347,7 +347,7 @@ export default function Earnings() {
                                     })),
                                     'monthly_revenue.csv'
                                 )}
-                                className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                                className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}
                             >
                                 Export CSV
                             </button>
@@ -387,7 +387,7 @@ export default function Earnings() {
                         <h2 className="text-lg font-bold text-neutral-900">Recent Transactions</h2>
                         <button
                             onClick={handleExportTransactions}
-                            className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                            className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}
                             disabled={transactions.length === 0}
                         >
                             Export CSV
@@ -396,7 +396,7 @@ export default function Earnings() {
                     <div className="space-y-2">
                         {loading ? (
                             <div className="text-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400 mx-auto"></div>
                             </div>
                         ) : transactions.length > 0 ? (
                             transactions.map((transaction, index) => (
@@ -412,7 +412,6 @@ export default function Earnings() {
                         )}
                     </div>
                 </div>
-            </div>
         </div>
     );
 }

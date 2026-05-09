@@ -58,11 +58,11 @@ const InvoiceCard = ({ invoice, onPaymentClick, showActions = true }) => {
     const getInvoiceTypeLabel = (type) => {
         const labels = {
             1: { label: 'Booking Invoice', desc: '40% Advance Payment', color: 'text-blue-600' },
-            2: { label: 'Pre-Event Invoice', desc: '35% Payment', color: 'text-orange-600' },
+            2: { label: 'Pre-Event Invoice', desc: '35% Payment', color: 'text-primary' },
             3: { label: 'Final Settlement', desc: '25% + Extras', color: 'text-green-600' }
         };
 
-        return labels[type] || { label: 'Invoice', desc: '', color: 'text-gray-600' };
+        return labels[type] || { label: 'Invoice', desc: '', color: 'text-neutral-600' };
     };
 
     const handleDownload = async () => {
@@ -94,14 +94,14 @@ const InvoiceCard = ({ invoice, onPaymentClick, showActions = true }) => {
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                             <FileText className={typeInfo.color} size={20} />
-                            <h3 className="font-semibold text-gray-900">
+                            <h3 className="font-semibold text-neutral-900">
                                 {invoice.invoiceNumber}
                             </h3>
                         </div>
                         <p className={`text-sm font-medium ${typeInfo.color}`}>
                             {typeInfo.label}
                         </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-neutral-500 mt-0.5">
                             {typeInfo.desc}
                         </p>
                     </div>
@@ -125,11 +125,11 @@ const InvoiceCard = ({ invoice, onPaymentClick, showActions = true }) => {
             <div className="p-4 space-y-3">
                 {/* Date info */}
                 <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
+                    <div className="flex items-center gap-2 text-neutral-600">
                         <Calendar size={16} />
                         <span>Invoice Date:</span>
                     </div>
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-neutral-900">
                         {new Date(invoice.invoiceDate).toLocaleDateString('en-IN', {
                             day: '2-digit',
                             month: 'short',
@@ -141,18 +141,18 @@ const InvoiceCard = ({ invoice, onPaymentClick, showActions = true }) => {
                 {/* Due date */}
                 {invoice.dueDate && (
                     <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-gray-600">
+                        <div className="flex items-center gap-2 text-neutral-600">
                             <Clock size={16} />
                             <span>Due Date:</span>
                         </div>
-                        <span className={`font-medium ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
+                        <span className={`font-medium ${isOverdue ? 'text-red-600' : 'text-neutral-900'}`}>
                             {new Date(invoice.dueDate).toLocaleDateString('en-IN', {
                                 day: '2-digit',
                                 month: 'short',
                                 year: 'numeric'
                             })}
                             {daysUntilDue !== null && daysUntilDue >= 0 && (
-                                <span className="text-xs text-gray-500 ml-1">
+                                <span className="text-xs text-neutral-500 ml-1">
                                     ({daysUntilDue} {daysUntilDue === 1 ? 'day' : 'days'})
                                 </span>
                             )}
@@ -175,26 +175,26 @@ const InvoiceCard = ({ invoice, onPaymentClick, showActions = true }) => {
                 {/* Amount breakdown */}
                 <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Subtotal:</span>
-                        <span className="font-medium text-gray-900">
+                        <span className="text-neutral-600">Subtotal:</span>
+                        <span className="font-medium text-neutral-900">
                             ₹{invoice.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center justify-between text-xs text-neutral-500">
                         <span>CGST ({invoice.cgstPercent}%):</span>
                         <span>₹{invoice.cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center justify-between text-xs text-neutral-500">
                         <span>SGST ({invoice.sgstPercent}%):</span>
                         <span>₹{invoice.sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
 
                     <div className="pt-2 border-t border-gray-200">
                         <div className="flex items-center justify-between">
-                            <span className="font-semibold text-gray-900">Total Amount:</span>
-                            <span className="text-lg font-bold text-gray-900">
+                            <span className="font-semibold text-neutral-900">Total Amount:</span>
+                            <span className="text-lg font-bold text-neutral-900">
                                 ₹{invoice.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                         </div>
@@ -229,7 +229,7 @@ const InvoiceCard = ({ invoice, onPaymentClick, showActions = true }) => {
                     <button
                         onClick={handleDownload}
                         disabled={downloading}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-neutral-700 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Download size={18} />
                         {downloading ? 'Downloading...' : 'Download PDF'}

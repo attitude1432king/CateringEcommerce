@@ -299,6 +299,14 @@ export const searchApi = {
         apiCall(`/admin/search?q=${encodeURIComponent(query)}`),
 };
 
+// ============================================
+// Logs API
+// ============================================
+export const logsApi = {
+    getLogs: (params) => apiCall('/admin/logs', 'GET', null, params),
+    getLogById: (id) => apiCall(`/admin/logs/${id}`),
+};
+
 // Export all APIs
 export default {
     auth: authApi,
@@ -313,4 +321,5 @@ export default {
     locations: locationApi,
     supervisorManagement: supervisorManagementApi,
     search: searchApi,
+    logs: logsApi,
 };

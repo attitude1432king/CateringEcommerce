@@ -68,14 +68,14 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">📦</span>
-              <h3 className="text-xl font-bold text-gray-900">{packageData.packageName}</h3>
+              <h3 className="text-xl font-bold text-neutral-900">{packageData.packageName}</h3>
             </div>
             {packageData.packageCategory && (
               <span className="inline-block bg-orange-100 text-orange-800 text-xs font-semibold px-3 py-1 rounded-full">
                 {packageData.packageCategory} Package
               </span>
             )}
-            <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
+            <div className="flex items-center gap-4 mt-3 text-sm text-neutral-600">
               <span className="flex items-center gap-1">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
@@ -91,8 +91,8 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-600 mb-1">Package Total</p>
-            <p className="text-2xl font-bold text-orange-600">
+            <p className="text-sm text-neutral-600 mb-1">Package Total</p>
+            <p className="text-2xl font-bold text-primary">
               ₹{packageTotal.toLocaleString('en-IN')}
             </p>
           </div>
@@ -101,7 +101,7 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
         {/* Expand/Collapse Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
+          className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors text-sm font-medium text-neutral-700"
         >
           <span>{isExpanded ? 'Hide' : 'View'} Package Details</span>
           <svg
@@ -125,7 +125,7 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span className="text-sm font-semibold text-green-700">Package Customized</span>
-                <span className="text-xs text-gray-500 ml-auto">
+                <span className="text-xs text-neutral-500 ml-auto">
                   {packageCategories.length} Categories Selected
                 </span>
               </div>
@@ -138,8 +138,8 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{getCategoryIcon(category.categoryName)}</span>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 capitalize">{category.categoryName}</h4>
-                      <p className="text-xs text-gray-500">{items.length} items selected</p>
+                      <h4 className="font-semibold text-neutral-900 capitalize">{category.categoryName}</h4>
+                      <p className="text-xs text-neutral-500">{items.length} items selected</p>
                     </div>
                     <span className={`text-xs font-medium px-3 py-1 rounded-full border ${getCategoryBadgeColor(index)}`}>
                       {items.length} {items.length === 1 ? 'Item' : 'Items'}
@@ -153,8 +153,8 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
                         key={itemIndex}
                         className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
                       >
-                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                        <span className="text-sm text-gray-700 flex-1">{item.foodName || item.name || item}</span>
+                        <div className="w-2 h-2 rounded-full bg-primary"></div>
+                        <span className="text-sm text-neutral-700 flex-1">{item.foodName || item.name || item}</span>
                         {(item.isVeg !== undefined || item.isVegetarian !== undefined) && (
                           <span className={`w-4 h-4 border-2 flex items-center justify-center ${
                             (item.isVeg ?? item.isVegetarian) ? 'border-green-600' : 'border-red-600'
@@ -176,7 +176,7 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
                     <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                     </svg>
-                    <h4 className="font-semibold text-gray-900">Sample Taste Selections</h4>
+                    <h4 className="font-semibold text-neutral-900">Sample Taste Selections</h4>
                   </div>
                   {sampleTasteSelections.map((category) => (
                     <div key={`sample-${category.categoryId}-${category.categoryName}`} className="bg-teal-50 border border-teal-100 rounded-xl p-3">
@@ -196,12 +196,12 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
               {/* Additional Info */}
               {packageSelections.servingStyle && (
                 <div className="pt-4 border-t">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-neutral-600">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
                       <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
                     </svg>
-                    <span>Serving Style: <strong className="text-gray-900">{packageSelections.servingStyle}</strong></span>
+                    <span>Serving Style: <strong className="text-neutral-900">{packageSelections.servingStyle}</strong></span>
                   </div>
                 </div>
               )}
@@ -212,8 +212,8 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
               <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl">🍽️</span>
               </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Standard Package</h4>
-              <p className="text-sm text-gray-600 mb-4">
+              <h4 className="font-semibold text-neutral-900 mb-2">Standard Package</h4>
+              <p className="text-sm text-neutral-600 mb-4">
                 This package includes chef's special selection of dishes
               </p>
               <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-xs font-medium px-4 py-2 rounded-full">
@@ -227,27 +227,27 @@ const PackageDetailsCard = ({ packageData, guestCount }) => {
 
           {/* Package Features */}
           <div className="mt-6 pt-6 border-t">
-            <h4 className="font-semibold text-gray-900 mb-3">Package Includes</h4>
+            <h4 className="font-semibold text-neutral-900 mb-3">Package Includes</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 text-sm text-gray-700">
+              <div className="flex items-center gap-2 text-sm text-neutral-700">
                 <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span>Fresh ingredients</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-700">
+              <div className="flex items-center gap-2 text-sm text-neutral-700">
                 <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span>Professional service</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-700">
+              <div className="flex items-center gap-2 text-sm text-neutral-700">
                 <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span>Hygienic packaging</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-700">
+              <div className="flex items-center gap-2 text-sm text-neutral-700">
                 <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>

@@ -157,8 +157,8 @@ const CouponSection = ({ cateringId, subtotal, appliedCoupon, onApplyCoupon, onR
               </svg>
             </div>
             <div>
-              <h3 className="font-bold text-gray-900">Apply Coupon</h3>
-              <p className="text-xs text-gray-600">Save money on your order</p>
+              <h3 className="font-bold text-neutral-900">Apply Coupon</h3>
+              <p className="text-xs text-neutral-600">Save money on your order</p>
             </div>
           </div>
           {appliedCoupon && (
@@ -239,11 +239,11 @@ const CouponSection = ({ cateringId, subtotal, appliedCoupon, onApplyCoupon, onR
               onClick={() => setShowCoupons(!showCoupons)}
               className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
             >
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-neutral-700">
                 {showCoupons ? 'Hide' : 'View'} Available Coupons
               </span>
               <svg
-                className={`w-5 h-5 text-gray-500 transition-transform ${showCoupons ? 'rotate-180' : ''}`}
+                className={`w-5 h-5 text-neutral-500 transition-transform ${showCoupons ? 'rotate-180' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -258,14 +258,14 @@ const CouponSection = ({ cateringId, subtotal, appliedCoupon, onApplyCoupon, onR
                 {loading ? (
                   <div className="text-center py-8">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                    <p className="text-sm text-gray-600 mt-2">Loading coupons...</p>
+                    <p className="text-sm text-neutral-600 mt-2">Loading coupons...</p>
                   </div>
                 ) : coupons.length === 0 ? (
                   <div className="text-center py-8">
                     <svg className="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                     </svg>
-                    <p className="text-sm text-gray-600">No coupons available at the moment</p>
+                    <p className="text-sm text-neutral-600">No coupons available at the moment</p>
                   </div>
                 ) : (
                   coupons.map((coupon) => {
@@ -284,7 +284,7 @@ const CouponSection = ({ cateringId, subtotal, appliedCoupon, onApplyCoupon, onR
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="font-mono font-bold text-gray-900 text-lg">
+                              <span className="font-mono font-bold text-neutral-900 text-lg">
                                 {coupon.couponCode || coupon.code}
                               </span>
                               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${getCouponBadgeColor(coupon.discountType)}`}>
@@ -293,10 +293,10 @@ const CouponSection = ({ cateringId, subtotal, appliedCoupon, onApplyCoupon, onR
                                   : `₹${coupon.discountValue} OFF`}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-700 mb-2">
+                            <p className="text-sm text-neutral-700 mb-2">
                               {coupon.description || 'Special discount offer'}
                             </p>
-                            <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                            <div className="flex flex-wrap gap-2 text-xs text-neutral-600">
                               {coupon.minOrderValue && (
                                 <span className="inline-flex items-center gap-1">
                                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">

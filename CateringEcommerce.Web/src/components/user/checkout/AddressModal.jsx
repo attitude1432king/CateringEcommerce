@@ -120,12 +120,12 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
         <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-neutral-900">
               {editingAddress ? 'Edit Address' : 'Add New Address'}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-neutral-600 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -137,7 +137,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             {/* Address Label */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Address Label <span className="text-red-500">*</span>
               </label>
               <select
@@ -154,7 +154,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
 
             {/* Full Address */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Full Address <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -174,7 +174,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
 
             {/* Landmark */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Landmark (Optional)
               </label>
               <input
@@ -190,7 +190,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
             {/* City, State, Pincode */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
                   City <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -209,7 +209,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
                   State <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -228,7 +228,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
                   Pincode <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -250,7 +250,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
 
             {/* Contact Person */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Contact Person <span className="text-red-500">*</span>
               </label>
               <input
@@ -270,7 +270,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
 
             {/* Contact Phone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Contact Phone <span className="text-red-500">*</span>
               </label>
               <input
@@ -298,7 +298,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
                 onChange={handleChange}
                 className="h-4 w-4 text-catering-primary focus:ring-catering-primary border-gray-300 rounded"
               />
-              <label className="ml-2 block text-sm text-gray-700">
+              <label className="ml-2 block text-sm text-neutral-700">
                 Set as default address
               </label>
             </div>
@@ -309,7 +309,7 @@ const AddressModal = ({ isOpen, onClose, editingAddress = null }) => {
                 type="button"
                 onClick={onClose}
                 disabled={isLoading}
-                className="px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="px-6 py-2.5 border border-gray-300 text-neutral-700 font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

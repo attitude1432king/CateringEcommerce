@@ -48,13 +48,14 @@ namespace CateringEcommerce.BAL.Base.Common
                     new NpgsqlParameter("@ExtraGuestCharges", request.ExtraGuestCharges ?? 0),
                     new NpgsqlParameter("@AddonCharges", request.AddonCharges ?? 0),
                     new NpgsqlParameter("@OvertimeCharges", request.OvertimeCharges ?? 0),
-                    new NpgsqlParameter("@OtherCharges", request.OtherCharges ?? 0),
-                    new NpgsqlParameter("@InvoiceId", NpgsqlTypes.NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@OtherCharges", request.OtherCharges ?? 0)
                 };
 
-                await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_GenerateInvoice", parameters);
+                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_GenerateInvoice", parameters);
 
-                var invoiceId = parameters[9].Value != DBNull.Value ? Convert.ToInt64(parameters[9].Value) : 0;
+                var invoiceId = dt != null && dt.Rows.Count > 0 && dt.Rows[0][0] != DBNull.Value
+                    ? Convert.ToInt64(dt.Rows[0][0])
+                    : 0L;
 
                 if (invoiceId > 0)
                 {
@@ -470,18 +471,22 @@ namespace CateringEcommerce.BAL.Base.Common
                     new NpgsqlParameter("@InvoiceId", invoiceId),
                     new NpgsqlParameter("@NewStatus", newStatus.ToString()),
                     new NpgsqlParameter("@Remarks", (object)remarks ?? DBNull.Value),
-                    new NpgsqlParameter("@UpdatedBy", (object)updatedBy ?? DBNull.Value),
-                    new NpgsqlParameter("@Success", NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
-                    new NpgsqlParameter("@ErrorMessage", NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@UpdatedBy", (object)updatedBy ?? DBNull.Value)
                 };
 
-                await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_UpdateInvoiceStatus", parameters);
+                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_UpdateInvoiceStatus", parameters);
 
-                var success = parameters[4].Value != DBNull.Value && (bool)parameters[4].Value;
+                bool success = false;
+                string? errorMessage = null;
+                if (dt != null && dt.Rows.Count > 0)
+                {
+                    var row = dt.Rows[0];
+                    success = row[0] != DBNull.Value && Convert.ToBoolean(row[0]);
+                    errorMessage = row.Table.Columns.Count > 1 && row[1] != DBNull.Value ? row[1].ToString() : null;
+                }
 
                 if (!success)
                 {
-                    var errorMessage = parameters[5].Value as string;
                     throw new InvalidOperationException(errorMessage ?? "Failed to update invoice status");
                 }
 
@@ -510,18 +515,22 @@ namespace CateringEcommerce.BAL.Base.Common
                     new NpgsqlParameter("@RazorpayPaymentId", paymentData.RazorpayPaymentId),
                     new NpgsqlParameter("@AmountPaid", paymentData.AmountPaid),
                     new NpgsqlParameter("@PaymentMethod", paymentData.PaymentMethod),
-                    new NpgsqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value),
-                    new NpgsqlParameter("@Success", NpgsqlTypes.NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
-                    new NpgsqlParameter("@ErrorMessage", NpgsqlTypes.NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@TransactionId", (object)paymentData.TransactionId ?? DBNull.Value)
                 };
 
-                await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_LinkPaymentToInvoice", parameters);
+                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_LinkPaymentToInvoice", parameters);
 
-                var success = parameters[6].Value != DBNull.Value && (bool)parameters[6].Value;
+                bool success = false;
+                string? errorMessage = null;
+                if (dt != null && dt.Rows.Count > 0)
+                {
+                    var row = dt.Rows[0];
+                    success = row[0] != DBNull.Value && Convert.ToBoolean(row[0]);
+                    errorMessage = row.Table.Columns.Count > 1 && row[1] != DBNull.Value ? row[1].ToString() : null;
+                }
 
                 if (!success)
                 {
-                    var errorMessage = parameters[7].Value as string;
                     throw new InvalidOperationException(errorMessage ?? "Failed to link payment to invoice");
                 }
 
@@ -691,14 +700,17 @@ namespace CateringEcommerce.BAL.Base.Common
                 {
                     new NpgsqlParameter("@OrderId", orderId),
                     new NpgsqlParameter("@TotalAmount", totalAmount),
-                    new NpgsqlParameter("@EventDate", eventDate),
-                    new NpgsqlParameter("@Success", NpgsqlTypes.NpgsqlDbType.Boolean) { Direction = ParameterDirection.Output },
-                    new NpgsqlParameter("@ErrorMessage", NpgsqlTypes.NpgsqlDbType.Varchar, 500) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@EventDate", eventDate)
                 };
 
-                await _dbHelper.ExecuteStoredProcedureAsync<dynamic>("sp_CreatePaymentSchedule", parameters);
+                var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_CreatePaymentSchedule", parameters);
 
-                var success = parameters[3].Value != DBNull.Value && (bool)parameters[3].Value;
+                bool success = false;
+                if (dt != null && dt.Rows.Count > 0)
+                {
+                    var row = dt.Rows[0];
+                    success = row[0] != DBNull.Value && Convert.ToBoolean(row[0]);
+                }
 
                 return success;
             }

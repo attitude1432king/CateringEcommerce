@@ -13,29 +13,29 @@ import Pagination from '../../../common/Pagination'; // Import Pagination
 
 // Modern Package Card Component with ENYVORA Design
 const PackageCard = ({ pkg, onEdit, onDelete }) => (
-    <div className="group bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-indigo-200">
+    <div className="group bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-orange-100">
         <div className="p-6">
             <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-bold text-neutral-900 group-hover:text-indigo-600 transition-colors">{pkg.name}</h3>
-                <div className="flex items-center gap-1 px-2 py-1 bg-indigo-50 rounded-lg">
-                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <h3 className="text-lg font-bold text-neutral-900">{pkg.name}</h3>
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'rgba(255,107,53,0.08)' }}>
+                    <svg className="w-4 h-4" style={{ color: 'var(--color-primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
-                    <span className="text-xs font-bold text-indigo-600">{pkg.items.length}</span>
+                    <span className="text-xs font-bold" style={{ color: 'var(--color-primary)' }}>{pkg.items.length}</span>
                 </div>
             </div>
             <p className="text-sm text-neutral-600 leading-relaxed line-clamp-2 mb-4">{pkg.description}</p>
             <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
                 <div>
                     <p className="text-xs text-neutral-500 mb-1">Package Price</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">₹{pkg.price.toLocaleString()}</p>
+                    <p className="text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>₹{pkg.price.toLocaleString()}</p>
                 </div>
             </div>
         </div>
-        <div className="bg-gradient-to-r from-neutral-50 to-indigo-50 px-6 py-4 flex justify-end gap-3 border-t border-neutral-100">
+        <div className="bg-neutral-50 px-6 py-4 flex justify-end gap-3 border-t border-neutral-100">
             <button
                 onClick={() => onEdit(pkg)}
-                className="flex items-center gap-1 px-4 py-2 bg-white hover:bg-indigo-50 text-indigo-600 rounded-lg font-semibold transition-all shadow-sm hover:shadow"
+                className="flex items-center gap-1 px-4 py-2 bg-white hover:bg-neutral-100 text-neutral-700 rounded-lg font-semibold transition-all shadow-sm hover:shadow"
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -203,16 +203,17 @@ export default function PackagesView() {
                                 setSearchQuery(e.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="w-64 pl-10 pr-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                            className="w-64 pl-10 pr-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all"
                         />
                     </div>
 
                     {/* Add Button */}
                     <button
                         onClick={() => handleOpenModal()}
-                        className="group flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                        className="flex items-center gap-2 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                        style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                     >
-                        <svg className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                         Add Package
@@ -243,7 +244,8 @@ export default function PackagesView() {
                         <p className="text-neutral-600 mb-4">Try adjusting your search or create your first package.</p>
                         <button
                             onClick={() => handleOpenModal()}
-                            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all"
+                            className="text-white px-6 py-2.5 rounded-xl font-semibold transition-all"
+                            style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                         >
                             Create First Package
                         </button>

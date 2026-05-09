@@ -36,7 +36,7 @@ const AddressContactForm = ({ formData, onUpdate, onNext, onBack }) => {
       <div className="space-y-4">
         {/* Delivery Address */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Delivery/Service Address <span className="text-red-500">*</span>
           </label>
           <textarea
@@ -52,14 +52,14 @@ const AddressContactForm = ({ formData, onUpdate, onNext, onBack }) => {
           {errors.deliveryAddress && (
             <p className="mt-1 text-sm text-red-600">{errors.deliveryAddress}</p>
           )}
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-neutral-500">
             {deliveryAddress.length}/500 characters
           </p>
         </div>
 
         {/* Contact Person */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Contact Person Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -79,7 +79,7 @@ const AddressContactForm = ({ formData, onUpdate, onNext, onBack }) => {
 
         {/* Contact Phone */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Contact Phone <span className="text-red-500">*</span>
           </label>
           <input
@@ -95,14 +95,14 @@ const AddressContactForm = ({ formData, onUpdate, onNext, onBack }) => {
           {errors.contactPhone && (
             <p className="mt-1 text-sm text-red-600">{errors.contactPhone}</p>
           )}
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-neutral-500">
             We'll use this number to coordinate delivery
           </p>
         </div>
 
         {/* Contact Email */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Contact Email <span className="text-red-500">*</span>
           </label>
           <input
@@ -118,7 +118,7 @@ const AddressContactForm = ({ formData, onUpdate, onNext, onBack }) => {
           {errors.contactEmail && (
             <p className="mt-1 text-sm text-red-600">{errors.contactEmail}</p>
           )}
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-neutral-500">
             Order confirmation will be sent to this email
           </p>
         </div>
@@ -128,7 +128,7 @@ const AddressContactForm = ({ formData, onUpdate, onNext, onBack }) => {
       <div className="flex justify-between mt-8">
         <button
           onClick={onBack}
-          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          className="px-6 py-3 border border-gray-300 text-neutral-700 rounded-lg hover:bg-gray-50 transition-colors"
         >
           Back
         </button>

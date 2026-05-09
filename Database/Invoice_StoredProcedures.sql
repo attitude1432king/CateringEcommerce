@@ -40,19 +40,20 @@ $$;
 -- =============================================
 
 DROP PROCEDURE IF EXISTS sp_GenerateInvoice;
+DROP FUNCTION IF EXISTS sp_GenerateInvoice(BIGINT, INT, BIGINT, VARCHAR, INT, NUMERIC, NUMERIC, NUMERIC, NUMERIC);
 
-CREATE OR REPLACE PROCEDURE sp_GenerateInvoice(
-    IN p_OrderId BIGINT,
-    IN p_InvoiceType INT,
-    IN p_TriggeredBy BIGINT DEFAULT NULL,
-    IN p_TriggeredByType VARCHAR(20) DEFAULT 'SYSTEM',
-    IN p_ExtraGuestCount INT DEFAULT 0,
-    IN p_ExtraGuestCharges NUMERIC(18,2) DEFAULT 0,
-    IN p_AddonCharges NUMERIC(18,2) DEFAULT 0,
-    IN p_OvertimeCharges NUMERIC(18,2) DEFAULT 0,
-    IN p_OtherCharges NUMERIC(18,2) DEFAULT 0,
-    INOUT p_InvoiceId BIGINT DEFAULT NULL
+CREATE OR REPLACE FUNCTION sp_GenerateInvoice(
+    p_OrderId BIGINT,
+    p_InvoiceType INT,
+    p_TriggeredBy BIGINT DEFAULT NULL,
+    p_TriggeredByType VARCHAR(20) DEFAULT 'SYSTEM',
+    p_ExtraGuestCount INT DEFAULT 0,
+    p_ExtraGuestCharges NUMERIC(18,2) DEFAULT 0,
+    p_AddonCharges NUMERIC(18,2) DEFAULT 0,
+    p_OvertimeCharges NUMERIC(18,2) DEFAULT 0,
+    p_OtherCharges NUMERIC(18,2) DEFAULT 0
 )
+RETURNS TABLE (InvoiceId BIGINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -75,6 +76,7 @@ DECLARE
     v_CompanyGstin VARCHAR(15);
     v_PlaceOfSupply VARCHAR(100);
     v_ItemDescription VARCHAR(500);
+    v_InvoiceId BIGINT;
 BEGIN
 
     -- Get order details
@@ -88,14 +90,15 @@ BEGIN
     END IF;
 
     -- Check if invoice already exists
-    SELECT c_invoice_id INTO p_InvoiceId
+    SELECT c_invoice_id INTO v_InvoiceId
     FROM t_sys_invoice
     WHERE c_orderid = p_OrderId
       AND c_invoice_type = p_InvoiceType
       AND c_is_deleted = FALSE
     LIMIT 1;
 
-    IF p_InvoiceId IS NOT NULL THEN
+    IF v_InvoiceId IS NOT NULL THEN
+        RETURN QUERY SELECT v_InvoiceId;
         RETURN;
     END IF;
 
@@ -156,8 +159,8 @@ BEGIN
     -- Due date
     v_DueDate := CURRENT_TIMESTAMP + (v_DueDays || ' days')::INTERVAL;
 
-    -- Generate invoice number (assumes function exists)
-    CALL sp_GenerateInvoiceNumber(v_InvoiceNumber);
+    -- Generate invoice number (sp_GenerateInvoiceNumber is a FUNCTION returning VARCHAR)
+    v_InvoiceNumber := sp_GenerateInvoiceNumber();
 
     -- Insert invoice
     INSERT INTO t_sys_invoice (
@@ -178,7 +181,7 @@ BEGIN
         v_CompanyGstin, v_PlaceOfSupply, '996331',
         p_TriggeredBy, CURRENT_TIMESTAMP
     )
-    RETURNING c_invoice_id INTO p_InvoiceId;
+    RETURNING c_invoice_id INTO v_InvoiceId;
 
     -- Line item description
     v_ItemDescription :=
@@ -199,14 +202,14 @@ BEGIN
         c_discount_amount, c_total, c_sequence
     )
     VALUES (
-        p_InvoiceId, 'OTHER', v_ItemDescription, 1, v_Subtotal, v_Subtotal,
+        v_InvoiceId, 'OTHER', v_ItemDescription, 1, v_Subtotal, v_Subtotal,
         (v_CgstRate + v_SgstRate), v_CgstRate, v_SgstRate, v_TotalTax, v_CgstAmount, v_SgstAmount,
         0, v_TotalAmount, 1
     );
 
     -- Update payment schedule
     UPDATE t_sys_payment_schedule
-    SET c_invoice_id = p_InvoiceId,
+    SET c_invoice_id = v_InvoiceId,
         c_modifieddate = CURRENT_TIMESTAMP
     WHERE c_orderid = p_OrderId AND c_stage_type = v_StageType;
 
@@ -216,10 +219,11 @@ BEGIN
         c_new_status, c_remarks, c_timestamp
     )
     VALUES (
-        p_InvoiceId, p_OrderId, 'GENERATED', p_TriggeredBy, p_TriggeredByType,
+        v_InvoiceId, p_OrderId, 'GENERATED', p_TriggeredBy, p_TriggeredByType,
         'UNPAID', 'Invoice auto-generated', CURRENT_TIMESTAMP
     );
 
+    RETURN QUERY SELECT v_InvoiceId;
 END;
 $$;
 -- =============================================

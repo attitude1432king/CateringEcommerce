@@ -23,9 +23,9 @@ namespace CateringEcommerce.BAL.Base.Common
                 (
                     SELECT COUNT(*)
                     FROM {Table.SysCateringOwner}
-                    WHERE COALESCE(c_isactive, FALSE)    = 1
+                    WHERE COALESCE(c_isactive, FALSE)    = TRUE
                       AND c_approval_status        = 'Approved'
-                      AND COALESCE(c_is_deleted, FALSE)   = 0
+                      AND COALESCE(c_is_deleted, FALSE)   = FALSE
                 ) AS ActivePartners,
 
                 (
@@ -38,9 +38,9 @@ namespace CateringEcommerce.BAL.Base.Common
                     SELECT COUNT(DISTINCT cd.c_cityid)
                     FROM   {Table.SysCateringOwner}          co
                     INNER JOIN {Table.SysCateringOwnerAddress} cd ON cd.c_ownerid = co.c_ownerid
-                    WHERE  COALESCE(co.c_isactive, 0)  = 1
+                    WHERE  COALESCE(co.c_isactive, FALSE)  = TRUE
                       AND  co.c_approval_status       = 'Approved'
-                      AND  COALESCE(co.c_is_deleted, 0)  = 0
+                      AND  COALESCE(co.c_is_deleted, FALSE)  = FALSE
                 ) AS CitiesServed";
 
         public PublicStatsRepository(

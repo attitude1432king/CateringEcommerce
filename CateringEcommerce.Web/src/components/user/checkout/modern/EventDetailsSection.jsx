@@ -22,12 +22,12 @@ const getMinBookingDate = (minAdvanceBookingDays) => {
 const StepHeader = ({ stepNumber, title, subtitle, isActive, isCompleted, onEdit }) => (
   <div className="flex items-center justify-between mb-5">
     <div className="flex items-center gap-3">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${isCompleted ? 'bg-green-600 text-white' : isActive ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${isCompleted ? 'bg-green-600 text-white' : isActive ? 'bg-rose-600 text-white' : 'bg-gray-200 text-neutral-700'}`}>
         {isCompleted ? '✓' : stepNumber}
       </div>
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-600">{subtitle}</p>
+        <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
+        <p className="text-sm text-neutral-600">{subtitle}</p>
       </div>
     </div>
     {isCompleted && !isActive && (
@@ -67,12 +67,12 @@ const EventDetailsSection = ({
   };
 
   const summary = (
-    <div className="text-sm text-gray-700 space-y-1">
+    <div className="text-sm text-neutral-700 space-y-1">
       <p><span className="font-medium">Type:</span> {getEventTypeDisplay(checkoutData.eventType)}</p>
       <p><span className="font-medium">Date:</span> {formatEventDate(checkoutData.eventDate)}</p>
       {checkoutData.eventTime && <p><span className="font-medium">Time:</span> {formatEventTime(checkoutData.eventTime)}</p>}
       <p><span className="font-medium">Guests:</span> {checkoutData.guestCount}</p>
-      <p className="text-gray-600">
+      <p className="text-neutral-600">
         {checkoutData.eventAddress?.street}, {checkoutData.eventAddress?.city}, {checkoutData.eventAddress?.state} - {checkoutData.eventAddress?.pincode}
       </p>
     </div>
@@ -94,7 +94,7 @@ const EventDetailsSection = ({
       {isActive && (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Event Type *</label>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">Event Type *</label>
             <select
               value={checkoutData.eventType || ''}
               onChange={(e) => updateCheckoutData('eventType', e.target.value)}
@@ -112,7 +112,7 @@ const EventDetailsSection = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Event Date *</label>
+              <label className="block text-sm font-medium text-neutral-700 mb-2">Event Date *</label>
               <input
                 type="date"
                 min={getMinBookingDate(minAdvanceBookingDays)}
@@ -123,7 +123,7 @@ const EventDetailsSection = ({
               {errors.eventDate && <p className="text-xs text-red-600 mt-1">{errors.eventDate}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Event Time *</label>
+              <label className="block text-sm font-medium text-neutral-700 mb-2">Event Time *</label>
               <input
                 type="time"
                 value={checkoutData.eventTime || ''}
@@ -135,7 +135,7 @@ const EventDetailsSection = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Guest Count *</label>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">Guest Count *</label>
             <input
               type="number"
               min="1"
@@ -147,10 +147,10 @@ const EventDetailsSection = ({
           </div>
 
           <div className="border rounded-lg p-4 bg-gray-50">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Event Address</h4>
+            <h4 className="text-sm font-semibold text-neutral-900 mb-3">Event Address</h4>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Street *</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Street *</label>
                 <input
                   type="text"
                   value={checkoutData.eventAddress?.street || ''}
@@ -163,7 +163,7 @@ const EventDetailsSection = ({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">City *</label>
                   <input
                     type="text"
                     value={checkoutData.eventAddress?.city || ''}
@@ -174,7 +174,7 @@ const EventDetailsSection = ({
                   {errors.eventAddressCity && <p className="text-xs text-red-600 mt-1">{errors.eventAddressCity}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">State *</label>
                   <input
                     type="text"
                     value={checkoutData.eventAddress?.state || ''}
@@ -185,7 +185,7 @@ const EventDetailsSection = ({
                   {errors.eventAddressState && <p className="text-xs text-red-600 mt-1">{errors.eventAddressState}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pincode *</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Pincode *</label>
                   <input
                     type="text"
                     maxLength="6"
@@ -199,7 +199,7 @@ const EventDetailsSection = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Landmark</label>
                 <input
                   type="text"
                   value={checkoutData.eventAddress?.landmark || ''}
@@ -212,7 +212,7 @@ const EventDetailsSection = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Special Instructions</label>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">Special Instructions</label>
             <textarea
               rows={3}
               value={checkoutData.specialInstructions || ''}

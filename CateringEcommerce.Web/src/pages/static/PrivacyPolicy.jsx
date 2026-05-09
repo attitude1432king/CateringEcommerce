@@ -15,37 +15,37 @@ export default function PrivacyPolicy() {
     return (
         <div className="min-h-screen bg-white">
             {/* Breadcrumb */}
-            <div className="bg-gray-50 border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-gray-500">
-                    <Link to="/" className="hover:text-gray-700">Home</Link>
+            <div className="bg-neutral-50 border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-neutral-500">
+                    <Link to="/" className="hover:text-neutral-700">Home</Link>
                     <span className="mx-2">/</span>
-                    <span className="text-gray-700 font-medium">Privacy Policy</span>
+                    <span className="text-neutral-700 font-medium">Privacy Policy</span>
                 </div>
             </div>
 
             {/* Header */}
-            <div className="bg-gray-50 border-b py-12">
+            <div className="bg-neutral-50 border-b py-12">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Privacy Policy</h1>
-                    <p className="mt-2 text-sm text-gray-500">Last updated: March 2026</p>
+                    <h1 className="text-3xl font-bold text-neutral-900">Privacy Policy</h1>
+                    <p className="mt-2 text-sm text-neutral-500">Last updated: March 2026</p>
                 </div>
             </div>
 
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-gray-600 text-sm leading-relaxed mb-10">
+                <p className="text-neutral-600 text-sm leading-relaxed mb-10">
                     ENYVORA ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our Platform. By using ENYVORA, you agree to the practices described in this policy.
                 </p>
 
                 <div className="space-y-8">
                     {SECTIONS.map((section, i) => (
                         <div key={i}>
-                            <h2 className="text-lg font-bold text-gray-900 mb-3">{section.title}</h2>
-                            <p className="text-gray-600 leading-relaxed text-sm">{section.content}</p>
+                            <h2 className="text-lg font-bold text-neutral-900 mb-3">{section.title}</h2>
+                            <p className="text-neutral-600 leading-relaxed text-sm">{section.content}</p>
                         </div>
                     ))}
                 </div>
 
-                <div className="border-t border-gray-100 pt-8 mt-10 text-sm text-gray-500">
+                <div className="border-t border-gray-100 pt-8 mt-10 text-sm text-neutral-500">
                     <p>For privacy concerns, <Link to="/contact-us" className="text-indigo-600 hover:underline">contact us</Link> or email <a href="mailto:privacy@enyvora.com" className="text-indigo-600 hover:underline">privacy@enyvora.com</a>.</p>
                 </div>
             </div>

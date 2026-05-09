@@ -1,3 +1,4 @@
+using CateringEcommerce.API.Filters;
 using CateringEcommerce.API.Helpers;
 using CateringEcommerce.BAL.Base.Owner.Dashboard;
 using CateringEcommerce.Domain.Interfaces;
@@ -17,7 +18,7 @@ namespace CateringEcommerce.API.Controllers.Owner.Dashboard
     /// Owner Orders Controller
     /// Provides order management functionality for partner owners
     /// </summary>
-    [Authorize]
+    [OwnerAuthorize]
     [ApiController]
     [Route("api/Owner/[controller]")]
     public class OwnerOrdersController : ControllerBase

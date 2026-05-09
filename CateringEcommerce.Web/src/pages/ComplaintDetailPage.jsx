@@ -151,10 +151,10 @@ const ComplaintDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading complaint details...</p>
+          <p className="mt-4 text-neutral-600">Loading complaint details...</p>
         </div>
       </div>
     );
@@ -162,7 +162,7 @@ const ComplaintDetailPage = () => {
 
   if (error || !complaint) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8">
+      <div className="min-h-screen bg-neutral-100 py-8">
         <div className="max-w-4xl mx-auto px-4">
           <button
             onClick={() => navigate('/complaints')}
@@ -182,7 +182,7 @@ const ComplaintDetailPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-neutral-100 py-8">
       <div className="max-w-5xl mx-auto px-4">
         {/* Navigation */}
         <button
@@ -211,9 +211,9 @@ const ComplaintDetailPage = () => {
         <div className="mt-6 bg-white rounded-lg p-6 shadow-sm">
           <h3 className="font-semibold mb-4">Need Help?</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border-2 border-gray-200 rounded-lg p-4">
+            <div className="border-2 border-neutral-200 rounded-lg p-4">
               <h4 className="font-medium mb-2">Contact Support</h4>
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm text-neutral-600 mb-3">
                 Have questions about your complaint? Our support team is here to help.
               </p>
               <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
@@ -221,14 +221,14 @@ const ComplaintDetailPage = () => {
               </button>
             </div>
 
-            <div className="border-2 border-gray-200 rounded-lg p-4">
+            <div className="border-2 border-neutral-200 rounded-lg p-4">
               <h4 className="font-medium mb-2">View Order</h4>
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm text-neutral-600 mb-3">
                 Review the original order details and delivery information.
               </p>
               <button
                 onClick={() => navigate(`/orders/${complaint.orderNumber}`)}
-                className="px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                className="px-4 py-2 border-2 border-neutral-300 text-neutral-700 rounded-lg hover:bg-neutral-50 transition-colors text-sm"
               >
                 View Order Details
               </button>

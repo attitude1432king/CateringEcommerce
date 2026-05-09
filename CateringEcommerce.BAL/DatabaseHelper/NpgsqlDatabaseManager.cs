@@ -104,6 +104,10 @@ namespace CateringEcommerce.BAL.DatabaseHelper
             await using var reader = await cmd.ExecuteReaderAsync();
             var dt = new DataTable();
             dt.Load(reader);
+
+            if (typeof(T) == typeof(DataTable))
+                return (T)(object)dt;
+
             return dt.Rows.Count > 0 ? Map<T>(dt.Rows[0]) : default;
         }
 

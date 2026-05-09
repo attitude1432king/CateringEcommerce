@@ -116,7 +116,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     END AS Status,
                     s.c_status_reason,
                     s.c_authority_level,
-                    COALESCE(s.c_has_prior_experience, 0) AS c_has_prior_experience,
+                    COALESCE(s.c_has_prior_experience, FALSE) AS c_has_prior_experience,
                     s.c_prior_experience_details,
                     s.c_specialization,
                     s.c_languages_known,
@@ -129,7 +129,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_agreement_url,
                     COALESCE(r.c_doc_verification_status, r.c_document_verification_status) AS c_doc_verification_status,
                     r.c_interview_result,
-                    COALESCE(r.c_training_passed, 0) AS c_training_passed,
+                    COALESCE(r.c_training_passed, FALSE) AS c_training_passed,
                     r.c_activation_status,
                     -- Banking
                     s.c_bank_account_holder_name,
@@ -284,9 +284,9 @@ namespace CateringEcommerce.BAL.Base.Admin
                     s.c_average_rating AS AverageRating,
                     COALESCE(s.c_total_events_supervised, 0) AS TotalEventsSupervised,
                     s.c_current_status AS CurrentStatus,
-                    COALESCE(s.c_is_available, 0) AS IsAvailable,
-                    CASE WHEN s.c_current_status = 'SUSPENDED' THEN 1 ELSE 0 END AS IsBlocked,
-                    COALESCE(s.c_is_deleted, 0) AS IsDeleted,
+                    COALESCE(s.c_is_available, FALSE) AS IsAvailable,
+                    CASE WHEN s.c_current_status = 'SUSPENDED' THEN TRUE ELSE FALSE END AS IsBlocked,
+                    COALESCE(s.c_is_deleted, FALSE) AS IsDeleted,
                     s.c_createddate AS CreatedDate,
                     s.c_modifieddate AS LastUpdated
                 FROM {Table.SysSupervisor} s
@@ -512,7 +512,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             }
 
             // Exclude soft-deleted
-            queryBuilder.Append(" AND COALESCE(s.c_is_deleted, 0) = 0");
+            queryBuilder.Append(" AND COALESCE(s.c_is_deleted, FALSE) = FALSE");
         }
 
         private void AppendActiveFilters(StringBuilder queryBuilder, List<NpgsqlParameter> parameters, AdminActiveSupervisorListRequest request)
@@ -560,11 +560,11 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             if (request.IsDeleted.HasValue && request.IsDeleted.Value)
             {
-                queryBuilder.Append(" AND COALESCE(s.c_is_deleted, 0) = 1");
+                queryBuilder.Append(" AND COALESCE(s.c_is_deleted, FALSE) = TRUE");
             }
             else
             {
-                queryBuilder.Append(" AND COALESCE(s.c_is_deleted, 0) = 0");
+                queryBuilder.Append(" AND COALESCE(s.c_is_deleted, FALSE) = FALSE");
             }
         }
 

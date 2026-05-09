@@ -12,40 +12,27 @@ const TABS = {
     FOOD_ITEMS: 'Food Items',
 };
 
-// YELLOW BOX: Updated TabButton component for a modern, pill-style design
-const TabButton = ({ label, isActive, onClick }) => (
-    <button
-        onClick={onClick}
-        className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${isActive
-                ? 'bg-rose-600 text-white shadow-md'
-                : 'text-neutral-600 hover:bg-neutral-100'
-            }`}
-    >
-        {label}
-    </button>
-);
-
 export default function MenuManagement() {
-    const [activeTab, setActiveTab] = useState(TABS.FOOD_ITEMS); // Default to food items
+    const [activeTab, setActiveTab] = useState(TABS.FOOD_ITEMS);
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8">
-            {/* Tab Navigation */}
+        <div>
             <div className="flex justify-end mb-6">
-                <div className="flex items-center gap-2 p-1 bg-neutral-100 rounded-lg">
-                    <TabButton
-                        label={TABS.PACKAGES}
-                        isActive={activeTab === TABS.PACKAGES}
+                <div className="portal-tabs">
+                    <button
                         onClick={() => setActiveTab(TABS.PACKAGES)}
-                    />
-                    <TabButton
-                        label={TABS.FOOD_ITEMS}
-                        isActive={activeTab === TABS.FOOD_ITEMS}
+                        className={activeTab === TABS.PACKAGES ? 'is-active' : ''}
+                    >
+                        Packages
+                    </button>
+                    <button
                         onClick={() => setActiveTab(TABS.FOOD_ITEMS)}
-                    />
+                        className={activeTab === TABS.FOOD_ITEMS ? 'is-active' : ''}
+                    >
+                        Food Items
+                    </button>
                 </div>
             </div>
-
             <div>
                 {activeTab === TABS.PACKAGES && <PackagesView />}
                 {activeTab === TABS.FOOD_ITEMS && <FoodItemsView />}

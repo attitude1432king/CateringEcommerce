@@ -39,16 +39,16 @@ export default function DateStatusModal({ isOpen, onClose, dateData, onSave }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4 animate-backdrop-fade">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all animate-modal-slide-up">
                 {/* Header */}
-                <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-5 rounded-t-2xl animate-gradient-shift">
+                <div className="relative text-white px-6 py-5 rounded-t-2xl" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white bg-opacity-20 rounded-lg animate-icon-bounce">
+                        <div className="p-2 bg-white bg-opacity-20 rounded-lg">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                         </div>
                         <div>
                             <h3 className="text-xl font-bold">Set Date Availability</h3>
-                            <p className="text-sm text-indigo-100 mt-0.5">{formattedDate}</p>
+                            <p className="text-sm text-white/80 mt-0.5">{formattedDate}</p>
                         </div>
                     </div>
 
@@ -164,7 +164,7 @@ export default function DateStatusModal({ isOpen, onClose, dateData, onSave }) {
                                 onChange={(e) => setNote(e.target.value)}
                                 rows="3"
                                 placeholder="e.g., Family Function, Maintenance, Staff Training..."
-                                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all resize-none"
                             ></textarea>
                             <div className="absolute bottom-2 right-2 text-xs text-neutral-400">
                                 {note.length}/100
@@ -183,7 +183,8 @@ export default function DateStatusModal({ isOpen, onClose, dateData, onSave }) {
                         </button>
                         <button
                             type="submit"
-                            className="flex-1 px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all"
+                            className="flex-1 px-6 py-3 text-sm font-semibold text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
+                            style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                         >
                             Save Status
                         </button>

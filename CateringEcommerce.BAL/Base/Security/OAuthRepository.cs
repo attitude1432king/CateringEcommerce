@@ -36,58 +36,47 @@ namespace CateringEcommerce.BAL.Base.Security
         // PROVIDER CONFIGURATION
         // =============================================
 
-        public async Task<OAuthProviderModel> GetProviderAsync(string providerName)
+        public Task<OAuthProviderModel> GetProviderAsync(string providerName)
         {
-            using var connection = new NpgsqlConnection(_connectionString);
-            var sql = $@"
-                SELECT c_provider_id AS ProviderId, c_provider_name AS ProviderName,
-                       c_client_id AS ClientId, c_client_secret AS ClientSecret,
-                       c_redirect_uri AS RedirectUri, c_authorization_endpoint AS AuthorizationEndpoint,
-                       c_token_endpoint AS TokenEndpoint, c_user_info_endpoint AS UserInfoEndpoint,
-                       c_scope AS Scope, c_is_active AS IsActive,
-                       c_createddate AS CreatedDate, c_modifieddate AS ModifiedDate
-                FROM {Table.SysOAuthProvider}
-                WHERE c_provider_name = @ProviderName AND c_is_active = TRUE";
+            var key = providerName.ToUpper();
+            var section = _configuration.GetSection($"OAuth:{key}");
+            if (!section.Exists() || !section.GetValue<bool>("IsActive", true))
+                return Task.FromResult<OAuthProviderModel>(null);
 
-            return await connection.QueryFirstOrDefaultAsync<OAuthProviderModel>(sql, new { ProviderName = providerName.ToUpper() });
+            return Task.FromResult(new OAuthProviderModel
+            {
+                ProviderId = 0,
+                ProviderName = key,
+                ClientId = section["ClientId"] ?? string.Empty,
+                RedirectUri = section["RedirectUri"] ?? string.Empty,
+                AuthorizationEndpoint = section["AuthorizationEndpoint"] ?? string.Empty,
+                TokenEndpoint = section["TokenEndpoint"] ?? string.Empty,
+                UserInfoEndpoint = section["UserInfoEndpoint"] ?? string.Empty,
+                Scope = section["Scope"] ?? string.Empty,
+                IsActive = true
+            });
         }
 
-        public async Task<List<OAuthProviderModel>> GetActiveProvidersAsync()
+        public Task<List<OAuthProviderModel>> GetActiveProvidersAsync()
         {
-            using var connection = new NpgsqlConnection(_connectionString);
-            var sql = $@"
-                SELECT c_provider_id AS ProviderId, c_provider_name AS ProviderName,
-                       c_client_id AS ClientId, c_redirect_uri AS RedirectUri,
-                       c_authorization_endpoint AS AuthorizationEndpoint,
-                       c_token_endpoint AS TokenEndpoint, c_user_info_endpoint AS UserInfoEndpoint,
-                       c_scope AS Scope, c_is_active AS IsActive,
-                       c_createddate AS CreatedDate, c_modifieddate AS ModifiedDate
-                FROM {Table.SysOAuthProvider}
-                WHERE c_is_active = TRUE
-                ORDER BY c_provider_name";
-
-            var result = await connection.QueryAsync<OAuthProviderModel>(sql);
-            return result.ToList();
-        }
-
-        public async Task<bool> UpdateProviderConfigAsync(OAuthProviderModel provider)
-        {
-            using var connection = new NpgsqlConnection(_connectionString);
-            var sql = $@"
-                UPDATE {Table.SysOAuthProvider}
-                SET c_client_id = @ClientId,
-                    c_client_secret = @ClientSecret,
-                    c_redirect_uri = @RedirectUri,
-                    c_authorization_endpoint = @AuthorizationEndpoint,
-                    c_token_endpoint = @TokenEndpoint,
-                    c_user_info_endpoint = @UserInfoEndpoint,
-                    c_scope = @Scope,
-                    c_is_active = @IsActive,
-                    c_modifieddate = NOW()
-                WHERE c_provider_id = @ProviderId";
-
-            var rowsAffected = await connection.ExecuteAsync(sql, provider);
-            return rowsAffected > 0;
+            var providers = new List<OAuthProviderModel>();
+            foreach (var s in _configuration.GetSection("OAuth").GetChildren())
+            {
+                if (!s.GetValue<bool>("IsActive", true)) continue;
+                providers.Add(new OAuthProviderModel
+                {
+                    ProviderId = 0,
+                    ProviderName = s.Key.ToUpper(),
+                    ClientId = s["ClientId"] ?? string.Empty,
+                    RedirectUri = s["RedirectUri"] ?? string.Empty,
+                    AuthorizationEndpoint = s["AuthorizationEndpoint"] ?? string.Empty,
+                    TokenEndpoint = s["TokenEndpoint"] ?? string.Empty,
+                    UserInfoEndpoint = s["UserInfoEndpoint"] ?? string.Empty,
+                    Scope = s["Scope"] ?? string.Empty,
+                    IsActive = true
+                });
+            }
+            return Task.FromResult(providers);
         }
 
         // =============================================
@@ -202,11 +191,15 @@ namespace CateringEcommerce.BAL.Base.Security
             if (provider == null)
                 throw new InvalidOperationException($"OAuth provider '{providerName}' not found or inactive");
 
+            // Client secret is read from config (not DB) so it is never stored in plain text
+            var clientSecret = _configuration[$"OAuth:{providerName}:ClientSecret"]
+                ?? throw new InvalidOperationException($"OAuth client secret for '{providerName}' is not configured.");
+
             var requestBody = new Dictionary<string, string>
             {
                 { "code", code },
                 { "client_id", provider.ClientId },
-                { "client_secret", provider.ClientSecret },
+                { "client_secret", clientSecret },
                 { "redirect_uri", provider.RedirectUri },
                 { "grant_type", "authorization_code" }
             };
@@ -263,11 +256,14 @@ namespace CateringEcommerce.BAL.Base.Security
             if (provider == null)
                 throw new InvalidOperationException($"OAuth provider '{providerName}' not found or inactive");
 
+            var clientSecret = _configuration[$"OAuth:{providerName}:ClientSecret"]
+                ?? throw new InvalidOperationException($"OAuth client secret for '{providerName}' is not configured.");
+
             var requestBody = new Dictionary<string, string>
             {
                 { "refresh_token", refreshToken },
                 { "client_id", provider.ClientId },
-                { "client_secret", provider.ClientSecret },
+                { "client_secret", clientSecret },
                 { "grant_type", "refresh_token" }
             };
 
@@ -298,17 +294,16 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
-                SELECT o.c_oauth_id AS OAuthId, o.c_userid AS UserId, o.c_provider_id AS ProviderId,
+                SELECT o.c_oauth_id AS OAuthId, o.c_userid AS UserId,
                        o.c_provider_user_id AS ProviderUserId, o.c_provider_email AS ProviderEmail,
                        o.c_provider_name AS ProviderName, o.c_provider_picture AS ProviderPicture,
                        o.c_access_token AS AccessToken, o.c_refresh_token AS RefreshToken,
                        o.c_token_expires_at AS TokenExpiresAt, o.c_is_primary AS IsPrimary,
                        o.c_linked_date AS LinkedDate, o.c_last_login AS LastLogin,
                        o.c_createddate AS CreatedDate, o.c_modifieddate AS ModifiedDate,
-                       p.c_provider_name as ProviderDisplayName
+                       o.c_provider_key AS ProviderDisplayName
                 FROM {Table.SysUserOAuth} o
-                INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
-                WHERE p.c_provider_name = @ProviderName
+                WHERE o.c_provider_key = @ProviderName
                   AND o.c_provider_user_id = @ProviderUserId";
 
             return await connection.QueryFirstOrDefaultAsync<UserOAuthModel>(sql, new
@@ -333,9 +328,9 @@ namespace CateringEcommerce.BAL.Base.Security
             var randomPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
             var sql = $@"
-                INSERT INTO {Table.SysUser} (c_email, c_password_hash, c_name, c_mobile,
+                INSERT INTO {Table.SysUser} (c_email, c_password_hash, c_name,
                                        c_isemailverified, c_isactive, c_createddate, c_modifieddate, c_picture)
-                VALUES (@Email, @PasswordHash, @Name, '',
+                VALUES (@Email, @PasswordHash, @Name,
                         TRUE, TRUE, NOW(), NOW(), @Picture)
                 RETURNING c_userid;";
 
@@ -367,9 +362,8 @@ namespace CateringEcommerce.BAL.Base.Security
             // Check if user already has this provider linked
             var sql = $@"
                 SELECT COUNT(*)
-                FROM {Table.SysUserOAuth} o
-                INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
-                WHERE o.c_userid = @UserId AND p.c_provider_name = @ProviderName";
+                FROM {Table.SysUserOAuth}
+                WHERE c_userid = @UserId AND c_provider_key = @ProviderName";
 
             var hasProvider = await connection.QuerySingleAsync<int>(sql, new
             {
@@ -383,18 +377,18 @@ namespace CateringEcommerce.BAL.Base.Security
             // Store tokens (in production, encrypt these!)
             var insertSql = $@"
                 INSERT INTO {Table.SysUserOAuth}
-                (c_userid, c_provider_id, c_provider_user_id, c_provider_email, c_provider_name, c_provider_picture,
+                (c_userid, c_provider_key, c_provider_user_id, c_provider_email, c_provider_name, c_provider_picture,
                  c_access_token, c_refresh_token, c_token_expires_at, c_is_primary, c_linked_date, c_last_login,
                  c_createddate, c_modifieddate)
                 VALUES
-                (@UserId, @ProviderId, @ProviderUserId, @ProviderEmail, @ProviderName, @ProviderPicture,
+                (@UserId, @ProviderKey, @ProviderUserId, @ProviderEmail, @ProviderName, @ProviderPicture,
                  @AccessToken, @RefreshToken, @TokenExpiresAt, @IsPrimary, NOW(), NOW(),
                  NOW(), NOW())";
 
             var rowsAffected = await connection.ExecuteAsync(insertSql, new
             {
                 UserId = userId,
-                ProviderId = provider.ProviderId,
+                ProviderKey = providerName.ToUpper(),
                 ProviderUserId = userInfo.Id,
                 ProviderEmail = userInfo.Email,
                 ProviderName = userInfo.Name,
@@ -460,11 +454,10 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
-                SELECT o.c_oauth_id AS OAuthId, p.c_provider_name AS Provider, o.c_provider_email AS ProviderEmail,
+                SELECT o.c_oauth_id AS OAuthId, o.c_provider_key AS Provider, o.c_provider_email AS ProviderEmail,
                        o.c_provider_name AS ProviderName, o.c_provider_picture AS ProviderPicture,
                        o.c_is_primary AS IsPrimary, o.c_linked_date AS LinkedDate, o.c_last_login AS LastLogin
                 FROM {Table.SysUserOAuth} o
-                INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
                 WHERE o.c_userid = @UserId
                 ORDER BY o.c_is_primary DESC, o.c_linked_date DESC";
 
@@ -511,16 +504,15 @@ namespace CateringEcommerce.BAL.Base.Security
         {
             using var connection = new NpgsqlConnection(_connectionString);
             var sql = $@"
-                SELECT o.c_oauth_id AS OAuthId, o.c_userid AS UserId, o.c_provider_id AS ProviderId,
+                SELECT o.c_oauth_id AS OAuthId, o.c_userid AS UserId,
                        o.c_provider_user_id AS ProviderUserId, o.c_provider_email AS ProviderEmail,
                        o.c_provider_name AS ProviderName, o.c_provider_picture AS ProviderPicture,
                        o.c_access_token AS AccessToken, o.c_refresh_token AS RefreshToken,
                        o.c_token_expires_at AS TokenExpiresAt, o.c_is_primary AS IsPrimary,
                        o.c_linked_date AS LinkedDate, o.c_last_login AS LastLogin,
                        o.c_createddate AS CreatedDate, o.c_modifieddate AS ModifiedDate,
-                       p.c_provider_name AS ProviderDisplayName
+                       o.c_provider_key AS ProviderDisplayName
                 FROM {Table.SysUserOAuth} o
-                INNER JOIN {Table.SysOAuthProvider} p ON o.c_provider_id = p.c_provider_id
                 WHERE o.c_userid = @UserId
                 ORDER BY o.c_is_primary DESC, o.c_linked_date ASC
                 LIMIT 1";

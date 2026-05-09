@@ -22,7 +22,7 @@ const EnhancedProgressStepper = ({ steps, currentStep, className = '' }) => {
                         ? 'bg-green-500 text-white shadow-md'
                         : isActive
                         ? 'bg-red-500 text-white shadow-lg ring-4 ring-red-100'
-                        : 'bg-gray-200 text-gray-500'
+                        : 'bg-gray-200 text-neutral-500'
                     }`}
                   >
                     {isCompleted ? (
@@ -52,7 +52,7 @@ const EnhancedProgressStepper = ({ steps, currentStep, className = '' }) => {
                     {step.name}
                   </div>
                   {step.description && (
-                    <div className="text-sm text-gray-500 mt-1">{step.description}</div>
+                    <div className="text-sm text-neutral-500 mt-1">{step.description}</div>
                   )}
                 </div>
               </div>
@@ -81,7 +81,7 @@ const EnhancedProgressStepper = ({ steps, currentStep, className = '' }) => {
                         ? 'bg-green-500 text-white shadow-lg transform scale-110'
                         : isActive
                         ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-xl ring-4 ring-red-100 transform scale-110'
-                        : 'bg-gray-200 text-gray-500'
+                        : 'bg-gray-200 text-neutral-500'
                     }`}
                   >
                     {isCompleted ? (
@@ -107,7 +107,7 @@ const EnhancedProgressStepper = ({ steps, currentStep, className = '' }) => {
                       {step.name}
                     </div>
                     {step.description && (
-                      <div className="text-xs text-gray-500 mt-1 max-w-[120px]">
+                      <div className="text-xs text-neutral-500 mt-1 max-w-[120px]">
                         {step.description}
                       </div>
                     )}
@@ -148,7 +148,7 @@ const EnhancedProgressStepper = ({ steps, currentStep, className = '' }) => {
 
         {/* Progress Percentage */}
         <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center justify-between text-sm text-neutral-600">
             <span>Progress</span>
             <span className="font-semibold text-red-600">
               {Math.round(((currentStep - 1) / (steps.length - 1)) * 100)}% Complete

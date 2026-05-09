@@ -51,7 +51,7 @@ const SavedAddressesSection = ({ selectedAddressId, onSelectAddress }) => {
     return (
       <div className="text-center py-8">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-catering-primary"></div>
-        <p className="mt-2 text-gray-600">Loading addresses...</p>
+        <p className="mt-2 text-neutral-600">Loading addresses...</p>
       </div>
     );
   }
@@ -83,7 +83,7 @@ const SavedAddressesSection = ({ selectedAddressId, onSelectAddress }) => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <p className="text-gray-600 mb-4">No saved addresses yet</p>
+          <p className="text-neutral-600 mb-4">No saved addresses yet</p>
           <button
             onClick={handleAddNew}
             className="bg-catering-primary text-white px-6 py-2 rounded-lg hover:bg-catering-primary/90 transition-colors"
@@ -127,21 +127,21 @@ const SavedAddressesSection = ({ selectedAddressId, onSelectAddress }) => {
               </div>
 
               {/* Contact Person */}
-              <p className="font-medium text-gray-900 mb-1">{address.contactPerson}</p>
+              <p className="font-medium text-neutral-900 mb-1">{address.contactPerson}</p>
 
               {/* Full Address */}
-              <p className="text-sm text-gray-600 mb-1">{address.fullAddress}</p>
+              <p className="text-sm text-neutral-600 mb-1">{address.fullAddress}</p>
               {address.landmark && (
-                <p className="text-sm text-gray-500 mb-1">Landmark: {address.landmark}</p>
+                <p className="text-sm text-neutral-500 mb-1">Landmark: {address.landmark}</p>
               )}
 
               {/* City, State, Pincode */}
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-neutral-600 mb-2">
                 {address.city}, {address.state} - {address.pincode}
               </p>
 
               {/* Phone */}
-              <p className="text-sm text-gray-700 font-medium mb-3">{address.contactPhone}</p>
+              <p className="text-sm text-neutral-700 font-medium mb-3">{address.contactPhone}</p>
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
@@ -193,7 +193,7 @@ const SavedAddressesSection = ({ selectedAddressId, onSelectAddress }) => {
 
       {/* Address Count Info */}
       {addresses.length > 0 && (
-        <p className="text-xs text-gray-500 text-center">
+        <p className="text-xs text-neutral-500 text-center">
           {addresses.length} of 5 addresses saved
         </p>
       )}

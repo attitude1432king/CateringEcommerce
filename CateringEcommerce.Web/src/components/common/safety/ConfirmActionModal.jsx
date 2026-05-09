@@ -88,14 +88,14 @@ const ConfirmActionModal = ({
             <div className={`w-12 h-12 rounded-full ${style.iconBg} flex items-center justify-center`}>
               <TypeIcon className={`w-6 h-6 ${style.iconColor}`} />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+            <h2 className="text-2xl font-bold text-neutral-900">{title}</h2>
           </div>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
           {/* Description */}
-          <p className="text-gray-700 leading-relaxed">{description}</p>
+          <p className="text-neutral-700 leading-relaxed">{description}</p>
 
           {/* Irreversible Warning */}
           {isIrreversible && (
@@ -128,7 +128,7 @@ const ConfirmActionModal = ({
           {additionalWarnings && additionalWarnings.length > 0 && (
             <div className="space-y-2">
               {additionalWarnings.map((warning, index) => (
-                <div key={index} className="flex items-start gap-2 text-sm text-gray-700">
+                <div key={index} className="flex items-start gap-2 text-sm text-neutral-700">
                   <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p>{warning}</p>
                 </div>
@@ -139,7 +139,7 @@ const ConfirmActionModal = ({
           {/* Confirmation Input */}
           {requiresConfirmation && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Type <span className="font-bold">{confirmationText}</span> to confirm this action
               </label>
               <input
@@ -164,7 +164,7 @@ const ConfirmActionModal = ({
           <button
             onClick={handleClose}
             disabled={isLoading}
-            className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-white transition-colors font-medium disabled:opacity-50"
+            className="flex-1 px-6 py-3 border-2 border-gray-300 text-neutral-700 rounded-lg hover:bg-white transition-colors font-medium disabled:opacity-50"
           >
             {cancelText}
           </button>

@@ -86,7 +86,7 @@ const InvoiceList = ({ orderId, userId, onPaymentClick }) => {
         return (
             <div className="flex items-center justify-center py-12">
                 <Loader className="animate-spin text-blue-600" size={32} />
-                <span className="ml-3 text-gray-600">Loading invoices...</span>
+                <span className="ml-3 text-neutral-600">Loading invoices...</span>
             </div>
         );
     }
@@ -115,10 +115,10 @@ const InvoiceList = ({ orderId, userId, onPaymentClick }) => {
         return (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                 <FileText className="mx-auto text-gray-400 mb-3" size={48} />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-neutral-900 mb-2">
                     No Invoices Found
                 </h3>
-                <p className="text-gray-600 text-sm">
+                <p className="text-neutral-600 text-sm">
                     Invoices will appear here once they are generated for your order.
                 </p>
             </div>
@@ -131,10 +131,10 @@ const InvoiceList = ({ orderId, userId, onPaymentClick }) => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
                             <FileText size={24} />
                             Invoices
-                            <span className="text-sm font-normal text-gray-500">
+                            <span className="text-sm font-normal text-neutral-500">
                                 ({filteredInvoices.length} {filteredInvoices.length === 1 ? 'invoice' : 'invoices'})
                             </span>
                         </h2>
@@ -188,10 +188,10 @@ const InvoiceList = ({ orderId, userId, onPaymentClick }) => {
             {Object.keys(groupedInvoices).length === 0 ? (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                     <AlertCircle className="mx-auto text-gray-400 mb-3" size={48} />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h3 className="text-lg font-semibold text-neutral-900 mb-2">
                         No Invoices Match Filters
                     </h3>
-                    <p className="text-gray-600 text-sm">
+                    <p className="text-neutral-600 text-sm">
                         Try adjusting your filters to see more invoices.
                     </p>
                 </div>
@@ -201,7 +201,7 @@ const InvoiceList = ({ orderId, userId, onPaymentClick }) => {
                         .sort((a, b) => parseInt(a) - parseInt(b))
                         .map(type => (
                             <div key={type}>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                                <h3 className="text-lg font-semibold text-neutral-900 mb-3">
                                     {getTypeLabel(parseInt(type))}
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -222,23 +222,23 @@ const InvoiceList = ({ orderId, userId, onPaymentClick }) => {
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                        <p className="text-xs text-gray-600 mb-1">Total Invoices</p>
-                        <p className="text-2xl font-bold text-gray-900">{invoices.length}</p>
+                        <p className="text-xs text-neutral-600 mb-1">Total Invoices</p>
+                        <p className="text-2xl font-bold text-neutral-900">{invoices.length}</p>
                     </div>
                     <div>
-                        <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-xs text-neutral-600 mb-1">Total Amount</p>
+                        <p className="text-2xl font-bold text-neutral-900">
                             ₹{invoices.reduce((sum, inv) => sum + inv.totalAmount, 0).toLocaleString('en-IN')}
                         </p>
                     </div>
                     <div>
-                        <p className="text-xs text-gray-600 mb-1">Amount Paid</p>
+                        <p className="text-xs text-neutral-600 mb-1">Amount Paid</p>
                         <p className="text-2xl font-bold text-green-600">
                             ₹{invoices.reduce((sum, inv) => sum + inv.amountPaid, 0).toLocaleString('en-IN')}
                         </p>
                     </div>
                     <div>
-                        <p className="text-xs text-gray-600 mb-1">Balance Due</p>
+                        <p className="text-xs text-neutral-600 mb-1">Balance Due</p>
                         <p className="text-2xl font-bold text-red-600">
                             ₹{invoices.reduce((sum, inv) => sum + inv.balanceDue, 0).toLocaleString('en-IN')}
                         </p>

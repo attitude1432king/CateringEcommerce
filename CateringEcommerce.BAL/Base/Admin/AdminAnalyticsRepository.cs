@@ -30,8 +30,19 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var parameters = new List<NpgsqlParameter>
             {
-                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value)
+                new NpgsqlParameter("@FromDate", request.FromDate.HasValue
+                    ? request.FromDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
+
+                new NpgsqlParameter("@ToDate", request.ToDate.HasValue
+                    ? request.ToDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                }
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetDashboardMetrics", parameters.ToArray());
@@ -69,9 +80,21 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var parameters = new List<NpgsqlParameter>
             {
-                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@FromDate", request.FromDate.HasValue
+                    ? request.FromDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
+
+                new NpgsqlParameter("@ToDate", request.ToDate.HasValue
+                    ? request.ToDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
                 new NpgsqlParameter("@Granularity", request.Granularity ?? "day")
+
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetRevenueChart", parameters.ToArray());
@@ -126,8 +149,19 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var parameters = new List<NpgsqlParameter>
             {
-                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value)
+                new NpgsqlParameter("@FromDate", request.FromDate.HasValue
+                    ? request.FromDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
+
+                new NpgsqlParameter("@ToDate", request.ToDate.HasValue
+                    ? request.ToDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                }
             };
 
             var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetOrderStatusDistribution", parameters.ToArray());
@@ -192,8 +226,19 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var parameters = new List<NpgsqlParameter>
             {
-                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@FromDate", request.FromDate.HasValue
+                    ? request.FromDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
+
+                new NpgsqlParameter("@ToDate", request.ToDate.HasValue
+                    ? request.ToDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
                 new NpgsqlParameter("@Limit", request.Limit)
             };
 
@@ -282,8 +327,19 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var parameters = new List<NpgsqlParameter>
             {
-                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@FromDate", request.FromDate.HasValue
+                    ? request.FromDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
+
+                new NpgsqlParameter("@ToDate", request.ToDate.HasValue
+                    ? request.ToDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
                 new NpgsqlParameter("@Limit", request.Limit)
             };
 
@@ -327,8 +383,19 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var parameters = new List<NpgsqlParameter>
             {
-                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@FromDate", request.FromDate.HasValue
+                    ? request.FromDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
+
+                new NpgsqlParameter("@ToDate", request.ToDate.HasValue
+                    ? request.ToDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
                 new NpgsqlParameter("@Granularity", request.Granularity ?? "day")
             };
 
@@ -377,8 +444,19 @@ namespace CateringEcommerce.BAL.Base.Admin
         {
             var parameters = new List<NpgsqlParameter>
             {
-                new NpgsqlParameter("@FromDate", (object)request.FromDate ?? DBNull.Value),
-                new NpgsqlParameter("@ToDate", (object)request.ToDate ?? DBNull.Value),
+                new NpgsqlParameter("@FromDate", request.FromDate.HasValue
+                    ? request.FromDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
+
+                new NpgsqlParameter("@ToDate", request.ToDate.HasValue
+                    ? request.ToDate.Value.Date
+                    : DBNull.Value)
+                {
+                    NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date
+                },
                 new NpgsqlParameter("@Limit", request.Limit)
             };
 

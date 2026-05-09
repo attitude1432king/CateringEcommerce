@@ -369,7 +369,7 @@ namespace CateringEcommerce.BAL.Base.User
             try
             {
                 string query = $@"
-                    SELECT c_isactive, c_verified_by_admin
+                    SELECT c_isactive, c_approval_status 
                     FROM {Table.SysCateringOwner}
                     WHERE c_ownerid = @CateringId
                 ";
@@ -384,7 +384,7 @@ namespace CateringEcommerce.BAL.Base.User
                     return false;
 
                 bool isActive = Convert.ToBoolean(dt.Rows[0]["c_isactive"]);
-                bool isVerified = Convert.ToBoolean(dt.Rows[0]["c_verified_by_admin"]);
+                bool isVerified = Convert.ToInt16(dt.Rows[0]["c_approval_status"] == DBNull.Value ? 0 : dt.Rows[0]["c_approval_status"]) == 2; // Assuming 2 means approved
 
                 return isActive && isVerified;
             }

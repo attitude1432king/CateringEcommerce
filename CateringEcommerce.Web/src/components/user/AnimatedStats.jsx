@@ -1,154 +1,110 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { PartyPopper, Handshake, Smile, Star } from 'lucide-react';
 import { getHomePageStats } from '../../services/homeApi';
 
-const AnimatedStats = () => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [stats, setStats] = useState([
-    { value: 5000, suffix: '+', label: 'Events Catered', icon: '🎉' },
-    { value: 500, suffix: '+', label: 'Catering Partners', icon: '🤝' },
-    { value: 50000, suffix: '+', label: 'Happy Customers', icon: '😊' },
-    { value: 98, suffix: '%', label: 'Satisfaction Rate', icon: '⭐' },
-  ]);
-  const [loading, setLoading] = useState(true);
-  const sectionRef = useRef(null);
-
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const response = await getHomePageStats();
-        if (response.success && response.data) {
-          const apiData = response.data;
-          setStats([
-            { value: apiData.totalEventsCatered, suffix: '+', label: 'Events Catered', icon: '🎉' },
-            { value: apiData.totalCateringPartners, suffix: '+', label: 'Catering Partners', icon: '🤝' },
-            { value: apiData.totalHappyCustomers, suffix: '+', label: 'Happy Customers', icon: '😊' },
-            { value: apiData.satisfactionRate, suffix: '%', label: 'Satisfaction Rate', icon: '⭐' },
-          ]);
-        }
-      } catch (err) {
-        console.error('Error loading homepage stats:', err);
-        // Keep default stats on error
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadStats();
-  }, []);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { threshold: 0.3 }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current);
-      }
-    };
-  }, []);
-
-  return (
-    <section
-      ref={sectionRef}
-      className="py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden"
-    >
-      {/* Elegant gold accent lines */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-catering-accent to-transparent opacity-60"></div>
-      <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-catering-accent to-transparent opacity-60"></div>
-
-      {/* Decorative elements */}
-      <div className="absolute top-1/2 left-10 w-32 h-32 bg-catering-accent/5 rounded-full blur-3xl"></div>
-      <div className="absolute top-1/3 right-10 w-40 h-40 bg-catering-primary/5 rounded-full blur-3xl"></div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isVisible ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Trusted by Thousands
-          </h2>
-          <div className="w-24 h-1 bg-gradient-to-r from-catering-accent to-catering-secondary mx-auto"></div>
-        </motion.div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map((stat, index) => (
-            <StatCard
-              key={index}
-              stat={stat}
-              index={index}
-              isVisible={isVisible}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
+const DEFAULT_STATS = [
+    { value: 5000,  suffix: '+', label: 'Events Catered',     Icon: PartyPopper },
+    { value: 500,   suffix: '+', label: 'Catering Partners',  Icon: Handshake   },
+    { value: 50000, suffix: '+', label: 'Happy Customers',    Icon: Smile       },
+    { value: 98,    suffix: '%', label: 'Satisfaction Rate',  Icon: Star        },
+];
 
 const StatCard = ({ stat, index, isVisible }) => {
-  const [count, setCount] = useState(0);
+    const [count, setCount] = useState(0);
 
-  useEffect(() => {
-    if (!isVisible) return;
+    useEffect(() => {
+        if (!isVisible) return;
+        const duration = 2000;
+        const steps = 60;
+        const increment = stat.value / steps;
+        let current = 0;
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= stat.value) { setCount(stat.value); clearInterval(timer); }
+            else setCount(Math.floor(current));
+        }, duration / steps);
+        return () => clearInterval(timer);
+    }, [isVisible, stat.value]);
 
-    const duration = 2000; // 2 seconds
-    const steps = 60;
-    const increment = stat.value / steps;
-    let current = 0;
-
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= stat.value) {
-        setCount(stat.value);
-        clearInterval(timer);
-      } else {
-        setCount(Math.floor(current));
-      }
-    }, duration / steps);
-
-    return () => clearInterval(timer);
-  }, [isVisible, stat.value]);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={isVisible ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay: index * 0.15 }}
-      className="text-center group"
-    >
-      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-catering-accent/50 transition-all duration-300 hover:shadow-2xl hover:shadow-catering-accent/20 hover:-translate-y-2">
-        {/* Icon */}
-        <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">
-          {stat.icon}
-        </div>
-
-        {/* Animated number */}
-        <div className="text-5xl md:text-6xl font-bold mb-2 bg-gradient-to-br from-catering-accent via-white to-catering-secondary bg-clip-text text-transparent">
-          {count.toLocaleString()}
-          {stat.suffix}
-        </div>
-
-        {/* Label */}
-        <div className="text-gray-300 text-sm md:text-base font-medium tracking-wide uppercase">
-          {stat.label}
-        </div>
-      </div>
-    </motion.div>
-  );
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.55, delay: index * 0.12 }}
+            className="text-center group"
+        >
+            <div className="bg-white/8 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-accent/50 transition-all duration-300 hover:shadow-[0_20px_60px_rgba(255,182,39,0.15)] hover:-translate-y-2">
+                <div className="w-12 h-12 rounded-2xl mx-auto mb-5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
+                    style={{ background: 'rgba(255,182,39,0.15)', color: 'var(--color-accent)' }}>
+                    <stat.Icon size={24} strokeWidth={2} />
+                </div>
+                <div
+                    className="text-5xl md:text-6xl font-extrabold mb-2 tabular-nums"
+                    style={{ background: 'linear-gradient(135deg, var(--color-accent), #fff, var(--color-secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+                >
+                    {count.toLocaleString()}{stat.suffix}
+                </div>
+                <div className="text-neutral-400 text-sm font-medium uppercase tracking-widest">{stat.label}</div>
+            </div>
+        </motion.div>
+    );
 };
 
-export default AnimatedStats;
+export default function AnimatedStats() {
+    const sectionRef = useRef(null);
+    const [isVisible, setIsVisible] = useState(false);
+    const [stats, setStats] = useState(DEFAULT_STATS);
+
+    useEffect(() => {
+        const loadStats = async () => {
+            try {
+                const response = await getHomePageStats();
+                if (response.success && response.data) {
+                    const d = response.data;
+                    setStats([
+                        { value: d.totalEventsCatered,    suffix: '+', label: 'Events Catered',    Icon: PartyPopper },
+                        { value: d.totalCateringPartners, suffix: '+', label: 'Catering Partners', Icon: Handshake   },
+                        { value: d.totalHappyCustomers,   suffix: '+', label: 'Happy Customers',   Icon: Smile       },
+                        { value: d.satisfactionRate,      suffix: '%', label: 'Satisfaction Rate', Icon: Star        },
+                    ]);
+                }
+            } catch {/* keep defaults */}
+        };
+        loadStats();
+    }, []);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setIsVisible(true); }, { threshold: 0.3 });
+        if (sectionRef.current) observer.observe(sectionRef.current);
+        return () => { if (sectionRef.current) observer.unobserve(sectionRef.current); };
+    }, []);
+
+    return (
+        <section ref={sectionRef} className="py-20 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #111827, #1f2937)' }}>
+            {/* Accent lines */}
+            <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--color-accent), transparent)' }} />
+            <div className="absolute bottom-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--color-accent), transparent)' }} />
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <motion.div
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={isVisible ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.6 }}
+                    className="text-center mb-14"
+                >
+                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                        Trusted by Thousands
+                    </h2>
+                    <div className="w-24 h-1 mx-auto rounded-full" style={{ background: 'var(--gradient-catering)' }} />
+                </motion.div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    {stats.map((stat, index) => (
+                        <StatCard key={index} stat={stat} index={index} isVisible={isVisible} />
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+}

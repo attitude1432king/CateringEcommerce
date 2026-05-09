@@ -74,13 +74,13 @@ const ReviewSubmissionModal = ({ isOpen, onClose, order, onReviewSubmitted }) =>
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Write a Review</h2>
-            <p className="text-gray-600 mt-1">{order?.cateringName}</p>
+            <h2 className="text-2xl font-bold text-neutral-900">Write a Review</h2>
+            <p className="text-neutral-600 mt-1">{order?.cateringName}</p>
           </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-neutral-600 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -98,7 +98,7 @@ const ReviewSubmissionModal = ({ isOpen, onClose, order, onReviewSubmitted }) =>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Overall Rating - Required */}
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <label className="block text-sm font-medium text-gray-900 mb-2">
+            <label className="block text-sm font-medium text-neutral-900 mb-2">
               Overall Rating <span className="text-red-500">*</span>
             </label>
             <StarRating
@@ -111,7 +111,7 @@ const ReviewSubmissionModal = ({ isOpen, onClose, order, onReviewSubmitted }) =>
 
           {/* Detailed Ratings */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">Rate Specific Aspects (Optional)</h3>
+            <h3 className="font-semibold text-neutral-900">Rate Specific Aspects (Optional)</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Food Quality */}
@@ -173,7 +173,7 @@ const ReviewSubmissionModal = ({ isOpen, onClose, order, onReviewSubmitted }) =>
 
           {/* Review Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Review Title (Optional)
             </label>
             <input
@@ -189,7 +189,7 @@ const ReviewSubmissionModal = ({ isOpen, onClose, order, onReviewSubmitted }) =>
 
           {/* Review Comment */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Your Review <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -202,14 +202,14 @@ const ReviewSubmissionModal = ({ isOpen, onClose, order, onReviewSubmitted }) =>
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
             />
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-neutral-500 mt-1">
               {formData.reviewComment.length}/2000 characters
             </p>
           </div>
 
           {/* Photo Upload - Optional for future enhancement */}
           <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-neutral-600">
               📷 Photo uploads coming soon! For now, you can describe your experience in detail above.
             </p>
           </div>
@@ -220,7 +220,7 @@ const ReviewSubmissionModal = ({ isOpen, onClose, order, onReviewSubmitted }) =>
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 font-medium"
+              className="flex-1 px-6 py-3 border border-gray-300 text-neutral-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 font-medium"
             >
               Cancel
             </button>

@@ -27,6 +27,7 @@ import {
     UserSquare2,
     Palette,
     Leaf,
+    FileWarning,
 } from 'lucide-react';
 import { useAdminAuth } from '../../../contexts/AdminAuthContext';
 import { usePermissions } from '../../../contexts/PermissionContext';
@@ -56,6 +57,7 @@ const AdminSidebar = () => {
         { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, permission: 'ORDER_VIEW' },
         { name: 'Earnings', href: '/admin/earnings', icon: DollarSign, permission: 'EARNINGS_VIEW' },
         { name: 'Reviews', href: '/admin/reviews', icon: Star, permission: 'REVIEW_VIEW' },
+        { name: 'System Logs', href: '/admin/logs', icon: FileWarning, requireSuperAdmin: true },
         { name: 'Settings', href: '/admin/settings', icon: Settings, requireSuperAdmin: true },
     ];
 

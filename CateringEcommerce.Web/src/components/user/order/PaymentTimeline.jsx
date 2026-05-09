@@ -157,8 +157,8 @@ const PaymentTimeline = ({
       locked: {
         bg: 'bg-gray-100',
         border: 'border-gray-400',
-        text: 'text-gray-700',
-        iconColor: 'text-gray-600'
+        text: 'text-neutral-700',
+        iconColor: 'text-neutral-600'
       },
       failed: {
         bg: 'bg-red-100',
@@ -267,9 +267,9 @@ const PaymentTimeline = ({
 
         {/* Platform Protection Badge */}
         <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-neutral-600">
             <CheckCircle2 className="w-4 h-4 text-green-600" />
-            <span className="font-medium text-gray-900">Platform Protected</span>
+            <span className="font-medium text-neutral-900">Platform Protected</span>
             <span>•</span>
             <span>Escrow payments with refund protection</span>
           </div>
@@ -309,12 +309,12 @@ const HorizontalTimeline = ({ milestones, getStatusStyle }) => {
               {/* Milestone Info */}
               <div className="mt-4 text-center">
                 <p className={`font-semibold ${style.text}`}>{milestone.label}</p>
-                <p className="text-xs text-gray-500 mt-1">{milestone.description}</p>
-                <p className="text-sm font-bold text-gray-900 mt-2">
+                <p className="text-xs text-neutral-500 mt-1">{milestone.description}</p>
+                <p className="text-sm font-bold text-neutral-900 mt-2">
                   {milestone.percentage}% • ₹{milestone.amount.toFixed(2)}
                 </p>
                 {milestone.timestamp && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-neutral-500 mt-1">
                     {new Date(milestone.timestamp).toLocaleDateString('en-IN', {
                       day: 'numeric',
                       month: 'short',
@@ -333,7 +333,7 @@ const HorizontalTimeline = ({ milestones, getStatusStyle }) => {
                   </span>
                 )}
                 {milestone.status === 'locked' && (
-                  <span className="inline-block mt-2 text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded-full">
+                  <span className="inline-block mt-2 text-xs font-medium text-neutral-700 bg-gray-100 px-2 py-1 rounded-full">
                     🔒 Locked
                   </span>
                 )}
@@ -393,7 +393,7 @@ const VerticalTimeline = ({ milestones, getStatusStyle }) => {
                     </span>
                   )}
                   {milestone.status === 'locked' && (
-                    <span className="text-xs font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+                    <span className="text-xs font-medium text-neutral-700 bg-gray-100 px-3 py-1 rounded-full">
                       🔒 Locked
                     </span>
                   )}
@@ -403,12 +403,12 @@ const VerticalTimeline = ({ milestones, getStatusStyle }) => {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-600 mb-2">{milestone.description}</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-sm text-neutral-600 mb-2">{milestone.description}</p>
+                <p className="text-lg font-bold text-neutral-900">
                   {milestone.percentage}% • ₹{milestone.amount.toFixed(2)}
                 </p>
                 {milestone.timestamp && (
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-neutral-500 mt-1">
                     Paid on {new Date(milestone.timestamp).toLocaleDateString('en-IN', {
                       day: 'numeric',
                       month: 'long',

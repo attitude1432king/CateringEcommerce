@@ -70,13 +70,13 @@ const MonetaryImpactPreview = ({
       {/* Current vs New Amount */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-xs text-gray-600 mb-1">Current Amount</p>
-          <p className="text-lg font-bold text-gray-900">
+          <p className="text-xs text-neutral-600 mb-1">Current Amount</p>
+          <p className="text-lg font-bold text-neutral-900">
             {currency}{currentAmount.toFixed(2)}
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-600 mb-1">New Amount</p>
+          <p className="text-xs text-neutral-600 mb-1">New Amount</p>
           <p className={`text-lg font-bold ${style.text}`}>
             {currency}{newAmount.toFixed(2)}
           </p>
@@ -107,11 +107,11 @@ const MonetaryImpactPreview = ({
       {/* Breakdown */}
       {breakdown && breakdown.length > 0 && (
         <div className="mb-3">
-          <p className="text-xs font-semibold text-gray-700 mb-2">Breakdown:</p>
+          <p className="text-xs font-semibold text-neutral-700 mb-2">Breakdown:</p>
           <div className="space-y-2">
             {breakdown.map((item, index) => (
               <div key={index} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">{item.label}</span>
+                <span className="text-neutral-700">{item.label}</span>
                 <span className={`font-medium ${item.type === 'deduct' ? 'text-red-600' : 'text-green-600'}`}>
                   {item.type === 'deduct' ? '-' : '+'}{currency}{Math.abs(item.amount).toFixed(2)}
                 </span>

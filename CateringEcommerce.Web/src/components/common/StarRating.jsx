@@ -53,7 +53,7 @@ const StarRating = ({
   return (
     <div className="flex items-center gap-2">
       {label && (
-        <span className="text-sm font-medium text-gray-700 mr-1">{label}</span>
+        <span className="text-sm font-medium text-neutral-700 mr-1">{label}</span>
       )}
       <div className="flex items-center gap-1">
         {stars.map((star) => (
@@ -84,7 +84,7 @@ const StarRating = ({
         ))}
       </div>
       {showValue && (
-        <span className="text-sm font-medium text-gray-700 ml-1">
+        <span className="text-sm font-medium text-neutral-700 ml-1">
           {(hoverRating || rating).toFixed(1)}
         </span>
       )}

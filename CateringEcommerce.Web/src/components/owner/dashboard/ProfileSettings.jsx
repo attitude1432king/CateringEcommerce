@@ -26,9 +26,10 @@ const TabButton = ({ label, isActive, onClick }) => (
     <button
         onClick={onClick}
         className={`w-full text-left px-4 py-3 text-sm font-medium rounded-md transition-colors ${isActive
-                ? 'bg-rose-100 text-rose-700'
+                ? 'text-white'
                 : 'text-neutral-600 hover:bg-neutral-100'
             }`}
+        style={isActive ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
     >
         {label}
     </button>
@@ -116,7 +117,7 @@ export default function ProfileSettings() {
     };
 
     return (
-        <div className="animate-fade-in p-4 sm:p-6 lg:p-8">
+        <div className="animate-fade-in">
             <h1 className="text-3xl font-bold text-neutral-800">Profile & Settings</h1>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <aside className="lg:col-span-1">

@@ -113,14 +113,14 @@ const WishlistPage = () => {
    */
   const StarRating = ({ rating, count }) => {
     if (!rating || rating === 0) {
-      return <span className="text-sm text-gray-400">No reviews yet</span>;
+      return <span className="text-sm text-neutral-400">No reviews yet</span>;
     }
 
     return (
       <div className="flex items-center gap-1">
         <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-        <span className="font-semibold text-gray-900">{rating.toFixed(1)}</span>
-        <span className="text-sm text-gray-500">({count || 0})</span>
+        <span className="font-semibold text-neutral-900">{rating.toFixed(1)}</span>
+        <span className="text-sm text-neutral-500">({count || 0})</span>
       </div>
     );
   };
@@ -130,10 +130,10 @@ const WishlistPage = () => {
    */
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-rose-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading your wishlist...</p>
+          <p className="text-neutral-600">Loading your wishlist...</p>
         </div>
       </div>
     );
@@ -144,7 +144,7 @@ const WishlistPage = () => {
    */
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md text-center">
           <p className="text-red-800 mb-4">{error}</p>
           <button
@@ -163,11 +163,11 @@ const WishlistPage = () => {
    */
   if (favorites.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <Heart className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Wishlist is Empty</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Your Wishlist is Empty</h2>
+          <p className="text-neutral-600 mb-6">
             Start adding caterings to your wishlist by clicking the heart icon on catering cards.
           </p>
           <button
@@ -185,15 +185,15 @@ const WishlistPage = () => {
    * Main render - Grid of favorites
    */
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-neutral-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Heart className="w-8 h-8 text-rose-500 fill-rose-500" />
-            <h1 className="text-3xl font-bold text-gray-900">My Wishlist</h1>
+            <h1 className="text-3xl font-bold text-neutral-900">My Wishlist</h1>
           </div>
-          <p className="text-gray-600">
+          <p className="text-neutral-600">
             {totalCount} {totalCount === 1 ? 'catering' : 'caterings'} saved
           </p>
         </div>
@@ -218,7 +218,7 @@ const WishlistPage = () => {
                     }}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <div className="w-full h-full flex items-center justify-center text-neutral-400">
                     <Users className="w-16 h-16" />
                   </div>
                 )}
@@ -255,7 +255,7 @@ const WishlistPage = () => {
               {/* Catering Info */}
               <div className="p-4">
                 <h3
-                  className="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-rose-500 transition"
+                  className="text-lg font-bold text-neutral-900 mb-2 cursor-pointer hover:text-rose-500 transition"
                   onClick={() => handleViewCatering(favorite.cateringId)}
                 >
                   {favorite.cateringName}
@@ -263,7 +263,7 @@ const WishlistPage = () => {
 
                 {/* Location */}
                 {favorite.cityName && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                  <div className="flex items-center gap-2 text-sm text-neutral-600 mb-2">
                     <MapPin className="w-4 h-4" />
                     <span>{favorite.cityName}</span>
                   </div>
@@ -275,7 +275,7 @@ const WishlistPage = () => {
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                <div className="flex items-center justify-between text-sm text-neutral-600 mb-3">
                   <span>{favorite.completedOrders || 0} orders completed</span>
                   {favorite.minOrderValue && (
                     <span className="font-semibold">Min: ₹{favorite.minOrderValue}</span>
@@ -283,7 +283,7 @@ const WishlistPage = () => {
                 </div>
 
                 {/* Added date */}
-                <p className="text-xs text-gray-400 mb-3">
+                <p className="text-xs text-neutral-400 mb-3">
                   Added on {new Date(favorite.addedDate).toLocaleDateString('en-IN', {
                     year: 'numeric',
                     month: 'short',
@@ -309,7 +309,7 @@ const WishlistPage = () => {
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -322,7 +322,7 @@ const WishlistPage = () => {
                   className={`px-3 py-2 rounded-lg transition ${
                     currentPage === page
                       ? 'bg-rose-500 text-white'
-                      : 'bg-white border border-gray-300 hover:bg-gray-50'
+                      : 'bg-white border border-neutral-300 hover:bg-neutral-50'
                   }`}
                 >
                   {page}
@@ -333,7 +333,7 @@ const WishlistPage = () => {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -349,8 +349,8 @@ const WishlistPage = () => {
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-rose-100 mb-4">
                 <Heart className="h-6 w-6 text-rose-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Remove from Wishlist?</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="text-lg font-semibold text-neutral-900 mb-2">Remove from Wishlist?</h3>
+              <p className="text-sm text-neutral-600">
                 Remove "{removeConfirmation.cateringName}" from your wishlist?
               </p>
             </div>
@@ -358,7 +358,7 @@ const WishlistPage = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setRemoveConfirmation({ isOpen: false, cateringId: null, cateringName: '' })}
-                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
               >
                 Cancel
               </button>

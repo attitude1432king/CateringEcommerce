@@ -16,19 +16,19 @@ export default function HelpCenter() {
     return (
         <div className="min-h-screen bg-white">
             {/* Breadcrumb */}
-            <div className="bg-gray-50 border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-gray-500">
-                    <Link to="/" className="hover:text-gray-700">Home</Link>
+            <div className="bg-neutral-50 border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-neutral-500">
+                    <Link to="/" className="hover:text-neutral-700">Home</Link>
                     <span className="mx-2">/</span>
-                    <span className="text-gray-700 font-medium">Help Center</span>
+                    <span className="text-neutral-700 font-medium">Help Center</span>
                 </div>
             </div>
 
             {/* Hero */}
             <div className="bg-gradient-to-br from-teal-50 to-white py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <h1 className="text-4xl font-bold text-gray-900">Help Center</h1>
-                    <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                    <h1 className="text-4xl font-bold text-neutral-900">Help Center</h1>
+                    <p className="mt-4 text-lg text-neutral-600 max-w-2xl mx-auto">
                         Answers to the most common questions about booking, payments, cancellations, and accounts.
                     </p>
                 </div>
@@ -40,23 +40,23 @@ export default function HelpCenter() {
                         <div key={i} className="border border-gray-100 rounded-xl overflow-hidden">
                             <button
                                 onClick={() => setOpen(open === i ? null : i)}
-                                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+                                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-neutral-50 transition-colors"
                             >
-                                <span className="font-medium text-gray-900">{faq.q}</span>
-                                <svg className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ml-4 ${open === i ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <span className="font-medium text-neutral-900">{faq.q}</span>
+                                <svg className={`w-4 h-4 text-neutral-400 transition-transform shrink-0 ml-4 ${open === i ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                             </button>
                             {open === i && (
-                                <div className="px-5 pb-4 text-gray-600 text-sm leading-relaxed border-t border-gray-50">{faq.a}</div>
+                                <div className="px-5 pb-4 text-neutral-600 text-sm leading-relaxed border-t border-gray-50">{faq.a}</div>
                             )}
                         </div>
                     ))}
                 </div>
 
                 <div className="bg-teal-50 rounded-2xl p-8 text-center">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">Didn't find your answer?</h3>
-                    <p className="text-gray-600 mb-6">Our support team is happy to help with any other questions.</p>
+                    <h3 className="text-lg font-bold text-neutral-900 mb-2">Didn't find your answer?</h3>
+                    <p className="text-neutral-600 mb-6">Our support team is happy to help with any other questions.</p>
                     <Link to="/contact-us" className="inline-block px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors">
                         Contact Support
                     </Link>

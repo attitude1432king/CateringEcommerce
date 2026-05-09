@@ -184,3 +184,4 @@ $RECYCLE.BIN/
 ## Claude AI artifacts (if any)
 .claude/
 /CateringEcommerce.API/wwwroot/
+/CateringEcommerce.API/appsettings.json

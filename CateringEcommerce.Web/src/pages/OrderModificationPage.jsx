@@ -11,7 +11,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
 const OrderModificationPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -36,7 +36,6 @@ const OrderModificationPage = () => {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
 
@@ -64,7 +63,6 @@ const OrderModificationPage = () => {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify({ notes: '' })
       });
@@ -97,7 +95,6 @@ const OrderModificationPage = () => {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify({ rejectionReason: reason })
       });
@@ -124,7 +121,7 @@ const OrderModificationPage = () => {
       case 'approved': return 'bg-green-100 text-green-800 border-green-300';
       case 'rejected': return 'bg-red-100 text-red-800 border-red-300';
       case 'completed': return 'bg-blue-100 text-blue-800 border-blue-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      default: return 'bg-neutral-100 text-neutral-800 border-neutral-300';
     }
   };
 

@@ -196,8 +196,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     co.c_internal_notes AS InternalNotes,
                     co.c_isactive AS IsActive,
                     co.c_email_verified AS EmailVerified,
-                    co.c_phone_verified AS PhoneVerified,
-                    co.c_verified_by_admin AS VerifiedByAdmin
+                    co.c_phone_verified AS PhoneVerified
                 FROM {Table.SysCateringOwner} co
                 WHERE co.c_ownerid = @OwnerId";
 
@@ -232,8 +231,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 InternalNotes = row["InternalNotes"] != DBNull.Value ? row["InternalNotes"].ToString() : null,
                 IsActive = row["IsActive"] != DBNull.Value && Convert.ToBoolean(row["IsActive"]),
                 EmailVerified = row["EmailVerified"] != DBNull.Value && Convert.ToBoolean(row["EmailVerified"]),
-                PhoneVerified = row["PhoneVerified"] != DBNull.Value && Convert.ToBoolean(row["PhoneVerified"]),
-                VerifiedByAdmin = row["VerifiedByAdmin"] != DBNull.Value && Convert.ToBoolean(row["VerifiedByAdmin"])
+                PhoneVerified = row["PhoneVerified"] != DBNull.Value && Convert.ToBoolean(row["PhoneVerified"])
             };
 
             // Load related data
@@ -489,8 +487,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     UPDATE {Table.SysCateringOwner}
                     SET c_approval_status = 'APPROVED',
                         c_approved_date = NOW(),
-                        c_approved_by = @AdminId,
-                        c_verified_by_admin = TRUE,
+                        c_approved_by = @AdminId
                         c_isactive = TRUE,
                         c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerId";

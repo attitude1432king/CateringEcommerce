@@ -221,7 +221,7 @@ const EventLocationMapPicker = ({ value, onChange, error }) => {
         <button
           type="button"
           onClick={handleCurrentLocation}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-red-500 transition-colors"
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-neutral-500 hover:text-red-500 transition-colors"
           title="Use current location"
           disabled={isLoading}
         >
@@ -238,7 +238,7 @@ const EventLocationMapPicker = ({ value, onChange, error }) => {
           <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center z-10">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-3"></div>
-              <p className="text-gray-600">Loading map...</p>
+              <p className="text-neutral-600">Loading map...</p>
             </div>
           </div>
         )}
@@ -268,7 +268,7 @@ const EventLocationMapPicker = ({ value, onChange, error }) => {
         <p className="text-sm text-red-600">{error}</p>
       )}
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-neutral-500">
         Search for your event location or drag the marker to the exact spot. You can also use the location icon to use your current location.
       </p>
     </div>

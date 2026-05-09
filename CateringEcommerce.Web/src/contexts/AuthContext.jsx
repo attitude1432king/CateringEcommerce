@@ -8,7 +8,7 @@ No token is ever accessible to JavaScript.
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { fetchApi } from '../services/apiUtils'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '') || '';
 
 // 1. Create the context
 const AuthContext = createContext(null);

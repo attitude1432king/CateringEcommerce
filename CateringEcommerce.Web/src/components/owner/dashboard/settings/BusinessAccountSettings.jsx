@@ -105,7 +105,7 @@ export default function BusinessAccountSettings({ initialData, onUpdate, isSavin
                         aspect={1}
                     />
 
-                    <button type="button" onClick={() => uploaderRef.current?.triggerFileSelect()} className="mt-3 text-sm font-semibold text-rose-600 hover:text-rose-800">
+                    <button type="button" onClick={() => uploaderRef.current?.triggerFileSelect()} className="mt-3 text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
                         Change Logo
                     </button>
                 </div>
@@ -115,12 +115,12 @@ export default function BusinessAccountSettings({ initialData, onUpdate, isSavin
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                     <div>
                         <label htmlFor="cateringName" className="block text-sm font-medium text-neutral-700">Catering Name <RequiredAsterisk /></label>
-                        <input type="text" name="cateringName" id="cateringName" value={formData.cateringName} onChange={handleChange} autoComplete="off" className={`mt-1 block w-full px-3 py-2 border ${errors.cateringName ? 'border-red-500' : 'border-neutral-300'} rounded-md shadow-sm focus:outline-none focus:ring-rose-500 focus:border-rose-500`} />
+                        <input type="text" name="cateringName" id="cateringName" value={formData.cateringName} onChange={handleChange} autoComplete="off" className={`mt-1 block w-full px-3 py-2 border ${errors.cateringName ? 'border-red-500' : 'border-neutral-300'} rounded-md shadow-sm focus:outline-none focus:ring-orange-400 focus:border-orange-400`} />
                         <ValidationError message={errors.cateringName} />
                     </div>
                     <div>
                         <label htmlFor="ownerName" className="block text-sm font-medium text-neutral-700">Owner Full Name <RequiredAsterisk /></label>
-                        <input type="text" name="ownerName" id="ownerName" value={formData.ownerName} onChange={handleChange} autoComplete="off" className={`mt-1 block w-full px-3 py-2 border ${errors.ownerName ? 'border-red-500' : 'border-neutral-300'} rounded-md shadow-sm focus:outline-none focus:ring-rose-500 focus:border-rose-500`} />
+                        <input type="text" name="ownerName" id="ownerName" value={formData.ownerName} onChange={handleChange} autoComplete="off" className={`mt-1 block w-full px-3 py-2 border ${errors.ownerName ? 'border-red-500' : 'border-neutral-300'} rounded-md shadow-sm focus:outline-none focus:ring-orange-400 focus:border-orange-400`} />
                         <ValidationError message={errors.ownerName} />
                     </div>
                     <div className="flex gap-2">
@@ -152,7 +152,7 @@ export default function BusinessAccountSettings({ initialData, onUpdate, isSavin
                 </div>
 
             <div className="mt-8 pt-5 border-t border-neutral-200 text-right">
-                <button type="submit" /* ... */ >
+                <button type="submit" className="px-6 py-2.5 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                     {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
             </div>

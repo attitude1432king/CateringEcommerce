@@ -45,8 +45,9 @@ export const isValidRedirectUrl = (url) => {
         /data:/i,
         /vbscript:/i,
         /file:/i,
-        /@/,  // Block email-like patterns that could be URLs
-        /\\/  // Block backslashes (path traversal attempts)
+        /@/,     // Block email-like patterns that could be URLs
+        /\\/,    // Block backslashes (path traversal attempts)
+        /\.\./   // Block dot-dot path traversal: /profile/../../admin
     ];
 
     for (const pattern of dangerousPatterns) {
@@ -70,6 +71,7 @@ export const isValidRedirectUrl = (url) => {
         '/settings',
         '/notifications',
         '/dashboard',
+        '/partner-login',
         '/'  // Root path
     ];
 

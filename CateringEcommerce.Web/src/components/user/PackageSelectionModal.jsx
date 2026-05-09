@@ -339,7 +339,7 @@ export default function PackageSelectionModal({
                                     placeholder="Search food items by name..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full px-4 py-3 pl-12 pr-10 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+                                    className="w-full px-4 py-3 pl-12 pr-10 rounded-xl text-neutral-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
                                 />
                                 <svg
                                     className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -352,7 +352,7 @@ export default function PackageSelectionModal({
                                 {searchQuery && (
                                     <button
                                         onClick={() => setSearchQuery('')}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-neutral-600 transition-colors"
                                     >
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -481,8 +481,8 @@ export default function PackageSelectionModal({
                                             <svg className="w-20 h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <h3 className="text-xl font-bold text-gray-700 mb-2">No food items found</h3>
-                                            <p className="text-gray-600 mb-4">
+                                            <h3 className="text-xl font-bold text-neutral-700 mb-2">No food items found</h3>
+                                            <p className="text-neutral-600 mb-4">
                                                 We couldn't find any food items matching "<span className="font-semibold">{searchQuery}</span>"
                                             </p>
                                             <button
@@ -618,7 +618,7 @@ export default function PackageSelectionModal({
                                                                                     className="absolute inset-0 bg-black/0 hover:bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-all"
                                                                                 >
                                                                                     <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 transform scale-90 hover:scale-100 transition-transform">
-                                                                                        <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                        <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                                                                         </svg>
                                                                                         <span className="text-sm font-semibold text-neutral-900">View {mediaType === 'video' ? 'Video' : 'Image'}</span>
@@ -644,7 +644,7 @@ export default function PackageSelectionModal({
                                                                         {/* Selection Indicator */}
                                                                         <div className={`absolute top-3 right-3 w-8 h-8 rounded-full border-3 flex items-center justify-center transition-all ${
                                                                             isSelected
-                                                                                ? 'bg-orange-500 border-white scale-110'
+                                                                                ? 'bg-primary border-white scale-110'
                                                                                 : 'bg-white border-neutral-300'
                                                                         }`}>
                                                                             {isSelected && (
@@ -673,7 +673,7 @@ export default function PackageSelectionModal({
                                                                             </p>
                                                                         )}
                                                                         <div className="flex items-center justify-between">
-                                                                            <span className="text-lg font-bold text-orange-600">
+                                                                            <span className="text-lg font-bold text-primary">
                                                                                 ₹{food.price}
                                                                             </span>
                                                                             {isSelected && (
@@ -730,7 +730,7 @@ export default function PackageSelectionModal({
                                                 name="package-decoration"
                                                 checked={selectedDecorationId === null}
                                                 onChange={() => setSelectedDecorationId(null)}
-                                                className="mt-1 h-5 w-5 text-orange-600"
+                                                className="mt-1 h-5 w-5 text-primary"
                                             />
                                             <div className="flex-1">
                                                 <h4 className="font-bold text-lg text-neutral-900">No decoration</h4>
@@ -802,7 +802,7 @@ export default function PackageSelectionModal({
                                                             name="package-decoration"
                                                             checked={isSelected}
                                                             onChange={() => setSelectedDecorationId(decoration.decorationId)}
-                                                            className="mt-1 h-5 w-5 text-orange-600 flex-shrink-0"
+                                                            className="mt-1 h-5 w-5 text-primary flex-shrink-0"
                                                         />
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-start justify-between gap-3">
@@ -813,7 +813,7 @@ export default function PackageSelectionModal({
                                                                     )}
                                                                 </div>
                                                                 <div className="text-right">
-                                                                    <div className="text-lg font-bold text-orange-600">₹{decoration.price}</div>
+                                                                    <div className="text-lg font-bold text-primary">₹{decoration.price}</div>
                                                                     {isSelected && (
                                                                         <div className="mt-2 text-xs font-semibold text-green-700">
                                                                             SELECTED

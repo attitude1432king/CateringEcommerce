@@ -72,7 +72,7 @@ namespace CateringEcommerce.BAL.Common
             }
         }
 
-        public OwnerBusinessModel GetOwnerDetails(string number = null, long ownerPkid = 0)
+        public async Task<OwnerBusinessModel> GetOwnerDetails(string number = null, long ownerPkid = 0)
         {
             try
             {
@@ -92,7 +92,7 @@ namespace CateringEcommerce.BAL.Common
                     parameters = new NpgsqlParameter[] { new NpgsqlParameter("@MobileNumber", number) };
                 }
 
-                var dt = _dbHelper.Execute(query.ToString(), parameters);
+                var dt = await _dbHelper.ExecuteAsync(query.ToString(), parameters);
 
                 if (dt.Rows.Count > 0)
                 {

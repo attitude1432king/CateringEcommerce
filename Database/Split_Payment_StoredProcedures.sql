@@ -532,40 +532,80 @@ $$;
 -- 7. Get Payment Summary
 -- ===============================================
 
-CREATE OR REPLACE PROCEDURE sp_GetPaymentSummary(
-    IN p_OrderId BIGINT
+DROP PROCEDURE IF EXISTS sp_GetPaymentSummary;
+DROP FUNCTION IF EXISTS sp_GetPaymentSummary(BIGINT);
+
+CREATE OR REPLACE FUNCTION sp_GetPaymentSummary(
+    p_OrderId BIGINT
+)
+RETURNS TABLE (
+    PaymentSummaryId            BIGINT,
+    OrderId                     BIGINT,
+    TotalAmount                 DECIMAL(18,2),
+    AdvancePercentage           DECIMAL(5,2),
+    AdvanceAmount               DECIMAL(18,2),
+    FinalAmount                 DECIMAL(18,2),
+    AdvancePaid                 BOOLEAN,
+    AdvancePaidDate             TIMESTAMP,
+    FinalPaid                   BOOLEAN,
+    FinalPaidDate               TIMESTAMP,
+    PaymentCompleted            BOOLEAN,
+    EscrowStatus                VARCHAR,
+    EscrowAmount                DECIMAL(18,2),
+    EscrowReleasedDate          TIMESTAMP,
+    CommissionRate              DECIMAL(5,2),
+    CommissionAmount            DECIMAL(18,2),
+    CommissionPaid              BOOLEAN,
+    PartnerPayoutStatus         VARCHAR,
+    PartnerAdvanceReleased      BOOLEAN,
+    PartnerAdvanceAmount        DECIMAL(18,2),
+    PartnerAdvanceReleasedDate  TIMESTAMP,
+    PartnerFinalPayout          DECIMAL(18,2),
+    PartnerFinalPayoutDate      TIMESTAMP,
+    PaymentMode                 VARCHAR,
+    CreatedDate                 TIMESTAMP,
+    ModifiedDate                TIMESTAMP,
+    OrderNumber                 VARCHAR,
+    PartnerName                 VARCHAR
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
-
-    -- 1. Payment Summary
+    RETURN QUERY
     SELECT
-        ps.*,
-        o.c_ordernumber,
-        o.c_orderstatus,
-        o.c_paymentstatus,
-        o.c_userid,
-        o.c_cateringownerid,
-        co.c_catering_name AS VendorName
+        ps.c_paymentsummaryid,
+        ps.c_orderid,
+        ps.c_totalamount,
+        ps.c_advancepercentage,
+        ps.c_advanceamount,
+        ps.c_finalamount,
+        ps.c_advancepaid,
+        ps.c_advancepaiddate,
+        ps.c_finalpaid,
+        ps.c_finalpaiddate,
+        ps.c_paymentcompleted,
+        ps.c_escrowstatus,
+        ps.c_escrowamount,
+        ps.c_escrowreleaseddate,
+        ps.c_commissionrate,
+        ps.c_commissionamount,
+        ps.c_commissionpaid,
+        ps.c_vendorpayoutstatus,
+        ps.c_vendoradvancereleased,
+        ps.c_vendoradvanceamount,
+        ps.c_vendoradvancereleaseddate,
+        ps.c_vendorfinalpayout,
+        ps.c_vendorfinalpayoutdate,
+        ps.c_paymentmode,
+        ps.c_createddate,
+        ps.c_modifieddate,
+        o.c_order_number,
+        co.c_catering_name
     FROM t_sys_order_payment_summary ps
-    INNER JOIN t_sys_orders o 
+    INNER JOIN t_sys_orders o
         ON ps.c_orderid = o.c_orderid
-    INNER JOIN t_sys_catering_owner co 
-        ON o.c_cateringownerid = co.c_ownerid
+    INNER JOIN t_sys_catering_owner co
+        ON o.c_ownerid = co.c_ownerid
     WHERE ps.c_orderid = p_OrderId;
-
-    -- 2. Payment Transactions
-    SELECT *
-    FROM t_sys_payment_transactions
-    WHERE c_orderid = p_OrderId
-    ORDER BY c_createddate DESC;
-
-    -- 3. Escrow Ledger
-    SELECT *
-    FROM t_sys_escrow_ledger
-    WHERE c_orderid = p_OrderId
-    ORDER BY c_createddate DESC;
-
 END;
 $$;

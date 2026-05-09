@@ -143,7 +143,7 @@ const GuestCountTimeline = ({
               ${currentPhase === 'limited' ? 'text-amber-900' : ''}
               ${(currentPhase === 'restricted' || currentPhase === 'locked') ? 'text-orange-900' : ''}
               ${currentPhase === 'emergency-only' ? 'text-red-900' : ''}
-              ${currentPhase === 'event' ? 'text-gray-900' : ''}
+              ${currentPhase === 'event' ? 'text-neutral-900' : ''}
             `}>
               {currentPhaseInfo.title}
             </h3>
@@ -153,7 +153,7 @@ const GuestCountTimeline = ({
               ${currentPhase === 'limited' ? 'text-amber-800' : ''}
               ${(currentPhase === 'restricted' || currentPhase === 'locked') ? 'text-orange-800' : ''}
               ${currentPhase === 'emergency-only' ? 'text-red-800' : ''}
-              ${currentPhase === 'event' ? 'text-gray-700' : ''}
+              ${currentPhase === 'event' ? 'text-neutral-700' : ''}
             `}>
               {currentPhaseInfo.description}
             </p>
@@ -163,7 +163,7 @@ const GuestCountTimeline = ({
 
       {/* Timeline Visualization */}
       <div className="bg-white rounded-lg p-6 border-2 border-gray-200">
-        <h3 className="font-semibold text-gray-900 mb-6 flex items-center gap-2">
+        <h3 className="font-semibold text-neutral-900 mb-6 flex items-center gap-2">
           <Calendar className="w-5 h-5" />
           Guest Count Modification Timeline
         </h3>
@@ -206,13 +206,13 @@ const GuestCountTimeline = ({
                   {/* Label */}
                   <p className={`
                     font-semibold text-sm mb-1 text-center
-                    ${isActive ? 'text-blue-700' : isPassed ? 'text-green-700' : 'text-gray-600'}
+                    ${isActive ? 'text-blue-700' : isPassed ? 'text-green-700' : 'text-neutral-600'}
                   `}>
                     {milestone.label}
                   </p>
 
                   {/* Date */}
-                  <p className="text-xs text-gray-500 text-center mb-1">
+                  <p className="text-xs text-neutral-500 text-center mb-1">
                     {milestone.date.toLocaleDateString('en-IN', {
                       day: 'numeric',
                       month: 'short'
@@ -220,7 +220,7 @@ const GuestCountTimeline = ({
                   </p>
 
                   {/* Description */}
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-xs text-neutral-600 text-center">
                     {milestone.description}
                   </p>
 
@@ -239,8 +239,8 @@ const GuestCountTimeline = ({
         {/* Days Remaining */}
         {currentPhase !== 'event' && (
           <div className="mt-6 pt-4 border-t border-gray-200 text-center">
-            <p className="text-sm text-gray-600">
-              Days until event: <span className="font-bold text-gray-900">
+            <p className="text-sm text-neutral-600">
+              Days until event: <span className="font-bold text-neutral-900">
                 {Math.ceil((event.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))}
               </span>
             </p>

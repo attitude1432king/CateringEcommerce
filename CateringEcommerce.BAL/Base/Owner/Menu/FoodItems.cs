@@ -339,7 +339,7 @@ namespace CateringEcommerce.BAL.Base.Owner.Menu
             try
             {
                 string selectQuery = $@"SELECT c_foodid AS ID, c_foodname AS Name FROM {Table.SysFoodItems} 
-                                    WHERE c_ownerid = @OwnerPKID AND c_status = 1 and c_ispackage_item = FALSE";
+                                    WHERE c_ownerid = @OwnerPKID AND c_status = TRUE and c_ispackage_item = FALSE";
                 NpgsqlParameter[] parameters = new NpgsqlParameter[]
                 {
                     new NpgsqlParameter("@OwnerPKID", ownerPKID),

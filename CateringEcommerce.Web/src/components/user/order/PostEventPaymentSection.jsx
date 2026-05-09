@@ -63,7 +63,7 @@ const PostEventPaymentSection = ({ order, liveEventStatus, onPaymentApproved }) 
             className={`w-4 h-4 ${i <= rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
           />
         ))}
-        <span className="text-sm text-gray-600 ml-1">{rating}/5</span>
+        <span className="text-sm text-neutral-600 ml-1">{rating}/5</span>
       </div>
     );
   };
@@ -96,7 +96,7 @@ const PostEventPaymentSection = ({ order, liveEventStatus, onPaymentApproved }) 
         {/* Supervisor Quality Rating */}
         {liveEventStatus.serviceQualityRating && (
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Service Quality Rating</span>
+            <span className="text-neutral-700 font-medium">Service Quality Rating</span>
             <StarRating rating={liveEventStatus.serviceQualityRating} />
           </div>
         )}
@@ -104,15 +104,15 @@ const PostEventPaymentSection = ({ order, liveEventStatus, onPaymentApproved }) 
         {/* Supervisor Notes */}
         {liveEventStatus.supervisorNotes && (
           <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Supervisor Notes</h4>
-            <p className="text-sm text-gray-600">{liveEventStatus.supervisorNotes}</p>
+            <h4 className="text-sm font-medium text-neutral-700 mb-2">Supervisor Notes</h4>
+            <p className="text-sm text-neutral-600">{liveEventStatus.supervisorNotes}</p>
           </div>
         )}
 
         {/* Actual Guest Count */}
         {liveEventStatus.actualGuestCount && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Actual Guest Count</span>
+            <span className="text-neutral-600">Actual Guest Count</span>
             <span className="font-medium">
               {liveEventStatus.actualGuestCount}
               {liveEventStatus.actualGuestCount !== order.guestCount && (
@@ -124,10 +124,10 @@ const PostEventPaymentSection = ({ order, liveEventStatus, onPaymentApproved }) 
 
         {/* Payment Breakdown */}
         <div className="border-t pt-4 space-y-2">
-          <h4 className="font-semibold text-gray-900 mb-3">Final Payment Breakdown</h4>
+          <h4 className="font-semibold text-neutral-900 mb-3">Final Payment Breakdown</h4>
 
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Post-Completion Amount (30%)</span>
+            <span className="text-neutral-600">Post-Completion Amount (30%)</span>
             <span>₹{postEventAmount.toFixed(2)}</span>
           </div>
 
@@ -179,7 +179,7 @@ const PostEventPaymentSection = ({ order, liveEventStatus, onPaymentApproved }) 
         )}
 
         {/* Platform Protection */}
-        <p className="text-xs text-gray-500 text-center">
+        <p className="text-xs text-neutral-500 text-center">
           Payments are held in escrow until verified. Platform protected.
         </p>
       </div>

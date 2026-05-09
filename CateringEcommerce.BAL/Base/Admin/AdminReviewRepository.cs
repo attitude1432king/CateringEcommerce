@@ -29,7 +29,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     u.c_name AS UserName,
                     r.c_overall_rating AS Rating,
                     r.c_review_comment AS Comment,
-                    COALESCE(r.c_ishidden, 0) AS IsHidden,
+                    COALESCE(r.c_ishidden, FALSE) AS IsHidden,
                     r.c_hidden_reason AS HiddenReason,
                     r.c_createddate AS ReviewDate,
                     r.c_orderid AS OrderId
@@ -66,7 +66,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             if (request.IsHidden.HasValue)
             {
-                queryBuilder.Append(" AND COALESCE(r.c_ishidden, 0) = @IsHidden");
+                queryBuilder.Append(" AND COALESCE(r.c_ishidden, FALSE) = @IsHidden");
                 parameters.Add(new NpgsqlParameter("@IsHidden", request.IsHidden.Value));
             }
 
@@ -138,7 +138,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                     r.c_reviewid, r.c_ownerid, co.c_catering_name AS CateringName,
                     r.c_userid, u.c_name AS UserName, u.c_mobile AS UserPhone,
                     r.c_overall_rating, r.c_review_comment,
-                    COALESCE(r.c_ishidden, 0) AS IsHidden,
+                    COALESCE(r.c_ishidden, FALSE) AS IsHidden,
                     r.c_hidden_reason, r.c_hidden_by, r.c_hidden_date,
                     r.c_createddate, r.c_orderid
                 FROM {Table.SysCateringReview} r
@@ -180,7 +180,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 SET c_ishidden = @IsHidden,
                     c_hidden_reason = @Reason,
                     c_hidden_by = @UpdatedBy,
-                    c_hidden_date = CASE WHEN @IsHidden = 1 THEN NOW() ELSE NULL END
+                    c_hidden_date = CASE WHEN @IsHidden THEN NOW() ELSE NULL END
                 WHERE c_reviewid = @ReviewId";
 
             NpgsqlParameter[] parameters = {
@@ -225,7 +225,7 @@ namespace CateringEcommerce.BAL.Base.Admin
                 whereBuilder.Append(" AND r.c_overall_rating <= @MaxRating");
 
             if (request.IsHidden.HasValue)
-                whereBuilder.Append($" AND COALESCE(r.c_ishidden, 0) = {(request.IsHidden.Value ? "1" : "0")}");
+                whereBuilder.Append($" AND COALESCE(r.c_ishidden, FALSE) = {(request.IsHidden.Value ? "TRUE" : "FALSE")}");
 
             return whereBuilder.ToString();
         }

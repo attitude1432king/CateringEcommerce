@@ -422,7 +422,7 @@ const ModernCheckoutPage = () => {
     if (!cart) return null;
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-neutral-50">
             {/* Header */}
             <div className="bg-white border-b sticky top-0 z-40 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-4">
@@ -430,22 +430,22 @@ const ModernCheckoutPage = () => {
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="text-gray-600 hover:text-gray-900 transition-colors"
+                                className="text-neutral-600 hover:text-neutral-900 transition-colors"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
                             </button>
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">Checkout</h1>
-                                <p className="text-sm text-gray-600">Complete your catering order</p>
+                                <h1 className="text-2xl font-bold text-neutral-900">Checkout</h1>
+                                <p className="text-sm text-neutral-600">Complete your catering order</p>
                             </div>
                         </div>
                         <div className="hidden md:flex items-center gap-2 text-sm">
                             <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
-                            <span className="text-gray-700">Secure Checkout</span>
+                            <span className="text-neutral-700">Secure Checkout</span>
                         </div>
                     </div>
                 </div>

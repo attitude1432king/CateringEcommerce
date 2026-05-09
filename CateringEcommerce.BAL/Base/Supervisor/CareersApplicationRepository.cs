@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using CateringEcommerce.Domain.Interfaces;
 using CateringEcommerce.Domain.Interfaces.Supervisor;
 using CateringEcommerce.Domain.Models.Supervisor;
-using NpgsqlTypes;
 
 namespace CateringEcommerce.BAL.Base.Supervisor
 {
@@ -37,13 +36,14 @@ namespace CateringEcommerce.BAL.Base.Supervisor
                 new NpgsqlParameter("@CoverLetter", (object)application.CoverLetter ?? DBNull.Value),
                 new NpgsqlParameter("@YearsOfExperience", application.YearsOfExperience),
                 new NpgsqlParameter("@PreviousEmployer", (object)application.PreviousEmployer ?? DBNull.Value),
-                new NpgsqlParameter("@References", (object)application.References ?? DBNull.Value),
-                new NpgsqlParameter("@ApplicationId", NpgsqlDbType.Bigint) { Direction = ParameterDirection.Output }
+                new NpgsqlParameter("@References", (object)application.References ?? DBNull.Value)
             };
 
-            await _dbHelper.ExecuteStoredProcedureAsync<object>("sp_SubmitCareersApplication", parameters);
+            var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_SubmitCareersApplication", parameters);
 
-            return parameters[11].Value != DBNull.Value ? Convert.ToInt64(parameters[11].Value) : 0;
+            return dt != null && dt.Rows.Count > 0 && dt.Rows[0][0] != DBNull.Value
+                ? Convert.ToInt64(dt.Rows[0][0])
+                : 0;
         }
 
         public async Task<CareersApplicationModel> GetApplicationByIdAsync(long applicationId)

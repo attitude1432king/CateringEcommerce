@@ -97,8 +97,8 @@ const PaymentReviewForm = ({ formData, onUpdate, onSubmit, onBack, isSubmitting 
 
   return (
     <div className="payment-review-form">
-      <h2 className="text-3xl font-bold mb-2 text-gray-900">Payment & Review</h2>
-      <p className="text-gray-600 mb-8">Review your order and complete the payment</p>
+      <h2 className="text-3xl font-bold mb-2 text-neutral-900">Payment & Review</h2>
+      <p className="text-neutral-600 mb-8">Review your order and complete the payment</p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content - Left Side */}
@@ -111,24 +111,24 @@ const PaymentReviewForm = ({ formData, onUpdate, onSubmit, onBack, isSubmitting 
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Event Details</h3>
+              <h3 className="text-lg font-semibold text-neutral-900">Event Details</h3>
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-gray-500 text-xs mb-1">Date</div>
-                <div className="font-semibold text-gray-900">{formData.eventDate}</div>
+                <div className="text-neutral-500 text-xs mb-1">Date</div>
+                <div className="font-semibold text-neutral-900">{formData.eventDate}</div>
               </div>
               <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-gray-500 text-xs mb-1">Time</div>
-                <div className="font-semibold text-gray-900">{formData.eventTime}</div>
+                <div className="text-neutral-500 text-xs mb-1">Time</div>
+                <div className="font-semibold text-neutral-900">{formData.eventTime}</div>
               </div>
               <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-gray-500 text-xs mb-1">Event Type</div>
-                <div className="font-semibold text-gray-900">{formData.eventType}</div>
+                <div className="text-neutral-500 text-xs mb-1">Event Type</div>
+                <div className="font-semibold text-neutral-900">{formData.eventType}</div>
               </div>
               <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-gray-500 text-xs mb-1">Guests</div>
-                <div className="font-semibold text-gray-900">{cart?.guestCount}</div>
+                <div className="text-neutral-500 text-xs mb-1">Guests</div>
+                <div className="font-semibold text-neutral-900">{cart?.guestCount}</div>
               </div>
             </div>
           </div>
@@ -152,39 +152,39 @@ const PaymentReviewForm = ({ formData, onUpdate, onSubmit, onBack, isSubmitting 
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-1">Bank Account Details</h4>
-                  <p className="text-sm text-gray-600">Transfer the total amount to the account below</p>
+                  <h4 className="font-semibold text-neutral-900 mb-1">Bank Account Details</h4>
+                  <p className="text-sm text-neutral-600">Transfer the total amount to the account below</p>
                 </div>
               </div>
 
               <div className="bg-white rounded-lg p-4 space-y-2 mb-4 shadow-sm">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Bank Name</span>
-                  <span className="font-semibold text-gray-900">{getString('PAYMENT.BANK_NAME', 'HDFC Bank')}</span>
+                  <span className="text-neutral-600">Bank Name</span>
+                  <span className="font-semibold text-neutral-900">{getString('PAYMENT.BANK_NAME', 'HDFC Bank')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Account Name</span>
-                  <span className="font-semibold text-gray-900">{getString('PAYMENT.BANK_ACCOUNT_NAME', 'Enyvora Catering Services')}</span>
+                  <span className="text-neutral-600">Account Name</span>
+                  <span className="font-semibold text-neutral-900">{getString('PAYMENT.BANK_ACCOUNT_NAME', 'Enyvora Catering Services')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Account Number</span>
-                  <span className="font-semibold text-gray-900">{getString('PAYMENT.BANK_ACCOUNT_NUMBER', '1234567890123456')}</span>
+                  <span className="text-neutral-600">Account Number</span>
+                  <span className="font-semibold text-neutral-900">{getString('PAYMENT.BANK_ACCOUNT_NUMBER', '1234567890123456')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">IFSC Code</span>
-                  <span className="font-semibold text-gray-900">{getString('PAYMENT.BANK_IFSC_CODE', 'HDFC0001234')}</span>
+                  <span className="text-neutral-600">IFSC Code</span>
+                  <span className="font-semibold text-neutral-900">{getString('PAYMENT.BANK_IFSC_CODE', 'HDFC0001234')}</span>
                 </div>
               </div>
 
               <div className="border-t border-blue-200 pt-4">
-                <label className="block font-medium text-gray-900 mb-3">
+                <label className="block font-medium text-neutral-900 mb-3">
                   Upload Payment Proof <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="file"
                   onChange={handleFileUpload}
                   accept="image/*,.pdf"
-                  className="block w-full text-sm text-gray-600
+                  className="block w-full text-sm text-neutral-600
                     file:mr-4 file:py-3 file:px-6
                     file:rounded-lg file:border-0
                     file:text-sm file:font-semibold
@@ -205,7 +205,7 @@ const PaymentReviewForm = ({ formData, onUpdate, onSubmit, onBack, isSubmitting 
                 {errors.paymentProof && (
                   <p className="mt-2 text-sm text-red-600">{errors.paymentProof}</p>
                 )}
-                <p className="mt-2 text-xs text-gray-600">
+                <p className="mt-2 text-xs text-neutral-600">
                   Accepted formats: JPEG, PNG, PDF (Max 5MB)
                 </p>
               </div>
@@ -223,7 +223,7 @@ const PaymentReviewForm = ({ formData, onUpdate, onSubmit, onBack, isSubmitting 
                   errors.termsAccepted ? 'border-red-500' : ''
                 }`}
               />
-              <span className="text-sm text-gray-700 group-hover:text-gray-900">
+              <span className="text-sm text-neutral-700 group-hover:text-neutral-900">
                 I accept the{' '}
                 <a href="#" className="text-red-500 hover:text-red-600 font-medium underline">
                   terms and conditions
@@ -266,7 +266,7 @@ const PaymentReviewForm = ({ formData, onUpdate, onSubmit, onBack, isSubmitting 
         <button
           onClick={onBack}
           disabled={isSubmitting}
-          className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-3 border-2 border-gray-300 text-neutral-700 font-semibold rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />

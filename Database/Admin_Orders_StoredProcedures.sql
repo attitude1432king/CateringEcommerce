@@ -10,6 +10,9 @@
 -- 1. Get Orders with Pagination and Filtering
 -- =============================================
 
+-- Drop old refcursor-based overload before replacing
+DROP FUNCTION IF EXISTS sp_Admin_GetOrders(INTEGER,INTEGER,VARCHAR,VARCHAR,VARCHAR,TIMESTAMP,TIMESTAMP,BIGINT,BIGINT,NUMERIC,NUMERIC,VARCHAR,VARCHAR,OUT INTEGER,OUT refcursor);
+
 CREATE OR REPLACE FUNCTION sp_Admin_GetOrders(
     p_PageNumber      INTEGER DEFAULT 1,
     p_PageSize        INTEGER DEFAULT 20,
@@ -23,77 +26,96 @@ CREATE OR REPLACE FUNCTION sp_Admin_GetOrders(
     p_MinAmount       NUMERIC(18,2) DEFAULT NULL,
     p_MaxAmount       NUMERIC(18,2) DEFAULT NULL,
     p_SortBy          VARCHAR(50) DEFAULT 'CreatedDate',
-    p_SortOrder       VARCHAR(10) DEFAULT 'DESC',
-    OUT p_TotalCount  INTEGER,
-    OUT ref refcursor
+    p_SortOrder       VARCHAR(10) DEFAULT 'DESC'
+)
+RETURNS TABLE (
+    c_orderid         BIGINT,
+    c_order_number    TEXT,
+    c_userid          BIGINT,
+    c_user_name       TEXT,
+    c_user_email      TEXT,
+    c_user_phone      TEXT,
+    c_cateringownerid BIGINT,
+    c_catering_name   TEXT,
+    c_owner_name      TEXT,
+    c_event_date      TIMESTAMP,
+    c_event_type      TEXT,
+    c_guest_count     INTEGER,
+    c_total_amount    NUMERIC(18,2),
+    c_order_status    TEXT,
+    c_payment_status  TEXT,
+    c_createddate     TIMESTAMP,
+    c_modifieddate    TIMESTAMP,
+    c_contact_person  TEXT,
+    c_contact_phone   TEXT,
+    p_totalcount      BIGINT
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_Offset INTEGER;
+    v_total_count BIGINT;
+    v_Offset      INTEGER;
 BEGIN
     v_Offset := (p_PageNumber - 1) * p_PageSize;
 
-    -- 1. Get total count
-    SELECT COUNT(*) INTO p_TotalCount
+    SELECT COUNT(*) INTO v_total_count
     FROM t_sys_orders o
     INNER JOIN t_sys_user u ON o.c_userid = u.c_userid
     INNER JOIN t_sys_catering_owner co ON o.c_ownerid = co.c_ownerid
     WHERE TRUE
         AND (p_SearchTerm IS NULL OR
              o.c_order_number ILIKE '%' || p_SearchTerm || '%' OR
-             u.c_name ILIKE '%' || p_SearchTerm || '%' OR
+             u.c_name       ILIKE '%' || p_SearchTerm || '%' OR
              co.c_catering_name ILIKE '%' || p_SearchTerm || '%')
-        AND (p_OrderStatus IS NULL OR o.c_order_status = p_OrderStatus)
-        AND (p_PaymentStatus IS NULL OR o.c_payment_status = p_PaymentStatus)
-        AND (p_StartDate IS NULL OR o.c_createddate >= p_StartDate)
-        AND (p_EndDate IS NULL OR o.c_createddate <= p_EndDate)
-        AND (p_UserId IS NULL OR o.c_userid = p_UserId)
-        AND (p_CateringOwnerId IS NULL OR o.c_ownerid = p_CateringOwnerId)
-        AND (p_MinAmount IS NULL OR o.c_total_amount >= p_MinAmount)
-        AND (p_MaxAmount IS NULL OR o.c_total_amount <= p_MaxAmount);
+        AND (p_OrderStatus     IS NULL OR o.c_order_status   = p_OrderStatus)
+        AND (p_PaymentStatus   IS NULL OR o.c_payment_status = p_PaymentStatus)
+        AND (p_StartDate       IS NULL OR o.c_createddate   >= p_StartDate)
+        AND (p_EndDate         IS NULL OR o.c_createddate   <= p_EndDate)
+        AND (p_UserId          IS NULL OR o.c_userid         = p_UserId)
+        AND (p_CateringOwnerId IS NULL OR o.c_ownerid        = p_CateringOwnerId)
+        AND (p_MinAmount       IS NULL OR o.c_total_amount  >= p_MinAmount)
+        AND (p_MaxAmount       IS NULL OR o.c_total_amount  <= p_MaxAmount);
 
-    -- 2. Open cursor for result set
-    OPEN ref FOR
+    RETURN QUERY
     SELECT
         o.c_orderid,
-        o.c_order_number,
+        o.c_order_number::TEXT,
         o.c_userid,
-        u.c_name AS c_user_name,
-        u.c_email AS c_user_email,
-        u.c_mobile AS c_user_phone,
-        o.c_ownerid AS c_cateringownerid,
-        co.c_catering_name,
-        co.c_owner_name,
+        u.c_name::TEXT          AS c_user_name,
+        u.c_email::TEXT         AS c_user_email,
+        u.c_mobile::TEXT        AS c_user_phone,
+        o.c_ownerid             AS c_cateringownerid,
+        co.c_catering_name::TEXT,
+        co.c_owner_name::TEXT,
         o.c_event_date,
-        o.c_event_type,
+        o.c_event_type::TEXT,
         o.c_guest_count,
         o.c_total_amount,
-        o.c_order_status,
-        o.c_payment_status,
+        o.c_order_status::TEXT,
+        o.c_payment_status::TEXT,
         o.c_createddate,
         o.c_modifieddate,
-        o.c_contact_person,
-        o.c_contact_phone
+        o.c_contact_person::TEXT,
+        o.c_contact_phone::TEXT,
+        v_total_count
     FROM t_sys_orders o
     INNER JOIN t_sys_user u ON o.c_userid = u.c_userid
     INNER JOIN t_sys_catering_owner co ON o.c_ownerid = co.c_ownerid
     WHERE TRUE
         AND (p_SearchTerm IS NULL OR
              o.c_order_number ILIKE '%' || p_SearchTerm || '%' OR
-             u.c_name ILIKE '%' || p_SearchTerm || '%' OR
+             u.c_name       ILIKE '%' || p_SearchTerm || '%' OR
              co.c_catering_name ILIKE '%' || p_SearchTerm || '%')
-        AND (p_OrderStatus IS NULL OR o.c_order_status = p_OrderStatus)
-        AND (p_PaymentStatus IS NULL OR o.c_payment_status = p_PaymentStatus)
-        AND (p_StartDate IS NULL OR o.c_createddate >= p_StartDate)
-        AND (p_EndDate IS NULL OR o.c_createddate <= p_EndDate)
-        AND (p_UserId IS NULL OR o.c_userid = p_UserId)
-        AND (p_CateringOwnerId IS NULL OR o.c_ownerid = p_CateringOwnerId)
-        AND (p_MinAmount IS NULL OR o.c_total_amount >= p_MinAmount)
-        AND (p_MaxAmount IS NULL OR o.c_total_amount <= p_MaxAmount)
+        AND (p_OrderStatus     IS NULL OR o.c_order_status   = p_OrderStatus)
+        AND (p_PaymentStatus   IS NULL OR o.c_payment_status = p_PaymentStatus)
+        AND (p_StartDate       IS NULL OR o.c_createddate   >= p_StartDate)
+        AND (p_EndDate         IS NULL OR o.c_createddate   <= p_EndDate)
+        AND (p_UserId          IS NULL OR o.c_userid         = p_UserId)
+        AND (p_CateringOwnerId IS NULL OR o.c_ownerid        = p_CateringOwnerId)
+        AND (p_MinAmount       IS NULL OR o.c_total_amount  >= p_MinAmount)
+        AND (p_MaxAmount       IS NULL OR o.c_total_amount  <= p_MaxAmount)
     ORDER BY o.c_createddate DESC
     LIMIT p_PageSize OFFSET v_Offset;
-
 END;
 $$;
 
@@ -269,11 +291,11 @@ BEGIN
     RETURN QUERY
     SELECT
         COUNT(*) AS TotalOrders,
-        SUM(CASE WHEN c_order_status = 'Pending'    THEN 1 ELSE 0 END) AS PendingOrders,
-        SUM(CASE WHEN c_order_status = 'Confirmed'  THEN 1 ELSE 0 END) AS ConfirmedOrders,
-        SUM(CASE WHEN c_order_status = 'InProgress' THEN 1 ELSE 0 END) AS InProgressOrders,
-        SUM(CASE WHEN c_order_status = 'Completed'  THEN 1 ELSE 0 END) AS CompletedOrders,
-        SUM(CASE WHEN c_order_status = 'Cancelled'  THEN 1 ELSE 0 END) AS CancelledOrders,
+        COALESCE(SUM(CASE WHEN c_order_status = 'Pending'    THEN 1 ELSE 0 END), 0) AS PendingOrders,
+        COALESCE(SUM(CASE WHEN c_order_status = 'Confirmed'  THEN 1 ELSE 0 END), 0) AS ConfirmedOrders,
+        COALESCE(SUM(CASE WHEN c_order_status = 'InProgress' THEN 1 ELSE 0 END), 0) AS InProgressOrders,
+        COALESCE(SUM(CASE WHEN c_order_status = 'Completed'  THEN 1 ELSE 0 END), 0) AS CompletedOrders,
+        COALESCE(SUM(CASE WHEN c_order_status = 'Cancelled'  THEN 1 ELSE 0 END), 0) AS CancelledOrders,
         COALESCE(SUM(CASE WHEN c_order_status NOT IN ('Cancelled', 'Refunded') THEN c_total_amount ELSE 0 END), 0)::DECIMAL(18,2) AS TotalRevenue,
         COALESCE(SUM(CASE WHEN c_order_status = 'Pending' THEN c_total_amount ELSE 0 END), 0)::DECIMAL(18,2) AS PendingRevenue,
         COALESCE(SUM(CASE WHEN c_createddate::DATE = NOW()::DATE THEN 1 ELSE 0 END), 0) AS TodayOrders,

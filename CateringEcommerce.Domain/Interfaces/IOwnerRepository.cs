@@ -10,7 +10,7 @@ namespace CateringEcommerce.Domain.Interfaces
         Task<bool> IsOwnerExistAsync(Int64 ownerPkID);
         bool IsEmailExist(string email);
         bool IsOwnerPhoneExist(string phone);
-        OwnerBusinessModel GetOwnerDetails(string number = null, long ownerPkid = 0);
+        Task<OwnerBusinessModel> GetOwnerDetails(string number = null, long ownerPkid = 0);
         Task<List<CateringMasterTypeModel>> GetCateringMasterType(CateringMaster cateringMasterCategory);
 
         Task<int> SaveFilePath(string filePath, Int64 ownerPkid, string fileName, DocumentType documentType = DocumentType.Menu, long referenceID = 0);

@@ -232,14 +232,14 @@ const GuestCountControl = ({
       {/* Guest Count Control */}
       <div className="bg-white rounded-lg p-6 shadow-sm border-2 border-gray-200">
         <div className="flex items-center gap-2 mb-4">
-          <Users className="w-5 h-5 text-gray-700" />
+          <Users className="w-5 h-5 text-neutral-700" />
           <h3 className="font-semibold text-lg">Modify Guest Count</h3>
         </div>
 
         {/* Current Count Display */}
         <div className="bg-gray-50 rounded-lg p-4 mb-4">
-          <p className="text-sm text-gray-600 mb-1">Current Guest Count</p>
-          <p className="text-3xl font-bold text-gray-900">{order.guestCount}</p>
+          <p className="text-sm text-neutral-600 mb-1">Current Guest Count</p>
+          <p className="text-3xl font-bold text-neutral-900">{order.guestCount}</p>
           {order.guestCountLocked && (
             <span className="inline-block mt-2 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
               🔒 Locked
@@ -301,10 +301,10 @@ const GuestCountControl = ({
 
         {/* Phase Info */}
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-start gap-2 text-sm text-gray-600">
+          <div className="flex items-start gap-2 text-sm text-neutral-600">
             <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900 mb-1">Current Modification Phase: {rules.phase}</p>
+              <p className="font-medium text-neutral-900 mb-1">Current Modification Phase: {rules.phase}</p>
               <ul className="list-disc list-inside space-y-1 text-xs">
                 <li>Increase: {rules.canIncrease ? '✓ Allowed' : '✗ Not allowed'}</li>
                 <li>Decrease: {rules.canDecrease ? '✓ Allowed' : '✗ Not allowed'}</li>

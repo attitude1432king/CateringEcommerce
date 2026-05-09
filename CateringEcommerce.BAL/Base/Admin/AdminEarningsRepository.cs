@@ -242,19 +242,34 @@ namespace CateringEcommerce.BAL.Base.Admin
         public List<AdminMonthlyReportItem> GetMonthlyReport(int year)
         {
             string query = $@"
+                WITH orders_grouped AS (
+                    SELECT
+                        EXTRACT(YEAR  FROM c_createddate)::INTEGER                AS yr,
+                        EXTRACT(MONTH FROM c_createddate)::INTEGER                AS mo,
+                        TRIM(TO_CHAR(MIN(c_createddate), 'Month'))                AS MonthName,
+                        COALESCE(SUM(c_total_amount), 0)                          AS TotalOrderValue,
+                        COALESCE(SUM(c_platform_commission), 0)                   AS PlatformCommission,
+                        COUNT(c_orderid)                                           AS OrderCount
+                    FROM {Table.SysOrders}
+                    WHERE EXTRACT(YEAR FROM c_createddate) = @Year
+                      AND c_order_status = 'Completed'
+                    GROUP BY 1, 2
+                )
                 SELECT
-                    EXTRACT(YEAR FROM o.c_createddate) AS Year,
-                    EXTRACT(MONTH FROM o.c_createddate) AS Month,
-                    TO_CHAR(o.c_createddate, 'Month') AS MonthName,
-                    COALESCE(SUM(o.c_total_amount), 0) AS TotalOrderValue,
-                    COALESCE(SUM(o.c_platform_commission), 0) AS PlatformCommission,
-                    COUNT(o.c_orderid) AS OrderCount,
-                    (SELECT COUNT(*) FROM {Table.SysCateringOwner} WHERE EXTRACT(YEAR FROM c_createddate) = EXTRACT(YEAR FROM o.c_createddate) AND EXTRACT(MONTH FROM c_createddate) = EXTRACT(MONTH FROM o.c_createddate)) AS NewCaterings,
-                    (SELECT COUNT(*) FROM {Table.SysUser} WHERE EXTRACT(YEAR FROM c_createddate) = EXTRACT(YEAR FROM o.c_createddate) AND EXTRACT(MONTH FROM c_createddate) = EXTRACT(MONTH FROM o.c_createddate)) AS NewUsers
-                FROM {Table.SysOrders} o
-                WHERE EXTRACT(YEAR FROM o.c_createddate) = @Year AND o.c_order_status = 'Completed'
-                GROUP BY EXTRACT(YEAR FROM o.c_createddate), EXTRACT(MONTH FROM o.c_createddate), TO_CHAR(o.c_createddate, 'Month')
-                ORDER BY Month";
+                    g.yr                                                           AS Year,
+                    g.mo                                                           AS Month,
+                    g.MonthName,
+                    g.TotalOrderValue,
+                    g.PlatformCommission,
+                    g.OrderCount,
+                    (SELECT COUNT(*) FROM {Table.SysCateringOwner}
+                     WHERE EXTRACT(YEAR  FROM c_createddate) = g.yr
+                       AND EXTRACT(MONTH FROM c_createddate) = g.mo)              AS NewCaterings,
+                    (SELECT COUNT(*) FROM {Table.SysUser}
+                     WHERE EXTRACT(YEAR  FROM c_createddate) = g.yr
+                       AND EXTRACT(MONTH FROM c_createddate) = g.mo)              AS NewUsers
+                FROM orders_grouped g
+                ORDER BY g.mo";
 
             NpgsqlParameter[] parameters = { new NpgsqlParameter("@Year", year) };
             var dt = _dbHelper.Execute(query, parameters);

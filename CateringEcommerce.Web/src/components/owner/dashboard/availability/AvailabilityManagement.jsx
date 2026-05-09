@@ -88,13 +88,13 @@ export default function AvailabilityManagement() {
     if (isLoading) return <div className="flex justify-center items-center h-96"><Loader /></div>;
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="space-y-6">
             {/* Header with fade-in animation */}
 
             <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 p-6">
                 <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 animate-pulse-slow">
-                        <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="p-3 rounded-xl animate-pulse-slow" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                        <svg className="w-6 h-6" style={{ color: 'var(--color-primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                     </div>

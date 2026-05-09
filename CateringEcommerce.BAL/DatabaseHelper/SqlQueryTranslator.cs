@@ -69,10 +69,11 @@ namespace CateringEcommerce.BAL.DatabaseHelper
 
         private static string BuildFunctionCall(string functionName, DbParameter[]? parameters)
         {
-            var argumentList = parameters == null || parameters.Length == 0
-                ? string.Empty
-                : string.Join(", ", parameters.Select(p => p.ParameterName));
+            var inputParams = parameters?
+                .Where(p => p.Direction == ParameterDirection.Input || p.Direction == ParameterDirection.InputOutput)
+                ?? Enumerable.Empty<DbParameter>();
 
+            var argumentList = string.Join(", ", inputParams.Select(p => p.ParameterName));
             return $"SELECT * FROM {functionName}({argumentList})";
         }
 

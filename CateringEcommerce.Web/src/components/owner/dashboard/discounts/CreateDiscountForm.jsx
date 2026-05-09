@@ -138,7 +138,7 @@ export default function CreateDiscountForm({ isOpen, onClose, onSave, editingDis
 
                     {/* SECTION 1: Basic Info */}
                     <section className="space-y-4">
-                        <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wide border-b border-rose-100 pb-2">1. Basic Information</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-wide border-b border-orange-100 pb-2" style={{ color: 'var(--color-primary)' }}>1. Basic Information</h3>
                         <div className="grid grid-cols-1 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-neutral-700 mb-1">Discount Name <span className="text-red-500">*</span></label>
@@ -153,15 +153,15 @@ export default function CreateDiscountForm({ isOpen, onClose, onSave, editingDis
                                 <label className="block text-sm font-medium text-neutral-700 mb-2">Discount Scope <span className="text-red-500">*</span></label>
                                 <div className="flex flex-col sm:flex-row gap-4">
                                     <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
-                                        <input type="radio" name="type" value={1} checked={formData.type === 1} onChange={() => handleTypeChange(1)} className="h-4 w-4 text-rose-600 focus:ring-rose-500" />
+                                        <input type="radio" name="type" value={1} checked={formData.type === 1} onChange={() => handleTypeChange(1)} className="h-4 w-4 text-orange-500 focus:ring-orange-400" />
                                         <span className="ml-2 text-sm font-medium text-neutral-700">Specific Items</span>
                                     </label>
                                     <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
-                                        <input type="radio" name="type" value={2} checked={formData.type === 2} onChange={() => handleTypeChange(2)} className="h-4 w-4 text-rose-600 focus:ring-rose-500" />
+                                        <input type="radio" name="type" value={2} checked={formData.type === 2} onChange={() => handleTypeChange(2)} className="h-4 w-4 text-orange-500 focus:ring-orange-400" />
                                         <span className="ml-2 text-sm font-medium text-neutral-700">Specific Packages</span>
                                     </label>
                                     <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
-                                        <input type="radio" name="type" value={3} checked={formData.type === 3} onChange={() => handleTypeChange(3)} className="h-4 w-4 text-rose-600 focus:ring-rose-500" />
+                                        <input type="radio" name="type" value={3} checked={formData.type === 3} onChange={() => handleTypeChange(3)} className="h-4 w-4 text-orange-500 focus:ring-orange-400" />
                                         <span className="ml-2 text-sm font-medium text-neutral-700">Entire Catering</span>
                                     </label>
                                 </div>
@@ -171,15 +171,15 @@ export default function CreateDiscountForm({ isOpen, onClose, onSave, editingDis
 
                     {/* SECTION 2: Value Config */}
                     <section className="space-y-4">
-                        <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wide border-b border-rose-100 pb-2">2. Value Configuration</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-wide border-b border-orange-100 pb-2" style={{ color: 'var(--color-primary)' }}>2. Value Configuration</h3>
 
                         {/* Mode Selection */}
                         <div className="flex gap-4 mb-4">
-                            <label className={`flex-1 flex items-center justify-center p-2 rounded-md cursor-pointer border ${formData.mode === 1 ? 'bg-rose-50 border-rose-500 text-rose-700' : 'border-neutral-200'}`}>
+                            <label className={`flex-1 flex items-center justify-center p-2 rounded-md cursor-pointer border ${formData.mode === 1 ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-neutral-200'}`}>
                                 <input type="radio" name="mode" value={1} checked={formData.mode === 1} onChange={() => handleModeChange(1)} className="sr-only" />
                                 <span className="font-semibold text-sm">% Percentage</span>
                             </label>
-                            <label className={`flex-1 flex items-center justify-center p-2 rounded-md cursor-pointer border ${formData.mode === 2 ? 'bg-rose-50 border-rose-500 text-rose-700' : 'border-neutral-200'}`}>
+                            <label className={`flex-1 flex items-center justify-center p-2 rounded-md cursor-pointer border ${formData.mode === 2 ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-neutral-200'}`}>
                                 <input type="radio" name="mode" value={2} checked={formData.mode === 2} onChange={() => handleModeChange(2)} className="sr-only" />
                                 <span className="font-semibold text-sm">₹ Flat Amount</span>
                             </label>
@@ -217,7 +217,7 @@ export default function CreateDiscountForm({ isOpen, onClose, onSave, editingDis
                     {/* SECTION 3: Apply To (Dynamic) */}
                     {formData.type !== 3 && (
                         <section className="space-y-4">
-                            <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wide border-b border-rose-100 pb-2">3. Apply Discount To</h3>
+                            <h3 className="text-sm font-bold uppercase tracking-wide border-b border-orange-100 pb-2" style={{ color: 'var(--color-primary)' }}>3. Apply Discount To</h3>
                             <div>
                                 <label className="block text-sm font-medium text-neutral-700 mb-1">
                                     Select {formData.type === 1 ? 'Food Items' : 'Packages'} <span className="text-red-500">*</span>
@@ -240,7 +240,7 @@ export default function CreateDiscountForm({ isOpen, onClose, onSave, editingDis
 
                     {/* SECTION 4: Validity */}
                     <section className="space-y-4">
-                        <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wide border-b border-rose-100 pb-2">4. Validity & Rules</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-wide border-b border-orange-100 pb-2" style={{ color: 'var(--color-primary)' }}>4. Validity & Rules</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-neutral-700 mb-1">Start Date <span className="text-red-500">*</span></label>
@@ -279,7 +279,9 @@ export default function CreateDiscountForm({ isOpen, onClose, onSave, editingDis
                     <button onClick={onClose} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 transition-colors">
                         Cancel
                     </button>
-                    <button onClick={handleSubmit} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 shadow-md transition-colors">
+                    <button onClick={handleSubmit}
+                        className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-md transition-all"
+                        style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                         {editingDiscount ? 'Update Discount' : 'Save Discount'}
                     </button>
                 </div>

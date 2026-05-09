@@ -114,8 +114,8 @@ const MenuSwapUI = ({
               {/* Original Item */}
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="font-medium text-gray-900">{item.itemName}</p>
-                  <p className="text-sm text-gray-600">{item.itemType}</p>
+                  <p className="font-medium text-neutral-900">{item.itemName}</p>
+                  <p className="text-sm text-neutral-600">{item.itemType}</p>
                 </div>
                 <span className="font-semibold">₹{item.price.toFixed(2)}</span>
               </div>
@@ -123,7 +123,7 @@ const MenuSwapUI = ({
               {/* Swap Selection */}
               {!currentSwap ? (
                 <>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
                     Swap with:
                   </label>
                   <select
@@ -153,7 +153,7 @@ const MenuSwapUI = ({
                     })}
                   </select>
                   {similarItems.length === 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-neutral-500 mt-1">
                       No similar priced items available for swap
                     </p>
                   )}

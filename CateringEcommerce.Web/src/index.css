@@ -1,36 +1,27 @@
+/* Enyvora Design System — token foundation (single source of truth).
+   Imported before Tailwind so var(--token) references resolve everywhere. */
+@import './design-system/tokens.css';
+@import './design-system/typography.css';
+@import './design-system/enyvora.css';
+@import './design-system/partner.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Custom shadow components based on tailwind.config.js definitions */
 @layer components {
-  .shadow-input {
-    @apply shadow-[0_2px_8px_rgba(0,0,0,0.06)];
-  }
+  .shadow-input      { box-shadow: var(--shadow-input); }
+  .shadow-card       { box-shadow: var(--shadow-card); }
+  .shadow-card-hover { box-shadow: var(--shadow-card-hover); }
 
-  .shadow-card {
-    @apply shadow-[0_4px_20px_rgba(0,0,0,0.08)];
-  }
+  .bg-gradient-catering      { background: var(--gradient-catering); }
+  .bg-gradient-catering-soft { background: var(--gradient-catering-soft); }
+  .bg-gradient-luxury        { background: var(--gradient-luxury-bg); }
 
-  .shadow-card-hover {
-    @apply shadow-[0_12px_28px_rgba(0,0,0,0.12)];
-  }
-
-  .bg-gradient-catering {
-    @apply bg-gradient-to-r from-[#FF6B35] via-[#FF8C42] to-[#FFB627];
-  }
-
-  .text-catering-primary {
-    @apply text-[#FF6B35];
-  }
-
-  .bg-catering-light {
-    @apply bg-[#FFF8F3];
-  }
-
-  .bg-catering-primary {
-    @apply bg-[#FF6B35];
-  }
+  .text-catering-primary { color: var(--color-primary); }
+  .bg-catering-light     { background-color: var(--color-light); }
+  .bg-catering-primary   { background-color: var(--color-primary); }
 
   /* Scrollbar hide utility */
   .scrollbar-hide {
@@ -49,21 +40,12 @@
   }
 }
 
-:root {
-    /* optional helper if you ever use vh calculations */
-    --vh: 1vh;
-    /* Modern catering brand colors */
-    --color-primary: #FF6B35;
-    --color-primary-dark: #E55A24;
-    --color-secondary: #FF8C42;
-    --color-accent: #FFB627;
-    --color-light: #FFF8F3;
-}
+/* Brand and design tokens are defined in src/design-system/tokens.css. */
 
 body {
-    font-family: 'Inter', 'Poppins', system-ui, sans-serif;
+    font-family: var(--font-sans);
     @apply bg-white;
-    color: #1a1a1a;
+    color: var(--neutral-ink);
 }
 
 /* Premium text styles */
@@ -81,8 +63,12 @@ body {
 
 /* Premium input styling */
 .input-premium {
-    @apply w-full px-5 py-3 md:py-4 text-base rounded-xl border-2 border-neutral-200 bg-white placeholder-neutral-500 focus:outline-none transition-all duration-200 shadow-[0_2px_8px_rgba(0,0,0,0.06)];
-    @apply focus:border-[#FF6B35] focus:ring-4 focus:ring-[#FF6B35]/10;
+    @apply w-full px-5 py-3 md:py-4 text-base rounded-xl border-2 border-neutral-200 bg-white placeholder-neutral-500 focus:outline-none transition-all duration-200;
+    box-shadow: var(--shadow-input);
+}
+.input-premium:focus {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-input), 0 0 0 4px rgba(255, 107, 53, 0.1);
 }
 
 .input-premium::placeholder {
@@ -91,26 +77,34 @@ body {
 
 /* Premium button styles */
 .btn-primary {
-    @apply inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-gradient-catering text-white font-semibold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 focus:outline-none;
-    @apply hover:shadow-[0_12px_28px_rgba(0,0,0,0.12)];
-    @apply focus:ring-4 focus:ring-[#FF6B35]/30;
+    @apply inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 text-white font-semibold rounded-xl transform hover:scale-105 transition-all duration-200 focus:outline-none;
+    background-color: var(--color-primary);
+    background-image: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 50%, var(--color-accent) 100%);
+    box-shadow: var(--shadow-card);
 }
+.btn-primary:hover { box-shadow: var(--shadow-card-hover); }
+.btn-primary:focus { box-shadow: var(--shadow-card), 0 0 0 4px rgba(255, 107, 53, 0.3); }
 
 .btn-secondary {
-    @apply inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-white text-[#FF6B35] font-semibold rounded-xl border-2 border-[#FF6B35] transition-all duration-200 focus:outline-none;
-    @apply shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_28px_rgba(0,0,0,0.12)];
-    @apply focus:ring-4 focus:ring-[#FF6B35]/30;
+    @apply inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-white font-semibold rounded-xl border-2 transition-all duration-200 focus:outline-none;
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-card);
 }
+.btn-secondary:hover { box-shadow: var(--shadow-card-hover); }
+.btn-secondary:focus { box-shadow: var(--shadow-card), 0 0 0 4px rgba(255, 107, 53, 0.3); }
 
 .btn-tertiary {
-    @apply inline-flex items-center justify-center px-6 py-2 md:py-3 text-neutral-700 font-medium rounded-lg hover:bg-[#FFF8F3] transition-colors duration-200;
+    @apply inline-flex items-center justify-center px-6 py-2 md:py-3 text-neutral-700 font-medium rounded-lg transition-colors duration-200;
 }
+.btn-tertiary:hover { background-color: var(--color-light); }
 
 /* Card premium styles */
 .card-premium {
     @apply bg-white rounded-2xl p-6 md:p-8 transition-all duration-300 transform hover:-translate-y-1;
-    @apply shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_28px_rgba(0,0,0,0.12)];
+    box-shadow: var(--shadow-card);
 }
+.card-premium:hover { box-shadow: var(--shadow-card-hover); }
 
 /* Cart drawer animation */
 @keyframes slideInRight {
@@ -138,7 +132,7 @@ body {
 
 /* Hero section background */
 .hero-bg {
-    background-image: linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%);
+    background-image: var(--gradient-catering);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -209,12 +203,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #FF6B35;
+    background: var(--color-primary);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #E55A24;
+    background: var(--color-primary-dark);
 }
 
 /* ========================================
@@ -224,7 +218,7 @@ body {
 /* Premium Typography Scale */
 .luxury-heading {
     @apply font-bold tracking-tight;
-    background: linear-gradient(135deg, #FF6B35 0%, #FFB627 100%);
+    background: var(--gradient-catering-soft);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -236,17 +230,11 @@ body {
 }
 
 /* Gold Accent Elements */
-.gold-accent {
-    @apply text-[#FFB627];
-}
+.gold-accent { color: var(--color-accent); }
 
-.gold-gradient {
-    background: linear-gradient(135deg, #FFB627 0%, #FFD700 50%, #FFB627 100%);
-}
+.gold-gradient { background: var(--gradient-gold-shimmer); }
 
-.gold-border {
-    border-color: #FFB627;
-}
+.gold-border { border-color: var(--color-accent); }
 
 /* Premium Glass Effects */
 .glass-effect {
@@ -263,8 +251,11 @@ body {
 
 /* Luxury Card Styles */
 .luxury-card {
-    @apply bg-white rounded-3xl shadow-lg border border-gray-100 transition-all duration-500;
-    @apply hover:shadow-2xl hover:border-catering-accent/30 hover:-translate-y-2;
+    @apply bg-white rounded-3xl shadow-lg border border-gray-100 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2;
+    position: relative;
+}
+.luxury-card:hover {
+    border-color: rgba(255, 182, 39, 0.3); /* var(--color-accent) at 30 % alpha */
 }
 
 .luxury-card::after {
@@ -274,7 +265,7 @@ body {
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, #FFB627, transparent);
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
     opacity: 0;
     transition: opacity 0.5s ease;
 }
@@ -285,11 +276,11 @@ body {
 
 /* Premium Gradient Backgrounds */
 .gradient-luxury {
-    background: linear-gradient(135deg, #FFF8F3 0%, #FFFFFF 50%, #FFF8F3 100%);
+    background: var(--gradient-luxury-bg);
 }
 
 .gradient-gold-shimmer {
-    background: linear-gradient(135deg, #FFB627 0%, #FFD700 25%, #FFB627 50%, #FFD700 75%, #FFB627 100%);
+    background: var(--gradient-gold-shimmer);
     background-size: 200% 200%;
     animation: shimmer 3s ease-in-out infinite;
 }
@@ -323,7 +314,7 @@ body {
 /* Premium Badge Styles */
 .badge-premium {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold;
-    background: linear-gradient(135deg, #FF6B35 0%, #FFB627 100%);
+    background: var(--gradient-catering-soft);
     color: white;
     box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
 }
@@ -332,13 +323,13 @@ body {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold;
     background: linear-gradient(135deg, rgba(255, 182, 39, 0.1) 0%, rgba(255, 107, 53, 0.1) 100%);
     border: 1px solid rgba(255, 182, 39, 0.3);
-    color: #FF6B35;
+    color: var(--color-primary);
 }
 
 /* Elegant Dividers */
 .divider-gold {
     height: 2px;
-    background: linear-gradient(90deg, transparent, #FFB627, transparent);
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
     margin: 2rem 0;
 }
 
@@ -354,13 +345,13 @@ body {
     content: '';
     flex: 1;
     height: 1px;
-    background: linear-gradient(90deg, transparent, #FFB627, transparent);
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
 }
 
 /* Premium Button Enhancements */
 .btn-luxury {
     @apply px-8 py-4 font-bold rounded-xl shadow-xl transition-all duration-300;
-    background: linear-gradient(135deg, #FF6B35 0%, #FFB627 100%);
+    background: var(--gradient-catering-soft);
     color: white;
     position: relative;
     overflow: hidden;
@@ -388,27 +379,23 @@ body {
 
 /* Text Gradients for Premium Feel */
 .text-gradient-primary {
-    background: linear-gradient(135deg, #FF6B35 0%, #FFB627 100%);
+    background: var(--gradient-catering-soft);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
 .text-gradient-gold {
-    background: linear-gradient(135deg, #FFB627 0%, #FFD700 50%, #FFB627 100%);
+    background: var(--gradient-gold-shimmer);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
 /* Luxury Shadows */
-.shadow-luxury {
-    box-shadow: 0 10px 40px rgba(255, 107, 53, 0.15);
-}
-
-.shadow-gold {
-    box-shadow: 0 10px 40px rgba(255, 182, 39, 0.2);
-}
+.shadow-luxury { box-shadow: var(--shadow-luxury); }
+.shadow-gold   { box-shadow: var(--shadow-gold); }
+.shadow-cta    { box-shadow: var(--shadow-cta); }
 
 /* Premium Focus States */
 .focus-luxury:focus {

@@ -156,7 +156,7 @@ export default function Step4_LegalAndPayments({ formData = {}, setFormData, err
                                 type="file"
                                 accept="application/pdf"
                                 onChange={(e) => handleFileChange('fssaiCertificate', e.target.files[0])}
-                                className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100"
+                                className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
                             />
                             <FilePreview file={formData?.fssaiCertificate} onRemove={() => handleFileChange('fssaiCertificate', null)} />
                             {renderError(errors.fssaiCertificate)}
@@ -171,7 +171,7 @@ export default function Step4_LegalAndPayments({ formData = {}, setFormData, err
                         <p className="text-sm mt-1">As per government regulations, providing a valid GST number is mandatory for all partners on e-commerce platforms. Ensure your business name and address on the certificate match your registration details.</p>
                     </div>
                     <div className="flex items-center mb-4">
-                        <input type="checkbox" name="isGstApplicable" id="isGstApplicable" checked={formData?.isGstApplicable || false} onChange={handleChange} className="h-4 w-4 text-rose-600" />
+                        <input type="checkbox" name="isGstApplicable" id="isGstApplicable" checked={formData?.isGstApplicable || false} onChange={handleChange} className="h-4 w-4 text-orange-500" />
                         <label htmlFor="isGstApplicable" className="ml-2 block text-sm font-medium text-neutral-700">I have a GST Number</label>
                     </div>
                     {formData?.isGstApplicable && (
@@ -187,7 +187,7 @@ export default function Step4_LegalAndPayments({ formData = {}, setFormData, err
                                     type="file"
                                     accept="application/pdf"
                                     onChange={(e) => handleFileChange('gstCertificate', e.target.files[0])}
-                                    className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100"
+                                    className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
                                 />
                                 <FilePreview file={formData?.gstCertificate} onRemove={() => handleFileChange('gstCertificate', null)} />
                                 {renderError(errors.gstCertificate)}
@@ -219,7 +219,7 @@ export default function Step4_LegalAndPayments({ formData = {}, setFormData, err
                                 type="file"
                                 accept="image/*,application/pdf"
                                 onChange={(e) => handleFileChange('panCard', e.target.files[0])}
-                                className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100"
+                                className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
                             />
                             <FilePreview file={formData?.panCard} onRemove={() => handleFileChange('panCard', null)} />
                             {renderError(errors.panCard)}
@@ -247,13 +247,13 @@ export default function Step4_LegalAndPayments({ formData = {}, setFormData, err
                                     onChange={(e) => handleChange({ target: { name: 'ifscCode', value: e.target.value.toUpperCase(), type: 'text' } })}
                                     placeholder="e.g. HDFC0001234"
                                     maxLength="11"
-                                    className={`w-full p-2 border rounded-md focus:outline-none focus:ring-rose-500 focus:border-rose-500 pr-10 ${ifscError ? 'border-red-500' : bankDetails ? 'border-green-500' : 'border-neutral-300'}`}
+                                    className={`w-full p-2 border rounded-md focus:outline-none focus:ring-orange-400 focus:border-orange-400 pr-10 ${ifscError ? 'border-red-500' : bankDetails ? 'border-green-500' : 'border-neutral-300'}`}
                                 />
 
                                 {/* Loading Indicator */}
                                 {isCheckingIfsc && (
                                     <div className="absolute right-3 top-2.5">
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-rose-600"></div>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
                                     </div>
                                 )}
 
@@ -292,7 +292,7 @@ export default function Step4_LegalAndPayments({ formData = {}, setFormData, err
                                 type="file"
                                 accept="application/pdf"
                                 onChange={(e) => handleFileChange('chequeCopy', e.target.files[0])}
-                                className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100"
+                                className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
                             />
                             <FilePreview file={formData?.chequeCopy} onRemove={() => handleFileChange('chequeCopy', null)} />
                             {renderError(errors.chequeCopy)}

@@ -25,11 +25,6 @@ namespace CateringEcommerce.Domain.Interfaces.Security
         /// </summary>
         Task<List<OAuthProviderModel>> GetActiveProvidersAsync();
 
-        /// <summary>
-        /// Update provider configuration (admin only)
-        /// </summary>
-        Task<bool> UpdateProviderConfigAsync(OAuthProviderModel provider);
-
         // =============================================
         // AUTHORIZATION FLOW
         // =============================================

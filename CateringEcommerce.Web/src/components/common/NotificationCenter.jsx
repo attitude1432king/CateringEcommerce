@@ -123,9 +123,9 @@ const NotificationCenter = ({
   const getPriorityIcon = (priority) => {
     switch (priority) {
       case 4: return <AlertCircle className="text-red-600" size={20} />;
-      case 3: return <AlertTriangle className="text-orange-500" size={20} />;
+      case 3: return <AlertTriangle className="text-primary" size={20} />;
       case 2: return <Info className="text-blue-500" size={20} />;
-      default: return <CheckCircle className="text-gray-500" size={20} />;
+      default: return <CheckCircle className="text-neutral-500" size={20} />;
     }
   };
 
@@ -165,9 +165,9 @@ const NotificationCenter = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+            <h3 className="text-lg font-semibold text-neutral-900">Notifications</h3>
             {unreadCount > 0 && (
-              <p className="text-sm text-gray-500">{unreadCount} unread</p>
+              <p className="text-sm text-neutral-500">{unreadCount} unread</p>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -183,7 +183,7 @@ const NotificationCenter = ({
             )}
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-neutral-600"
             >
               <X size={20} />
             </button>
@@ -199,7 +199,7 @@ const NotificationCenter = ({
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4">
               <Info size={48} className="text-gray-300 mb-3" />
-              <p className="text-gray-500 text-center">No notifications yet</p>
+              <p className="text-neutral-500 text-center">No notifications yet</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -217,18 +217,18 @@ const NotificationCenter = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className={`text-sm font-medium ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
+                        <h4 className={`text-sm font-medium ${!notification.isRead ? 'text-neutral-900' : 'text-neutral-700'}`}>
                           {notification.title}
                         </h4>
                         {!notification.isRead && (
                           <span className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full"></span>
                         )}
                       </div>
-                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+                      <p className="mt-1 text-sm text-neutral-600 line-clamp-2">
                         {notification.message}
                       </p>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-neutral-500">
                           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                         </span>
                         <div className="flex items-center gap-2">

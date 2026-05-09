@@ -57,8 +57,8 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
             </svg>
           </div>
           <div>
-            <h3 className="font-bold text-gray-900">Guest Count</h3>
-            <p className="text-xs text-gray-600">Adjust the number of people attending</p>
+            <h3 className="font-bold text-neutral-900">Guest Count</h3>
+            <p className="text-xs text-neutral-600">Adjust the number of people attending</p>
           </div>
         </div>
         {packageMinimum > 50 && (
@@ -79,7 +79,7 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
               className="w-10 h-10 flex items-center justify-center bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               title="Decrease by 50"
             >
-              <span className="text-sm font-bold text-gray-700">-50</span>
+              <span className="text-sm font-bold text-neutral-700">-50</span>
             </button>
             <button
               onClick={() => handleDecrement(10)}
@@ -87,7 +87,7 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
               className="w-10 h-10 flex items-center justify-center bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               title="Decrease by 10"
             >
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
               </svg>
             </button>
@@ -103,15 +103,15 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
               className="group relative"
             >
               <div className="text-center min-w-[120px] px-6 py-3 bg-white rounded-xl border-2 border-orange-500 hover:border-orange-600 transition-all shadow-md">
-                <div className="text-4xl font-bold text-orange-600 leading-none">
+                <div className="text-4xl font-bold text-primary leading-none">
                   {guestCount}
                 </div>
-                <div className="text-xs text-gray-600 mt-1 uppercase tracking-wide font-medium">
+                <div className="text-xs text-neutral-600 mt-1 uppercase tracking-wide font-medium">
                   Guests
                 </div>
               </div>
               <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-xs text-gray-500 whitespace-nowrap">Click to edit</span>
+                <span className="text-xs text-neutral-500 whitespace-nowrap">Click to edit</span>
               </div>
             </button>
           ) : (
@@ -127,7 +127,7 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
                   }
                 }}
                 autoFocus
-                className="w-full text-center text-4xl font-bold text-orange-600 px-4 py-3 border-2 border-orange-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full text-center text-4xl font-bold text-primary px-4 py-3 border-2 border-orange-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
                 min={packageMinimum}
                 max={10000}
               />
@@ -142,7 +142,7 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
               className="w-10 h-10 flex items-center justify-center bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               title="Increase by 10"
             >
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
@@ -152,14 +152,14 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
               className="w-10 h-10 flex items-center justify-center bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               title="Increase by 50"
             >
-              <span className="text-sm font-bold text-gray-700">+50</span>
+              <span className="text-sm font-bold text-neutral-700">+50</span>
             </button>
           </div>
         </div>
 
         {/* Range Indicator */}
         <div className="mt-4 text-center">
-          <div className="text-xs text-gray-600">
+          <div className="text-xs text-neutral-600">
             Range: {packageMinimum} - 10,000 guests
           </div>
         </div>
@@ -167,7 +167,7 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
 
       {/* Quick Presets */}
       <div>
-        <p className="text-xs font-medium text-gray-700 mb-2">Quick Select:</p>
+        <p className="text-xs font-medium text-neutral-700 mb-2">Quick Select:</p>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {quickPresets.map((preset) => (
             <button
@@ -176,10 +176,10 @@ const GuestCountSelector = ({ guestCount, onGuestCountChange, packageMinimum = 5
               disabled={preset < packageMinimum}
               className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                 guestCount === preset
-                  ? 'bg-orange-500 text-white shadow-md'
+                  ? 'bg-primary text-white shadow-md'
                   : preset < packageMinimum
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-100 text-gray-700 hover:bg-orange-100 hover:text-orange-700 border border-gray-200'
+                  : 'bg-gray-100 text-neutral-700 hover:bg-primary/10 hover:text-orange-700 border border-gray-200'
               }`}
             >
               {preset}

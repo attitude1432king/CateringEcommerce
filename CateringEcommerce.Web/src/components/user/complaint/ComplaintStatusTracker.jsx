@@ -85,7 +85,7 @@ const ComplaintStatusTracker = ({ complaint }) => {
           </span>
         </div>
 
-        <p className="text-gray-600">{currentStatus.description}</p>
+        <p className="text-neutral-600">{currentStatus.description}</p>
       </div>
 
       {/* Complaint Details */}
@@ -93,15 +93,15 @@ const ComplaintStatusTracker = ({ complaint }) => {
         <h3 className="font-semibold mb-3">Complaint Details</h3>
         <dl className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <dt className="text-gray-600 mb-1">Type</dt>
+            <dt className="text-neutral-600 mb-1">Type</dt>
             <dd className="font-medium">{complaint.type}</dd>
           </div>
           <div>
-            <dt className="text-gray-600 mb-1">Severity</dt>
+            <dt className="text-neutral-600 mb-1">Severity</dt>
             <dd className="font-medium capitalize">{complaint.severity}</dd>
           </div>
           <div>
-            <dt className="text-gray-600 mb-1">Submitted On</dt>
+            <dt className="text-neutral-600 mb-1">Submitted On</dt>
             <dd className="font-medium">
               {new Date(complaint.submittedAt).toLocaleDateString('en-IN', {
                 day: 'numeric',
@@ -111,12 +111,12 @@ const ComplaintStatusTracker = ({ complaint }) => {
             </dd>
           </div>
           <div>
-            <dt className="text-gray-600 mb-1">Order #</dt>
+            <dt className="text-neutral-600 mb-1">Order #</dt>
             <dd className="font-medium">{complaint.orderNumber}</dd>
           </div>
           <div className="col-span-2">
-            <dt className="text-gray-600 mb-1">Description</dt>
-            <dd className="font-medium text-gray-900">{complaint.description}</dd>
+            <dt className="text-neutral-600 mb-1">Description</dt>
+            <dd className="font-medium text-neutral-900">{complaint.description}</dd>
           </div>
         </dl>
       </div>
@@ -150,9 +150,9 @@ const ComplaintStatusTracker = ({ complaint }) => {
 
                   {/* Content */}
                   <div className="flex-1 pb-6">
-                    <p className="font-medium text-gray-900 mb-1">{event.title}</p>
-                    <p className="text-sm text-gray-600 mb-1">{event.description}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-medium text-neutral-900 mb-1">{event.title}</p>
+                    <p className="text-sm text-neutral-600 mb-1">{event.description}</p>
+                    <p className="text-xs text-neutral-500">
                       {new Date(event.timestamp).toLocaleString('en-IN', {
                         day: 'numeric',
                         month: 'short',
@@ -209,17 +209,17 @@ const ComplaintStatusTracker = ({ complaint }) => {
               <div className="bg-white rounded-lg p-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-600 mb-1">Approved Refund</p>
+                    <p className="text-neutral-600 mb-1">Approved Refund</p>
                     <p className="text-2xl font-bold text-green-700">
                       ₹{complaint.resolution.refundAmount.toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-600 mb-1">Refund Status</p>
+                    <p className="text-neutral-600 mb-1">Refund Status</p>
                     <p className="font-semibold text-green-700">
                       {complaint.resolution.refundStatus || 'Processing'}
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-neutral-600 mt-1">
                       Expected in 5-7 business days
                     </p>
                   </div>
@@ -240,7 +240,7 @@ const ComplaintStatusTracker = ({ complaint }) => {
               <p className="text-sm text-red-800 mb-4">{complaint.rejectionDetails.reason}</p>
 
               {complaint.rejectionDetails.explanation && (
-                <div className="bg-white rounded-lg p-3 text-sm text-gray-700">
+                <div className="bg-white rounded-lg p-3 text-sm text-neutral-700">
                   <p className="font-medium mb-1">Detailed Explanation:</p>
                   <p>{complaint.rejectionDetails.explanation}</p>
                 </div>

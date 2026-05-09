@@ -86,10 +86,10 @@ const FileComplaintPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading order details...</p>
+          <p className="mt-4 text-neutral-600">Loading order details...</p>
         </div>
       </div>
     );
@@ -97,7 +97,7 @@ const FileComplaintPage = () => {
 
   if (error && !order) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8">
+      <div className="min-h-screen bg-neutral-100 py-8">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-lg">
             <h3 className="font-semibold mb-2">Error Loading Order</h3>
@@ -115,12 +115,12 @@ const FileComplaintPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-neutral-100 py-8">
       <div className="max-w-6xl mx-auto px-4">
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">File a Complaint</h1>
-          <p className="text-gray-600">
+          <p className="text-neutral-600">
             Order #{order?.orderNumber} - {order?.cateringName}
           </p>
         </div>

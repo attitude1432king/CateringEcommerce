@@ -77,7 +77,7 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
             const isToday = dateStr === today.toISOString().split('T')[0];
             const dateInfo = specialDates[dateStr];
 
-            let statusColor = 'bg-white hover:bg-indigo-50'; // Default Open
+            let statusColor = 'bg-white hover:bg-orange-50'; // Default Open
             let statusBadge = null;
             let borderColor = 'border-neutral-200';
 
@@ -119,7 +119,7 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
                     {/* Date Number */}
                     <div className="flex justify-between items-start">
                         {isToday ? (
-                            <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-sm font-bold rounded-full shadow-lg animate-pulse-ring">
+                            <div className="flex items-center justify-center w-8 h-8 text-white text-sm font-bold rounded-full shadow-lg animate-pulse-ring" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                                 {day}
                             </div>
                         ) : (
@@ -141,7 +141,7 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
 
                     {/* Hover Effect */}
                     {!isDisabled && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none rounded"></div>
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none rounded" style={{ background: 'linear-gradient(135deg, #FF6B35, #FFB627)' }}></div>
                     )}
 
                     {/* Click Ripple Effect */}
@@ -161,12 +161,12 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
 
             {isLoading && (
                 <div className="absolute inset-0 bg-white/50 z-10 flex justify-center items-center backdrop-blur-sm">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-primary)' }}></div>
                 </div>
             )}
         
             {/* Calendar Header */}
-            <div className="p-6 border-b border-neutral-100 bg-gradient-to-r from-indigo-50 to-purple-50 animate-gradient-slide">
+            <div className="p-6 border-b border-neutral-100 bg-neutral-50 animate-gradient-slide">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="animate-slide-in-left">
                         <h2 className="text-2xl font-bold text-neutral-900">{MONTHS[month]} {year}</h2>
@@ -176,7 +176,8 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
                     <div className="flex items-center gap-2 animate-slide-in-right">
                         <button
                             onClick={handlePrevMonth}
-                            className="p-2.5 hover:bg-white rounded-xl text-neutral-600 hover:text-indigo-600 transition-all duration-300 border border-transparent hover:border-indigo-200 transform hover:scale-110 active:scale-95"
+                            className="p-2.5 hover:bg-white rounded-xl text-neutral-600 transition-all duration-300 border border-transparent hover:border-orange-200 transform hover:scale-110 active:scale-95"
+                            style={{ '--hover-color': 'var(--color-primary)' }}
                             disabled={isDisabled}
                         >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,7 +187,8 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
 
                         <button
                             onClick={() => setCurrentDate(new Date())}
-                            className="px-4 py-2.5 text-sm font-semibold text-indigo-600 bg-white hover:bg-indigo-50 rounded-xl transition-all duration-300 border border-indigo-200 transform hover:scale-105 active:scale-95 hover:shadow-md"
+                            className="px-4 py-2.5 text-sm font-semibold bg-white hover:bg-orange-50 rounded-xl transition-all duration-300 border border-orange-200 transform hover:scale-105 active:scale-95 hover:shadow-md"
+                            style={{ color: 'var(--color-primary)' }}
                             disabled={isDisabled}
                         >
                             Today
@@ -194,7 +196,7 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
 
                         <button
                             onClick={handleNextMonth}
-                            className="p-2.5 hover:bg-white rounded-xl text-neutral-600 hover:text-indigo-600 transition-all duration-300 border border-transparent hover:border-indigo-200 transform hover:scale-110 active:scale-95"
+                            className="p-2.5 hover:bg-white rounded-xl text-neutral-600 transition-all duration-300 border border-transparent hover:border-orange-200 transform hover:scale-110 active:scale-95"
                             disabled={isDisabled}
                         >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,20 +226,23 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
             </div>
 
             {/* Legend */}
-            <div className="p-6 bg-gradient-to-r from-neutral-50 to-indigo-50 border-t border-neutral-200">
+            <div className="p-6 bg-neutral-50 border-t border-neutral-200">
                 <div className="flex flex-wrap gap-6 text-sm">
                     {[
                         { color: 'bg-white border-2 border-neutral-300', label: 'Open' },
                         { color: 'bg-red-100 border-2 border-red-300', label: 'Closed' },
                         { color: 'bg-orange-100 border-2 border-orange-300', label: 'Fully Booked' },
-                        { color: 'bg-gradient-to-br from-indigo-600 to-purple-600', label: 'Today', rounded: true }
+                        { color: '', label: 'Today', rounded: true, gradient: true }
                     ].map((item, index) => (
                         <div
                             key={item.label}
                             className="flex items-center gap-2 animate-fade-in-up group cursor-default"
                             style={{ animationDelay: `${index * 100}ms` }}
                         >
-                            <div className={`w-4 h-4 ${item.color} ${item.rounded ? 'rounded-full' : 'rounded'} group-hover:scale-125 transition-transform duration-300`}></div>
+                            <div
+                                className={`w-4 h-4 ${item.color} ${item.rounded ? 'rounded-full' : 'rounded'} group-hover:scale-125 transition-transform duration-300`}
+                                style={item.gradient ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
+                            ></div>
                             <span className="text-neutral-700 font-medium">{item.label}</span>
                         </div>
                     ))}
@@ -281,10 +286,10 @@ export default function AvailabilityCalendar({ specialDates, onDateUpdate, onMon
 
                 @keyframes pulse-ring {
                     0%, 100% {
-                        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+                        box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.7);
                     }
                     50% {
-                        box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+                        box-shadow: 0 0 0 8px rgba(255, 107, 53, 0);
                     }
                 }
 

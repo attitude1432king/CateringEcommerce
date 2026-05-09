@@ -37,10 +37,10 @@ const OrderConfirmationModal = ({ order, onClose }) => {
         </div>
 
         {/* Success Message */}
-        <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
+        <h2 className="text-2xl font-bold text-center text-neutral-900 mb-2">
           Order Placed Successfully!
         </h2>
-        <p className="text-center text-gray-600 mb-6">
+        <p className="text-center text-neutral-600 mb-6">
           Thank you for your order. We have received your request.
         </p>
 
@@ -48,11 +48,11 @@ const OrderConfirmationModal = ({ order, onClose }) => {
         <div className="bg-gray-50 rounded-lg p-4 mb-6">
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-gray-600">Order Number:</span>
+              <span className="text-neutral-600">Order Number:</span>
               <span className="font-semibold text-red-500">{order.orderNumber}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Event Date:</span>
+              <span className="text-neutral-600">Event Date:</span>
               <span className="font-medium">
                 {new Date(order.eventDate).toLocaleDateString('en-IN', {
                   day: 'numeric',
@@ -62,16 +62,16 @@ const OrderConfirmationModal = ({ order, onClose }) => {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Total Amount:</span>
+              <span className="text-neutral-600">Total Amount:</span>
               <span className="font-semibold text-lg">₹{order.totalAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Payment Method:</span>
+              <span className="text-neutral-600">Payment Method:</span>
               <span className="font-medium">{order.paymentMethod}</span>
             </div>
             {order.paymentMethod === 'BankTransfer' && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Payment Status:</span>
+                <span className="text-neutral-600">Payment Status:</span>
                 <span className="font-medium text-yellow-600">{order.paymentStatus}</span>
               </div>
             )}
@@ -101,7 +101,7 @@ const OrderConfirmationModal = ({ order, onClose }) => {
           </button>
           <button
             onClick={handleContinueBrowsing}
-            className="w-full px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            className="w-full px-6 py-3 border border-gray-300 text-neutral-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
           >
             Continue Browsing
           </button>

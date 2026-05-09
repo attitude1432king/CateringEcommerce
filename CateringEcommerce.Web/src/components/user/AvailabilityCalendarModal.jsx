@@ -81,7 +81,7 @@ export default function AvailabilityCalendarModal({
                 <div className="px-5 py-4 md:px-6 md:py-5 border-b border-neutral-200 bg-gradient-to-r from-orange-50 via-white to-amber-50">
                     <div className="flex items-start justify-between gap-4">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-600">Check Availability</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Check Availability</p>
                             <h2 className="text-xl md:text-2xl font-bold text-neutral-900 mt-1">Choose your event date</h2>
                             <p className="text-sm text-neutral-600 mt-1">
                                 Booking opens from {minDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}.
@@ -151,10 +151,10 @@ export default function AvailabilityCalendarModal({
                                     disabled={isDisabled}
                                     className={`aspect-square rounded-2xl border text-sm font-semibold transition-all ${
                                         isSelected
-                                            ? 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-200'
+                                            ? 'border-orange-500 bg-primary text-white shadow-lg shadow-orange-200'
                                             : isDisabled
                                                 ? 'border-neutral-100 bg-neutral-50 text-neutral-300 cursor-not-allowed'
-                                                : 'border-neutral-200 bg-white text-neutral-800 hover:border-orange-300 hover:bg-orange-50'
+                                                : 'border-neutral-200 bg-white text-neutral-800 hover:border-orange-300 hover:bg-primary/5'
                                     }`}
                                 >
                                     {day.getDate()}
@@ -174,7 +174,7 @@ export default function AvailabilityCalendarModal({
                                 Disabled
                             </span>
                             <span className="inline-flex items-center gap-2">
-                                <span className="w-3 h-3 rounded-full bg-orange-500 border border-orange-500" />
+                                <span className="w-3 h-3 rounded-full bg-primary border border-orange-500" />
                                 Selected
                             </span>
                         </div>

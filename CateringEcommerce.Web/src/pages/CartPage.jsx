@@ -91,28 +91,25 @@ const CartPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50">
       {/* Header */}
       <div className="bg-white border-b shadow-sm sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button onClick={() => navigate(-1)} className="icon-btn shrink-0" aria-label="Go back">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Your Cart</h1>
-                <p className="text-sm text-gray-600">Review your catering order</p>
+                <h1 className="text-xl font-bold text-neutral-900">Your Cart</h1>
+                <p className="text-sm text-neutral-500">Review your catering order</p>
               </div>
             </div>
             <button
               onClick={handleContinueShopping}
-              className="hidden md:flex items-center gap-2 px-4 py-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+              className="hidden md:flex items-center gap-2 px-4 py-2 text-primary hover:bg-primary/5 rounded-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -129,17 +126,17 @@ const CartPage = () => {
           {/* LEFT COLUMN - Cart Items & Details */}
           <div className="lg:col-span-8 space-y-6">
             {/* Caterer Info Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6">
               <div className="flex items-start gap-4">
                 {cart.cateringLogo && (
                   <img
                     src={`${API_BASE_URL}${cart.cateringLogo}`}
                     alt={cart.cateringName}
-                    className="w-20 h-20 rounded-lg object-cover border-2 border-gray-200 shadow-md"
+                    className="w-20 h-20 rounded-lg object-cover border-2 border-neutral-200 shadow-md"
                   />
                 )}
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold text-gray-900">{cart.cateringName}</h2>
+                  <h2 className="text-xl font-bold text-neutral-900">{cart.cateringName}</h2>
                   <div className="flex items-center gap-3 mt-2">
                     <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -153,7 +150,7 @@ const CartPage = () => {
                       </svg>
                       4.5 Rating
                     </span>
-                    <span className="text-xs text-gray-500">FSSAI Certified</span>
+                    <span className="text-xs text-neutral-500">FSSAI Certified</span>
                   </div>
                 </div>
                 <button
@@ -183,22 +180,22 @@ const CartPage = () => {
 
             {/* Decoration (if selected) */}
             {cart.decorationName && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                       <span className="text-2xl">🎨</span>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Decoration Theme</h3>
-                      <p className="text-sm text-gray-600">{cart.decorationName}</p>
+                      <h3 className="font-semibold text-neutral-900">Decoration Theme</h3>
+                      <p className="text-sm text-neutral-600">{cart.decorationName}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-gray-900">
+                    <p className="text-lg font-bold text-neutral-900">
                       ₹{cart.decorationPrice?.toLocaleString('en-IN')}
                     </p>
-                    <p className="text-xs text-gray-500">One-time setup</p>
+                    <p className="text-xs text-neutral-500">One-time setup</p>
                   </div>
                 </div>
               </div>
@@ -206,22 +203,22 @@ const CartPage = () => {
 
             {/* Additional Items */}
             {cart.additionalItems && cart.additionalItems.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Additional Items</h3>
+              <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6">
+                <h3 className="text-lg font-bold text-neutral-900 mb-4">Additional Items</h3>
                 <div className="space-y-3">
                   {cart.additionalItems.map((item) => (
                     <div
                       key={item.foodId}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg hover:bg-neutral-100 transition-colors"
                     >
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{item.foodName || item.name}</h4>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <h4 className="font-medium text-neutral-900">{item.foodName || item.name}</h4>
+                        <p className="text-sm text-neutral-600 mt-1">
                           ₹{item.price?.toLocaleString('en-IN')} × {item.quantity} × {cart.guestCount} guests
                         </p>
                       </div>
                       <div className="flex items-center gap-4">
-                        <p className="text-lg font-bold text-gray-900">
+                        <p className="text-lg font-bold text-neutral-900">
                           ₹{(item.price * (item.quantity || 1) * cart.guestCount).toLocaleString('en-IN')}
                         </p>
                         <button
@@ -273,8 +270,8 @@ const CartPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Clear Cart?</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="text-lg font-semibold text-neutral-900 mb-2">Clear Cart?</h3>
+              <p className="text-sm text-neutral-600">
                 Are you sure you want to remove all items from your cart? This action cannot be undone.
               </p>
             </div>
@@ -282,7 +279,7 @@ const CartPage = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
               >
                 Cancel
               </button>

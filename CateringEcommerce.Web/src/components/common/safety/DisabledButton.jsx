@@ -26,7 +26,7 @@ const DisabledButton = ({
   const variantStyles = {
     primary: {
       enabled: 'bg-gradient-to-r from-catering-primary to-catering-secondary text-white hover:shadow-lg',
-      disabled: 'bg-gray-300 text-gray-500 cursor-not-allowed'
+      disabled: 'bg-gray-300 text-neutral-500 cursor-not-allowed'
     },
     secondary: {
       enabled: 'bg-white border-2 border-catering-primary text-catering-primary hover:bg-catering-light',

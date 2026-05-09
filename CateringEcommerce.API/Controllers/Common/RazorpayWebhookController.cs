@@ -1,11 +1,10 @@
 using CateringEcommerce.BAL.Base.User;
 using CateringEcommerce.Domain.Interfaces.Common;
 using CateringEcommerce.Domain.Interfaces.Payment;
+using CateringEcommerce.Domain.Models.Payment;
 using CateringEcommerce.Domain.Models.User;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
+using Microsoft.AspNetCore.Authorization;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -16,23 +15,28 @@ namespace CateringEcommerce.API.Controllers.Common
     /// Webhook endpoint for receiving Razorpay payment notifications
     /// This endpoint is called by Razorpay servers and MUST NOT require authentication
     /// </summary>
+    [AllowAnonymous]
     [ApiController]
     [Route("api/webhooks/razorpay")]
     public class RazorpayWebhookController : ControllerBase
     {
         private readonly ILogger<RazorpayWebhookController> _logger;
         private readonly IRazorpayPaymentService _razorpayService;
+        private readonly IRazorpayWebhookService _webhookService;
+
         private readonly PaymentStageService _paymentStageService;
         private readonly IOrderRepository _orderRepository;
 
         public RazorpayWebhookController(
             ILogger<RazorpayWebhookController> logger,
             IRazorpayPaymentService razorpayService,
+            IRazorpayWebhookService webhookService,
             PaymentStageService paymentStageService,
             IOrderRepository orderRepository)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _razorpayService = razorpayService ?? throw new ArgumentNullException(nameof(razorpayService));
+            _webhookService = webhookService ?? throw new ArgumentNullException(nameof(webhookService));
             _paymentStageService = paymentStageService ?? throw new ArgumentNullException(nameof(paymentStageService));
             _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
         }
@@ -41,7 +45,7 @@ namespace CateringEcommerce.API.Controllers.Common
         /// Razorpay webhook endpoint for payment notifications
         /// Handles: payment.authorized, payment.captured, payment.failed events
         /// </summary>
-        [HttpPost]
+        [HttpPost("HandleWebhook")]
         public async Task<IActionResult> HandleWebhook()
         {
             try
@@ -75,6 +79,21 @@ namespace CateringEcommerce.API.Controllers.Common
                 {
                     _logger.LogError("SECURITY ALERT: Invalid webhook signature received. Possible attack attempt.");
                     return Unauthorized(new { error = "Invalid signature" });
+                }
+
+                var result = await _webhookService.ProcessAsync(new RazorpayWebhookRequest
+                {
+                    RawBody = requestBody,
+                    Signature = Request.Headers["X-Razorpay-Signature"].FirstOrDefault(),
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    UserAgent = Request.Headers["User-Agent"].ToString()
+                });
+
+                if (!result.IsValid)
+                {
+                    _logger.LogWarning("Razorpay webhook rejected. Status: {Status}, Message: {Message}, LogId: {WebhookLogId}",
+                        result.Status, result.Message, result.WebhookLogId);
+                    return BadRequest(new { error = result.Message });
                 }
 
                 _logger.LogInformation("Webhook signature verified successfully");

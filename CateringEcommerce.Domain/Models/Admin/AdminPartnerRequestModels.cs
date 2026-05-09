@@ -107,7 +107,6 @@ namespace CateringEcommerce.Domain.Models.Admin
         public bool IsActive { get; set; }
         public bool EmailVerified { get; set; }
         public bool PhoneVerified { get; set; }
-        public bool VerifiedByAdmin { get; set; }
 
         // Timeline
         public List<PartnerActionLog> Timeline { get; set; } = new();

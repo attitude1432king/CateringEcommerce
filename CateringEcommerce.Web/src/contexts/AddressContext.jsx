@@ -13,7 +13,7 @@ export const useAddress = () => {
 };
 
 export const AddressProvider = ({ children }) => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const { getSetting, getInt } = useAppSettings();
   const [addresses, setAddresses] = useState([]);
   const [defaultAddress, setDefaultAddress] = useState(null);
@@ -24,7 +24,7 @@ export const AddressProvider = ({ children }) => {
 
   // Fetch user's saved addresses
   const fetchAddresses = async () => {
-    if (!user || !token) {
+    if (!user) {
       setAddresses([]);
       setDefaultAddress(null);
       return;
@@ -36,8 +36,8 @@ export const AddressProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/User/UserAddresses`, {
         method: 'GET',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -62,7 +62,7 @@ export const AddressProvider = ({ children }) => {
 
   // Add new address
   const addAddress = async (addressData) => {
-    if (!user || !token) {
+    if (!user) {
       throw new Error('User not authenticated');
     }
 
@@ -72,8 +72,8 @@ export const AddressProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/User/UserAddresses`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(addressData)
@@ -103,7 +103,7 @@ export const AddressProvider = ({ children }) => {
 
   // Update existing address
   const updateAddress = async (addressId, addressData) => {
-    if (!user || !token) {
+    if (!user) {
       throw new Error('User not authenticated');
     }
 
@@ -113,8 +113,8 @@ export const AddressProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/User/UserAddresses/${addressId}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(addressData)
@@ -146,7 +146,7 @@ export const AddressProvider = ({ children }) => {
 
   // Delete address
   const deleteAddress = async (addressId) => {
-    if (!user || !token) {
+    if (!user) {
       throw new Error('User not authenticated');
     }
 
@@ -156,8 +156,8 @@ export const AddressProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/User/UserAddresses/${addressId}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -185,7 +185,7 @@ export const AddressProvider = ({ children }) => {
 
   // Set address as default
   const setAsDefault = async (addressId) => {
-    if (!user || !token) {
+    if (!user) {
       throw new Error('User not authenticated');
     }
 
@@ -195,8 +195,8 @@ export const AddressProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE_URL}/User/UserAddresses/${addressId}/setDefault`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -236,13 +236,13 @@ export const AddressProvider = ({ children }) => {
 
   // Fetch addresses when user logs in
   useEffect(() => {
-    if (user && token) {
+    if (user) {
       fetchAddresses();
     } else {
       setAddresses([]);
       setDefaultAddress(null);
     }
-  }, [user, token]);
+  }, [user]);
 
   const value = {
     addresses,

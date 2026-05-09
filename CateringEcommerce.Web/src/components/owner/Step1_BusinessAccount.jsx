@@ -98,9 +98,9 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
             <ImageUploader onImageCropped={handleLogoCropped} aspect={1} circularCrop={true} triggerId="logo-upload-input" />
 
             {/* Header */}
-            <div className="bg-gradient-to-r from-rose-50 to-amber-50 p-6 rounded-xl border-l-4 border-rose-500">
+            <div className="p-6 rounded-xl border-l-4" style={{ background: 'rgba(255,107,53,0.06)', borderLeftColor: 'var(--color-primary)' }}>
                 <h3 className="text-3xl font-bold text-neutral-800 mb-2 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" style={{ color: 'var(--color-primary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                     Business & Account Setup
@@ -131,8 +131,8 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
             {/* Catering Details Section */}
             <section className="bg-white p-6 rounded-xl border-2 border-neutral-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" style={{ color: 'var(--color-primary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
                     </div>
@@ -190,13 +190,13 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    <div className="mx-auto w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center group-hover:bg-rose-100 transition-colors">
-                                        <svg className="h-8 w-8 text-neutral-400 group-hover:text-rose-500 transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                    <div className="mx-auto w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center group-hover:bg-orange-50 transition-colors">
+                                        <svg className="h-8 w-8 text-neutral-400 group-hover:text-orange-500 transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                                             <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
                                         </svg>
                                     </div>
                                     <div>
-                                        <p className="text-base font-semibold text-neutral-700 group-hover:text-rose-600 transition-colors">Click to upload logo</p>
+                                        <p className="text-base font-semibold text-neutral-700 group-hover:text-orange-600 transition-colors">Click to upload logo</p>
                                         <p className="text-xs text-neutral-500 mt-1">PNG, JPG, JPEG • Max 5MB • Square format preferred</p>
                                     </div>
                                 </div>
@@ -341,7 +341,7 @@ export default function Step1_BusinessAccount({ formData, setFormData, errors, o
                                 type="checkbox"
                                 checked={formData.cateringNumberSameAsMobile}
                                 onChange={handleSameAsMobileCheck}
-                                className="mr-3 h-5 w-5 text-rose-600 border-neutral-300 rounded focus:ring-2 focus:ring-rose-200 cursor-pointer"
+                                className="mr-3 h-5 w-5 text-orange-500 border-neutral-300 rounded focus:ring-2 focus:ring-orange-200 cursor-pointer"
                             />
                             <span className="text-neutral-700 group-hover:text-neutral-900">
                                 Same as Mobile Number (auto-verifies if mobile is verified)

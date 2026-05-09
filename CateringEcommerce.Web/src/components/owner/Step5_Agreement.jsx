@@ -398,7 +398,7 @@ I hereby agree to all the terms and conditions mentioned in this Partner Agreeme
         return (
             <div className="flex items-center justify-center py-20">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto mb-4"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
                     <p className="text-neutral-600">Loading agreement...</p>
                 </div>
             </div>
@@ -408,9 +408,9 @@ I hereby agree to all the terms and conditions mentioned in this Partner Agreeme
     return (
         <div className="animate-fade-in space-y-8">
             {/* Header */}
-            <div className="bg-gradient-to-r from-rose-50 to-pink-50 p-6 rounded-xl border-l-4 border-rose-500">
+            <div className="p-6 rounded-xl border-l-4" style={{ background: 'rgba(255,107,53,0.06)', borderLeftColor: 'var(--color-primary)' }}>
                 <h3 className="text-3xl font-bold text-neutral-800 mb-2 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" style={{ color: 'var(--color-primary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     Partner Agreement
@@ -442,8 +442,8 @@ I hereby agree to all the terms and conditions mentioned in this Partner Agreeme
             <section className="bg-white p-6 rounded-xl border-2 border-neutral-100 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" style={{ color: 'var(--color-primary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                         </div>
@@ -485,15 +485,15 @@ I hereby agree to all the terms and conditions mentioned in this Partner Agreeme
                     </div>
                 </div>
 
-                <label className="flex items-start gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-rose-300 hover:bg-rose-50 transition-all group">
+                <label className="flex items-start gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-all group">
                     <input
                         type="checkbox"
                         checked={formData.agreementAccepted || false}
                         onChange={handleCheckboxChange}
-                        className="mt-1 h-5 w-5 text-rose-600 border-neutral-300 rounded focus:ring-2 focus:ring-rose-200 cursor-pointer"
+                        className="mt-1 h-5 w-5 text-orange-500 border-neutral-300 rounded focus:ring-2 focus:ring-orange-200 cursor-pointer"
                     />
                     <div className="flex-1">
-                        <p className="text-sm font-semibold text-neutral-800 group-hover:text-rose-700">
+                        <p className="text-sm font-semibold text-neutral-800 group-hover:text-orange-700">
                             I have read and agree to all the terms and conditions of the Partner Agreement
                         </p>
                         <p className="text-xs text-neutral-600 mt-1">

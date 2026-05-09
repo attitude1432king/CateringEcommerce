@@ -44,7 +44,7 @@ const LiveEventBanner = ({ order, liveEventStatus }) => {
 
       <div className="p-6 space-y-6">
         {/* Event Summary */}
-        <div className="flex items-center gap-4 text-sm text-gray-700">
+        <div className="flex items-center gap-4 text-sm text-neutral-700">
           <span className="font-medium">{order.cateringName}</span>
           <span className="text-gray-400">|</span>
           <span>{new Date(order.eventDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
@@ -146,10 +146,10 @@ const LiveEventBanner = ({ order, liveEventStatus }) => {
 
         {/* Payment Lock Notice */}
         <div className="flex items-start gap-3 bg-gray-50 rounded-lg p-4 border border-gray-200">
-          <Lock className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
+          <Lock className="w-5 h-5 text-neutral-500 flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="font-medium text-gray-800">Payment Locked During Live Event</h4>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-neutral-600 mt-1">
               All payments and order modifications are locked while your event is in progress.
               The final payment will be unlocked after event completion and supervisor verification.
             </p>

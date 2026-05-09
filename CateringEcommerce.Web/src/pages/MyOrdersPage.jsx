@@ -93,22 +93,22 @@ const MyOrdersPage = () => {
       Completed: 'bg-green-100 text-green-800',
       Cancelled: 'bg-red-100 text-red-800'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-neutral-100 text-neutral-800';
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your orders...</p>
+          <p className="mt-4 text-neutral-600">Loading your orders...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-neutral-100 py-8">
       <div className="max-w-6xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">My Orders</h1>
 
@@ -134,7 +134,7 @@ const MyOrdersPage = () => {
               />
             </svg>
             <h2 className="text-2xl font-semibold mb-2">No orders yet</h2>
-            <p className="text-gray-600 mb-6">Start browsing to place your first order</p>
+            <p className="text-neutral-600 mb-6">Start browsing to place your first order</p>
             <button
               onClick={() => navigate('/')}
               className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
@@ -163,13 +163,13 @@ const MyOrdersPage = () => {
                       )}
                       <div>
                         <h3 className="font-semibold text-lg">{order.cateringName}</h3>
-                        <p className="text-sm text-gray-600">Order #{order.orderNumber}</p>
+                        <p className="text-sm text-neutral-600">Order #{order.orderNumber}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <p className="text-gray-600">Event Date</p>
+                        <p className="text-neutral-600">Event Date</p>
                         <p className="font-medium">
                           {new Date(order.eventDate).toLocaleDateString('en-IN', {
                             day: 'numeric',
@@ -179,15 +179,15 @@ const MyOrdersPage = () => {
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Event Type</p>
+                        <p className="text-neutral-600">Event Type</p>
                         <p className="font-medium">{order.eventType}</p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Guests</p>
+                        <p className="text-neutral-600">Guests</p>
                         <p className="font-medium">{order.guestCount}</p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Total Amount</p>
+                        <p className="text-neutral-600">Total Amount</p>
                         <p className="font-semibold text-lg text-red-500">
                           ₹{order.totalAmount.toFixed(2)}
                         </p>
@@ -203,7 +203,7 @@ const MyOrdersPage = () => {
                     >
                       {order.orderStatus}
                     </span>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-neutral-500">
                       {order.paymentMethod}
                     </p>
                     {/* P2 FIX: Cancel order button */}
@@ -227,7 +227,7 @@ const MyOrdersPage = () => {
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -239,7 +239,7 @@ const MyOrdersPage = () => {
                     className={`px-4 py-2 rounded-lg transition-colors ${
                       currentPage === index + 1
                         ? 'bg-red-500 text-white'
-                        : 'bg-white border border-gray-300 hover:bg-gray-50'
+                        : 'bg-white border border-neutral-300 hover:bg-neutral-50'
                     }`}
                   >
                     {index + 1}
@@ -249,7 +249,7 @@ const MyOrdersPage = () => {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -265,14 +265,14 @@ const MyOrdersPage = () => {
           <div className="bg-white rounded-lg max-w-md w-full shadow-2xl">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">Cancel Order</h2>
+              <h2 className="text-xl font-bold text-neutral-900">Cancel Order</h2>
               <button
                 onClick={() => {
                   setShowCancelModal(false);
                   setCancelReason('');
                   setSelectedOrderId(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-neutral-400 hover:text-neutral-600 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -302,7 +302,7 @@ const MyOrdersPage = () => {
               </div>
 
               <div>
-                <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="cancelReason" className="block text-sm font-medium text-neutral-700 mb-2">
                   Reason for Cancellation <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -310,21 +310,21 @@ const MyOrdersPage = () => {
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   placeholder="Please provide a reason for cancelling this order..."
                 />
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+            <div className="flex items-center justify-end gap-3 p-6 border-t bg-neutral-50">
               <button
                 onClick={() => {
                   setShowCancelModal(false);
                   setCancelReason('');
                   setSelectedOrderId(null);
                 }}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                className="px-4 py-2 text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors font-medium"
                 disabled={isCancelling}
               >
                 Keep Order

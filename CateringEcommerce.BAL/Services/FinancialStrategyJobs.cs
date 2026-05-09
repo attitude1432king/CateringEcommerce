@@ -33,7 +33,6 @@ namespace CateringEcommerce.BAL.Services
                     null
                 );
 
-                _logger.LogInformation($"AutoLockGuestCount completed. Orders locked: {result?.OrdersLocked ?? 0}");
             }
             catch (Exception ex)
             {

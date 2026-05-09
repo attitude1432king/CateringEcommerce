@@ -725,11 +725,8 @@ export default function CateringDetailPage() {
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md shadow-sm border-b border-neutral-100 px-4 py-3">
                 <div className="flex items-center justify-between max-w-7xl mx-auto">
                     <div className="flex items-center gap-4 flex-1">
-                        <button
-                            onClick={handleBack}
-                            className="p-2 hover:bg-neutral-100 rounded-full transition-colors"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <button onClick={handleBack} className="icon-btn shrink-0" aria-label="Go back">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                         </button>
@@ -765,6 +762,7 @@ export default function CateringDetailPage() {
                             src={`${API_BASE_URL}${cateringDetail.bannerUrl}`}
                             alt={`${cateringDetail.cateringName} catering setup`}
                             className="w-full h-full object-cover"
+                            loading="lazy" decoding="async"
                         />
                         {/* Dark Gradient Overlay for better content visibility */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20"></div>
@@ -843,7 +841,7 @@ export default function CateringDetailPage() {
                         <div className="flex flex-wrap gap-3">
                             <button
                                 onClick={() => scrollToSection('packages')}
-                                className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-2xl hover:shadow-orange-500/50 transition-all hover:scale-105 flex items-center gap-2"
+                                className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white px-6 py-3 rounded-xl font-bold text-sm shadow-2xl hover:shadow-primary/30 transition-all hover:scale-105 flex items-center gap-2"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -882,7 +880,7 @@ export default function CateringDetailPage() {
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                             {/* Price per Plate */}
                             <div className="flex flex-col items-center text-center">
-                                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-3 shadow-lg">
+                                <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center mb-3 shadow-lg">
                                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
@@ -945,7 +943,7 @@ export default function CateringDetailPage() {
                 <div className="px-4 md:px-8 mb-8">
                     <div className="max-w-7xl mx-auto">
                         <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
-                            <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-6 h-6 text-primary" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                             </svg>
                             Available Offers
@@ -966,7 +964,7 @@ export default function CateringDetailPage() {
 
                                 if (isBest) {
                                     return (
-                                        <div key={coupon.discountId} className="min-w-[280px] bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl p-5 shadow-xl border-2 border-orange-400 relative overflow-hidden">
+                                        <div key={coupon.discountId} className="min-w-[280px] bg-gradient-to-br from-primary to-primary-dark text-white rounded-2xl p-5 shadow-xl border-2 border-orange-400 relative overflow-hidden">
                                             <div className="absolute top-2 right-2 bg-yellow-400 text-orange-900 text-xs px-2 py-1 rounded-full font-bold">
                                                 BEST OFFER
                                             </div>
@@ -1023,7 +1021,7 @@ export default function CateringDetailPage() {
                                 onClick={() => scrollToSection(tab.id)}
                                 className={`relative py-4 px-6 whitespace-nowrap text-sm font-bold transition-all duration-300 ${
                                     activeSection === tab.id
-                                        ? 'text-orange-600'
+                                        ? 'text-primary'
                                         : 'text-neutral-600 hover:text-neutral-900'
                                 }`}
                             >
@@ -1035,7 +1033,7 @@ export default function CateringDetailPage() {
                                 {activeSection === tab.id && (
                                     <Motion.div
                                         layoutId="activeTab"
-                                        className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-t-full"
+                                        className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-primary-dark rounded-t-full"
                                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     />
                                 )}
@@ -1052,7 +1050,7 @@ export default function CateringDetailPage() {
                 <section id="overview" className="scroll-mt-32">
                     <div className="bg-gradient-to-br from-orange-50 via-white to-rose-50 rounded-3xl p-8 md:p-10 border-2 border-orange-100 shadow-xl">
                         <div className="flex items-start gap-6 mb-6">
-                            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                            <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
                                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -1142,7 +1140,7 @@ export default function CateringDetailPage() {
                                     onClick={() => setSelectedPackage(pkg)}
                                     className={`group relative border-3 rounded-2xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 ${
                                         selectedPackage?.packageId === pkg.packageId
-                                            ? 'border-catering-primary ring-4 ring-catering-primary/20 bg-gradient-to-br from-orange-50 to-rose-50'
+                                            ? 'border-primary ring-4 ring-primary/20 bg-gradient-to-br from-orange-50 to-rose-50'
                                             : 'border-neutral-200 hover:border-neutral-300 bg-white'
                                     }`}
                                 >
@@ -1159,7 +1157,7 @@ export default function CateringDetailPage() {
 
                                     {/* Selected Checkmark */}
                                     {selectedPackage?.packageId === pkg.packageId && (
-                                        <div className="absolute top-4 right-4 bg-catering-primary text-white rounded-full p-2 shadow-xl">
+                                        <div className="absolute top-4 right-4 bg-primary text-white rounded-full p-2 shadow-xl">
                                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                             </svg>
@@ -1175,7 +1173,7 @@ export default function CateringDetailPage() {
 
                                         {/* Price */}
                                         <div className="flex items-baseline gap-2 mb-4">
-                                            <div className="text-3xl font-bold text-catering-primary">
+                                            <div className="text-3xl font-bold text-primary">
                                                 ₹{pkg.pricePerPerson}
                                             </div>
                                             <div className="text-sm text-neutral-500">per person</div>
@@ -1185,7 +1183,7 @@ export default function CateringDetailPage() {
                                         {packageCategories[pkg.packageId] && packageCategories[pkg.packageId].length > 0 && (
                                             <div className="border-t border-neutral-200 pt-4 mb-4">
                                                 <div className="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
-                                                    <svg className="w-4 h-4 text-catering-primary" fill="currentColor" viewBox="0 0 20 20">
+                                                    <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
                                                         <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                                     </svg>
                                                     Food Categories
@@ -1235,7 +1233,7 @@ export default function CateringDetailPage() {
                                         {(!packageCategories[pkg.packageId] || packageCategories[pkg.packageId].length === 0) && pkg.items && pkg.items.length > 0 && (
                                             <div className="border-t border-neutral-200 pt-4 mb-4">
                                                 <div className="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
-                                                    <svg className="w-4 h-4 text-catering-primary" fill="currentColor" viewBox="0 0 20 20">
+                                                    <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
                                                         <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
                                                         <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
                                                     </svg>
@@ -1244,12 +1242,12 @@ export default function CateringDetailPage() {
                                                 <ul className="space-y-2">
                                                     {pkg.items.slice(0, 4).map((item, i) => (
                                                         <li key={i} className="text-sm text-neutral-600 flex items-start gap-2">
-                                                            <span className="w-1.5 h-1.5 bg-catering-primary rounded-full mt-1.5 flex-shrink-0"></span>
+                                                            <span className="w-1.5 h-1.5 bg-primary rounded-full mt-1.5 flex-shrink-0"></span>
                                                             <span className="flex-1">{item.description}</span>
                                                         </li>
                                                     ))}
                                                     {pkg.items.length > 4 && (
-                                                        <li className="text-sm text-catering-primary font-semibold pt-1">
+                                                        <li className="text-sm text-primary font-semibold pt-1">
                                                             +{pkg.items.length - 4} more delicious items
                                                         </li>
                                                     )}
@@ -1263,7 +1261,7 @@ export default function CateringDetailPage() {
                                                 e.stopPropagation();
                                                 handleSelectPackageItems(pkg);
                                             }}
-                                            className="w-full bg-gradient-to-r from-catering-primary to-orange-600 text-white py-3 px-4 rounded-xl font-semibold text-sm hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                                            className="w-full bg-gradient-to-r from-primary to-primary-dark text-white py-3 px-4 rounded-xl font-semibold text-sm hover:shadow-lg transition-all flex items-center justify-center gap-2"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1282,7 +1280,7 @@ export default function CateringDetailPage() {
                             <div className="flex items-start justify-between mb-6">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-4 mb-3">
-                                        <div className="bg-catering-primary text-white p-3 rounded-xl shadow-md">
+                                        <div className="bg-primary text-white p-3 rounded-xl shadow-md">
                                             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
@@ -1363,7 +1361,7 @@ export default function CateringDetailPage() {
                             <div className="flex gap-4">
                                 <button
                                     onClick={handleRequestSampleTaste}
-                                    className="flex-1 bg-white border-3 border-catering-primary text-catering-primary py-4 px-6 rounded-xl font-bold text-base hover:bg-orange-50 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3"
+                                    className="flex-1 bg-white border-3 border-primary text-primary py-4 px-6 rounded-xl font-bold text-base hover:bg-primary/5 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3"
                                 >
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1372,7 +1370,7 @@ export default function CateringDetailPage() {
                                 </button>
                                 <button
                                     onClick={() => handleSelectPackageItems(selectedPackage)}
-                                    className="flex-1 bg-gradient-to-r from-catering-primary to-orange-600 text-white py-4 px-6 rounded-xl font-bold text-base hover:shadow-xl transition-all shadow-lg flex items-center justify-center gap-3"
+                                    className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 px-6 rounded-xl font-bold text-base hover:shadow-xl transition-all shadow-lg flex items-center justify-center gap-3"
                                 >
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1417,8 +1415,8 @@ export default function CateringDetailPage() {
                                 }}
                                 className={`px-6 py-3 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shadow-sm flex-shrink-0 ${
                                     selectedCategory === null
-                                        ? 'bg-gradient-to-r from-catering-primary to-orange-600 text-white shadow-lg scale-105'
-                                        : 'bg-white text-neutral-700 border-2 border-neutral-200 hover:border-catering-primary'
+                                        ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg scale-105'
+                                        : 'bg-white text-neutral-700 border-2 border-neutral-200 hover:border-primary'
                                 }`}
                             >
                                 All Items
@@ -1429,8 +1427,8 @@ export default function CateringDetailPage() {
                                     onClick={() => filterFoodItemsByCategory(cat.categoryId)}
                                     className={`px-6 py-3 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shadow-sm flex-shrink-0 ${
                                         selectedCategory === cat.categoryId
-                                            ? 'bg-gradient-to-r from-catering-primary to-orange-600 text-white shadow-lg scale-105'
-                                            : 'bg-white text-neutral-700 border-2 border-neutral-200 hover:border-catering-primary'
+                                            ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg scale-105'
+                                            : 'bg-white text-neutral-700 border-2 border-neutral-200 hover:border-primary'
                                     }`}
                                 >
                                     {cat.name}
@@ -1449,7 +1447,7 @@ export default function CateringDetailPage() {
                             <div key={category} className="mb-12">
                                 {/* Category Header */}
                                 <h3 className="text-xl font-bold text-neutral-800 mb-6 flex items-center gap-3">
-                                    <div className="h-1 w-12 bg-gradient-to-r from-catering-primary to-orange-500 rounded-full"></div>
+                                    <div className="h-1 w-12 bg-gradient-to-r from-primary to-primary-dark rounded-full"></div>
                                     {category}
                                     <div className="h-1 flex-1 bg-neutral-200 rounded-full"></div>
                                 </h3>
@@ -1467,7 +1465,7 @@ export default function CateringDetailPage() {
                                             <div
                                                 key={item.foodItemId}
                                                 className={`group rounded-2xl overflow-hidden border-2 shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 ${
-                                                    selected ? 'border-catering-primary ring-4 ring-catering-primary/30 bg-orange-50' : 'border-neutral-200 bg-white'
+                                                    selected ? 'border-primary ring-4 ring-primary/30 bg-orange-50' : 'border-neutral-200 bg-white'
                                                 }`}
                                             >
                                                 {/* ✅ Media Section (Image or Video) */}
@@ -1497,7 +1495,7 @@ export default function CateringDetailPage() {
                                                             {/* Play Icon Overlay */}
                                                             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-40 transition-all">
                                                                 <div className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-xl">
-                                                                    <svg className="w-8 h-8 text-catering-primary ml-1" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <svg className="w-8 h-8 text-primary ml-1" fill="currentColor" viewBox="0 0 20 20">
                                                                         <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                                                                     </svg>
                                                                 </div>
@@ -1565,7 +1563,7 @@ export default function CateringDetailPage() {
                                                             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-md ${
                                                                 selected
                                                                     ? 'bg-red-500 text-white hover:bg-red-600'
-                                                                    : 'bg-gradient-to-r from-catering-primary to-orange-600 text-white hover:shadow-lg'
+                                                                    : 'bg-gradient-to-r from-primary to-primary-dark text-white hover:shadow-lg'
                                                             }`}
                                                         >
                                                             {selected ? '✓ Added' : '+ Add'}
@@ -1634,7 +1632,7 @@ export default function CateringDetailPage() {
                                         <h4 className="font-bold text-lg text-neutral-900 mb-1">{decor.name}</h4>
                                         <p className="text-sm text-neutral-600 mb-3">{decor.themeName}</p>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xl font-bold text-catering-primary">₹{decor.price}</span>
+                                            <span className="text-xl font-bold text-primary">₹{decor.price}</span>
                                             <div className="flex items-center gap-2">
                                                 {decor.isAvailable && (
                                                     <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">Available</span>
@@ -1645,7 +1643,7 @@ export default function CateringDetailPage() {
                                                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-md ${
                                                         isSelected
                                                             ? 'bg-red-500 text-white hover:bg-red-600'
-                                                            : 'bg-gradient-to-r from-catering-primary to-orange-600 text-white hover:shadow-lg'
+                                                            : 'bg-gradient-to-r from-primary to-primary-dark text-white hover:shadow-lg'
                                                     }`}
                                                 >
                                                     {isSelected ? 'âœ“ Added' : '+ Add'}
@@ -1679,7 +1677,7 @@ export default function CateringDetailPage() {
                                     className="bg-white border-2 border-neutral-200 rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow"
                                 >
                                     <div className="flex items-start gap-5">
-                                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-catering-primary to-orange-600 text-white flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-md">
+                                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-md">
                                             {review.userName ? review.userName.charAt(0).toUpperCase() : 'U'}
                                         </div>
                                         <div className="flex-1">
@@ -1807,12 +1805,12 @@ export default function CateringDetailPage() {
                                     <div className="text-sm text-neutral-600 mt-1">
                                         ₹{selectedPackage.pricePerPerson}/person
                                         {selectedIndividualItems.length > 0 && (
-                                            <span className="ml-2 text-catering-primary font-bold">
+                                            <span className="ml-2 text-primary font-bold">
                                                 + {selectedIndividualItems.length} add-ons
                                             </span>
                                         )}
                                         {selectedStandaloneDecorations.length > 0 && (
-                                            <span className="ml-2 text-orange-600 font-bold">
+                                            <span className="ml-2 text-primary font-bold">
                                                 + {selectedStandaloneDecorations.length} decorations
                                             </span>
                                         )}
@@ -1838,7 +1836,7 @@ export default function CateringDetailPage() {
                             disabled={!selectedPackage && selectedIndividualItems.length === 0 && selectedStandaloneDecorations.length === 0}
                             className={`px-10 py-4 rounded-xl font-bold text-white text-base transition-all shadow-lg ${
                                 selectedPackage || selectedIndividualItems.length > 0 || selectedStandaloneDecorations.length > 0
-                                    ? 'bg-gradient-to-r from-catering-primary to-orange-600 hover:shadow-2xl hover:scale-105'
+                                    ? 'bg-gradient-to-r from-primary to-primary-dark hover:shadow-2xl hover:scale-105'
                                     : 'bg-neutral-300 cursor-not-allowed'
                             }`}
                         >
@@ -1985,20 +1983,20 @@ export default function CateringDetailPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Replace Cart?</h3>
-                            <p className="text-sm text-gray-600">{cartReplaceConfirmation.message}</p>
+                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">Replace Cart?</h3>
+                            <p className="text-sm text-neutral-600">{cartReplaceConfirmation.message}</p>
                         </div>
 
                         <div className="flex gap-3">
                             <button
                                 onClick={handleCartReplaceCancel}
-                                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                                className="flex-1 px-4 py-2.5 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleCartReplaceConfirm}
-                                className="flex-1 px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                                className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary transition-colors font-medium"
                             >
                                 Replace Cart
                             </button>

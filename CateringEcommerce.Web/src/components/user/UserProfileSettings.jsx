@@ -111,7 +111,9 @@ export default function UserProfileSettings() {
                         apiService.getStates()
                     ]);
 
-                    profileData.profilePhoto = profileData.profilePhoto ? `${API_BASE_URL}${profileData.profilePhoto}` : generateInitialsAvatar(profileData.fullName);
+                    profileData.profilePhoto = profileData.profilePhoto
+                        ? (profileData.profilePhoto.startsWith('http') ? profileData.profilePhoto : `${API_BASE_URL}${profileData.profilePhoto}`)
+                        : generateInitialsAvatar(profileData.fullName);
                     
                     setProfile(profileData);
                     setStates(statesData);

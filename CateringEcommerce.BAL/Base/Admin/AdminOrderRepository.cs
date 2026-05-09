@@ -39,25 +39,21 @@ namespace CateringEcommerce.BAL.Base.Admin
                     new NpgsqlParameter("@MinAmount", (object?)request.MinAmount ?? DBNull.Value),
                     new NpgsqlParameter("@MaxAmount", (object?)request.MaxAmount ?? DBNull.Value),
                     new NpgsqlParameter("@SortBy", request.SortBy ?? "CreatedDate"),
-                    new NpgsqlParameter("@SortOrder", request.SortOrder ?? "DESC"),
-                    new NpgsqlParameter("@TotalCount", NpgsqlDbType.Integer) { Direction = ParameterDirection.Output }
+                    new NpgsqlParameter("@SortOrder", request.SortOrder ?? "DESC")
                 };
 
                 var dt = await _dbHelper.ExecuteStoredProcedureAsync<DataTable>("sp_Admin_GetOrders", parameters);
 
                 var orders = new List<AdminOrderListItem>();
-                if (dt == null)
+                if (dt == null || dt.Rows.Count == 0)
                 {
-                    int totalCountWhenNull = parameters[13].Value != DBNull.Value ? Convert.ToInt32(parameters[13].Value) : 0;
-                    int totalPagesWhenNull = (int)Math.Ceiling((double)totalCountWhenNull / request.PageSize);
-
                     return new AdminOrderListResponse
                     {
                         Orders = orders,
-                        TotalCount = totalCountWhenNull,
+                        TotalCount = 0,
                         PageNumber = request.PageNumber,
                         PageSize = request.PageSize,
-                        TotalPages = totalPagesWhenNull
+                        TotalPages = 0
                     };
                 }
 
@@ -87,7 +83,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     });
                 }
 
-                int totalCount = parameters[13].Value != DBNull.Value ? Convert.ToInt32(parameters[13].Value) : 0;
+                // p_totalcount is returned as a column in every row by sp_Admin_GetOrders (RETURNS TABLE)
+                int totalCount = dt.Columns.Contains("p_totalcount")
+                    ? Convert.ToInt32(dt.Rows[0]["p_totalcount"])
+                    : orders.Count;
                 int totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
 
                 return new AdminOrderListResponse
@@ -391,18 +390,21 @@ namespace CateringEcommerce.BAL.Base.Admin
 
                 var row = dt.Rows[0];
 
+                static int SafeInt(object v) => v == DBNull.Value ? 0 : Convert.ToInt32(v);
+                static decimal SafeDec(object v) => v == DBNull.Value ? 0m : Convert.ToDecimal(v);
+
                 return new AdminOrderStatsResponse
                 {
-                    TotalOrders = Convert.ToInt32(row["TotalOrders"]),
-                    PendingOrders = Convert.ToInt32(row["PendingOrders"]),
-                    ConfirmedOrders = Convert.ToInt32(row["ConfirmedOrders"]),
-                    InProgressOrders = Convert.ToInt32(row["InProgressOrders"]),
-                    CompletedOrders = Convert.ToInt32(row["CompletedOrders"]),
-                    CancelledOrders = Convert.ToInt32(row["CancelledOrders"]),
-                    TotalRevenue = Convert.ToDecimal(row["TotalRevenue"]),
-                    PendingRevenue = Convert.ToDecimal(row["PendingRevenue"]),
-                    TodayOrders = Convert.ToDecimal(row["TodayOrders"]),
-                    ThisMonthOrders = Convert.ToDecimal(row["ThisMonthOrders"])
+                    TotalOrders      = SafeInt(row["TotalOrders"]),
+                    PendingOrders    = SafeInt(row["PendingOrders"]),
+                    ConfirmedOrders  = SafeInt(row["ConfirmedOrders"]),
+                    InProgressOrders = SafeInt(row["InProgressOrders"]),
+                    CompletedOrders  = SafeInt(row["CompletedOrders"]),
+                    CancelledOrders  = SafeInt(row["CancelledOrders"]),
+                    TotalRevenue     = SafeDec(row["TotalRevenue"]),
+                    PendingRevenue   = SafeDec(row["PendingRevenue"]),
+                    TodayOrders      = SafeDec(row["TodayOrders"]),
+                    ThisMonthOrders  = SafeDec(row["ThisMonthOrders"])
                 };
             }
             catch (Exception ex)

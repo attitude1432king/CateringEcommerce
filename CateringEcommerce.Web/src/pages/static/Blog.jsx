@@ -11,19 +11,19 @@ export default function Blog() {
     return (
         <div className="min-h-screen bg-white">
             {/* Breadcrumb */}
-            <div className="bg-gray-50 border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-gray-500">
-                    <Link to="/" className="hover:text-gray-700">Home</Link>
+            <div className="bg-neutral-50 border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-neutral-500">
+                    <Link to="/" className="hover:text-neutral-700">Home</Link>
                     <span className="mx-2">/</span>
-                    <span className="text-gray-700 font-medium">Blog</span>
+                    <span className="text-neutral-700 font-medium">Blog</span>
                 </div>
             </div>
 
             {/* Hero */}
             <div className="bg-gradient-to-br from-indigo-50 to-white py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <h1 className="text-4xl font-bold text-gray-900">ENYVORA Blog</h1>
-                    <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                    <h1 className="text-4xl font-bold text-neutral-900">ENYVORA Blog</h1>
+                    <p className="mt-4 text-lg text-neutral-600 max-w-2xl mx-auto">
                         Catering tips, event planning guides, and inspiration for your next celebration.
                     </p>
                 </div>
@@ -48,10 +48,10 @@ export default function Blog() {
                             </div>
                             <div className="p-6">
                                 <span className="inline-block bg-indigo-50 text-indigo-600 text-xs font-semibold px-2.5 py-1 rounded-full mb-3">{post.category}</span>
-                                <h3 className="font-bold text-gray-900 mb-2 leading-snug">{post.title}</h3>
-                                <p className="text-gray-500 text-sm mb-4 leading-relaxed">{post.excerpt}</p>
+                                <h3 className="font-bold text-neutral-900 mb-2 leading-snug">{post.title}</h3>
+                                <p className="text-neutral-500 text-sm mb-4 leading-relaxed">{post.excerpt}</p>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-400">{post.date}</span>
+                                    <span className="text-xs text-neutral-400">{post.date}</span>
                                     <button className="text-indigo-600 text-sm font-medium hover:underline">Read more →</button>
                                 </div>
                             </div>

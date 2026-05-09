@@ -73,34 +73,13 @@ CREATE INDEX IF NOT EXISTS idx_owner_2fa_ownerid ON t_sys_owner_2fa(c_ownerid);
 CREATE INDEX IF NOT EXISTS idx_owner_2fa_enabled ON t_sys_owner_2fa(c_is_enabled);
 
 -- =============================================
--- 3. OAUTH PROVIDERS
--- =============================================
-CREATE TABLE IF NOT EXISTS t_sys_oauth_provider (
-    c_provider_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    c_provider_name VARCHAR(50) NOT NULL UNIQUE,
-    c_client_id VARCHAR(255) NOT NULL,
-    c_client_secret VARCHAR(500) NOT NULL,
-    c_redirect_uri VARCHAR(500) NOT NULL,
-    c_authorization_endpoint VARCHAR(500) NOT NULL,
-    c_token_endpoint VARCHAR(500) NOT NULL,
-    c_user_info_endpoint VARCHAR(500) NOT NULL,
-    c_scope VARCHAR(500) NOT NULL,
-
-    c_is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    c_createddate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    c_modifieddate TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_oauth_provider_name ON t_sys_oauth_provider(c_provider_name);
-CREATE INDEX IF NOT EXISTS idx_oauth_active ON t_sys_oauth_provider(c_is_active);
-
--- =============================================
--- 4. USER OAUTH
+-- 3. USER OAUTH
+-- (Provider config lives in appsettings.json, not the DB)
 -- =============================================
 CREATE TABLE IF NOT EXISTS t_sys_user_oauth (
     c_oauth_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     c_userid BIGINT NOT NULL,
-    c_provider_id BIGINT NOT NULL,
+    c_provider_key VARCHAR(50) NOT NULL,
 
     c_provider_user_id VARCHAR(255) NOT NULL,
     c_provider_email VARCHAR(255),
@@ -121,14 +100,11 @@ CREATE TABLE IF NOT EXISTS t_sys_user_oauth (
     CONSTRAINT fk_user_oauth_user FOREIGN KEY (c_userid)
         REFERENCES t_sys_user(c_userid) ON DELETE CASCADE,
 
-    CONSTRAINT fk_user_oauth_provider FOREIGN KEY (c_provider_id)
-        REFERENCES t_sys_oauth_provider(c_provider_id),
-
-    CONSTRAINT uq_provider_user UNIQUE (c_provider_id, c_provider_user_id)
+    CONSTRAINT uq_provider_key_user UNIQUE (c_provider_key, c_provider_user_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_oauth_userid ON t_sys_user_oauth(c_userid);
-CREATE INDEX IF NOT EXISTS idx_user_oauth_provider ON t_sys_user_oauth(c_provider_id);
+CREATE INDEX IF NOT EXISTS idx_user_oauth_provider_key ON t_sys_user_oauth(c_provider_key);
 
 -- =============================================
 -- 5. 2FA ATTEMPT LOG
@@ -202,25 +178,7 @@ CREATE TABLE IF NOT EXISTS t_sys_oauth_state (
 );
 
 -- =============================================
--- 8. DEFAULT OAUTH PROVIDERS
--- =============================================
-INSERT INTO t_sys_oauth_provider (
-    c_provider_name, c_client_id, c_client_secret,
-    c_redirect_uri, c_authorization_endpoint,
-    c_token_endpoint, c_user_info_endpoint, c_scope
-)
-VALUES
-('GOOGLE','YOUR_GOOGLE_CLIENT_ID','YOUR_GOOGLE_CLIENT_SECRET',
- 'https://yourdomain.com/api/auth/google/callback',
- 'https://accounts.google.com/o/oauth2/v2/auth',
- 'https://oauth2.googleapis.com/token',
- 'https://www.googleapis.com/oauth2/v2/userinfo',
- 'openid email profile')
-
-ON CONFLICT (c_provider_name) DO NOTHING;
-
--- =============================================
--- 9. CLEANUP FUNCTION (Converted from PROCEDURE)
+-- 8. CLEANUP FUNCTION (Converted from PROCEDURE)
 -- =============================================
 CREATE OR REPLACE FUNCTION sp_CleanupExpiredSecurityTokens()
 RETURNS TABLE(deleted_states INT, deleted_devices INT)

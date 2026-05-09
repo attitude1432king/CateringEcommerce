@@ -54,7 +54,7 @@ export default function DecorationCard({ item, onEdit, onDelete, onStatusChange 
 
             <div className="p-4 flex flex-col flex-grow">
                 <div className="flex-grow">
-                    <span className="text-xs font-semibold text-rose-500 uppercase tracking-wide">{item.theme}</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-primary)' }}>{item.theme}</span>
                     <h3 className="text-lg font-bold text-neutral-800 truncate mt-1">{item.name}</h3>
                     {item.price > 0 && (
                         <p className="text-lg font-bold text-neutral-900 mt-2">₹{item.price}</p>

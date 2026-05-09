@@ -91,7 +91,7 @@ const TicketCard = ({ ticket, onView }) => {
                 )}
             </div>
 
-            <p className="text-xs text-indigo-600 font-medium mb-2">{ticket.category}</p>
+            <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-primary)' }}>{ticket.category}</p>
             <h4 className="font-semibold text-neutral-900 mb-2">{ticket.subject}</h4>
             <p className="text-neutral-600 text-sm mb-4 line-clamp-2">{ticket.description}</p>
 
@@ -99,7 +99,8 @@ const TicketCard = ({ ticket, onView }) => {
                 <span className="text-neutral-500">{formatDate(ticket.createdDate)}</span>
                 <button
                     onClick={() => onView(ticket.ticketId)}
-                    className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                    className="font-semibold"
+                    style={{ color: 'var(--color-primary)' }}
                 >
                     View Details →
                 </button>
@@ -148,7 +149,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, submitting }) => {
                         <select
                             value={form.category}
                             onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}
-                            className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
                             required
                         >
                             <option value="">Select category...</option>
@@ -169,9 +170,10 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, submitting }) => {
                                     onClick={() => setForm(f => ({ ...f, priority: p }))}
                                     className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all border ${
                                         form.priority === p
-                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            ? 'text-white border-transparent'
                                             : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
                                     }`}
+                                    style={form.priority === p ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
                                 >
                                     {p}
                                 </button>
@@ -187,7 +189,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, submitting }) => {
                             value={form.subject}
                             onChange={(e) => setForm(f => ({ ...f, subject: e.target.value }))}
                             placeholder="Brief description of your issue"
-                            className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
                             maxLength={200}
                             required
                         />
@@ -200,7 +202,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, submitting }) => {
                             value={form.description}
                             onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
                             placeholder="Provide details about your issue..."
-                            className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                            className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
                             rows={5}
                             maxLength={2000}
                             required
@@ -213,7 +215,8 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, submitting }) => {
                         <button
                             type="submit"
                             disabled={submitting || !form.subject.trim() || !form.description.trim() || !form.category}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 text-white py-3 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                            style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                         >
                             {submitting ? 'Creating...' : 'Create Ticket'}
                         </button>
@@ -282,7 +285,7 @@ const TicketDetailView = ({ ticketId, onBack }) => {
     };
 
     const BackButton = () => (
-        <button onClick={onBack} className="flex items-center gap-2 text-indigo-600 font-semibold hover:text-indigo-700">
+        <button onClick={onBack} className="flex items-center gap-2 font-semibold" style={{ color: 'var(--color-primary)' }}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -330,7 +333,7 @@ const TicketDetailView = ({ ticketId, onBack }) => {
                     <span className={`flex items-center gap-1 text-xs font-semibold ${pc.color}`}>{pc.icon} {detail.priority}</span>
                     <span className="text-xs text-neutral-400 ml-auto">{formatDateTime(detail.createdDate)}</span>
                 </div>
-                <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold mb-3">{detail.category}</span>
+                <span className="inline-block px-3 py-1 rounded-lg text-xs font-semibold mb-3" style={{ background: 'rgba(255,107,53,0.08)', color: 'var(--color-primary)' }}>{detail.category}</span>
                 <h3 className="text-xl font-bold text-neutral-900 mb-2">{detail.subject}</h3>
                 <p className="text-neutral-700 leading-relaxed">{detail.description}</p>
 
@@ -358,19 +361,18 @@ const TicketDetailView = ({ ticketId, onBack }) => {
                                 key={msg.messageId}
                                 className={`flex ${msg.senderType === 'Owner' ? 'justify-end' : 'justify-start'}`}
                             >
-                                <div className={`max-w-[80%] rounded-2xl p-4 ${
-                                    msg.senderType === 'Owner'
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-neutral-100 text-neutral-900'
-                                }`}>
+                                <div
+                                    className={`max-w-[80%] rounded-2xl p-4 ${msg.senderType === 'Owner' ? 'text-white' : 'bg-neutral-100 text-neutral-900'}`}
+                                    style={msg.senderType === 'Owner' ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
+                                >
                                     <p className={`text-xs font-semibold mb-1 ${
-                                        msg.senderType === 'Owner' ? 'text-indigo-200' : 'text-neutral-500'
+                                        msg.senderType === 'Owner' ? 'text-white/70' : 'text-neutral-500'
                                     }`}>
                                         {msg.senderType === 'Owner' ? 'You' : 'Support Team'}
                                     </p>
                                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.messageText}</p>
                                     <p className={`text-xs mt-2 ${
-                                        msg.senderType === 'Owner' ? 'text-indigo-200' : 'text-neutral-400'
+                                        msg.senderType === 'Owner' ? 'text-white/70' : 'text-neutral-400'
                                     }`}>
                                         {formatDateTime(msg.createdDate)}
                                     </p>
@@ -390,7 +392,7 @@ const TicketDetailView = ({ ticketId, onBack }) => {
                                 value={messageText}
                                 onChange={(e) => setMessageText(e.target.value)}
                                 placeholder="Type your message..."
-                                className="flex-1 px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                                className="flex-1 px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
                                 rows={2}
                                 disabled={sending}
                                 onKeyDown={(e) => {
@@ -403,7 +405,8 @@ const TicketDetailView = ({ ticketId, onBack }) => {
                             <button
                                 onClick={handleSendMessage}
                                 disabled={sending || !messageText.trim()}
-                                className="px-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-end h-[42px]"
+                                className="px-5 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed self-end h-[42px]"
+                                style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                             >
                                 {sending ? (
                                     <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -584,17 +587,12 @@ export default function Support() {
     // Ticket detail view
     if (selectedTicketId) {
         return (
-            <div className="min-h-screen bg-neutral-50">
-                <div className="p-4 sm:p-6 lg:p-8">
-                    <TicketDetailView ticketId={selectedTicketId} onBack={handleBackToList} />
-                </div>
-            </div>
+            <TicketDetailView ticketId={selectedTicketId} onBack={handleBackToList} />
         );
     }
 
     return (
-        <div className="min-h-screen bg-neutral-50">
-            <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="space-y-6">
                 {/* Header */}
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                     <div>
@@ -603,7 +601,8 @@ export default function Support() {
                     </div>
                     <button
                         onClick={() => setShowNewTicketModal(true)}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-md"
+                        className="flex items-center gap-2 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                        style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -625,14 +624,14 @@ export default function Support() {
                 {/* Quick Contact */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 p-5 flex items-center gap-4">
-                        <div className="p-3 bg-indigo-100 rounded-xl text-indigo-600 flex-shrink-0">
+                        <div className="p-3 rounded-xl flex-shrink-0" style={{ background: 'rgba(255,107,53,0.1)', color: 'var(--color-primary)' }}>
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                         </div>
                         <div>
                             <h3 className="font-bold text-neutral-900 text-sm">Email Support</h3>
-                            <a href="mailto:support@enyvora.com" className="text-indigo-600 text-sm font-medium hover:underline">support@enyvora.com</a>
+                            <a href="mailto:support@enyvora.com" className="text-sm font-medium hover:underline" style={{ color: 'var(--color-primary)' }}>support@enyvora.com</a>
                         </div>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 p-5 flex items-center gap-4">
@@ -648,14 +647,14 @@ export default function Support() {
                         </div>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 p-5 flex items-center gap-4">
-                        <div className="p-3 bg-purple-100 rounded-xl text-purple-600 flex-shrink-0">
+                        <div className="p-3 bg-neutral-100 rounded-xl text-neutral-500 flex-shrink-0">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                             </svg>
                         </div>
                         <div>
                             <h3 className="font-bold text-neutral-900 text-sm">Live Chat</h3>
-                            <p className="text-purple-600 text-sm font-medium">Coming Soon</p>
+                            <p className="text-neutral-500 text-sm font-medium">Coming Soon</p>
                         </div>
                     </div>
                 </div>
@@ -666,9 +665,10 @@ export default function Support() {
                         onClick={() => setActiveTab('tickets')}
                         className={`px-4 py-3 font-semibold text-sm transition-all border-b-2 ${
                             activeTab === 'tickets'
-                                ? 'border-indigo-600 text-indigo-600'
+                                ? 'border-transparent'
                                 : 'border-transparent text-neutral-600 hover:text-neutral-900'
                         }`}
+                        style={activeTab === 'tickets' ? { color: 'var(--color-primary)', borderBottomColor: 'var(--color-primary)' } : undefined}
                     >
                         My Tickets {stats ? `(${stats.totalTickets})` : ''}
                     </button>
@@ -676,9 +676,10 @@ export default function Support() {
                         onClick={() => setActiveTab('faqs')}
                         className={`px-4 py-3 font-semibold text-sm transition-all border-b-2 ${
                             activeTab === 'faqs'
-                                ? 'border-indigo-600 text-indigo-600'
+                                ? 'border-transparent'
                                 : 'border-transparent text-neutral-600 hover:text-neutral-900'
                         }`}
+                        style={activeTab === 'faqs' ? { color: 'var(--color-primary)', borderBottomColor: 'var(--color-primary)' } : undefined}
                     >
                         FAQs
                     </button>
@@ -695,9 +696,10 @@ export default function Support() {
                                     onClick={() => setStatusFilter(s)}
                                     className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                                         statusFilter === s
-                                            ? 'bg-indigo-600 text-white shadow-md'
+                                            ? 'text-white shadow-md'
                                             : 'bg-white text-neutral-600 hover:bg-neutral-50 border border-neutral-200'
                                     }`}
+                                    style={statusFilter === s ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
                                 >
                                     {s ? (statusConfig[s]?.label || s) : 'All'}
                                 </button>
@@ -777,7 +779,8 @@ export default function Support() {
                                     </p>
                                     <button
                                         onClick={() => setShowNewTicketModal(true)}
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-colors"
+                                        className="text-white px-6 py-2.5 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
+                                        style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                                     >
                                         Create Your First Ticket
                                     </button>
@@ -797,11 +800,11 @@ export default function Support() {
                 )}
 
                 {/* Resources Banner */}
-                <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-6 text-white">
+                <div className="rounded-2xl shadow-lg p-6 text-white" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                     <div className="flex items-start justify-between">
                         <div>
                             <h2 className="text-xl font-bold mb-2">Additional Resources</h2>
-                            <p className="text-indigo-100 mb-4">Learn more about using the platform</p>
+                            <p className="text-white/80 mb-4">Learn more about using the platform</p>
                             <div className="flex flex-wrap gap-3">
                                 <button className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg font-semibold transition-colors">
                                     Partner Guide
@@ -821,7 +824,6 @@ export default function Support() {
                         </div>
                     </div>
                 </div>
-            </div>
 
             {/* Create Ticket Modal */}
             <CreateTicketModal

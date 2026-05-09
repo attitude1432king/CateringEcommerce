@@ -196,7 +196,7 @@ const ComplaintSubmissionWizard = ({
                     w-12 h-12 rounded-full flex items-center justify-center mb-2
                     ${isActive ? 'bg-blue-600 text-white' :
                       isCompleted ? 'bg-green-600 text-white' :
-                      'bg-gray-200 text-gray-600'}
+                      'bg-gray-200 text-neutral-600'}
                   `}>
                     {isCompleted ? (
                       <CheckCircle className="w-6 h-6" />
@@ -204,7 +204,7 @@ const ComplaintSubmissionWizard = ({
                       <StepIcon className="w-6 h-6" />
                     )}
                   </div>
-                  <span className={`text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600'}`}>
+                  <span className={`text-sm font-medium ${isActive ? 'text-blue-700' : 'text-neutral-600'}`}>
                     {step.title}
                   </span>
                 </div>
@@ -288,7 +288,7 @@ const ComplaintSubmissionWizard = ({
                   rows={5}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-neutral-600 mt-1">
                   {complaintData.description.length} / 50 minimum characters
                 </p>
               </div>
@@ -319,8 +319,8 @@ const ComplaintSubmissionWizard = ({
             {/* Upload Area */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
               <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-700 font-medium mb-2">Upload Photos or Videos</p>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-neutral-700 font-medium mb-2">Upload Photos or Videos</p>
+              <p className="text-sm text-neutral-600 mb-4">
                 Accepted formats: JPG, PNG, MP4, MOV (Max 10MB per file)
               </p>
               <input
@@ -396,7 +396,7 @@ const ComplaintSubmissionWizard = ({
                   max={order.guestCount}
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <p className="text-xs text-gray-600 mt-1">Out of {order.guestCount} total guests</p>
+                <p className="text-xs text-neutral-600 mt-1">Out of {order.guestCount} total guests</p>
               </div>
             </div>
           </div>
@@ -412,19 +412,19 @@ const ComplaintSubmissionWizard = ({
               <h3 className="font-semibold mb-3">Complaint Summary</h3>
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-gray-600">Type:</dt>
+                  <dt className="text-neutral-600">Type:</dt>
                   <dd className="font-medium">{selectedType?.label}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-600">Severity:</dt>
+                  <dt className="text-neutral-600">Severity:</dt>
                   <dd className="font-medium capitalize">{complaintData.severity}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-600">Guests Affected:</dt>
+                  <dt className="text-neutral-600">Guests Affected:</dt>
                   <dd className="font-medium">{complaintData.guestsAffected} / {order.guestCount}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-600">Evidence Files:</dt>
+                  <dt className="text-neutral-600">Evidence Files:</dt>
                   <dd className="font-medium">{complaintData.media.length} file(s)</dd>
                 </div>
               </dl>
@@ -444,12 +444,12 @@ const ComplaintSubmissionWizard = ({
 
               <div className="bg-white rounded-lg p-4 mb-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-700">Estimated Range:</span>
+                  <span className="text-neutral-700">Estimated Range:</span>
                   <span className="text-2xl font-bold text-blue-700">
                     ₹{calculateRefund().min.toFixed(2)} - ₹{calculateRefund().max.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-600">
+                <div className="flex items-center justify-between text-sm text-neutral-600">
                   <span>Maximum Possible:</span>
                   <span className="font-medium">₹{calculateRefund().maxCap.toFixed(2)}</span>
                 </div>
@@ -479,7 +479,7 @@ const ComplaintSubmissionWizard = ({
       <div className="border-t border-gray-200 p-6 flex items-center justify-between">
         <button
           onClick={currentStep === 1 ? onCancel : () => setCurrentStep(prev => prev - 1)}
-          className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+          className="px-6 py-3 border-2 border-gray-300 text-neutral-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
         >
           <ChevronLeft className="w-5 h-5" />
           {currentStep === 1 ? 'Cancel' : 'Previous'}

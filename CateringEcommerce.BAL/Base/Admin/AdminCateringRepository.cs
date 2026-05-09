@@ -29,11 +29,10 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_cityname AS City,
                     s.c_statename AS State,
                     co.c_approval_status AS Status,
-                    COALESCE(co.c_verified_by_admin, 0) AS IsVerified,
-                    COALESCE(co.c_isactive, 0) AS IsActive,
-                    COALESCE(co.c_isblocked, 0) AS IsBlocked,
-                    COALESCE(co.c_is_deleted, 0) AS IsDeleted,
-                    COALESCE(co.c_isfeatured, 0) AS IsFeatured,
+                    COALESCE(co.c_isactive, FALSE) AS IsActive,
+                    COALESCE(co.c_isblocked, FALSE) AS IsBlocked,
+                    COALESCE(co.c_is_deleted, FALSE) AS IsDeleted,
+                    COALESCE(co.c_isfeatured, FALSE) AS IsFeatured,
                     COALESCE(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
                     COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
@@ -53,7 +52,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             queryBuilder.Append(@"
                 GROUP BY co.c_ownerid, co.c_catering_name, co.c_owner_name, co.c_mobile,
-                         co.c_email, c.c_cityname, s.c_statename, co.c_approval_status, co.c_verified_by_admin,
+                         co.c_email, c.c_cityname, s.c_statename, co.c_approval_status, 
                          co.c_isactive, co.c_isblocked, co.c_is_deleted, co.c_isfeatured,
                          co.c_createddate, co.c_approved_date");
 
@@ -111,9 +110,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     co.c_catering_number,
                     legal.c_gst_number, legal.c_fssai_number, legal.c_pan_number,
                     addr.c_building AS c_address_line1, addr.c_street AS c_address_line2,
-                    c.c_cityname, s.c_statename, addr.c_pincode,
-                    co.c_approval_status, COALESCE(co.c_verified_by_admin, 0) AS c_verified_by_admin,
-                    COALESCE(co.c_isactive, 0) AS c_isactive, COALESCE(co.c_isblocked, 0) AS c_isblocked,
+                    c.c_cityname, s.c_statename, addr.c_pincode, co.c_approval_status,
+                    COALESCE(co.c_isactive, FALSE) AS c_isactive, COALESCE(co.c_isblocked, FALSE) AS c_isblocked,
                     co.c_block_reason,
                     bank.c_account_number, bank.c_ifsc_code, bank.c_account_holder_name,
                     co.c_createddate, co.c_approved_date, co.c_modifieddate
@@ -151,7 +149,6 @@ namespace CateringEcommerce.BAL.Base.Admin
                 State = row["c_statename"]?.ToString() ?? string.Empty,
                 Pincode = row["c_pincode"]?.ToString() ?? string.Empty,
                 Status = row["c_approval_status"] != DBNull.Value ? Convert.ToInt32(row["c_approval_status"]) : 1,
-                IsVerified = Convert.ToBoolean(row["c_verified_by_admin"]),
                 IsActive = Convert.ToBoolean(row["c_isactive"]),
                 IsBlocked = Convert.ToBoolean(row["c_isblocked"]),
                 BlockReason = row["c_block_reason"]?.ToString(),
@@ -177,8 +174,8 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 UPDATE {Table.SysCateringOwner}
                 SET c_approval_status = @Status,
-                    c_isactive = CASE WHEN @Status = 2 THEN 1 ELSE c_isactive END,
-                    c_isblocked = CASE WHEN @Status = 3 THEN 1 ELSE 0 END,
+                    c_isactive = CASE WHEN @Status = 2 THEN TRUE ELSE c_isactive END,
+                    c_isblocked = CASE WHEN @Status = 3 THEN TRUE ELSE FALSE END,
                     c_block_reason = @Reason,
                     c_approved_date = CASE WHEN @Status = 2 AND c_approved_date IS NULL THEN NOW() ELSE c_approved_date END,
                     c_modifieddate = NOW()
@@ -244,9 +241,8 @@ namespace CateringEcommerce.BAL.Base.Admin
                     c.c_cityname AS City,
                     s.c_statename AS State,
                     co.c_approval_status AS Status,
-                    COALESCE(co.c_verified_by_admin, 0) AS IsVerified,
-                    COALESCE(co.c_isactive, 0) AS IsActive,
-                    COALESCE(co.c_isblocked, 0) AS IsBlocked,
+                    COALESCE(co.c_isactive, FALSE) AS IsActive,
+                    COALESCE(co.c_isblocked, FALSE) AS IsBlocked,
                     COALESCE(AVG(CAST(cr.c_overall_rating AS DECIMAL(3,2))), 0) AS Rating,
                     COUNT(DISTINCT cr.c_reviewid) AS TotalReviews,
                     COUNT(DISTINCT o.c_orderid) AS TotalOrders,
@@ -265,7 +261,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             queryBuilder.Append(@"
                 GROUP BY co.c_ownerid, co.c_catering_name, co.c_owner_name, co.c_mobile,
-                         co.c_email, c.c_cityname, s.c_statename, co.c_approval_status, co.c_verified_by_admin,
+                         co.c_email, c.c_cityname, s.c_statename, co.c_approval_status, 
                          co.c_isactive, co.c_isblocked,
                          co.c_createddate
                 ORDER BY co.c_createddate DESC");
@@ -285,7 +281,6 @@ namespace CateringEcommerce.BAL.Base.Admin
                     City = row["City"]?.ToString() ?? string.Empty,
                     State = row["State"]?.ToString() ?? string.Empty,
                     Status = row["Status"] != DBNull.Value ? Convert.ToInt32(row["Status"]) : 1,
-                    IsVerified = Convert.ToBoolean(row["IsVerified"]),
                     IsActive = Convert.ToBoolean(row["IsActive"]),
                     IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
                     Rating = row["Rating"] != DBNull.Value ? Convert.ToDecimal(row["Rating"]) : null,
@@ -329,31 +324,32 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             if (request.IsBlocked.HasValue)
             {
-                queryBuilder.Append(" AND COALESCE(co.c_isblocked, 0) = @IsBlocked");
-                parameters.Add(new NpgsqlParameter("@IsBlocked", request.IsBlocked.Value ? 1 : 0));
+                queryBuilder.Append(" AND co.c_isblocked = @IsBlocked");
+                parameters.Add(new NpgsqlParameter("@IsBlocked", request.IsBlocked.Value));
             }
 
             if (request.IsActive.HasValue)
             {
-                queryBuilder.Append(" AND COALESCE(co.c_isactive, 0) = @IsActive");
-                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value ? 1 : 0));
+                queryBuilder.Append(" AND co.c_isactive = @IsActive");
+                parameters.Add(new NpgsqlParameter("@IsActive", request.IsActive.Value));
             }
 
             if (request.IsDeleted.HasValue && request.IsDeleted.Value)
             {
-                queryBuilder.Append(" AND COALESCE(co.c_is_deleted, 0) = 1");
+                queryBuilder.Append(" AND co.c_is_deleted = @IsDeleted");
+                parameters.Add(new NpgsqlParameter("@IsDeleted", request.IsDeleted.Value));
             }
             else
             {
-                queryBuilder.Append(" AND COALESCE(co.c_is_deleted, 0) = 0");
+                queryBuilder.Append(" AND co.c_is_deleted = FALSE");
             }
 
-            if (!string.IsNullOrEmpty(request.VerificationStatus))
-            {
-                bool isVerified = request.VerificationStatus.Equals("Verified", StringComparison.OrdinalIgnoreCase);
-                queryBuilder.Append(" AND COALESCE(co.c_verified_by_admin, 0) = @IsVerified");
-                parameters.Add(new NpgsqlParameter("@IsVerified", isVerified ? 1 : 0));
-            }
+            //if (!string.IsNullOrEmpty(request.VerificationStatus))
+            //{
+            //    bool isVerified = request.VerificationStatus.Equals("Verified", StringComparison.OrdinalIgnoreCase);
+            //    queryBuilder.Append(" AND COALESCE(co.c_approval_status, FALSE) = @IsVerified");
+            //    parameters.Add(new NpgsqlParameter("@IsVerified", isVerified));
+            //}
         }
 
         private AdminCateringListItem MapListItem(DataRow row)
@@ -368,7 +364,6 @@ namespace CateringEcommerce.BAL.Base.Admin
                 City = row["City"]?.ToString() ?? string.Empty,
                 State = row["State"]?.ToString() ?? string.Empty,
                 Status = row["Status"] != DBNull.Value ? Convert.ToInt32(row["Status"]) : 1,
-                IsVerified = Convert.ToBoolean(row["IsVerified"]),
                 IsActive = Convert.ToBoolean(row["IsActive"]),
                 IsBlocked = Convert.ToBoolean(row["IsBlocked"]),
                 IsDeleted = Convert.ToBoolean(row["IsDeleted"]),
@@ -419,7 +414,7 @@ namespace CateringEcommerce.BAL.Base.Admin
             string query = $@"
                 SELECT c_file_path
                 FROM {Table.SysCateringMediaUploads}
-                WHERE c_ownerid = @CateringId AND COALESCE(c_is_deleted, FALSE) = 0
+                WHERE c_ownerid = @CateringId AND COALESCE(c_is_deleted, FALSE) = FALSE
                 ORDER BY c_uploaded_at DESC";
 
             NpgsqlParameter[] parameters = { new NpgsqlParameter("@CateringId", cateringId) };
@@ -446,7 +441,7 @@ namespace CateringEcommerce.BAL.Base.Admin
 
             int rows = _dbHelper.ExecuteNonQuery(query, new[]
             {
-                new NpgsqlParameter("@IsFeatured", isFeatured ? 1 : 0),
+                new NpgsqlParameter("@IsFeatured", isFeatured),
                 new NpgsqlParameter("@CateringId", cateringId)
             });
             return rows > 0;

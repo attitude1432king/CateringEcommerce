@@ -69,21 +69,21 @@ export default function EventsPage() {
     return (
         <div className="min-h-screen bg-white">
             {/* Breadcrumb */}
-            <div className="bg-gray-50 border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-gray-500">
-                    <Link to="/" className="hover:text-gray-700">Home</Link>
+            <div className="bg-neutral-50 border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-neutral-500">
+                    <Link to="/" className="hover:text-neutral-700">Home</Link>
                     <span className="mx-2">/</span>
-                    <span className="text-gray-700 font-medium">Events</span>
+                    <span className="text-neutral-700 font-medium">Events</span>
                 </div>
             </div>
 
             {/* Hero */}
             <div className="bg-gradient-to-br from-orange-50 to-white py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
+                    <h1 className="text-4xl md:text-5xl font-bold text-neutral-900">
                         Catering for Every <span className="text-catering-primary">Occasion</span>
                     </h1>
-                    <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                    <p className="mt-4 text-lg text-neutral-600 max-w-2xl mx-auto">
                         From intimate family gatherings to grand weddings — ENYVORA connects you with the perfect catering partner for your event.
                     </p>
                     <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
@@ -98,7 +98,7 @@ export default function EventsPage() {
                         </Link>
                         <a
                             href="#event-types"
-                            className="inline-flex items-center justify-center gap-2 px-8 py-3 text-base font-semibold border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="inline-flex items-center justify-center gap-2 px-8 py-3 text-base font-semibold border border-neutral-300 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
                         >
                             Explore Event Types
                         </a>
@@ -113,7 +113,7 @@ export default function EventsPage() {
                         {highlights.map((h) => (
                             <div key={h.label}>
                                 <div className="text-3xl font-bold text-catering-primary">{h.label}</div>
-                                <div className="mt-1 text-sm text-gray-500">{h.description}</div>
+                                <div className="mt-1 text-sm text-neutral-500">{h.description}</div>
                             </div>
                         ))}
                     </div>
@@ -123,8 +123,8 @@ export default function EventsPage() {
             {/* Event Types */}
             <div id="event-types" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 <div className="text-center mb-12">
-                    <h2 className="text-3xl font-bold text-gray-900">What Kind of Event Are You Planning?</h2>
-                    <p className="mt-3 text-gray-500 max-w-xl mx-auto">
+                    <h2 className="text-3xl font-bold text-neutral-900">What Kind of Event Are You Planning?</h2>
+                    <p className="mt-3 text-neutral-500 max-w-xl mx-auto">
                         We cater to all types of events. Pick your occasion and find the right partner.
                     </p>
                 </div>
@@ -136,11 +136,11 @@ export default function EventsPage() {
                             to="/caterings"
                             className="group bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-catering-primary/30 transition-all"
                         >
-                            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
+                            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
                                 {event.icon}
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
-                            <p className="text-sm text-gray-500 leading-relaxed">{event.description}</p>
+                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">{event.title}</h3>
+                            <p className="text-sm text-neutral-500 leading-relaxed">{event.description}</p>
                             <div className="mt-4 text-catering-primary text-sm font-medium flex items-center gap-1 group-hover:gap-2 transition-all">
                                 Find caterers
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,7 +161,7 @@ export default function EventsPage() {
                     </p>
                     <Link
                         to="/caterings"
-                        className="inline-flex items-center justify-center gap-2 bg-white text-catering-primary font-semibold px-8 py-3 rounded-xl hover:bg-orange-50 transition-colors"
+                        className="inline-flex items-center justify-center gap-2 bg-white text-catering-primary font-semibold px-8 py-3 rounded-xl hover:bg-primary/5 transition-colors"
                     >
                         Get Started
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

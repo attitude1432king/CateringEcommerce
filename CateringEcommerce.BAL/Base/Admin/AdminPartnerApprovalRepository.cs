@@ -401,68 +401,85 @@ namespace CateringEcommerce.BAL.Base.Admin
         private PartnerServiceOperationsDetails? GetPartnerOperationsDetails(long ownerId)
         {
             var query = $@"
-                 SELECT
-                    co.c_operationid AS OperationId,
+                SELECT
+                    co.c_operationid AS ""OperationId"",
 
-                    CuisineTypes = (
+                    (
                         SELECT STRING_AGG(tm.c_type_name, ', ')
                         FROM unnest(string_to_array(co.c_cuisine_types, ',')) AS s(value)
                         JOIN {Table.SysCateringTypeMaster} tm 
                             ON tm.c_typeid = CAST(NULLIF(TRIM(s.value), '') AS INT)
-                    ),
+                    ) AS ""CuisineTypes"",
 
-                    ServiceTypes = (
+                    (
                         SELECT STRING_AGG(tm.c_type_name, ', ')
                         FROM unnest(string_to_array(co.c_service_types, ',')) AS s(value)
                         JOIN {Table.SysCateringTypeMaster} tm 
                             ON tm.c_typeid = CAST(NULLIF(TRIM(s.value), '') AS INT)
-                    ),
+                    ) AS ""ServiceTypes"",
 
-                    EventTypes = (
+                    (
                         SELECT STRING_AGG(tm.c_type_name, ', ')
                         FROM unnest(string_to_array(co.c_event_types, ',')) AS s(value)
                         JOIN {Table.SysCateringTypeMaster} tm 
                             ON tm.c_typeid = CAST(NULLIF(TRIM(s.value), '') AS INT)
-                    ),
+                    ) AS ""EventTypes"",
 
-                    FoodTypes = (
+                    (
                         SELECT STRING_AGG(tm.c_type_name, ', ')
                         FROM unnest(string_to_array(co.c_food_types, ',')) AS s(value)
                         JOIN {Table.SysCateringTypeMaster} tm 
                             ON tm.c_typeid = CAST(NULLIF(TRIM(s.value), '') AS INT)
-                    ),
+                    ) AS ""FoodTypes"",
 
-                    co.c_min_guest_count AS MinGuestCount,
-                    co.c_delivery_available AS DeliveryAvailable,
-                    co.c_delivery_radius_km AS DeliveryRadiusKm,
+                    co.c_min_guest_count AS ""MinGuestCount"",
+                    co.c_delivery_available AS ""DeliveryAvailable"",
+                    co.c_delivery_radius_km AS ""DeliveryRadiusKm"",
 
-                    ServingTimeSlots = (
+                    (
                         SELECT STRING_AGG(tm.c_type_name, ', ')
                         FROM unnest(string_to_array(co.c_serving_time_slots, ',')) AS s(value)
                         JOIN {Table.SysCateringTypeMaster} tm 
                             ON tm.c_typeid = CAST(NULLIF(TRIM(s.value), '') AS INT)
-                    )
+                    ) AS ""ServingTimeSlots""
 
-                FROM {Table.SysCateringOwnerService} co;";
+                FROM {Table.SysCateringOwnerService} co
+                WHERE co.c_ownerid = @OwnerId;
+            ";
 
-            var parameters = new[] { new NpgsqlParameter("@OwnerId", ownerId) };
-            var dataTable = _dbHelper.Execute(query, parameters);
+            var parameters = new[]
+            {
+                new NpgsqlParameter("@OwnerId", ownerId)
+            };
 
-            if (dataTable.Rows.Count == 0)
+            var dt = _dbHelper.Execute(query, parameters);
+
+            if (dt.Rows.Count == 0)
                 return null;
 
-            var row = dataTable.Rows[0];
+            var row = dt.Rows[0];
+
             return new PartnerServiceOperationsDetails
             {
-                OperationId = Convert.ToInt64(row["OperationId"]),
-                CuisineTypes = row["CuisineTypes"] != DBNull.Value ? row["CuisineTypes"].ToString() : null,
-                ServiceTypes = row["ServiceTypes"] != DBNull.Value ? row["ServiceTypes"].ToString() : null,
-                EventTypes = row["EventTypes"] != DBNull.Value ? row["EventTypes"].ToString() : null,
-                FoodTypes = row["FoodTypes"] != DBNull.Value ? row["FoodTypes"].ToString() : null,
-                MinGuestCount = row["MinGuestCount"] != DBNull.Value ? Convert.ToInt16(row["MinGuestCount"]) : null,
-                DeliveryAvailable = row["DeliveryAvailable"] != DBNull.Value && Convert.ToBoolean(row["DeliveryAvailable"]),
-                DeliveryRadiusKm = row["DeliveryRadiusKm"] != DBNull.Value ? Convert.ToInt32(row["DeliveryRadiusKm"]) : null,
-                ServingTimeSlots = row["ServingTimeSlots"] != DBNull.Value ? row["ServingTimeSlots"].ToString() : null
+                OperationId = row["OperationId"] != DBNull.Value ? Convert.ToInt64(row["OperationId"]) : 0,
+
+                CuisineTypes = row["CuisineTypes"]?.ToString(),
+                ServiceTypes = row["ServiceTypes"]?.ToString(),
+                EventTypes = row["EventTypes"]?.ToString(),
+                FoodTypes = row["FoodTypes"]?.ToString(),
+
+                MinGuestCount = row["MinGuestCount"] != DBNull.Value
+                    ? Convert.ToInt16(row["MinGuestCount"])
+                    : null,
+
+                DeliveryAvailable = row["DeliveryAvailable"] != DBNull.Value
+                    && Convert.ToBoolean(row["DeliveryAvailable"]),
+
+                DeliveryRadiusKm = row["DeliveryRadiusKm"] != DBNull.Value
+                    ? Convert.ToInt32(row["DeliveryRadiusKm"])
+                    : null,
+
+                ServingTimeSlots = row["ServingTimeSlots"]?.ToString()
             };
         }
 
@@ -574,7 +591,6 @@ namespace CateringEcommerce.BAL.Base.Admin
                     SET c_approval_status = @ApprovalStatus,
                         c_approved_date = NOW(),
                         c_approved_by = @AdminId,
-                        c_verified_by_admin = TRUE,
                         c_isactive = TRUE,
                         c_modifieddate = NOW()
                     WHERE c_ownerid = @OwnerId";

@@ -90,7 +90,7 @@ const LocationMapSelector = ({ latitude, longitude, onLocationSelect }) => {
         return (
             <div className="w-full h-96 bg-neutral-100 rounded-xl flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto mb-3"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-3"></div>
                     <p className="text-neutral-600 text-sm">Loading map...</p>
                 </div>
             </div>
@@ -102,7 +102,7 @@ const LocationMapSelector = ({ latitude, longitude, onLocationSelect }) => {
             <div ref={mapRef} className="w-full h-96 rounded-xl border-2 border-neutral-200 shadow-lg"></div>
             <div className="absolute top-4 left-4 bg-white px-4 py-2 rounded-lg shadow-lg text-sm">
                 <p className="text-neutral-600 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-rose-600" viewBox="0 0 20 20" fill="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" style={{ color: 'var(--color-primary)' }} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                     </svg>
                     Click or drag marker to set location

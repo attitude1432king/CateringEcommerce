@@ -23,7 +23,7 @@ export default function BannerCard({ item, onEdit, onDelete, onStatusChange }) {
     };
 
     return (
-        <div className="group bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-indigo-200">
+        <div className="group bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-orange-100">
             {/* Banner Image Preview */}
             <div className="relative h-48 bg-gradient-to-br from-neutral-100 to-neutral-200 overflow-hidden">
                 {imageUrl ? (
@@ -53,7 +53,8 @@ export default function BannerCard({ item, onEdit, onDelete, onStatusChange }) {
 
                 {/* Display Order Badge */}
                 <div className="absolute top-3 left-3">
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold text-white"
+                        style={{ background: 'var(--color-primary)' }}>
                         Order: {item.displayOrder}
                     </span>
                 </div>
@@ -61,7 +62,7 @@ export default function BannerCard({ item, onEdit, onDelete, onStatusChange }) {
 
             <div className="p-6">
                 {/* Title */}
-                <h3 className="text-lg font-bold text-neutral-900 group-hover:text-indigo-600 transition-colors mb-2 line-clamp-1">
+                <h3 className="text-lg font-bold text-neutral-900 mb-2 line-clamp-1">
                     {item.title}
                 </h3>
 
@@ -74,7 +75,7 @@ export default function BannerCard({ item, onEdit, onDelete, onStatusChange }) {
 
                 {/* Link URL */}
                 {item.linkUrl && (
-                    <div className="mb-3 flex items-center gap-2 text-xs text-indigo-600">
+                    <div className="mb-3 flex items-center gap-2 text-xs text-neutral-500">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
@@ -96,12 +97,12 @@ export default function BannerCard({ item, onEdit, onDelete, onStatusChange }) {
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-indigo-50 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-indigo-600">{item.viewCount || 0}</div>
+                    <div className="rounded-lg p-3 text-center" style={{ background: 'rgba(255,107,53,0.06)' }}>
+                        <div className="text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>{item.viewCount || 0}</div>
                         <div className="text-xs text-neutral-600">Views</div>
                     </div>
-                    <div className="bg-purple-50 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-purple-600">{item.clickCount || 0}</div>
+                    <div className="bg-neutral-50 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-neutral-700">{item.clickCount || 0}</div>
                         <div className="text-xs text-neutral-600">Clicks</div>
                     </div>
                 </div>
@@ -117,10 +118,10 @@ export default function BannerCard({ item, onEdit, onDelete, onStatusChange }) {
             </div>
 
             {/* Action Buttons */}
-            <div className="bg-gradient-to-r from-neutral-50 to-indigo-50 px-6 py-4 flex gap-3 border-t border-neutral-100">
+            <div className="bg-neutral-50 px-6 py-4 flex gap-3 border-t border-neutral-100">
                 <button
                     onClick={onEdit}
-                    className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-white hover:bg-indigo-50 text-indigo-600 rounded-lg font-semibold transition-all shadow-sm hover:shadow"
+                    className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-white hover:bg-neutral-100 text-neutral-700 rounded-lg font-semibold transition-all shadow-sm hover:shadow"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

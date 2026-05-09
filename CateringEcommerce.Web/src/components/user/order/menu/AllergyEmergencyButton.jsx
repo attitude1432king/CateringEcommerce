@@ -73,7 +73,7 @@ const AllergyEmergencyButton = ({ onEmergency }) => {
 
               {/* Affected Guest */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
                   Affected Guest <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -88,7 +88,7 @@ const AllergyEmergencyButton = ({ onEmergency }) => {
 
               {/* Severity */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
                   Severity Level <span className="text-red-600">*</span>
                 </label>
                 <select
@@ -106,7 +106,7 @@ const AllergyEmergencyButton = ({ onEmergency }) => {
 
               {/* Allergy Details */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
                   Allergy Details <span className="text-red-600">*</span>
                 </label>
                 <textarea
@@ -117,7 +117,7 @@ const AllergyEmergencyButton = ({ onEmergency }) => {
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   required
                 />
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-neutral-600 mt-1">
                   Be as specific as possible. Include cross-contamination concerns if any.
                 </p>
               </div>
@@ -134,7 +134,7 @@ const AllergyEmergencyButton = ({ onEmergency }) => {
             <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-white transition-colors font-medium"
+                className="flex-1 px-6 py-3 border-2 border-gray-300 text-neutral-700 rounded-lg hover:bg-white transition-colors font-medium"
               >
                 Cancel
               </button>

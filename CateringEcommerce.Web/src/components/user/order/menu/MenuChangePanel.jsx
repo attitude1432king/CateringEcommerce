@@ -144,14 +144,14 @@ const MenuChangePanel = ({
             modificationMode.color === 'green' ? 'text-green-600' : ''
           }${modificationMode.color === 'amber' ? 'text-amber-600' : ''}${
             modificationMode.color === 'red' ? 'text-red-600' : ''
-          }${modificationMode.color === 'gray' ? 'text-gray-600' : ''}`
+          }${modificationMode.color === 'gray' ? 'text-neutral-600' : ''}`
         })}
         <div className="flex-1">
           <h3 className={`font-semibold mb-1 ${
             modificationMode.color === 'green' ? 'text-green-900' : ''
           }${modificationMode.color === 'amber' ? 'text-amber-900' : ''}${
             modificationMode.color === 'red' ? 'text-red-900' : ''
-          }${modificationMode.color === 'gray' ? 'text-gray-900' : ''}`}>
+          }${modificationMode.color === 'gray' ? 'text-neutral-900' : ''}`}>
             {modificationMode.description}
           </h3>
           {modificationMode.warning && (
@@ -159,7 +159,7 @@ const MenuChangePanel = ({
               modificationMode.color === 'green' ? 'text-green-800' : ''
             }${modificationMode.color === 'amber' ? 'text-amber-800' : ''}${
               modificationMode.color === 'red' ? 'text-red-800' : ''
-            }${modificationMode.color === 'gray' ? 'text-gray-700' : ''}`}>
+            }${modificationMode.color === 'gray' ? 'text-neutral-700' : ''}`}>
               {modificationMode.warning}
             </p>
           )}
@@ -190,8 +190,8 @@ const MenuChangePanel = ({
               className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
             >
               <div className="flex-1">
-                <p className="font-medium text-gray-900">{item.itemName}</p>
-                <p className="text-sm text-gray-600">{item.itemType}</p>
+                <p className="font-medium text-neutral-900">{item.itemName}</p>
+                <p className="text-sm text-neutral-600">{item.itemType}</p>
                 {item.dietaryTags && (
                   <div className="flex gap-1 mt-1">
                     {item.dietaryTags.map((tag, i) => (
@@ -206,8 +206,8 @@ const MenuChangePanel = ({
                 )}
               </div>
               <div className="text-right">
-                <p className="font-semibold text-gray-900">₹{item.price.toFixed(2)}</p>
-                <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                <p className="font-semibold text-neutral-900">₹{item.price.toFixed(2)}</p>
+                <p className="text-xs text-neutral-500">Qty: {item.quantity}</p>
               </div>
             </div>
           ))}
@@ -225,7 +225,7 @@ const MenuChangePanel = ({
             rows={4}
             className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-          <p className="text-xs text-gray-600 mt-2">
+          <p className="text-xs text-neutral-600 mt-2">
             <Info className="w-3 h-3 inline mr-1" />
             This information will be highlighted to the chef. Please be specific about severe allergies.
           </p>
@@ -283,14 +283,14 @@ const MenuChangePanel = ({
                   className="border border-gray-200 rounded-lg p-4"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-gray-900">{request.changeType}</p>
+                    <p className="font-medium text-neutral-900">{request.changeType}</p>
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusBadge.color} flex items-center gap-1`}>
                       <StatusIcon className="w-3 h-3" />
                       {statusBadge.label}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mb-1">{request.description}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm text-neutral-600 mb-1">{request.description}</p>
+                  <p className="text-xs text-neutral-500">
                     Requested {new Date(request.requestedDate).toLocaleString('en-IN')}
                   </p>
                   {request.status === 'rejected' && request.rejectionReason && (
@@ -311,8 +311,8 @@ const MenuChangePanel = ({
       {(modificationMode.mode === 'locked' || modificationMode.mode === 'event-day') && !modificationMode.canModifyDietary && (
         <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-6 text-center">
           <Lock className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <h3 className="font-semibold text-gray-900 mb-2">Menu is Locked</h3>
-          <p className="text-sm text-gray-600 max-w-md mx-auto">
+          <h3 className="font-semibold text-neutral-900 mb-2">Menu is Locked</h3>
+          <p className="text-sm text-neutral-600 max-w-md mx-auto">
             {modificationMode.mode === 'event-day'
               ? 'Menu modifications are not possible on event day. For emergency allergy issues, use the emergency button above.'
               : 'Ingredients have been procured based on your menu. Changes are no longer possible to ensure quality and timely service.'}

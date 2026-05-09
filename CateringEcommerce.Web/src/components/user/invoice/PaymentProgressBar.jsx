@@ -79,7 +79,7 @@ const PaymentProgressBar = ({ orderId }) => {
         <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-lg font-semibold text-neutral-900">
                         Payment Progress
                     </h3>
                     <span className="text-2xl font-bold text-blue-600">
@@ -140,20 +140,20 @@ const PaymentProgressBar = ({ orderId }) => {
 
                         <div className="flex-1">
                             <div className="flex items-center justify-between">
-                                <h4 className="font-semibold text-gray-900">
+                                <h4 className="font-semibold text-neutral-900">
                                     {milestone.label}
                                 </h4>
                                 <span
                                     className={`text-sm font-medium ${
                                         milestone.completed
                                             ? 'text-green-600'
-                                            : 'text-gray-500'
+                                            : 'text-neutral-500'
                                     }`}
                                 >
                                     {milestone.percentage}%
                                 </span>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-sm text-neutral-600 mt-1">
                                 {milestone.description}
                             </p>
                             {milestone.completed && (

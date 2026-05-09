@@ -9,7 +9,7 @@ import InvoiceList from '../components/user/invoice/InvoiceList';
  */
 const InvoicesPage = () => {
   const navigate = useNavigate();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState(null);
@@ -33,8 +33,7 @@ const InvoicesPage = () => {
         method: 'GET',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
 

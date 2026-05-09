@@ -17,12 +17,12 @@ const deliveryOptions = [
 const StepHeader = ({ stepNumber, title, subtitle, isActive, isCompleted, onEdit }) => (
     <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${isCompleted ? 'bg-green-600 text-white' : isActive ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${isCompleted ? 'bg-green-600 text-white' : isActive ? 'bg-rose-600 text-white' : 'bg-gray-200 text-neutral-700'}`}>
                 {isCompleted ? '✓' : stepNumber}
             </div>
             <div>
-                <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-                <p className="text-sm text-gray-600">{subtitle}</p>
+                <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
+                <p className="text-sm text-neutral-600">{subtitle}</p>
             </div>
         </div>
         {isCompleted && !isActive && (
@@ -55,7 +55,7 @@ const DeliveryTypeSection = ({
             />
 
             {!isActive && isCompleted ? (
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-neutral-700">
                     <span className="font-medium">Selected:</span> {getDeliveryTypeDisplay(checkoutData.deliveryType)}
                 </p>
             ) : null}
@@ -78,8 +78,8 @@ const DeliveryTypeSection = ({
                                         className="mt-1"
                                     />
                                     <div>
-                                        <p className="font-medium text-gray-900">{option.title}</p>
-                                        <p className="text-sm text-gray-600">{option.description}</p>
+                                        <p className="font-medium text-neutral-900">{option.title}</p>
+                                        <p className="text-sm text-neutral-600">{option.description}</p>
                                     </div>
                                 </div>
                             </label>
@@ -88,7 +88,7 @@ const DeliveryTypeSection = ({
 
                     {checkoutData.deliveryType === 'sample' && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-neutral-700 mb-2">
                                 Preferred Dispatch Time
                             </label>
                             <input

@@ -124,7 +124,7 @@ const MenuItemEditor = ({
               >
                 <div className="flex-1">
                   <p className="font-medium text-sm">{item.itemName}</p>
-                  <p className="text-xs text-gray-600">{item.itemType}</p>
+                  <p className="text-xs text-neutral-600">{item.itemType}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">₹{item.price}</span>
@@ -143,7 +143,7 @@ const MenuItemEditor = ({
 
       {/* Edited Menu */}
       <div className="space-y-2">
-        <h4 className="font-medium text-gray-700">Current Selection</h4>
+        <h4 className="font-medium text-neutral-700">Current Selection</h4>
         {editedMenu.map((item, index) => (
           <div
             key={index}
@@ -151,7 +151,7 @@ const MenuItemEditor = ({
           >
             <div className="flex-1">
               <p className="font-medium">{item.itemName}</p>
-              <p className="text-sm text-gray-600">{item.itemType}</p>
+              <p className="text-sm text-neutral-600">{item.itemType}</p>
             </div>
 
             {/* Quantity Control */}
@@ -159,7 +159,7 @@ const MenuItemEditor = ({
               <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-300 px-2">
                 <button
                   onClick={() => handleUpdateQuantity(item.itemId, item.quantity - 1)}
-                  className="w-6 h-6 text-gray-600 hover:text-gray-900"
+                  className="w-6 h-6 text-neutral-600 hover:text-neutral-900"
                 >
                   −
                 </button>
@@ -172,7 +172,7 @@ const MenuItemEditor = ({
                 />
                 <button
                   onClick={() => handleUpdateQuantity(item.itemId, item.quantity + 1)}
-                  className="w-6 h-6 text-gray-600 hover:text-gray-900"
+                  className="w-6 h-6 text-neutral-600 hover:text-neutral-900"
                 >
                   +
                 </button>
@@ -193,7 +193,7 @@ const MenuItemEditor = ({
         ))}
 
         {editedMenu.length === 0 && (
-          <p className="text-center text-gray-500 py-4">No items in menu. Add items to get started.</p>
+          <p className="text-center text-neutral-500 py-4">No items in menu. Add items to get started.</p>
         )}
       </div>
 

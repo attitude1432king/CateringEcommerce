@@ -174,8 +174,8 @@ namespace CateringEcommerce.API.Controllers.User
 
                     // With the following explicit type handling:
                     object loginUserDetails = request.IsPartnerLogin
-                        ? (object)_ownerRepository.GetOwnerDetails(request.PhoneNumber)
-                        : (object)_authentication.GetUserData(request.PhoneNumber);
+                        ? await _ownerRepository.GetOwnerDetails(request.PhoneNumber)
+                        : await _authentication.GetUserData(request.PhoneNumber);
 
                     // Fix: Use reflection or dynamic to access PkID property
                     string pkId = null;
@@ -289,7 +289,7 @@ namespace CateringEcommerce.API.Controllers.User
             return Ok(new { result = true, userId, role, phoneNumber = phone });
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpPost("final-verify")]
         public async Task<IActionResult> FinalVerification([FromBody] FinalRequest finalRequest)
         {

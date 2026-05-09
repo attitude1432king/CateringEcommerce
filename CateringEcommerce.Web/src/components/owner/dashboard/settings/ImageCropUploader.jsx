@@ -140,7 +140,7 @@ const ImageCropUploader = forwardRef(({ onCropComplete, aspect = 1 }, ref) => {
                             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-md text-sm font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200">
                                 Cancel
                             </button>
-                            <button type="button" onClick={handleCrop} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-rose-600 hover:bg-rose-700">
+                            <button type="button" onClick={handleCrop} className="px-4 py-2 rounded-md text-sm font-medium text-white transition-all" style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
                                 Crop & Save
                             </button>
                         </div>

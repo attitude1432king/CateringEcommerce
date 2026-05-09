@@ -107,20 +107,19 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-t-2xl">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold">
-                            {editingItem ? 'Edit Banner' : 'Create New Banner'}
-                        </h2>
-                        <button
-                            onClick={onClose}
-                            className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
+                <div className="sticky top-0 text-white px-6 py-4 rounded-t-2xl flex justify-between items-center"
+                    style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}>
+                    <h2 className="text-2xl font-bold">
+                        {editingItem ? 'Edit Banner' : 'Create New Banner'}
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
 
                 {/* Form */}
@@ -130,7 +129,7 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                         <label className="block text-sm font-semibold text-neutral-700 mb-2">
                             Banner Image <span className="text-red-500">*</span>
                         </label>
-                        <div className="border-2 border-dashed border-neutral-300 rounded-xl p-4 text-center hover:border-indigo-500 transition-colors">
+                        <div className="border-2 border-dashed border-neutral-300 rounded-xl p-4 text-center hover:border-orange-400 transition-colors">
                             {imagePreview ? (
                                 <div className="relative">
                                     <img
@@ -169,7 +168,8 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                             />
                             <label
                                 htmlFor="bannerImage"
-                                className="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg cursor-pointer hover:bg-indigo-700 transition-colors"
+                                className="inline-block mt-3 px-4 py-2 text-white rounded-lg cursor-pointer transition-all"
+                                style={{ background: 'var(--color-primary)' }}
                             >
                                 Choose Image
                             </label>
@@ -186,7 +186,7 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                             name="title"
                             value={formData.title}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
                             placeholder="Enter banner title"
                             required
                         />
@@ -202,7 +202,7 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                             value={formData.description}
                             onChange={handleInputChange}
                             rows="3"
-                            className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
                             placeholder="Enter banner description"
                         />
                     </div>
@@ -217,7 +217,7 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                             name="linkUrl"
                             value={formData.linkUrl}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
                             placeholder="https://example.com"
                         />
                         <p className="text-xs text-neutral-500 mt-1">Optional: Where should users go when clicking this banner?</p>
@@ -234,7 +234,7 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                             value={formData.displayOrder}
                             onChange={handleInputChange}
                             min="0"
-                            className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
                             placeholder="0"
                         />
                         <p className="text-xs text-neutral-500 mt-1">Lower numbers appear first</p>
@@ -251,7 +251,7 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                                 name="startDate"
                                 value={formData.startDate}
                                 onChange={handleInputChange}
-                                className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
                             />
                         </div>
                         <div>
@@ -263,7 +263,7 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                                 name="endDate"
                                 value={formData.endDate}
                                 onChange={handleInputChange}
-                                className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
                             />
                         </div>
                     </div>
@@ -276,7 +276,7 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                             name="isActive"
                             checked={formData.isActive}
                             onChange={handleInputChange}
-                            className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                            className="w-5 h-5 text-orange-500 rounded focus:ring-2 focus:ring-orange-400"
                         />
                         <label htmlFor="isActive" className="text-sm font-semibold text-neutral-700">
                             Active (Banner will be visible on homepage)
@@ -294,7 +294,8 @@ export default function BannerFormModal({ isOpen, onClose, onSave, editingItem }
                         </button>
                         <button
                             type="submit"
-                            className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                            className="flex-1 px-6 py-3 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                            style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' }}
                         >
                             {editingItem ? 'Update Banner' : 'Create Banner'}
                         </button>

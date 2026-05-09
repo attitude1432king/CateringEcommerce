@@ -22,7 +22,8 @@ const SelectGroup = ({ title, options, selectedIds, onSelect, error }) => {
                         <button
                             type="button"
                             onClick={() => onSelect(option.typeId.toString())}
-                            className={`px-3 py-1 text-sm rounded-full border transition-colors ${selectedSet.has(option.typeId.toString()) ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-neutral-700 border-neutral-300 hover:bg-rose-50'}`}
+                            className={`px-3 py-1 text-sm rounded-full border transition-all ${selectedSet.has(option.typeId.toString()) ? 'text-white border-transparent' : 'bg-white text-neutral-700 border-neutral-300 hover:bg-orange-50'}`}
+                            style={selectedSet.has(option.typeId.toString()) ? { background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB627 100%)' } : undefined}
                         >
                             {option.serviceName}
                         </button>

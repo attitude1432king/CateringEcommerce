@@ -202,12 +202,12 @@ const OTPVerificationModal = ({
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-gray-800">{purpose}</h3>
-                            <p className="text-xs text-gray-500">Verification required for security</p>
+                            <p className="text-xs text-neutral-500">Verification required for security</p>
                         </div>
                     </div>
                     <button
                         onClick={handleClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        className="text-gray-400 hover:text-neutral-600 transition-colors"
                         disabled={isLoading}
                     >
                         <X className="w-6 h-6" />
@@ -249,7 +249,7 @@ const OTPVerificationModal = ({
                     {/* OTP Form */}
                     <form onSubmit={handleVerifyOtp} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-neutral-700 mb-2">
                                 Enter OTP
                             </label>
                             <input
@@ -265,7 +265,7 @@ const OTPVerificationModal = ({
                                 autoFocus
                             />
                             {otp.length > 0 && !isOtpValid && otp.length < 6 && (
-                                <p className="mt-2 text-xs text-gray-500 text-center">
+                                <p className="mt-2 text-xs text-neutral-500 text-center">
                                     {6 - otp.length} more digit{6 - otp.length !== 1 ? 's' : ''} required
                                 </p>
                             )}
@@ -299,8 +299,8 @@ const OTPVerificationModal = ({
                     {/* Resend OTP */}
                     <div className="text-center">
                         {resendTimer > 0 ? (
-                            <p className="text-sm text-gray-500">
-                                Resend OTP in <span className="font-semibold text-gray-700">{resendTimer}s</span>
+                            <p className="text-sm text-neutral-500">
+                                Resend OTP in <span className="font-semibold text-neutral-700">{resendTimer}s</span>
                             </p>
                         ) : (
                             <button
@@ -324,7 +324,7 @@ const OTPVerificationModal = ({
 
                 {/* Footer */}
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
-                    <p className="text-xs text-gray-600 text-center">
+                    <p className="text-xs text-neutral-600 text-center">
                         This verification helps protect your account from unauthorized actions
                     </p>
                 </div>

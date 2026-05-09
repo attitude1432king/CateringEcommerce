@@ -269,7 +269,7 @@ const OrderTimeline = ({
   return (
     <div className="bg-white rounded-lg p-6 shadow-sm">
       <h2 className="font-semibold text-lg mb-6 flex items-center gap-2">
-        <Clock className="w-5 h-5 text-gray-600" />
+        <Clock className="w-5 h-5 text-neutral-600" />
         Order Activity Timeline
       </h2>
 
@@ -294,7 +294,7 @@ const OrderTimeline = ({
                 {/* Content */}
                 <div className="flex-1 pb-6">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-semibold text-gray-900">{event.title}</h3>
+                    <h3 className="font-semibold text-neutral-900">{event.title}</h3>
                     {event.status === 'completed' && (
                       <CheckCircle className="w-4 h-4 text-green-600" />
                     )}
@@ -304,17 +304,17 @@ const OrderTimeline = ({
                       </span>
                     )}
                     {event.status === 'pending' && (
-                      <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+                      <span className="text-xs font-medium text-neutral-600 bg-gray-100 px-2 py-1 rounded-full">
                         Upcoming
                       </span>
                     )}
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-1">
+                  <p className="text-sm text-neutral-600 mb-1">
                     {event.description}
                   </p>
 
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-neutral-500">
                     {event.status === 'completed' ? (
                       <>
                         {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
@@ -345,7 +345,7 @@ const OrderTimeline = ({
 
         {/* Last event indicator */}
         {timelineEvents[timelineEvents.length - 1]?.status === 'completed' && (
-          <div className="flex items-center gap-2 text-sm text-gray-500 mt-4 ml-16">
+          <div className="flex items-center gap-2 text-sm text-neutral-500 mt-4 ml-16">
             <CheckCircle className="w-4 h-4 text-green-600" />
             <span>All events up to date</span>
           </div>

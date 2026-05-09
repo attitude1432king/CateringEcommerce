@@ -7,14 +7,14 @@ const StickyPriceSummary = ({ cart, className = '' }) => {
     {
       label: 'Base Amount',
       value: cart.baseAmount || 0,
-      className: 'text-gray-700',
+      className: 'text-neutral-700',
     },
     ...(cart.decorationAmount > 0
       ? [
           {
             label: 'Decoration',
             value: cart.decorationAmount,
-            className: 'text-gray-700',
+            className: 'text-neutral-700',
           },
         ]
       : []),
@@ -23,7 +23,7 @@ const StickyPriceSummary = ({ cart, className = '' }) => {
           {
             label: 'Additional Items',
             value: cart.additionalItemsTotal,
-            className: 'text-gray-700',
+            className: 'text-neutral-700',
           },
         ]
       : []),
@@ -40,7 +40,7 @@ const StickyPriceSummary = ({ cart, className = '' }) => {
     {
       label: 'GST (18%)',
       value: cart.taxAmount || 0,
-      className: 'text-gray-700',
+      className: 'text-neutral-700',
     },
   ];
 
@@ -79,12 +79,12 @@ const StickyPriceSummary = ({ cart, className = '' }) => {
 
         {/* Total */}
         <div className="flex justify-between items-center">
-          <span className="text-base font-semibold text-gray-900">Total Amount</span>
+          <span className="text-base font-semibold text-neutral-900">Total Amount</span>
           <div className="text-right">
             <div className="text-2xl font-bold text-red-600">
               ₹{cart.totalAmount?.toFixed(2)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-neutral-500 mt-1">
               For {cart.guestCount} guests
             </div>
           </div>
@@ -93,7 +93,7 @@ const StickyPriceSummary = ({ cart, className = '' }) => {
         {/* Per Person Cost */}
         {cart.guestCount > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="flex justify-between items-center text-sm text-gray-600">
+            <div className="flex justify-between items-center text-sm text-neutral-600">
               <span>Per Person Cost</span>
               <span className="font-medium">
                 ₹{(cart.totalAmount / cart.guestCount).toFixed(2)}
@@ -105,7 +105,7 @@ const StickyPriceSummary = ({ cart, className = '' }) => {
 
       {/* Footer Info */}
       <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-        <div className="flex items-start text-xs text-gray-600">
+        <div className="flex items-start text-xs text-neutral-600">
           <svg className="w-4 h-4 mr-1 mt-0.5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"

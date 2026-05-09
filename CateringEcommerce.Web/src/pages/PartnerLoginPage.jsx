@@ -130,17 +130,17 @@ export default function PartnerLoginPage() {
                 isPartnerLogin={true}
             />
 
-            <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-amber-50 text-gray-900 flex flex-col overflow-hidden">
+            <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-amber-50 text-neutral-900 flex flex-col overflow-hidden">
 
                 {/* ── Header ── */}
-                <header className="relative z-20 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+                <header className="relative z-20 border-b border-neutral-200 bg-white/80 backdrop-blur-sm">
                     <div className="max-w-screen-xl mx-auto flex items-center justify-between px-6 md:px-10 py-4">
                         <img src="/logo.svg" alt="ENYVORA Partners" className="h-9 w-auto" />
                         <div className="flex items-center gap-3">
-                            <span className="text-gray-600 text-sm hidden sm:block">Already a partner?</span>
+                            <span className="text-neutral-600 text-sm hidden sm:block">Already a partner?</span>
                             <button
                                 onClick={() => setIsAuthModalOpen(true)}
-                                className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-white hover:bg-gray-50 border-2 border-gray-200 text-gray-700 transition-all"
+                                className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-white hover:bg-neutral-50 border-2 border-neutral-200 text-neutral-700 transition-all"
                             >
                                 Sign In
                             </button>
@@ -166,14 +166,14 @@ export default function PartnerLoginPage() {
                                 </div>
 
                                 {/* Headline */}
-                                <h1 className="text-4xl md:text-5xl xl:text-[3.25rem] font-black leading-[1.1] mb-4 tracking-tight text-gray-900">
+                                <h1 className="text-4xl md:text-5xl xl:text-[3.25rem] font-black leading-[1.1] mb-4 tracking-tight text-neutral-900">
                                     Fill Your Calendar.<br />
                                     <span className="bg-gradient-to-r from-rose-600 via-pink-600 to-amber-500 bg-clip-text text-transparent">
                                         Grow Your Business.
                                     </span>
                                 </h1>
 
-                                <p className="text-gray-600 text-base lg:text-lg leading-relaxed mb-7 max-w-xl">
+                                <p className="text-neutral-600 text-base lg:text-lg leading-relaxed mb-7 max-w-xl">
                                     Join thousands of catering professionals using ENYVORA to win more bookings, delight customers, and scale their business — effortlessly.
                                 </p>
 
@@ -182,14 +182,14 @@ export default function PartnerLoginPage() {
                                     {features.map(({ emoji, title, desc, color }) => (
                                         <div
                                             key={title}
-                                            className="flex items-start gap-3 rounded-xl p-4 border bg-white hover:bg-gray-50 transition-colors border-gray-200 shadow-sm"
+                                            className="flex items-start gap-3 rounded-xl p-4 border bg-white hover:bg-neutral-50 transition-colors border-neutral-200 shadow-sm"
                                         >
                                             <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-lg border ${color}`}>
                                                 {emoji}
                                             </div>
                                             <div>
-                                                <h3 className="font-semibold text-gray-800 text-sm">{title}</h3>
-                                                <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{desc}</p>
+                                                <h3 className="font-semibold text-neutral-800 text-sm">{title}</h3>
+                                                <p className="text-neutral-500 text-xs mt-0.5 leading-relaxed">{desc}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -205,17 +205,17 @@ export default function PartnerLoginPage() {
                                     </button>
                                     <button
                                         onClick={() => setIsAuthModalOpen(true)}
-                                        className="flex-1 sm:flex-none px-8 py-3.5 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-xl border-2 border-gray-200 transition-all text-sm"
+                                        className="flex-1 sm:flex-none px-8 py-3.5 bg-white hover:bg-neutral-50 text-neutral-700 font-semibold rounded-xl border-2 border-neutral-200 transition-all text-sm"
                                     >
                                         Login to Dashboard →
                                     </button>
                                 </div>
 
-                                <p className="text-gray-400 text-xs mt-4">
+                                <p className="text-neutral-400 text-xs mt-4">
                                     By continuing, you agree to our{' '}
-                                    <a href="#" className="text-gray-500 hover:text-gray-800 transition-colors underline underline-offset-2">Terms of Service</a>
+                                    <a href="#" className="text-neutral-500 hover:text-neutral-800 transition-colors underline underline-offset-2">Terms of Service</a>
                                     {' '}and{' '}
-                                    <a href="#" className="text-gray-500 hover:text-gray-800 transition-colors underline underline-offset-2">Privacy Policy</a>.
+                                    <a href="#" className="text-neutral-500 hover:text-neutral-800 transition-colors underline underline-offset-2">Privacy Policy</a>.
                                 </p>
                             </div>
                         </div>
@@ -228,32 +228,32 @@ export default function PartnerLoginPage() {
                             <div className="relative w-full max-w-md space-y-3">
 
                                 {/* Stats overview card */}
-                                <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-xl">
+                                <div className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-xl">
                                     <div className="flex items-center justify-between mb-4">
-                                        <h3 className="font-semibold text-sm text-gray-900">Platform at a Glance</h3>
+                                        <h3 className="font-semibold text-sm text-neutral-900">Platform at a Glance</h3>
                                         <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-semibold">
                                             ● Live
                                         </span>
                                     </div>
 
                                     <div className="grid grid-cols-4 gap-2 mb-5">
-                                        <div className="text-center bg-gray-50 rounded-xl p-3 border border-gray-200">
-                                            <p ref={partnersRef} className="text-lg font-black text-gray-900 tabular-nums">
+                                        <div className="text-center bg-neutral-50 rounded-xl p-3 border border-neutral-200">
+                                            <p ref={partnersRef} className="text-lg font-black text-neutral-900 tabular-nums">
                                                 {partners >= 1000 ? `${(partners / 1000).toFixed(1)}K` : partners}+
                                             </p>
-                                            <p className="text-gray-500 text-xs mt-0.5 leading-tight">Active Partners</p>
+                                            <p className="text-neutral-500 text-xs mt-0.5 leading-tight">Active Partners</p>
                                         </div>
-                                        <div className="text-center bg-gray-50 rounded-xl p-3 border border-gray-200">
+                                        <div className="text-center bg-neutral-50 rounded-xl p-3 border border-neutral-200">
                                             <p ref={eventsRef} className="text-lg font-black text-amber-600 tabular-nums">
                                                 {events >= 1000 ? `${(events / 1000).toFixed(0)}K` : events}+
                                             </p>
-                                            <p className="text-gray-500 text-xs mt-0.5 leading-tight">Events Done</p>
+                                            <p className="text-neutral-500 text-xs mt-0.5 leading-tight">Events Done</p>
                                         </div>
-                                        <div className="text-center bg-gray-50 rounded-xl p-3 border border-gray-200">
+                                        <div className="text-center bg-neutral-50 rounded-xl p-3 border border-neutral-200">
                                             <p ref={citiesRef} className="text-lg font-black text-sky-600 tabular-nums">
                                                 {cities}+
                                             </p>
-                                            <p className="text-gray-500 text-xs mt-0.5 leading-tight">Cities Served</p>
+                                            <p className="text-neutral-500 text-xs mt-0.5 leading-tight">Cities Served</p>
                                         </div>
                                         <div className="relative text-center bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50 rounded-xl p-3 border border-rose-200 overflow-hidden">
                                             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(251,113,133,0.1),transparent_70%)] pointer-events-none" />
@@ -265,12 +265,12 @@ export default function PartnerLoginPage() {
                                                     150%
                                                 </span>
                                             </div>
-                                            <p className="text-gray-500 text-xs mt-0.5 leading-tight">Avg Growth</p>
+                                            <p className="text-neutral-500 text-xs mt-0.5 leading-tight">Avg Growth</p>
                                         </div>
                                     </div>
 
                                     {/* Mini bar chart */}
-                                    <p className="text-gray-400 text-xs mb-2">Bookings this week</p>
+                                    <p className="text-neutral-400 text-xs mb-2">Bookings this week</p>
                                     <div className="flex items-end gap-1 h-14">
                                         {barHeights.map((h, i) => (
                                             <div
@@ -282,43 +282,43 @@ export default function PartnerLoginPage() {
                                     </div>
                                     <div className="flex justify-between mt-1.5">
                                         {weekDays.map((d, i) => (
-                                            <span key={i} className="flex-1 text-center text-gray-400 text-xs">{d}</span>
+                                            <span key={i} className="flex-1 text-center text-neutral-400 text-xs">{d}</span>
                                         ))}
                                     </div>
                                 </div>
 
                                 {/* Notification + Trust — side by side */}
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 shadow-md">
+                                    <div className="bg-white border border-neutral-200 rounded-xl p-4 flex items-center gap-3 shadow-md">
                                         <div className="w-9 h-9 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center flex-shrink-0">
                                             <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-gray-800 text-xs font-semibold leading-tight">New Booking!</p>
-                                            <p className="text-gray-500 text-xs truncate">Wedding · 250 guests</p>
+                                            <p className="text-neutral-800 text-xs font-semibold leading-tight">New Booking!</p>
+                                            <p className="text-neutral-500 text-xs truncate">Wedding · 250 guests</p>
                                             <p className="text-rose-500 text-xs font-semibold">₹1.2L</p>
                                         </div>
                                     </div>
 
-                                    <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 shadow-md">
+                                    <div className="bg-white border border-neutral-200 rounded-xl p-4 flex items-center gap-3 shadow-md">
                                         <div className="w-9 h-9 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-center flex-shrink-0">
                                             <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                             </svg>
                                         </div>
                                         <div>
-                                            <p className="text-gray-800 text-xs font-semibold leading-tight">Verified Partner</p>
-                                            <p className="text-gray-500 text-xs leading-tight">Competitive rates · 100% transparent</p>
+                                            <p className="text-neutral-800 text-xs font-semibold leading-tight">Verified Partner</p>
+                                            <p className="text-neutral-500 text-xs leading-tight">Competitive rates · 100% transparent</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Payout summary card */}
-                                <div className="bg-gradient-to-r from-gray-900 to-gray-800 border border-gray-700 rounded-xl p-4 shadow-xl">
+                                <div className="bg-gradient-to-r from-neutral-900 to-neutral-800 border border-neutral-700 rounded-xl p-4 shadow-xl">
                                     <div className="flex items-center justify-between mb-3">
-                                        <p className="text-gray-300 text-xs font-medium">Next Payout</p>
+                                        <p className="text-neutral-300 text-xs font-medium">Next Payout</p>
                                         <span className="text-xs text-emerald-400 bg-emerald-900/40 border border-emerald-700 px-2 py-0.5 rounded-full font-semibold">
                                             Scheduled
                                         </span>
@@ -326,11 +326,11 @@ export default function PartnerLoginPage() {
                                     <div className="flex items-end justify-between">
                                         <div>
                                             <p className="text-white text-2xl font-black tabular-nums">₹84,500</p>
-                                            <p className="text-gray-400 text-xs mt-0.5">Across 6 confirmed events</p>
+                                            <p className="text-neutral-400 text-xs mt-0.5">Across 6 confirmed events</p>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-emerald-400 text-sm font-bold">Friday</p>
-                                            <p className="text-gray-500 text-xs">Direct bank transfer</p>
+                                            <p className="text-neutral-500 text-xs">Direct bank transfer</p>
                                         </div>
                                     </div>
                                 </div>
@@ -340,20 +340,20 @@ export default function PartnerLoginPage() {
                     </div>
 
                     {/* ── Testimonials Bar ── */}
-                    <div className="border-t border-gray-200 bg-white/70 backdrop-blur-sm">
+                    <div className="border-t border-neutral-200 bg-white/70 backdrop-blur-sm">
                         <div className="max-w-screen-xl mx-auto px-6 md:px-10 py-8">
-                            <p className="text-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">
+                            <p className="text-center text-xs font-bold text-neutral-400 uppercase tracking-widest mb-6">
                                 Trusted by catering professionals across India
                             </p>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {testimonials.map(({ name, city, text, initials, color }) => (
-                                    <div key={name} className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl p-4">
+                                    <div key={name} className="flex items-start gap-3 bg-neutral-50 border border-neutral-200 rounded-xl p-4">
                                         <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${color}`}>
                                             {initials}
                                         </div>
                                         <div>
-                                            <p className="text-gray-700 text-sm leading-relaxed">"{text}"</p>
-                                            <p className="text-gray-400 text-xs mt-1.5 font-medium">{name} · {city}</p>
+                                            <p className="text-neutral-700 text-sm leading-relaxed">"{text}"</p>
+                                            <p className="text-neutral-400 text-xs mt-1.5 font-medium">{name} · {city}</p>
                                         </div>
                                     </div>
                                 ))}

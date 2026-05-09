@@ -1,860 +1,1731 @@
 -- =============================================
--- Supervisor Careers Application Stored Procedures
+-- Supervisor Careers Application Stored Functions (PostgreSQL)
 -- Maps to: CareersApplicationRepository.cs
--- 29 Stored Procedures for Careers Portal 6-Stage Pipeline
+-- 29 Functions for Careers Portal 6-Stage Pipeline
 -- (Excludes sp_ProgressCareersApplication already in
 --  Supervisor_Management_StoredProcedures.sql)
 -- =============================================
+-- NOTE: All routines are PostgreSQL FUNCTIONs (not PROCEDUREs) so they can be
+-- invoked through SqlQueryTranslator.BuildFunctionCall as
+-- `SELECT * FROM sp_xxx(@p1, @p2, ...)`.
+-- =============================================
 
-USE [CateringDB];
-GO
 
 -- =============================================
 -- APPLICATION SUBMISSION
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_SubmitCareersApplication
-    @FirstName NVARCHAR(50),
-    @LastName NVARCHAR(50),
-    @Email VARCHAR(100),
-    @Phone VARCHAR(15),
-    @Address NVARCHAR(500),
-    @DateOfBirth DATE,
-    @ResumeUrl VARCHAR(500),
-    @CoverLetter NVARCHAR(2000) = NULL,
-    @YearsOfExperience INT,
-    @PreviousEmployer NVARCHAR(200) = NULL,
-    @References NVARCHAR(2000) = NULL,
-    @ApplicationId BIGINT OUTPUT
-AS
+CREATE OR REPLACE FUNCTION sp_SubmitCareersApplication(
+    p_firstname           VARCHAR(50),
+    p_lastname            VARCHAR(50),
+    p_email               VARCHAR(100),
+    p_phone               VARCHAR(15),
+    p_address             VARCHAR(500),
+    p_dateofbirth         DATE,
+    p_resumeurl           VARCHAR(500),
+    p_coverletter         VARCHAR(2000),
+    p_yearsofexperience   INTEGER,
+    p_previousemployer    VARCHAR(200),
+    p_references          VARCHAR(2000)
+)
+RETURNS TABLE (applicationid BIGINT)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_supervisor_id   BIGINT;
+    v_full_name       VARCHAR(100);
+    v_app_number      VARCHAR(50);
+    v_application_id  BIGINT;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
+    v_full_name := p_firstname || ' ' || p_lastname;
 
-        -- Create supervisor record
-        DECLARE @SupervisorId BIGINT;
-        DECLARE @FullName NVARCHAR(100) = @FirstName + ' ' + @LastName;
+    INSERT INTO t_sys_supervisor (
+        c_supervisor_type, c_full_name, c_email, c_phone,
+        c_date_of_birth, c_address_line1, c_city, c_state, c_pincode,
+        c_resume_url, c_years_of_experience, c_previous_employer,
+        c_current_status, c_authority_level,
+        c_compensation_type, c_createddate
+    )
+    VALUES (
+        'CAREER', v_full_name, p_email, p_phone,
+        p_dateofbirth, p_address, '', '', '',
+        p_resumeurl, p_yearsofexperience, p_previousemployer,
+        'APPLIED', 'BASIC',
+        'MONTHLY_SALARY', NOW()
+    )
+    RETURNING c_supervisor_id INTO v_supervisor_id;
 
-        INSERT INTO t_sys_supervisor (
-            c_supervisor_type, c_full_name, c_email, c_phone,
-            c_date_of_birth, c_address_line1, c_city, c_state, c_pincode,
-            c_resume_url, c_years_of_experience, c_previous_employer,
-            c_current_status, c_authority_level,
-            c_compensation_type, c_createddate
-        )
-        VALUES (
-            'CAREER', @FullName, @Email, @Phone,
-            @DateOfBirth, @Address, '', '', '',
-            @ResumeUrl, @YearsOfExperience, @PreviousEmployer,
-            'APPLIED', 'BASIC',
-            'MONTHLY_SALARY', NOW()
-        );
+    v_app_number := 'CAR-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || v_supervisor_id::VARCHAR;
 
-        SET @SupervisorId = SCOPE_IDENTITY();
+    INSERT INTO t_sys_careers_application (
+        c_supervisor_id, c_application_number, c_applied_date,
+        c_source
+    )
+    VALUES (
+        v_supervisor_id, v_app_number, NOW(),
+        'WEBSITE'
+    )
+    RETURNING c_application_id INTO v_application_id;
 
-        -- Create careers application record
-        DECLARE @AppNumber VARCHAR(50) = 'CAR-' + FORMAT(NOW(), 'yyyyMMdd') + '-' + CAST(@SupervisorId AS VARCHAR(10));
+    RETURN QUERY SELECT v_application_id;
+END;
+$$;
 
-        INSERT INTO t_sys_careers_application (
-            c_supervisor_id, c_application_number, c_applied_date,
-            c_source
-        )
-        VALUES (
-            @SupervisorId, @AppNumber, NOW(),
-            'WEBSITE'
-        );
 
-        SET @ApplicationId = SCOPE_IDENTITY();
-
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH
-END
-GO
-
-CREATE OR ALTER PROCEDURE sp_GetCareersApplicationById
-    @ApplicationId BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_GetCareersApplicationById(
+    p_applicationid BIGINT
+)
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR,
+    c_date_of_birth                        DATE,
+    c_resume_url                           VARCHAR,
+    c_years_of_experience                  INTEGER,
+    c_previous_employer                    VARCHAR,
+    c_photo_url                            VARCHAR,
+    c_current_status                       VARCHAR,
+    c_authority_level                      VARCHAR,
+    c_address_line1                        VARCHAR,
+    c_supervisor_type                      VARCHAR
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone, s.c_date_of_birth,
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone, s.c_date_of_birth,
            s.c_resume_url, s.c_years_of_experience, s.c_previous_employer,
            s.c_photo_url, s.c_current_status, s.c_authority_level,
            s.c_address_line1, s.c_supervisor_type
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_application_id = @ApplicationId;
-END
-GO
+    WHERE a.c_application_id = p_applicationid;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetCareersApplicationBySupervisorId
-    @SupervisorId BIGINT
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetCareersApplicationBySupervisorId(
+    p_supervisorid BIGINT
+)
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR,
+    c_date_of_birth                        DATE,
+    c_resume_url                           VARCHAR,
+    c_years_of_experience                  INTEGER,
+    c_previous_employer                    VARCHAR,
+    c_photo_url                            VARCHAR,
+    c_current_status                       VARCHAR,
+    c_authority_level                      VARCHAR
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone, s.c_date_of_birth,
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone, s.c_date_of_birth,
            s.c_resume_url, s.c_years_of_experience, s.c_previous_employer,
            s.c_photo_url, s.c_current_status, s.c_authority_level
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_supervisor_id = @SupervisorId;
-END
-GO
+    WHERE a.c_supervisor_id = p_supervisorid;
+END;
+$$;
+
 
 -- =============================================
 -- REJECTION
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_RejectCareersApplication
-    @ApplicationId BIGINT,
-    @RejectedBy BIGINT,
-    @Reason NVARCHAR(1000)
-AS
+CREATE OR REPLACE FUNCTION sp_RejectCareersApplication(
+    p_applicationid BIGINT,
+    p_rejectedby    BIGINT,
+    p_reason        VARCHAR(1000)
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
     SET c_final_decision = 'REJECTED',
         c_final_decision_date = NOW(),
-        c_final_decision_by = @RejectedBy,
-        c_rejection_reason = @Reason,
+        c_final_decision_by = p_rejectedby,
+        c_rejection_reason = p_reason,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    -- Update supervisor status
-    UPDATE s
-    SET s.c_current_status = 'REJECTED',
-        s.c_status_reason = @Reason,
-        s.c_modifieddate = NOW(),
-        s.c_modifiedby = @RejectedBy
-    FROM t_sys_supervisor s
-    INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-    WHERE a.c_application_id = @ApplicationId;
+    UPDATE t_sys_supervisor s
+    SET c_current_status = 'REJECTED',
+        c_status_reason = p_reason,
+        c_modifieddate = NOW(),
+        c_modifiedby = p_rejectedby
+    FROM t_sys_careers_application a
+    WHERE s.c_supervisor_id = a.c_supervisor_id
+      AND a.c_application_id = p_applicationid;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
+
 
 -- =============================================
 -- STAGE 2: RESUME SCREENING
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_SubmitResumeScreening
-    @ApplicationId BIGINT,
-    @ScreenedBy BIGINT,
-    @Passed BIT,
-    @ResumeScore DECIMAL(5,2),
-    @ScreeningNotes NVARCHAR(1000) = NULL
-AS
+CREATE OR REPLACE FUNCTION sp_SubmitResumeScreening(
+    p_applicationid    BIGINT,
+    p_screenedby       BIGINT,
+    p_passed           BOOLEAN,
+    p_resumescore      DECIMAL(5,2),
+    p_screeningnotes   VARCHAR(1000)
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_resume_screened = 1,
-        c_resume_screened_by = @ScreenedBy,
+    SET c_resume_screened = TRUE,
+        c_resume_screened_by = p_screenedby,
         c_resume_screened_date = NOW(),
-        c_resume_screening_notes = @ScreeningNotes,
-        c_resume_screening_status = CASE WHEN @Passed = 1 THEN 'PASSED' ELSE 'FAILED' END,
+        c_resume_screening_notes = p_screeningnotes,
+        c_resume_screening_status = CASE WHEN p_passed THEN 'PASSED' ELSE 'FAILED' END,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    -- Update supervisor status if passed
-    IF @Passed = 1
-    BEGIN
-        UPDATE s
-        SET s.c_current_status = 'RESUME_SCREENED',
-            s.c_modifieddate = NOW()
-        FROM t_sys_supervisor s
-        INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-        WHERE a.c_application_id = @ApplicationId;
-    END
+    IF p_passed THEN
+        UPDATE t_sys_supervisor s
+        SET c_current_status = 'RESUME_SCREENED',
+            c_modifieddate = NOW()
+        FROM t_sys_careers_application a
+        WHERE s.c_supervisor_id = a.c_supervisor_id
+          AND a.c_application_id = p_applicationid;
+    END IF;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationsForResumeScreening
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationsForResumeScreening()
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR,
+    c_resume_url                           VARCHAR,
+    c_years_of_experience                  INTEGER
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone,
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone,
            s.c_resume_url, s.c_years_of_experience
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_resume_screened = 0
+    WHERE a.c_resume_screened = FALSE
     ORDER BY a.c_applied_date ASC;
-END
-GO
+END;
+$$;
+
 
 -- =============================================
 -- STAGE 3: INTERVIEW
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_ScheduleInterview
-    @ApplicationId BIGINT,
-    @InterviewDateTime DATETIME,
-    @InterviewType VARCHAR(20),
-    @InterviewerName NVARCHAR(100),
-    @MeetingLink VARCHAR(500) = NULL,
-    @ScheduledBy BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_ScheduleInterview(
+    p_applicationid       BIGINT,
+    p_interviewdatetime   TIMESTAMP,
+    p_interviewtype       VARCHAR(20),
+    p_interviewername     VARCHAR(100),
+    p_meetinglink         VARCHAR(500),
+    p_scheduledby         BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_interview_scheduled = 1,
-        c_interview_date = @InterviewDateTime,
-        c_interview_mode = @InterviewType,
-        c_interviewer_id = @ScheduledBy,
+    SET c_interview_scheduled = TRUE,
+        c_interview_date = p_interviewdatetime,
+        c_interview_mode = p_interviewtype,
+        c_interviewer_id = p_scheduledby,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_SubmitInterviewResult
-    @ApplicationId BIGINT,
-    @InterviewedBy BIGINT,
-    @Passed BIT,
-    @InterviewScore DECIMAL(5,2),
-    @InterviewNotes NVARCHAR(2000) = NULL
-AS
+
+CREATE OR REPLACE FUNCTION sp_SubmitInterviewResult(
+    p_applicationid     BIGINT,
+    p_interviewedby     BIGINT,
+    p_passed            BOOLEAN,
+    p_interviewscore    DECIMAL(5,2),
+    p_interviewnotes    VARCHAR(2000)
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_interview_completed = 1,
-        c_interview_feedback = @InterviewNotes,
-        c_interview_score = @InterviewScore,
-        c_interview_result = CASE WHEN @Passed = 1 THEN 'PASSED' ELSE 'FAILED' END,
+    SET c_interview_completed = TRUE,
+        c_interview_feedback = p_interviewnotes,
+        c_interview_score = p_interviewscore,
+        c_interview_result = CASE WHEN p_passed THEN 'PASSED' ELSE 'FAILED' END,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    IF @Passed = 1
-    BEGIN
-        UPDATE s
-        SET s.c_current_status = 'INTERVIEW_PASSED',
-            s.c_modifieddate = NOW()
-        FROM t_sys_supervisor s
-        INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-        WHERE a.c_application_id = @ApplicationId;
-    END
+    IF p_passed THEN
+        UPDATE t_sys_supervisor s
+        SET c_current_status = 'INTERVIEW_PASSED',
+            c_modifieddate = NOW()
+        FROM t_sys_careers_application a
+        WHERE s.c_supervisor_id = a.c_supervisor_id
+          AND a.c_application_id = p_applicationid;
+    END IF;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationsForInterview
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationsForInterview()
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
     WHERE a.c_resume_screening_status = 'PASSED'
-      AND a.c_interview_completed = 0
+      AND a.c_interview_completed = FALSE
     ORDER BY a.c_interview_date ASC;
-END
-GO
+END;
+$$;
+
 
 -- =============================================
 -- STAGE 4: BACKGROUND VERIFICATION
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_InitiateBackgroundCheck
-    @ApplicationId BIGINT,
-    @InitiatedBy BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_InitiateBackgroundCheck(
+    p_applicationid BIGINT,
+    p_initiatedby   BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_background_verification_initiated = 1,
+    SET c_background_verification_initiated = TRUE,
         c_background_verification_date = NOW(),
         c_background_verification_result = 'PENDING',
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    UPDATE s
-    SET s.c_current_status = 'BACKGROUND_VERIFICATION',
-        s.c_background_check_status = 'PENDING',
-        s.c_modifieddate = NOW()
-    FROM t_sys_supervisor s
-    INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-    WHERE a.c_application_id = @ApplicationId;
-
-    SELECT 1 AS Success;
-END
-GO
-
-CREATE OR ALTER PROCEDURE sp_SubmitBackgroundCheckResult
-    @ApplicationId BIGINT,
-    @Passed BIT,
-    @VerificationAgency VARCHAR(100),
-    @VerificationDate DATETIME,
-    @VerificationReportUrl VARCHAR(500) = NULL,
-    @Notes NVARCHAR(1000) = NULL,
-    @SubmittedBy BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    UPDATE t_sys_careers_application
-    SET c_background_verification_result = CASE WHEN @Passed = 1 THEN 'CLEAR' ELSE 'ISSUES_FOUND' END,
-        c_background_verification_agency = @VerificationAgency,
-        c_background_verification_date = @VerificationDate,
-        c_background_verification_report_url = @VerificationReportUrl,
+    UPDATE t_sys_supervisor s
+    SET c_current_status = 'BACKGROUND_VERIFICATION',
+        c_background_check_status = 'PENDING',
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    FROM t_sys_careers_application a
+    WHERE s.c_supervisor_id = a.c_supervisor_id
+      AND a.c_application_id = p_applicationid;
 
-    UPDATE s
-    SET s.c_background_check_status = CASE WHEN @Passed = 1 THEN 'PASSED' ELSE 'FAILED' END,
-        s.c_background_check_date = @VerificationDate,
-        s.c_modifieddate = NOW()
-    FROM t_sys_supervisor s
-    INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-    WHERE a.c_application_id = @ApplicationId;
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-    SELECT 1 AS Success;
-END
-GO
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationsPendingBackgroundCheck
-AS
+CREATE OR REPLACE FUNCTION sp_SubmitBackgroundCheckResult(
+    p_applicationid           BIGINT,
+    p_passed                  BOOLEAN,
+    p_verificationagency      VARCHAR(100),
+    p_verificationdate        TIMESTAMP,
+    p_verificationreporturl   VARCHAR(500),
+    p_notes                   VARCHAR(1000),
+    p_submittedby             BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
+    UPDATE t_sys_careers_application
+    SET c_background_verification_result = CASE WHEN p_passed THEN 'CLEAR' ELSE 'ISSUES_FOUND' END,
+        c_background_verification_agency = p_verificationagency,
+        c_background_verification_date = p_verificationdate,
+        c_background_verification_report_url = p_verificationreporturl,
+        c_modifieddate = NOW()
+    WHERE c_application_id = p_applicationid;
 
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone
+    UPDATE t_sys_supervisor s
+    SET c_background_check_status = CASE WHEN p_passed THEN 'PASSED' ELSE 'FAILED' END,
+        c_background_check_date = p_verificationdate,
+        c_modifieddate = NOW()
+    FROM t_sys_careers_application a
+    WHERE s.c_supervisor_id = a.c_supervisor_id
+      AND a.c_application_id = p_applicationid;
+
+    RETURN QUERY SELECT 1;
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationsPendingBackgroundCheck()
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
     WHERE a.c_interview_result = 'PASSED'
-      AND (a.c_background_verification_result = 'PENDING' OR a.c_background_verification_initiated = 0)
+      AND (a.c_background_verification_result = 'PENDING' OR a.c_background_verification_initiated = FALSE)
     ORDER BY a.c_applied_date ASC;
-END
-GO
+END;
+$$;
+
 
 -- =============================================
 -- STAGE 5: TRAINING
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_AssignTraining
-    @ApplicationId BIGINT,
-    @ModuleIds VARCHAR(500),
-    @AssignedBy BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_AssignTraining(
+    p_applicationid BIGINT,
+    p_moduleids     VARCHAR(500),
+    p_assignedby    BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_supervisor_id BIGINT;
+    v_module_id     BIGINT;
 BEGIN
-    SET NOCOUNT ON;
+    SELECT c_supervisor_id INTO v_supervisor_id
+    FROM t_sys_careers_application
+    WHERE c_application_id = p_applicationid;
 
-    DECLARE @SupervisorId BIGINT;
-    SELECT @SupervisorId = c_supervisor_id FROM t_sys_careers_application WHERE c_application_id = @ApplicationId;
-
-    -- Update application
     UPDATE t_sys_careers_application
-    SET c_training_start_date = CAST(NOW() AS DATE),
+    SET c_training_start_date = CURRENT_DATE,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    -- Update supervisor status
     UPDATE t_sys_supervisor
     SET c_current_status = 'TRAINING',
         c_modifieddate = NOW()
-    WHERE c_supervisor_id = @SupervisorId;
+    WHERE c_supervisor_id = v_supervisor_id;
 
-    -- Insert training progress for each module
-    DECLARE @ModuleId BIGINT;
-    DECLARE @Pos INT = 1;
-    DECLARE @Len INT;
-
-    WHILE @Pos <= LENGTH(@ModuleIds)
-    BEGIN
-        SET @Len = CHARINDEX(',', @ModuleIds + ',', @Pos) - @Pos;
-        SET @ModuleId = CAST(SUBSTRING(@ModuleIds, @Pos, @Len) AS BIGINT);
-
-        IF NOT EXISTS (SELECT 1 FROM t_sys_supervisor_training_progress WHERE c_supervisor_id = @SupervisorId AND c_module_id = @ModuleId)
-        BEGIN
+    FOR v_module_id IN
+        SELECT trim(both ' ' FROM x)::BIGINT
+        FROM unnest(string_to_array(p_moduleids, ',')) AS x
+        WHERE trim(both ' ' FROM x) <> ''
+    LOOP
+        IF NOT EXISTS (
+            SELECT 1 FROM t_sys_supervisor_training_progress
+            WHERE c_supervisor_id = v_supervisor_id AND c_module_id = v_module_id
+        ) THEN
             INSERT INTO t_sys_supervisor_training_progress (c_supervisor_id, c_module_id, c_started_date)
-            VALUES (@SupervisorId, @ModuleId, NOW());
-        END
+            VALUES (v_supervisor_id, v_module_id, NOW());
+        END IF;
+    END LOOP;
 
-        SET @Pos = @Pos + @Len + 1;
-    END
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-    SELECT 1 AS Success;
-END
-GO
 
-CREATE OR ALTER PROCEDURE sp_RecordTrainingProgress
-    @ApplicationId BIGINT,
-    @ModuleId BIGINT,
-    @ProgressPercentage INT
-AS
+CREATE OR REPLACE FUNCTION sp_RecordTrainingProgress(
+    p_applicationid       BIGINT,
+    p_moduleid            BIGINT,
+    p_progresspercentage  INTEGER
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_supervisor_id   BIGINT;
+    v_overall_progress DECIMAL(5,2);
 BEGIN
-    SET NOCOUNT ON;
-
-    DECLARE @SupervisorId BIGINT;
-    SELECT @SupervisorId = c_supervisor_id FROM t_sys_careers_application WHERE c_application_id = @ApplicationId;
+    SELECT c_supervisor_id INTO v_supervisor_id
+    FROM t_sys_careers_application
+    WHERE c_application_id = p_applicationid;
 
     UPDATE t_sys_supervisor_training_progress
-    SET c_completion_percentage = @ProgressPercentage,
+    SET c_completion_percentage = p_progresspercentage,
         c_last_attempt_date = NOW(),
-        c_passed = CASE WHEN @ProgressPercentage >= 100 THEN 1 ELSE 0 END,
-        c_completed_date = CASE WHEN @ProgressPercentage >= 100 THEN NOW() ELSE NULL END
-    WHERE c_supervisor_id = @SupervisorId AND c_module_id = @ModuleId;
+        c_passed = CASE WHEN p_progresspercentage >= 100 THEN TRUE ELSE FALSE END,
+        c_completed_date = CASE WHEN p_progresspercentage >= 100 THEN NOW() ELSE NULL END
+    WHERE c_supervisor_id = v_supervisor_id AND c_module_id = p_moduleid;
 
-    -- Update overall training attendance in application
-    DECLARE @OverallProgress DECIMAL(5,2);
-    SELECT @OverallProgress = AVG(c_completion_percentage)
+    SELECT AVG(c_completion_percentage) INTO v_overall_progress
     FROM t_sys_supervisor_training_progress
-    WHERE c_supervisor_id = @SupervisorId;
+    WHERE c_supervisor_id = v_supervisor_id;
 
     UPDATE t_sys_careers_application
-    SET c_training_attendance_percentage = @OverallProgress,
+    SET c_training_attendance_percentage = v_overall_progress,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_CompleteTraining
-    @ApplicationId BIGINT,
-    @CompletedBy BIGINT
-AS
+
+CREATE OR REPLACE FUNCTION sp_CompleteTraining(
+    p_applicationid BIGINT,
+    p_completedby   BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_training_completed = 1,
-        c_training_end_date = CAST(NOW() AS DATE),
+    SET c_training_completed = TRUE,
+        c_training_end_date = CURRENT_DATE,
         c_training_attendance_percentage = 100.00,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    -- Update supervisor training date
-    UPDATE s
-    SET s.c_training_completed_date = NOW(),
-        s.c_modifieddate = NOW()
-    FROM t_sys_supervisor s
-    INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-    WHERE a.c_application_id = @ApplicationId;
+    UPDATE t_sys_supervisor s
+    SET c_training_completed_date = NOW(),
+        c_modifieddate = NOW()
+    FROM t_sys_careers_application a
+    WHERE s.c_supervisor_id = a.c_supervisor_id
+      AND a.c_application_id = p_applicationid;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationsInTraining
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationsInTraining()
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
     WHERE a.c_background_verification_result = 'CLEAR'
-      AND a.c_training_completed = 0
+      AND a.c_training_completed = FALSE
       AND s.c_current_status = 'TRAINING'
     ORDER BY a.c_training_start_date ASC;
-END
-GO
+END;
+$$;
+
 
 -- =============================================
 -- STAGE 6: CERTIFICATION
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_ScheduleCertificationExam
-    @ApplicationId BIGINT,
-    @ExamDate DATETIME,
-    @ScheduledBy BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_ScheduleCertificationExam(
+    p_applicationid BIGINT,
+    p_examdate      TIMESTAMP,
+    p_scheduledby   BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_certification_test_date = @ExamDate,
+    SET c_certification_test_date = p_examdate,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_SubmitCertificationResult
-    @ApplicationId BIGINT,
-    @Passed BIT,
-    @ExamScore DECIMAL(5,2),
-    @ExamDate DATETIME,
-    @CertificateNumber VARCHAR(50) = NULL,
-    @CertificateUrl VARCHAR(500) = NULL,
-    @EvaluatedBy BIGINT
-AS
+
+CREATE OR REPLACE FUNCTION sp_SubmitCertificationResult(
+    p_applicationid       BIGINT,
+    p_passed              BOOLEAN,
+    p_examscore           DECIMAL(5,2),
+    p_examdate            TIMESTAMP,
+    p_certificatenumber   VARCHAR(50),
+    p_certificateurl      VARCHAR(500),
+    p_evaluatedby         BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_certification_test_score = @ExamScore,
-        c_certification_passed = @Passed,
-        c_certification_certificate_url = @CertificateUrl,
+    SET c_certification_test_score = p_examscore,
+        c_certification_passed = p_passed,
+        c_certification_certificate_url = p_certificateurl,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    IF @Passed = 1
-    BEGIN
-        UPDATE s
-        SET s.c_certification_date = @ExamDate,
-            s.c_certification_status = 'CERTIFIED',
-            s.c_certification_valid_until = DATEADD(YEAR, 1, @ExamDate),
-            s.c_current_status = 'CERTIFIED',
-            s.c_modifieddate = NOW()
-        FROM t_sys_supervisor s
-        INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-        WHERE a.c_application_id = @ApplicationId;
-    END
+    IF p_passed THEN
+        UPDATE t_sys_supervisor s
+        SET c_certification_date = p_examdate,
+            c_certification_status = 'CERTIFIED',
+            c_certification_valid_until = (p_examdate + INTERVAL '1 year')::DATE,
+            c_current_status = 'CERTIFIED',
+            c_modifieddate = NOW()
+        FROM t_sys_careers_application a
+        WHERE s.c_supervisor_id = a.c_supervisor_id
+          AND a.c_application_id = p_applicationid;
+    END IF;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationsPendingCertification
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationsPendingCertification()
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_training_completed = 1
-      AND a.c_certification_passed = 0
+    WHERE a.c_training_completed = TRUE
+      AND a.c_certification_passed = FALSE
     ORDER BY a.c_certification_test_date ASC;
-END
-GO
+END;
+$$;
+
 
 -- =============================================
 -- STAGE 7: PROBATION
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_StartProbation
-    @ApplicationId BIGINT,
-    @ProbationDays INT,
-    @StartedBy BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_StartProbation(
+    p_applicationid  BIGINT,
+    p_probationdays  INTEGER,
+    p_startedby      BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_probation_assigned = 1,
-        c_probation_start_date = CAST(NOW() AS DATE),
-        c_probation_duration_days = @ProbationDays,
+    SET c_probation_assigned = TRUE,
+        c_probation_start_date = CURRENT_DATE,
+        c_probation_duration_days = p_probationdays,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    UPDATE s
-    SET s.c_current_status = 'PROBATION',
-        s.c_probation_start_date = CAST(NOW() AS DATE),
-        s.c_probation_end_date = DATEADD(DAY, @ProbationDays, CAST(NOW() AS DATE)),
-        s.c_modifieddate = NOW()
-    FROM t_sys_supervisor s
-    INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-    WHERE a.c_application_id = @ApplicationId;
+    UPDATE t_sys_supervisor s
+    SET c_current_status = 'PROBATION',
+        c_probation_start_date = CURRENT_DATE,
+        c_probation_end_date = (CURRENT_DATE + (p_probationdays || ' days')::INTERVAL)::DATE,
+        c_modifieddate = NOW()
+    FROM t_sys_careers_application a
+    WHERE s.c_supervisor_id = a.c_supervisor_id
+      AND a.c_application_id = p_applicationid;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_CompleteProbation
-    @ApplicationId BIGINT,
-    @Passed BIT,
-    @EvaluatedBy BIGINT,
-    @Evaluation NVARCHAR(2000) = NULL
-AS
+
+CREATE OR REPLACE FUNCTION sp_CompleteProbation(
+    p_applicationid BIGINT,
+    p_passed        BOOLEAN,
+    p_evaluatedby   BIGINT,
+    p_evaluation    VARCHAR(2000)
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
     UPDATE t_sys_careers_application
-    SET c_probation_evaluation_date = CAST(NOW() AS DATE),
-        c_probation_evaluation_notes = @Evaluation,
-        c_probation_passed = @Passed,
+    SET c_probation_evaluation_date = CURRENT_DATE,
+        c_probation_evaluation_notes = p_evaluation,
+        c_probation_passed = p_passed,
         c_modifieddate = NOW()
-    WHERE c_application_id = @ApplicationId;
+    WHERE c_application_id = p_applicationid;
 
-    UPDATE s
-    SET s.c_is_probation_passed = @Passed,
-        s.c_modifieddate = NOW()
-    FROM t_sys_supervisor s
-    INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-    WHERE a.c_application_id = @ApplicationId;
+    UPDATE t_sys_supervisor s
+    SET c_is_probation_passed = p_passed,
+        c_modifieddate = NOW()
+    FROM t_sys_careers_application a
+    WHERE s.c_supervisor_id = a.c_supervisor_id
+      AND a.c_application_id = p_applicationid;
 
-    SELECT 1 AS Success;
-END
-GO
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationsInProbation
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationsInProbation()
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR,
+    c_probation_start_date_supervisor      DATE,
+    c_probation_end_date                   DATE
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone,
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone,
            s.c_probation_start_date, s.c_probation_end_date
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE a.c_certification_passed = 1
+    WHERE a.c_certification_passed = TRUE
       AND a.c_probation_passed IS NULL
       AND s.c_current_status = 'PROBATION'
     ORDER BY s.c_probation_end_date ASC;
-END
-GO
+END;
+$$;
+
 
 -- =============================================
 -- FINAL ACTIVATION
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_ActivateCareerSupervisor
-    @ApplicationId BIGINT,
-    @ActivatedBy BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_ActivateCareerSupervisor(
+    p_applicationid BIGINT,
+    p_activatedby   BIGINT
+)
+RETURNS TABLE (success INTEGER)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_supervisor_id BIGINT;
 BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
+    UPDATE t_sys_careers_application
+    SET c_final_decision = 'ACCEPTED',
+        c_final_decision_date = NOW(),
+        c_final_decision_by = p_activatedby,
+        c_onboarding_completed = TRUE,
+        c_joining_date = CURRENT_DATE,
+        c_modifieddate = NOW()
+    WHERE c_application_id = p_applicationid;
 
-        -- Update application
-        UPDATE t_sys_careers_application
-        SET c_final_decision = 'ACCEPTED',
-            c_final_decision_date = NOW(),
-            c_final_decision_by = @ActivatedBy,
-            c_onboarding_completed = 1,
-            c_joining_date = CAST(NOW() AS DATE),
-            c_modifieddate = NOW()
-        WHERE c_application_id = @ApplicationId;
+    UPDATE t_sys_supervisor s
+    SET c_current_status = 'ACTIVE',
+        c_authority_level = 'INTERMEDIATE',
+        c_is_available = TRUE,
+        c_modifieddate = NOW(),
+        c_modifiedby = p_activatedby
+    FROM t_sys_careers_application a
+    WHERE s.c_supervisor_id = a.c_supervisor_id
+      AND a.c_application_id = p_applicationid;
 
-        -- Update supervisor to ACTIVE with elevated authority
-        UPDATE s
-        SET s.c_current_status = 'ACTIVE',
-            s.c_authority_level = 'INTERMEDIATE',
-            s.c_is_available = 1,
-            s.c_modifieddate = NOW(),
-            s.c_modifiedby = @ActivatedBy
-        FROM t_sys_supervisor s
-        INNER JOIN t_sys_careers_application a ON s.c_supervisor_id = a.c_supervisor_id
-        WHERE a.c_application_id = @ApplicationId;
+    SELECT c_supervisor_id INTO v_supervisor_id
+    FROM t_sys_careers_application
+    WHERE c_application_id = p_applicationid;
 
-        -- Log activation
-        DECLARE @SupervisorId BIGINT;
-        SELECT @SupervisorId = c_supervisor_id FROM t_sys_careers_application WHERE c_application_id = @ApplicationId;
+    INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_action_type, c_action_description, c_action_result)
+    VALUES (v_supervisor_id, 'STATUS_CHANGED', 'Career supervisor activated after completing full pipeline', 'SUCCESS');
 
-        INSERT INTO t_sys_supervisor_action_log (c_supervisor_id, c_action_type, c_action_description, c_action_result)
-        VALUES (@SupervisorId, 'STATUS_CHANGED', 'Career supervisor activated after completing full pipeline', 'SUCCESS');
+    RETURN QUERY SELECT 1;
+END;
+$$;
 
-        COMMIT TRANSACTION;
-        SELECT 1 AS Success;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH
-END
-GO
 
 -- =============================================
 -- WORKFLOW TRACKING
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationProgress
-    @ApplicationId BIGINT
-AS
+CREATE OR REPLACE FUNCTION sp_GetApplicationProgress(
+    p_applicationid BIGINT
+)
+RETURNS TABLE (
+    ApplicationId            BIGINT,
+    ApplicationNumber        VARCHAR,
+    ApplicationStage         VARCHAR,
+    AppliedDate              TIMESTAMP,
+    ResumeScreeningStage     VARCHAR,
+    ResumeScreenedDate       TIMESTAMP,
+    ResumeScreeningResult    VARCHAR,
+    InterviewStage           VARCHAR,
+    InterviewDate            TIMESTAMP,
+    InterviewScore           DECIMAL(5,2),
+    BackgroundCheckStage     VARCHAR,
+    BackgroundCheckDate      TIMESTAMP,
+    TrainingStage            VARCHAR,
+    TrainingStartDate        DATE,
+    TrainingEndDate          DATE,
+    TrainingProgress         DECIMAL(5,2),
+    CertificationStage       VARCHAR,
+    CertificationDate        TIMESTAMP,
+    CertificationScore       DECIMAL(5,2),
+    ProbationStage           VARCHAR,
+    ProbationStartDate       DATE,
+    FinalDecision            VARCHAR,
+    FinalDecisionDate        TIMESTAMP
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
+    RETURN QUERY
     SELECT
-        a.c_application_id AS ApplicationId,
-        a.c_application_number AS ApplicationNumber,
-        -- Stage 1: Application
-        'COMPLETED' AS ApplicationStage,
-        a.c_applied_date AS AppliedDate,
-        -- Stage 2: Resume Screening
-        CASE WHEN a.c_resume_screening_status = 'PASSED' THEN 'COMPLETED'
-             WHEN a.c_resume_screening_status = 'FAILED' THEN 'FAILED'
-             WHEN a.c_resume_screened = 1 THEN 'REVIEWED'
-             ELSE 'PENDING' END AS ResumeScreeningStage,
-        a.c_resume_screened_date AS ResumeScreenedDate,
-        a.c_resume_screening_status AS ResumeScreeningResult,
-        -- Stage 3: Interview
-        CASE WHEN a.c_interview_result = 'PASSED' THEN 'COMPLETED'
-             WHEN a.c_interview_result = 'FAILED' THEN 'FAILED'
-             WHEN a.c_interview_scheduled = 1 THEN 'SCHEDULED'
-             ELSE 'PENDING' END AS InterviewStage,
-        a.c_interview_date AS InterviewDate,
-        a.c_interview_score AS InterviewScore,
-        -- Stage 4: Background Check
-        CASE WHEN a.c_background_verification_result = 'CLEAR' THEN 'COMPLETED'
-             WHEN a.c_background_verification_result = 'ISSUES_FOUND' THEN 'FAILED'
-             WHEN a.c_background_verification_initiated = 1 THEN 'IN_PROGRESS'
-             ELSE 'PENDING' END AS BackgroundCheckStage,
-        a.c_background_verification_date AS BackgroundCheckDate,
-        -- Stage 5: Training
-        CASE WHEN a.c_training_completed = 1 THEN 'COMPLETED'
-             WHEN a.c_training_start_date IS NOT NULL THEN 'IN_PROGRESS'
-             ELSE 'PENDING' END AS TrainingStage,
-        a.c_training_start_date AS TrainingStartDate,
-        a.c_training_end_date AS TrainingEndDate,
-        a.c_training_attendance_percentage AS TrainingProgress,
-        -- Stage 6: Certification
-        CASE WHEN a.c_certification_passed = 1 THEN 'COMPLETED'
-             WHEN a.c_certification_test_date IS NOT NULL THEN 'SCHEDULED'
-             ELSE 'PENDING' END AS CertificationStage,
-        a.c_certification_test_date AS CertificationDate,
-        a.c_certification_test_score AS CertificationScore,
-        -- Stage 7: Probation
-        CASE WHEN a.c_probation_passed = 1 THEN 'COMPLETED'
-             WHEN a.c_probation_passed = 0 THEN 'FAILED'
-             WHEN a.c_probation_assigned = 1 THEN 'IN_PROGRESS'
-             ELSE 'PENDING' END AS ProbationStage,
-        a.c_probation_start_date AS ProbationStartDate,
-        -- Final
-        a.c_final_decision AS FinalDecision,
-        a.c_final_decision_date AS FinalDecisionDate
+        a.c_application_id,
+        a.c_application_number,
+        'COMPLETED'::VARCHAR,
+        a.c_applied_date,
+        (CASE WHEN a.c_resume_screening_status = 'PASSED' THEN 'COMPLETED'
+              WHEN a.c_resume_screening_status = 'FAILED' THEN 'FAILED'
+              WHEN a.c_resume_screened = TRUE THEN 'REVIEWED'
+              ELSE 'PENDING' END)::VARCHAR,
+        a.c_resume_screened_date,
+        a.c_resume_screening_status,
+        (CASE WHEN a.c_interview_result = 'PASSED' THEN 'COMPLETED'
+              WHEN a.c_interview_result = 'FAILED' THEN 'FAILED'
+              WHEN a.c_interview_scheduled = TRUE THEN 'SCHEDULED'
+              ELSE 'PENDING' END)::VARCHAR,
+        a.c_interview_date,
+        a.c_interview_score,
+        (CASE WHEN a.c_background_verification_result = 'CLEAR' THEN 'COMPLETED'
+              WHEN a.c_background_verification_result = 'ISSUES_FOUND' THEN 'FAILED'
+              WHEN a.c_background_verification_initiated = TRUE THEN 'IN_PROGRESS'
+              ELSE 'PENDING' END)::VARCHAR,
+        a.c_background_verification_date,
+        (CASE WHEN a.c_training_completed = TRUE THEN 'COMPLETED'
+              WHEN a.c_training_start_date IS NOT NULL THEN 'IN_PROGRESS'
+              ELSE 'PENDING' END)::VARCHAR,
+        a.c_training_start_date,
+        a.c_training_end_date,
+        a.c_training_attendance_percentage,
+        (CASE WHEN a.c_certification_passed = TRUE THEN 'COMPLETED'
+              WHEN a.c_certification_test_date IS NOT NULL THEN 'SCHEDULED'
+              ELSE 'PENDING' END)::VARCHAR,
+        a.c_certification_test_date,
+        a.c_certification_test_score,
+        (CASE WHEN a.c_probation_passed = TRUE THEN 'COMPLETED'
+              WHEN a.c_probation_passed = FALSE THEN 'FAILED'
+              WHEN a.c_probation_assigned = TRUE THEN 'IN_PROGRESS'
+              ELSE 'PENDING' END)::VARCHAR,
+        a.c_probation_start_date,
+        a.c_final_decision,
+        a.c_final_decision_date
     FROM t_sys_careers_application a
-    WHERE a.c_application_id = @ApplicationId;
-END
-GO
+    WHERE a.c_application_id = p_applicationid;
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationWorkflowStatus
-    @ApplicationId BIGINT
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationWorkflowStatus(
+    p_applicationid BIGINT
+)
+RETURNS TABLE (
+    ApplicationId        BIGINT,
+    ApplicationNumber    VARCHAR,
+    SupervisorId         BIGINT,
+    CurrentStage         VARCHAR,
+    FinalDecision        VARCHAR,
+    AppliedDate          TIMESTAMP,
+    LastModifiedDate     TIMESTAMP
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_current_stage VARCHAR(30);
 BEGIN
-    SET NOCOUNT ON;
-
-    DECLARE @CurrentStage VARCHAR(30);
-
-    SELECT @CurrentStage = CASE
+    SELECT CASE
         WHEN a.c_final_decision = 'ACCEPTED' THEN 'ACTIVATED'
         WHEN a.c_final_decision = 'REJECTED' THEN 'REJECTED'
-        WHEN a.c_probation_assigned = 1 AND a.c_probation_passed IS NULL THEN 'PROBATION'
-        WHEN a.c_certification_passed = 1 THEN 'CERTIFICATION_PASSED'
+        WHEN a.c_probation_assigned = TRUE AND a.c_probation_passed IS NULL THEN 'PROBATION'
+        WHEN a.c_certification_passed = TRUE THEN 'CERTIFICATION_PASSED'
         WHEN a.c_certification_test_date IS NOT NULL THEN 'CERTIFICATION'
-        WHEN a.c_training_completed = 1 THEN 'TRAINING_COMPLETED'
+        WHEN a.c_training_completed = TRUE THEN 'TRAINING_COMPLETED'
         WHEN a.c_training_start_date IS NOT NULL THEN 'TRAINING'
         WHEN a.c_background_verification_result = 'CLEAR' THEN 'BACKGROUND_CLEARED'
-        WHEN a.c_background_verification_initiated = 1 THEN 'BACKGROUND_CHECK'
+        WHEN a.c_background_verification_initiated = TRUE THEN 'BACKGROUND_CHECK'
         WHEN a.c_interview_result = 'PASSED' THEN 'INTERVIEW_PASSED'
-        WHEN a.c_interview_scheduled = 1 THEN 'INTERVIEW'
+        WHEN a.c_interview_scheduled = TRUE THEN 'INTERVIEW'
         WHEN a.c_resume_screening_status = 'PASSED' THEN 'RESUME_SCREENED'
         ELSE 'APPLIED'
     END
+    INTO v_current_stage
     FROM t_sys_careers_application a
-    WHERE a.c_application_id = @ApplicationId;
+    WHERE a.c_application_id = p_applicationid;
 
-    SELECT a.c_application_id AS ApplicationId,
-           a.c_application_number AS ApplicationNumber,
-           a.c_supervisor_id AS SupervisorId,
-           @CurrentStage AS CurrentStage,
-           a.c_final_decision AS FinalDecision,
-           a.c_applied_date AS AppliedDate,
-           a.c_modifieddate AS LastModifiedDate
+    RETURN QUERY
+    SELECT a.c_application_id,
+           a.c_application_number,
+           a.c_supervisor_id,
+           v_current_stage,
+           a.c_final_decision,
+           a.c_applied_date,
+           a.c_modifieddate
     FROM t_sys_careers_application a
-    WHERE a.c_application_id = @ApplicationId;
-END
-GO
+    WHERE a.c_application_id = p_applicationid;
+END;
+$$;
+
 
 -- =============================================
 -- ADMIN QUERIES
 -- =============================================
 
-CREATE OR ALTER PROCEDURE sp_GetAllCareersApplications
-    @Status VARCHAR(20) = NULL
-AS
+CREATE OR REPLACE FUNCTION sp_GetAllCareersApplications(
+    p_status VARCHAR(20)
+)
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR,
+    c_current_status                       VARCHAR,
+    c_supervisor_type                      VARCHAR
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone,
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone,
            s.c_current_status, s.c_supervisor_type
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE (@Status IS NULL OR a.c_final_decision = @Status)
+    WHERE (p_status IS NULL OR a.c_final_decision = p_status)
     ORDER BY a.c_applied_date DESC;
-END
-GO
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationsByStage
-    @Stage VARCHAR(30)
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationsByStage(
+    p_stage VARCHAR(30)
+)
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
     WHERE (
-        (@Stage = 'RESUME_SCREENING' AND a.c_resume_screened = 0)
-        OR (@Stage = 'INTERVIEW' AND a.c_resume_screening_status = 'PASSED' AND a.c_interview_completed = 0)
-        OR (@Stage = 'BACKGROUND_CHECK' AND a.c_interview_result = 'PASSED' AND a.c_background_verification_result IN ('PENDING', 'NULL') OR a.c_background_verification_initiated = 0)
-        OR (@Stage = 'TRAINING' AND a.c_background_verification_result = 'CLEAR' AND a.c_training_completed = 0)
-        OR (@Stage = 'CERTIFICATION' AND a.c_training_completed = 1 AND a.c_certification_passed = 0)
-        OR (@Stage = 'PROBATION' AND a.c_certification_passed = 1 AND a.c_probation_passed IS NULL)
-        OR (@Stage = 'ACTIVATED' AND a.c_final_decision = 'ACCEPTED')
+        (p_stage = 'RESUME_SCREENING' AND a.c_resume_screened = FALSE)
+        OR (p_stage = 'INTERVIEW' AND a.c_resume_screening_status = 'PASSED' AND a.c_interview_completed = FALSE)
+        OR (p_stage = 'BACKGROUND_CHECK' AND a.c_interview_result = 'PASSED' AND (a.c_background_verification_result IN ('PENDING', 'NULL') OR a.c_background_verification_initiated = FALSE))
+        OR (p_stage = 'TRAINING' AND a.c_background_verification_result = 'CLEAR' AND a.c_training_completed = FALSE)
+        OR (p_stage = 'CERTIFICATION' AND a.c_training_completed = TRUE AND a.c_certification_passed = FALSE)
+        OR (p_stage = 'PROBATION' AND a.c_certification_passed = TRUE AND a.c_probation_passed IS NULL)
+        OR (p_stage = 'ACTIVATED' AND a.c_final_decision = 'ACCEPTED')
     )
     ORDER BY a.c_applied_date ASC;
-END
-GO
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_GetApplicationStatistics
-AS
+
+CREATE OR REPLACE FUNCTION sp_GetApplicationStatistics()
+RETURNS TABLE (
+    TotalApplications        BIGINT,
+    Accepted                 BIGINT,
+    Rejected                 BIGINT,
+    InProgress               BIGINT,
+    PendingResumeScreening   BIGINT,
+    PendingInterview         BIGINT,
+    PendingBackgroundCheck   BIGINT,
+    InTraining               BIGINT,
+    PendingCertification     BIGINT,
+    InProbation              BIGINT
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
+    RETURN QUERY
     SELECT
         COUNT(*) AS TotalApplications,
         SUM(CASE WHEN c_final_decision = 'ACCEPTED' THEN 1 ELSE 0 END) AS Accepted,
         SUM(CASE WHEN c_final_decision = 'REJECTED' THEN 1 ELSE 0 END) AS Rejected,
         SUM(CASE WHEN c_final_decision IS NULL THEN 1 ELSE 0 END) AS InProgress,
-        SUM(CASE WHEN c_resume_screened = 0 THEN 1 ELSE 0 END) AS PendingResumeScreening,
-        SUM(CASE WHEN c_resume_screening_status = 'PASSED' AND c_interview_completed = 0 THEN 1 ELSE 0 END) AS PendingInterview,
-        SUM(CASE WHEN c_interview_result = 'PASSED' AND (c_background_verification_result = 'PENDING' OR c_background_verification_initiated = 0) THEN 1 ELSE 0 END) AS PendingBackgroundCheck,
-        SUM(CASE WHEN c_background_verification_result = 'CLEAR' AND c_training_completed = 0 THEN 1 ELSE 0 END) AS InTraining,
-        SUM(CASE WHEN c_training_completed = 1 AND c_certification_passed = 0 THEN 1 ELSE 0 END) AS PendingCertification,
-        SUM(CASE WHEN c_certification_passed = 1 AND c_probation_passed IS NULL THEN 1 ELSE 0 END) AS InProbation
+        SUM(CASE WHEN c_resume_screened = FALSE THEN 1 ELSE 0 END) AS PendingResumeScreening,
+        SUM(CASE WHEN c_resume_screening_status = 'PASSED' AND c_interview_completed = FALSE THEN 1 ELSE 0 END) AS PendingInterview,
+        SUM(CASE WHEN c_interview_result = 'PASSED' AND (c_background_verification_result = 'PENDING' OR c_background_verification_initiated = FALSE) THEN 1 ELSE 0 END) AS PendingBackgroundCheck,
+        SUM(CASE WHEN c_background_verification_result = 'CLEAR' AND c_training_completed = FALSE THEN 1 ELSE 0 END) AS InTraining,
+        SUM(CASE WHEN c_training_completed = TRUE AND c_certification_passed = FALSE THEN 1 ELSE 0 END) AS PendingCertification,
+        SUM(CASE WHEN c_certification_passed = TRUE AND c_probation_passed IS NULL THEN 1 ELSE 0 END) AS InProbation
     FROM t_sys_careers_application;
-END
-GO
+END;
+$$;
 
-CREATE OR ALTER PROCEDURE sp_SearchCareersApplications
-    @Name NVARCHAR(100) = NULL,
-    @Email VARCHAR(100) = NULL,
-    @Phone VARCHAR(15) = NULL,
-    @Status VARCHAR(20) = NULL,
-    @CurrentStage VARCHAR(30) = NULL,
-    @AppliedFrom DATETIME = NULL,
-    @AppliedTo DATETIME = NULL
-AS
+
+CREATE OR REPLACE FUNCTION sp_SearchCareersApplications(
+    p_name           VARCHAR(100),
+    p_email          VARCHAR(100),
+    p_phone          VARCHAR(15),
+    p_status         VARCHAR(20),
+    p_currentstage   VARCHAR(30),
+    p_appliedfrom    TIMESTAMP,
+    p_appliedto      TIMESTAMP
+)
+RETURNS TABLE (
+    c_application_id                       BIGINT,
+    c_supervisor_id                        BIGINT,
+    c_application_number                   VARCHAR,
+    c_applied_date                         TIMESTAMP,
+    c_source                               VARCHAR,
+    c_referral_code                        VARCHAR,
+    c_resume_screened                      BOOLEAN,
+    c_resume_screened_by                   BIGINT,
+    c_resume_screened_date                 TIMESTAMP,
+    c_resume_screening_notes               TEXT,
+    c_resume_screening_status              VARCHAR,
+    c_interview_scheduled                  BOOLEAN,
+    c_interview_date                       TIMESTAMP,
+    c_interview_mode                       VARCHAR,
+    c_interviewer_id                       BIGINT,
+    c_interview_completed                  BOOLEAN,
+    c_interview_feedback                   TEXT,
+    c_interview_score                      DECIMAL(5,2),
+    c_interview_result                     VARCHAR,
+    c_background_verification_initiated    BOOLEAN,
+    c_background_verification_agency       VARCHAR,
+    c_background_verification_date         TIMESTAMP,
+    c_background_verification_result       VARCHAR,
+    c_background_verification_report_url   VARCHAR,
+    c_training_batch_id                    BIGINT,
+    c_training_start_date                  DATE,
+    c_training_end_date                    DATE,
+    c_training_attendance_percentage       DECIMAL(5,2),
+    c_training_completed                   BOOLEAN,
+    c_certification_test_date              TIMESTAMP,
+    c_certification_test_score             DECIMAL(5,2),
+    c_certification_passed                 BOOLEAN,
+    c_certification_certificate_url        VARCHAR,
+    c_probation_assigned                   BOOLEAN,
+    c_probation_start_date                 DATE,
+    c_probation_duration_days              INTEGER,
+    c_probation_supervisor_id              BIGINT,
+    c_probation_evaluation_date            DATE,
+    c_probation_evaluation_notes           TEXT,
+    c_probation_passed                     BOOLEAN,
+    c_final_decision                       VARCHAR,
+    c_final_decision_date                  TIMESTAMP,
+    c_final_decision_by                    BIGINT,
+    c_rejection_reason                     TEXT,
+    c_onboarding_completed                 BOOLEAN,
+    c_joining_date                         DATE,
+    c_offer_letter_url                     VARCHAR,
+    c_employee_id                          VARCHAR,
+    c_createddate                          TIMESTAMP,
+    c_modifieddate                         TIMESTAMP,
+    c_full_name                            VARCHAR,
+    c_email                                VARCHAR,
+    c_phone                                VARCHAR,
+    c_current_status                       VARCHAR,
+    c_supervisor_type                      VARCHAR,
+    c_years_of_experience                  INTEGER
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-    SET NOCOUNT ON;
-
-    SELECT a.*, s.c_full_name, s.c_email, s.c_phone,
+    RETURN QUERY
+    SELECT a.c_application_id, a.c_supervisor_id, a.c_application_number, a.c_applied_date,
+           a.c_source, a.c_referral_code,
+           a.c_resume_screened, a.c_resume_screened_by, a.c_resume_screened_date,
+           a.c_resume_screening_notes, a.c_resume_screening_status,
+           a.c_interview_scheduled, a.c_interview_date, a.c_interview_mode, a.c_interviewer_id,
+           a.c_interview_completed, a.c_interview_feedback, a.c_interview_score, a.c_interview_result,
+           a.c_background_verification_initiated, a.c_background_verification_agency,
+           a.c_background_verification_date, a.c_background_verification_result,
+           a.c_background_verification_report_url,
+           a.c_training_batch_id, a.c_training_start_date, a.c_training_end_date,
+           a.c_training_attendance_percentage, a.c_training_completed,
+           a.c_certification_test_date, a.c_certification_test_score, a.c_certification_passed,
+           a.c_certification_certificate_url,
+           a.c_probation_assigned, a.c_probation_start_date, a.c_probation_duration_days,
+           a.c_probation_supervisor_id, a.c_probation_evaluation_date,
+           a.c_probation_evaluation_notes, a.c_probation_passed,
+           a.c_final_decision, a.c_final_decision_date, a.c_final_decision_by, a.c_rejection_reason,
+           a.c_onboarding_completed, a.c_joining_date, a.c_offer_letter_url, a.c_employee_id,
+           a.c_createddate, a.c_modifieddate,
+           s.c_full_name, s.c_email, s.c_phone,
            s.c_current_status, s.c_supervisor_type,
            s.c_years_of_experience
     FROM t_sys_careers_application a
     INNER JOIN t_sys_supervisor s ON a.c_supervisor_id = s.c_supervisor_id
-    WHERE (@Name IS NULL OR s.c_full_name LIKE '%' + @Name + '%')
-      AND (@Email IS NULL OR s.c_email LIKE '%' + @Email + '%')
-      AND (@Phone IS NULL OR s.c_phone LIKE '%' + @Phone + '%')
-      AND (@Status IS NULL OR a.c_final_decision = @Status)
-      AND (@AppliedFrom IS NULL OR a.c_applied_date >= @AppliedFrom)
-      AND (@AppliedTo IS NULL OR a.c_applied_date <= @AppliedTo)
+    WHERE (p_name IS NULL OR s.c_full_name LIKE '%' || p_name || '%')
+      AND (p_email IS NULL OR s.c_email LIKE '%' || p_email || '%')
+      AND (p_phone IS NULL OR s.c_phone LIKE '%' || p_phone || '%')
+      AND (p_status IS NULL OR a.c_final_decision = p_status)
+      AND (p_appliedfrom IS NULL OR a.c_applied_date >= p_appliedfrom)
+      AND (p_appliedto IS NULL OR a.c_applied_date <= p_appliedto)
     ORDER BY a.c_applied_date DESC;
-END
-GO
-
-PRINT '================================================';
-PRINT 'Supervisor Careers Application Stored Procedures Created';
-PRINT '29 Stored Procedures for CareersApplicationRepository.cs';
-PRINT '================================================';
-GO
-
+END;
+$$;

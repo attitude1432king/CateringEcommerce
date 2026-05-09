@@ -154,15 +154,15 @@ const OrderDetailPage = () => {
       Completed: 'bg-green-100 text-green-800',
       Cancelled: 'bg-red-100 text-red-800'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-neutral-100 text-neutral-800';
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading order details...</p>
+          <p className="mt-4 text-neutral-600">Loading order details...</p>
         </div>
       </div>
     );
@@ -170,7 +170,7 @@ const OrderDetailPage = () => {
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8">
+      <div className="min-h-screen bg-neutral-100 py-8">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
             {error || 'Order not found'}
@@ -187,13 +187,13 @@ const OrderDetailPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-neutral-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => navigate('/my-orders')}
-            className="text-gray-600 hover:text-gray-900 mb-4 flex items-center"
+            className="text-neutral-600 hover:text-neutral-900 mb-4 flex items-center"
           >
             <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -203,7 +203,7 @@ const OrderDetailPage = () => {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold">Order #{order.orderNumber}</h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-neutral-600 mt-1">
                 Placed on {new Date(order.createdDate).toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'long',
@@ -260,7 +260,7 @@ const OrderDetailPage = () => {
           <h2 className="font-semibold text-lg mb-4">Event Details</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-gray-600 text-sm">Event Date</p>
+              <p className="text-neutral-600 text-sm">Event Date</p>
               <p className="font-medium">{new Date(order.eventDate).toLocaleDateString('en-IN', {
                 day: 'numeric',
                 month: 'long',
@@ -268,24 +268,24 @@ const OrderDetailPage = () => {
               })}</p>
             </div>
             <div>
-              <p className="text-gray-600 text-sm">Event Time</p>
+              <p className="text-neutral-600 text-sm">Event Time</p>
               <p className="font-medium">{order.eventTime}</p>
             </div>
             <div>
-              <p className="text-gray-600 text-sm">Event Type</p>
+              <p className="text-neutral-600 text-sm">Event Type</p>
               <p className="font-medium">{order.eventType}</p>
             </div>
             <div>
-              <p className="text-gray-600 text-sm">Guest Count</p>
+              <p className="text-neutral-600 text-sm">Guest Count</p>
               <p className="font-medium">{order.guestCount}</p>
             </div>
             <div className="col-span-2">
-              <p className="text-gray-600 text-sm">Event Location</p>
+              <p className="text-neutral-600 text-sm">Event Location</p>
               <p className="font-medium">{order.eventLocation}</p>
             </div>
             {order.specialInstructions && (
               <div className="col-span-2">
-                <p className="text-gray-600 text-sm">Special Instructions</p>
+                <p className="text-neutral-600 text-sm">Special Instructions</p>
                 <p className="font-medium">{order.specialInstructions}</p>
               </div>
             )}
@@ -297,19 +297,19 @@ const OrderDetailPage = () => {
           <h2 className="font-semibold text-lg mb-4">Contact & Delivery</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-gray-600 text-sm">Contact Person</p>
+              <p className="text-neutral-600 text-sm">Contact Person</p>
               <p className="font-medium">{order.contactPerson}</p>
             </div>
             <div>
-              <p className="text-gray-600 text-sm">Contact Phone</p>
+              <p className="text-neutral-600 text-sm">Contact Phone</p>
               <p className="font-medium">{order.contactPhone}</p>
             </div>
             <div className="col-span-2">
-              <p className="text-gray-600 text-sm">Contact Email</p>
+              <p className="text-neutral-600 text-sm">Contact Email</p>
               <p className="font-medium">{order.contactEmail}</p>
             </div>
             <div className="col-span-2">
-              <p className="text-gray-600 text-sm">Delivery Address</p>
+              <p className="text-neutral-600 text-sm">Delivery Address</p>
               <p className="font-medium">{order.deliveryAddress}</p>
             </div>
           </div>
@@ -324,7 +324,7 @@ const OrderDetailPage = () => {
                 <div key={index} className="flex justify-between border-b pb-3 last:border-b-0">
                   <div>
                     <p className="font-medium">{item.itemName}</p>
-                    <p className="text-sm text-gray-600">{item.itemType} × {item.quantity}</p>
+                    <p className="text-sm text-neutral-600">{item.itemType} × {item.quantity}</p>
                   </div>
                   <p className="font-semibold">₹{item.totalPrice.toFixed(2)}</p>
                 </div>
@@ -355,11 +355,11 @@ const OrderDetailPage = () => {
               <span>Total Amount</span>
               <span className="text-red-500">₹{order.totalAmount.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm text-gray-600 mt-4">
+            <div className="flex justify-between text-sm text-neutral-600 mt-4">
               <span>Payment Method</span>
               <span className="font-medium">{order.paymentMethod}</span>
             </div>
-            <div className="flex justify-between text-sm text-gray-600">
+            <div className="flex justify-between text-sm text-neutral-600">
               <span>Payment Status</span>
               <span className="font-medium">{order.paymentStatus}</span>
             </div>
@@ -378,10 +378,10 @@ const OrderDetailPage = () => {
                   <div>
                     <StarRating rating={existingReview.overallRating} readonly size="lg" showValue />
                     {existingReview.reviewTitle && (
-                      <h3 className="font-semibold text-gray-900 mt-2">{existingReview.reviewTitle}</h3>
+                      <h3 className="font-semibold text-neutral-900 mt-2">{existingReview.reviewTitle}</h3>
                     )}
                   </div>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-neutral-500">
                     {new Date(existingReview.reviewDate).toLocaleDateString('en-IN', {
                       day: 'numeric',
                       month: 'long',
@@ -391,7 +391,7 @@ const OrderDetailPage = () => {
                 </div>
 
                 {existingReview.reviewComment && (
-                  <p className="text-gray-700">{existingReview.reviewComment}</p>
+                  <p className="text-neutral-700">{existingReview.reviewComment}</p>
                 )}
 
                 {/* Detailed Ratings */}
@@ -454,10 +454,10 @@ const OrderDetailPage = () => {
 
                 {/* Owner Reply */}
                 {existingReview.ownerReply && (
-                  <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-red-500">
-                    <p className="text-sm font-semibold text-gray-900 mb-1">Response from {order.cateringName}</p>
-                    <p className="text-gray-700 text-sm">{existingReview.ownerReply}</p>
-                    <p className="text-xs text-gray-500 mt-2">
+                  <div className="bg-neutral-50 p-4 rounded-lg border-l-4 border-red-500">
+                    <p className="text-sm font-semibold text-neutral-900 mb-1">Response from {order.cateringName}</p>
+                    <p className="text-neutral-700 text-sm">{existingReview.ownerReply}</p>
+                    <p className="text-xs text-neutral-500 mt-2">
                       {new Date(existingReview.ownerReplyDate).toLocaleDateString('en-IN')}
                     </p>
                   </div>
@@ -466,7 +466,7 @@ const OrderDetailPage = () => {
             ) : canReview ? (
               // Show review button
               <div className="text-center py-4">
-                <p className="text-gray-600 mb-4">
+                <p className="text-neutral-600 mb-4">
                   Your order has been completed! Share your experience with {order.cateringName}
                 </p>
                 <button
@@ -480,7 +480,7 @@ const OrderDetailPage = () => {
                 </button>
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">
+              <p className="text-neutral-500 text-center py-4">
                 Reviews can only be submitted for completed orders
               </p>
             )}
@@ -496,7 +496,7 @@ const OrderDetailPage = () => {
             >
               Cancel Order
             </button>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-sm text-neutral-600 mt-2">
               You can cancel this order within 2 hours of placement
             </p>
           </div>
@@ -513,7 +513,7 @@ const OrderDetailPage = () => {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-lg mb-1">Have an Issue with Your Order?</h3>
-                <p className="text-gray-600 text-sm mb-4">
+                <p className="text-neutral-600 text-sm mb-4">
                   If you experienced any problems with the food quality, service, or delivery,
                   you can file a complaint. We take your concerns seriously and will review them promptly.
                 </p>
@@ -526,7 +526,7 @@ const OrderDetailPage = () => {
                   </svg>
                   File a Complaint
                 </button>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-neutral-500 mt-2">
                   Complaints must be filed within 7 days of the event date
                 </p>
               </div>
@@ -540,7 +540,7 @@ const OrderDetailPage = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h2 className="text-2xl font-bold mb-4">Cancel Order</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-neutral-600 mb-4">
               Please provide a reason for cancellation:
             </p>
             <textarea
@@ -548,13 +548,13 @@ const OrderDetailPage = () => {
               onChange={(e) => setCancelReason(e.target.value)}
               placeholder="e.g., Change of plans, Found better option, etc."
               rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent mb-4"
+              className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent mb-4"
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCancelModal(false)}
                 disabled={isCancelling}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-6 py-3 border border-neutral-300 text-neutral-700 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50"
               >
                 Keep Order
               </button>

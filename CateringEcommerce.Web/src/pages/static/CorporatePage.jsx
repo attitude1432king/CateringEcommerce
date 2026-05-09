@@ -74,11 +74,11 @@ export default function CorporatePage() {
     return (
         <div className="min-h-screen bg-white">
             {/* Breadcrumb */}
-            <div className="bg-gray-50 border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-gray-500">
-                    <Link to="/" className="hover:text-gray-700">Home</Link>
+            <div className="bg-neutral-50 border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-neutral-500">
+                    <Link to="/" className="hover:text-neutral-700">Home</Link>
                     <span className="mx-2">/</span>
-                    <span className="text-gray-700 font-medium">Corporate Catering</span>
+                    <span className="text-neutral-700 font-medium">Corporate Catering</span>
                 </div>
             </div>
 
@@ -89,10 +89,10 @@ export default function CorporatePage() {
                         <span className="inline-block text-sm font-semibold text-catering-primary bg-orange-50 border border-orange-200 px-3 py-1 rounded-full mb-4">
                             Corporate Services
                         </span>
-                        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
+                        <h1 className="text-4xl md:text-5xl font-bold text-neutral-900 leading-tight">
                             Premium Catering for <span className="text-catering-primary">Corporate Events</span>
                         </h1>
-                        <p className="mt-4 text-lg text-gray-600 leading-relaxed">
+                        <p className="mt-4 text-lg text-neutral-600 leading-relaxed">
                             Impress clients, reward your team, and run seamless events with verified catering partners who understand corporate standards — quality, punctuality, and presentation.
                         </p>
                         <div className="mt-8 flex flex-col sm:flex-row gap-4">
@@ -107,7 +107,7 @@ export default function CorporatePage() {
                             </Link>
                             <Link
                                 to="/contact-us"
-                                className="inline-flex items-center justify-center gap-2 px-8 py-3 text-base font-semibold border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                className="inline-flex items-center justify-center gap-2 px-8 py-3 text-base font-semibold border border-neutral-300 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
                             >
                                 Talk to Us
                             </Link>
@@ -119,8 +119,8 @@ export default function CorporatePage() {
             {/* Features */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 <div className="text-center mb-12">
-                    <h2 className="text-3xl font-bold text-gray-900">Everything Your Corporate Event Needs</h2>
-                    <p className="mt-3 text-gray-500 max-w-xl mx-auto">
+                    <h2 className="text-3xl font-bold text-neutral-900">Everything Your Corporate Event Needs</h2>
+                    <p className="mt-3 text-neutral-500 max-w-xl mx-auto">
                         Purpose-built features for businesses and event organizers.
                     </p>
                 </div>
@@ -131,24 +131,24 @@ export default function CorporatePage() {
                             <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mb-4">
                                 {feature.icon}
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                            <p className="text-sm text-gray-500 leading-relaxed">{feature.description}</p>
+                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">{feature.title}</h3>
+                            <p className="text-sm text-neutral-500 leading-relaxed">{feature.description}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
             {/* Use Cases */}
-            <div className="bg-gray-50 py-16">
+            <div className="bg-neutral-50 py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-10">
-                        <h2 className="text-3xl font-bold text-gray-900">Trusted for All Corporate Occasions</h2>
+                        <h2 className="text-3xl font-bold text-neutral-900">Trusted for All Corporate Occasions</h2>
                     </div>
                     <div className="flex flex-wrap justify-center gap-3">
                         {useCases.map((uc) => (
                             <span
                                 key={uc}
-                                className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 shadow-sm"
+                                className="px-4 py-2 bg-white border border-neutral-200 rounded-full text-sm font-medium text-neutral-700 shadow-sm"
                             >
                                 {uc}
                             </span>
@@ -166,7 +166,7 @@ export default function CorporatePage() {
                     </p>
                     <Link
                         to="/caterings"
-                        className="inline-flex items-center justify-center gap-2 bg-white text-catering-primary font-semibold px-8 py-3 rounded-xl hover:bg-orange-50 transition-colors"
+                        className="inline-flex items-center justify-center gap-2 bg-white text-catering-primary font-semibold px-8 py-3 rounded-xl hover:bg-primary/5 transition-colors"
                     >
                         Browse Caterers
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
